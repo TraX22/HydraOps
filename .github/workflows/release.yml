@@ -1,0 +1,61 @@
+# Compila y publica el instalador de Windows al empujar un tag de versión.
+#
+# Cómo sacar una release:
+#   1. Sube la versión en apps/desktop/package.json (p. ej. 0.1.1).
+#   2. git commit + git tag v0.1.1 && git push origin main --tags
+#   El tag DEBE coincidir con esa versión: electron-updater compara la versión
+#   instalada con la del latest.yml que se sube aquí.
+#
+# El instalador va sin firmar todavía (SmartScreen avisará en la primera
+# instalación); la actualización automática funciona igual, por hash. La firma
+# con SignPath es un paso posterior.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # crear la Release y subirle los archivos
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4 # lee la versión de packageManager
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Compilar paquetes, interfaz y backend
+        run: |
+          pnpm build
+          pnpm --filter ui build
+          pnpm build:backend
+
+      # El binario de nats-server no vive en el repo; el empaquetado lo espera en
+      # nats/nats-server-v<ver>-windows-amd64/nats-server.exe (ver electron-builder.yml).
+      - name: Descargar nats-server
+        shell: pwsh
+        run: |
+          $ver = "2.10.22"
+          $url = "https://github.com/nats-io/nats-server/releases/download/v$ver/nats-server-v$ver-windows-amd64.zip"
+          Invoke-WebRequest -Uri $url -OutFile nats.zip
+          Expand-Archive nats.zip -DestinationPath nats -Force
+          if (-not (Test-Path "nats/nats-server-v$ver-windows-amd64/nats-server.exe")) {
+            throw "nats-server.exe no quedó donde el empaquetado lo espera"
+          }
+
+      - name: Empaquetar y publicar en la Release
+        working-directory: apps/desktop
+        run: pnpm exec electron-builder --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # lo da GitHub Actions, no hay que crearlo

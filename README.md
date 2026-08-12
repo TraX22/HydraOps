@@ -137,6 +137,25 @@ pnpm desktop:dist    # interface + self-contained backend + NSIS installer
 The result lands in `apps/desktop/release/`. Close the application first: the installer
 cannot overwrite files in use.
 
+### Publishing a release
+
+Pushing a `v*` tag triggers [`.github/workflows/release.yml`](.github/workflows/release.yml):
+a Windows runner builds the installer and uploads it — with the `latest.yml` metadata
+that auto-update relies on — to a GitHub Release. To cut one:
+
+```bash
+# bump the version in apps/desktop/package.json (e.g. 0.1.1), then:
+git commit -am "Release 0.1.1"
+git tag v0.1.1
+git push origin main --tags
+```
+
+The tag must match the version in `apps/desktop/package.json`. Installed desktop apps
+check that Release on startup, download a newer version in the background and offer to
+restart. The installer isn't signed yet, so the **first** install shows a SmartScreen
+warning (auto-updates verify by hash, not signature). Server (headless) deployments don't
+use this — they update with `git pull` (see [Server mode](#server-mode-headless)).
+
 ## Configuration
 
 API keys are set **from the application's Settings view**, not in files. The `.env` only

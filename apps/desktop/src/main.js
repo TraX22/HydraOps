@@ -60,6 +60,7 @@ process.on("unhandledRejection", (reason) => {
 
 const { ServiceSupervisor, REPO_ROOT, SEED_ROOT, UI_ROOT } = require("./services");
 const { ensureDataDir } = require("./data-dir");
+const { initAutoUpdate } = require("./updater");
 
 const UI_DIST = UI_ROOT;
 const APP_ICON = path.join(__dirname, "..", "build", "icon.png");
@@ -308,6 +309,10 @@ async function boot() {
   }
 
   createMainWindow(url);
+
+  // Comprueba actualizaciones en segundo plano (solo empaquetada); si hay una,
+  // la descarga y ofrece reiniciar. No bloquea el arranque.
+  initAutoUpdate(shellLog);
 }
 
 app.whenReady().then(boot);

@@ -138,6 +138,26 @@ pnpm desktop:dist    # interfaz + backend autocontenido + instalador NSIS
 El resultado queda en `apps/desktop/release/`. Cierra la aplicación antes: el instalador
 no puede sobrescribir archivos en uso.
 
+### Publicar una versión
+
+Empujar un tag `v*` dispara [`.github/workflows/release.yml`](.github/workflows/release.yml):
+un runner de Windows compila el instalador y lo sube —con el `latest.yml` del que depende
+la autoactualización— a una Release de GitHub. Para sacar una:
+
+```bash
+# sube la versión en apps/desktop/package.json (p. ej. 0.1.1), y luego:
+git commit -am "Versión 0.1.1"
+git tag v0.1.1
+git push origin main --tags
+```
+
+El tag debe coincidir con la versión de `apps/desktop/package.json`. Las apps de escritorio
+instaladas consultan esa Release al arrancar, descargan la versión nueva en segundo plano y
+ofrecen reiniciar. El instalador aún no está firmado, así que la **primera** instalación
+muestra el aviso de SmartScreen (la autoactualización se verifica por hash, no por firma).
+El modo servidor (headless) no usa esto — se actualiza con `git pull` (ver
+[Modo servidor](#modo-servidor-headless)).
+
 ## Configuración
 
 Las claves de API se ponen **desde la vista Configuración de la aplicación**, no en

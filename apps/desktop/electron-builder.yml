@@ -53,3 +53,14 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: true
   shortcutName: HydraOps
+
+# A dónde publica el instalador y de dónde lee electron-updater las
+# actualizaciones. Con --publish, electron-builder sube el .exe y un latest.yml
+# (con la versión y el SHA512) a la Release del tag; la app instalada compara su
+# versión con ese latest.yml. El instalador NO está firmado todavía: la
+# actualización funciona igual (se verifica por hash, no por firma), pero la
+# primera instalación muestra el aviso de SmartScreen. Firma pendiente.
+publish:
+  provider: github
+  owner: TraX22
+  repo: HydraOps
