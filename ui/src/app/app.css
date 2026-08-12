@@ -10,3 +10,31 @@
   background: var(--bg-app);
   min-width: 0;
 }
+
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--accent-soft);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 13px;
+}
+.update-actions { display: flex; align-items: center; gap: 12px; }
+.update-banner a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+.update-banner a:hover { text-decoration: underline; }
+.update-banner button {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+.update-banner button:hover { color: var(--text-primary); }

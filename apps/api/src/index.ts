@@ -45,7 +45,7 @@ async function fileExists(p: string): Promise<boolean> {
 const env = loadEnv({ ...process.env, SERVICE_NAME: process.env.SERVICE_NAME ?? "api" });
 
 // --- file logging → storage/logs/api.log (served by GET /workers/:id/logs) ---
-import { createWriteStream, mkdirSync, existsSync } from "node:fs";
+import { createWriteStream, mkdirSync, existsSync, readFileSync } from "node:fs";
 try { mkdirSync(logsDir, { recursive: true }); } catch { /* exists */ }
 const apiLogStream = createWriteStream(path.join(logsDir, `${env.SERVICE_NAME}.log`), { flags: "a" });
 for (const level of ["log", "error"] as const) {
@@ -193,6 +193,52 @@ api.post("/logout", (_req, res) => {
 api.get("/auth/status", (req, res) => {
   const state = requestAuthState(req);
   res.json({ enabled: Boolean(authToken), required: state.required, authenticated: state.authenticated });
+});
+
+// La versión instalada: apps/desktop/package.json es la fuente única (la que
+// sube el tag y la que usa electron-updater). Se lee una vez: no cambia
+// mientras el proceso vive; un git pull implica reiniciar.
+const APP_VERSION = (() => {
+  try {
+    return JSON.parse(readFileSync(path.join(appRoot, "apps", "desktop", "package.json"), "utf-8")).version ?? null;
+  } catch { return null; }
+})();
+
+function cmpSemver(a: string, b: string): number {
+  const pa = a.replace(/^v/, "").split(".").map(Number);
+  const pb = b.replace(/^v/, "").split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d) return d > 0 ? 1 : -1;
+  }
+  return 0;
+}
+
+// Última release de GitHub vs la instalada, para avisar en el modo navegador
+// (el escritorio ya usa electron-updater). Cacheado 6 h: la API de GitHub sin
+// token limita a 60 peticiones/hora por IP.
+let versionCache: { at: number; latest: string | null; url: string | null } | null = null;
+const VERSION_TTL_MS = 6 * 60 * 60 * 1000;
+
+api.get("/version", async (_req, res) => {
+  const now = Date.now();
+  if (!versionCache || now - versionCache.at > VERSION_TTL_MS) {
+    try {
+      const r = await fetch("https://api.github.com/repos/TraX22/HydraOps/releases/latest", {
+        headers: { "User-Agent": "HydraOps", Accept: "application/vnd.github+json" },
+        signal: AbortSignal.timeout(5000),
+      });
+      const j = r.ok ? await r.json() as any : null;
+      const tag = j && typeof j.tag_name === "string" ? j.tag_name.replace(/^v/, "") : null;
+      versionCache = { at: now, latest: tag, url: j?.html_url ?? null };
+    } catch {
+      // Sin red o sin releases todavía: no es un error, solo no hay dato.
+      versionCache = { at: now, latest: null, url: null };
+    }
+  }
+  const latest = versionCache.latest;
+  const updateAvailable = Boolean(APP_VERSION && latest && cmpSemver(latest, APP_VERSION) > 0);
+  res.json({ current: APP_VERSION, latest, updateAvailable, url: versionCache.url });
 });
 
 // --- Worker Management Endpoints ---

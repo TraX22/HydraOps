@@ -170,5 +170,9 @@
     "create": "Crear",
     "close": "Cerrar",
     "delete": "Eliminar"
+  },
+  "update": {
+    "available": "Hay una versión nueva ({{version}}) disponible.",
+    "view": "Ver la release"
   }
 }

@@ -3,6 +3,19 @@
     <app-sidebar />
   }
   <main class="main-content">
+    @if (update(); as u) {
+      @if (!isLogin() && !updateDismissed()) {
+        <div class="update-banner">
+          <span>🐙 {{ 'update.available' | translate: { version: u.latest } }}</span>
+          <span class="update-actions">
+            @if (u.url) {
+              <a [href]="u.url" target="_blank" rel="noopener">{{ 'update.view' | translate }}</a>
+            }
+            <button (click)="dismissUpdate()" [title]="'common.close' | translate">✕</button>
+          </span>
+        </div>
+      }
+    }
     <router-outlet />
   </main>
   @if (!isLogin()) {

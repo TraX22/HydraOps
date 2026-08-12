@@ -156,6 +156,13 @@ export interface AuthStatus {
   authenticated: boolean;  // la sesión actual ya lo presenta
 }
 
+export interface VersionInfo {
+  current: string | null;
+  latest: string | null;
+  updateAvailable: boolean;
+  url: string | null;
+}
+
 export interface DocsPage {
   slug: string;
   file: string;
@@ -183,6 +190,11 @@ export class ApiService {
 
   getAuthStatus(): Observable<AuthStatus> {
     return this.http.get<AuthStatus>(`${this.base}/auth/status`);
+  }
+
+  // ── Version ──
+  getVersion(): Observable<VersionInfo> {
+    return this.http.get<VersionInfo>(`${this.base}/version`);
   }
 
   // ── Docs ──
