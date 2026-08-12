@@ -26,5 +26,9 @@
   "dependencies": {
     "zod": "^3.25.0",
     "zod-to-json-schema": "^3.25.2"
+  },
+  "pnpm": {
+    "//": "better-sqlite3 es N-API y trae prebuilds para todas las plataformas: no hay que compilarlo. Sin esto, pnpm ejecuta 'node-gyp rebuild' por su binding.gyp y el CI falla (el runner trae un Visual Studio más nuevo del que node-gyp reconoce).",
+    "neverBuiltDependencies": ["better-sqlite3"]
   }
 }
