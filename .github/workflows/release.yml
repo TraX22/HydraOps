@@ -54,8 +54,19 @@ jobs:
             throw "nats-server.exe no quedó donde el empaquetado lo espera"
           }
 
-      - name: Empaquetar y publicar en la Release
+      # electron-builder solo COMPILA (genera el .exe, su .blockmap y latest.yml).
+      # Publicamos nosotros con gh: si se deja publicar a electron-builder, al
+      # subir los artefactos en paralelo y no existir aún la release, dos hilos
+      # la crean a la vez y salen DOS borradores con los archivos partidos.
+      - name: Empaquetar
         working-directory: apps/desktop
-        run: pnpm exec electron-builder --publish always
+        run: pnpm exec electron-builder --publish never
+
+      # Una sola Release, con los tres archivos que necesita la autoactualización
+      # (.exe + latest.yml + .blockmap). --generate-notes arma el changelog.
+      - name: Publicar la Release
+        shell: pwsh
+        working-directory: apps/desktop/release
+        run: gh release create $env:GITHUB_REF_NAME (Get-Item *-setup.exe, *.blockmap, latest.yml) --title $env:GITHUB_REF_NAME --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # lo da GitHub Actions, no hay que crearlo
