@@ -1,0 +1,56 @@
+# ─── Datos del usuario ────────────────────────────────────────────────────────
+# Nada de esto pertenece al repositorio: se crea al usar la aplicación y en una
+# instalación real vive en %APPDATA%\HydraOps\data (o en HYDRA_DATA_DIR).
+db.sqlite3
+db.sqlite3-journal
+db.sqlite3-wal
+db.sqlite3-shm
+db.sqlite3.bak-*
+users/
+storage/
+.env
+
+# Los agentes son a la vez la semilla que viaja con la aplicación y los datos
+# vivos del usuario en desarrollo (en dev, dataRoot es la raíz del repositorio).
+# No se publica ninguno: una instalación nueva arranca vacía y la interfaz
+# ofrece crear el primero. La carpeta sí tiene que existir — la API hace readdir
+# sobre ella y el empaquetado la copia como semilla.
+/agents/*
+!/agents/.gitkeep
+
+# my_addons/ SÍ se publica: son los add-ons de ejemplo que la app siembra en el
+# primer arranque. Si alguna vez guardas ahí algo privado, exclúyelo aquí.
+
+# ─── Dependencias y artefactos de construcción ────────────────────────────────
+node_modules/
+dist/
+# Solo el build/ de la raíz (los bundles del backend, 82 MB). NO uses "build/" a
+# secas: apps/desktop/build/ guarda los iconos del instalador y hay que publicarlos.
+/build/
+ui/dist/
+apps/desktop/release/
+*.tsbuildinfo
+
+# ─── Binarios de terceros ─────────────────────────────────────────────────────
+# nats-server se descarga aparte (ver README); son 15 MB que no deben viajar en
+# el repositorio. La barra inicial es obligatoria: "nats/" a secas también
+# excluía packages/nats, el envoltorio de JetStream que importan los 8
+# servicios, y el repositorio no compilaba al clonarlo.
+/nats/
+
+# ─── Scripts sueltos de depuración ────────────────────────────────────────────
+# Cuarenta y pico de scripts de usar y tirar, con rutas locales incrustadas.
+# Útiles para trabajar, pero no forman parte del proyecto.
+/test/
+/tmp/
+
+# ─── Logs y temporales ────────────────────────────────────────────────────────
+*.log
+hydraops-crash.log
+.DS_Store
+Thumbs.db
+
+# ─── Herramientas de desarrollo ───────────────────────────────────────────────
+.claude/
+.vscode/
+.idea/

@@ -1,0 +1,28 @@
+.stats-view { padding: 24px; height: 100vh; overflow-y: auto; }
+.stats-view h2 { font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 20px; }
+.stats-view h3 { font-size: 15px; font-weight: 600; color: var(--text-primary); margin: 28px 0 12px; }
+.metrics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+.metric-card {
+  background: var(--bg-surface); border: 1px solid var(--border-color);
+  border-radius: var(--radius-md); padding: 20px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.metric-icon { font-size: 24px; }
+.metric-value { font-size: 28px; font-weight: 700; color: var(--text-primary); }
+.metric-sub { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+.metric-label { font-size: 12px; color: var(--text-secondary); }
+.stats-note { margin-top: 24px; text-align: center; color: var(--text-muted); font-size: 14px; font-style: italic; }
+
+.table-wrap { overflow-x: auto; }
+.agents-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.agents-table th, .agents-table td {
+  padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border-color);
+}
+.agents-table th { color: var(--text-secondary); font-weight: 500; font-size: 12px; }
+.agents-table td { color: var(--text-primary); }
+.agent-cell { display: flex; align-items: center; gap: 8px; text-transform: capitalize; }
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted);
+  flex-shrink: 0;
+}
+.status-dot.online { background: #22c55e; }

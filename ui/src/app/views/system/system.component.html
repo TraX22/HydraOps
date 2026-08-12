@@ -1,0 +1,32 @@
+<div class="system-view">
+  <div class="system-header">
+    <h2>{{ 'system.title' | translate }}</h2>
+    <!-- El botón "Nuevo Worker" está retirado a propósito: volverá con más
+         funciones en una actualización futura (el POST /workers sigue ahí). -->
+  </div>
+
+  <div class="workers-grid">
+    @for (worker of workers(); track worker.id) {
+      <div class="worker-card">
+        <div class="worker-status-dot" [style.background]="statusColor(worker.status)"></div>
+        <div class="worker-info">
+          <span class="worker-name">{{ worker.name }}</span>
+          <span class="worker-id">{{ worker.id }}</span>
+          <span class="worker-type">{{ worker.type }}</span>
+        </div>
+        <span class="worker-badge" [class.online]="worker.status === 'online'">{{ worker.status }}</span>
+        <button class="logs-btn" (click)="viewLogs(worker)">{{ 'system.logs' | translate }}</button>
+      </div>
+    }
+  </div>
+
+  @if (showLogsModal()) {
+    <div class="modal-overlay" (click)="showLogsModal.set(false)">
+      <div class="modal logs-modal" (click)="$event.stopPropagation()">
+        <h3>{{ 'system.logs' | translate }} - {{ selectedWorkerId() }}</h3>
+        <pre class="logs-content">{{ logs() || 'No logs available' }}</pre>
+        <button class="cancel-btn" (click)="showLogsModal.set(false)">{{ 'common.close' | translate }}</button>
+      </div>
+    </div>
+  }
+</div>

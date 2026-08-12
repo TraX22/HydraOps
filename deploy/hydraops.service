@@ -1,0 +1,63 @@
+# hydraops.service — HydraOps como servicio de systemd (modo headless).
+#
+# Da por hecho un clon del repositorio ya preparado COMO EL USUARIO DEL
+# SERVICIO (pnpm install, pnpm build, pnpm --filter ui build, .env con
+# HYDRA_HOST y HYDRA_AUTH_TOKEN) y el binario nats-server accesible
+# (en el PATH del sistema o vía NATS_SERVER_BIN, abajo).
+#
+# Instalación — ajusta antes User=, WorkingDirectory=, ExecStart= y
+# ReadWritePaths= a tu usuario y a la ruta de tu clon:
+#
+#   sudo cp deploy/hydraops.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now hydraops
+#
+# Logs:    journalctl -u hydraops -f     (cada línea sale con su [servicio])
+# Estado:  systemctl status hydraops
+# Parar:   sudo systemctl stop hydraops  (SIGTERM → la pila entera para limpia)
+
+[Unit]
+Description=HydraOps — pila multiagente (NATS, key-proxy, API y workers)
+Documentation=https://github.com/TraX22/HydraOps
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=exec
+# El usuario dueño de la pila. Sus claves de API viven en
+# ~/.config/hydraops/keys.json — las gestiona el key-proxy, no este archivo.
+User=hydraops
+Group=hydraops
+
+# La raíz del clon.
+WorkingDirectory=/home/hydraops/HydraOps
+# La ruta de node la dice `which node`; la del script debe ser absoluta.
+ExecStart=/usr/bin/node /home/hydraops/HydraOps/tools/serve.mjs
+
+# Si nats-server no está en el PATH que ve systemd (/usr/bin, /usr/local/bin):
+#Environment=NATS_SERVER_BIN=/usr/local/bin/nats-server
+
+# serve.mjs para la pila entera al recibir SIGTERM; con "mixed", systemd se lo
+# manda solo al proceso principal (el apagado ordenado hace el resto) y remata
+# con SIGKILL a lo que siga vivo pasado el timeout.
+KillMode=mixed
+TimeoutStopSec=30
+
+# serve sale con error si NATS, el key-proxy o la API no arrancan; un apagado
+# limpio (systemctl stop) no se reintenta.
+Restart=on-failure
+RestartSec=5
+
+# Endurecimiento: sistema de archivos de solo lectura salvo lo que la pila
+# escribe de verdad — el clon (BD, storage/, logs, nats/jetstream) y el
+# almacén de claves del usuario. Si mueves los datos con HYDRA_DATA_DIR,
+# añade esa ruta aquí.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/hydraops/HydraOps
+ReadWritePaths=/home/hydraops/.config/hydraops
+
+[Install]
+WantedBy=multi-user.target

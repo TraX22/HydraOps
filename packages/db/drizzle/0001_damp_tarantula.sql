@@ -1,0 +1,1 @@
+ALTER TABLE `agent_configs` ADD `resolution` text DEFAULT 'auto';

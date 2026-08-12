@@ -1,0 +1,30 @@
+{
+  "name": "hydraops",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "dev": "pnpm build && pnpm -r --parallel --filter \"./apps/*\" --filter \"hydraops-ui\" dev",
+    "build": "pnpm -r --filter \"./packages/*\" build",
+    "start": "pnpm -r --parallel --filter \"./apps/*\" start",
+    "serve": "node tools/serve.mjs",
+    "desktop": "pnpm --filter ui build && pnpm --filter @hydraops/desktop start",
+    "desktop:quick": "pnpm --filter @hydraops/desktop start",
+    "build:backend": "node tools/build-backend.mjs",
+    "desktop:dist": "pnpm --filter ui build && pnpm build:backend && pnpm --filter @hydraops/desktop run dist",
+    "desktop:pack": "pnpm --filter ui build && pnpm build:backend && pnpm --filter @hydraops/desktop run pack",
+    "db:generate": "pnpm --filter @hydraops/db db:generate",
+    "db:migrate": "pnpm --filter @hydraops/db db:migrate"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "drizzle-orm": "^0.45.2",
+    "playwright": "^1.62.1",
+    "tsup": "^8.5.0",
+    "tsx": "^4.21.0"
+  },
+  "dependencies": {
+    "zod": "^3.25.0",
+    "zod-to-json-schema": "^3.25.2"
+  }
+}

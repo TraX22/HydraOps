@@ -1,0 +1,55 @@
+# Empaquetado del shell de escritorio.
+#
+# El instalador es autocontenido: no hace falta Node, ni pnpm, ni el repositorio.
+# Los servicios se ejecutan con el Node que trae Electron
+# (ELECTRON_RUN_AS_NODE) sobre los bundles de resources/backend, construidos
+# antes por `pnpm build:backend`.
+#
+# Construir con: pnpm desktop:dist   (desde la raíz del repositorio)
+#
+# Reparto dentro de resources/:
+#   backend/  bundles de los 8 servicios + migraciones + los módulos nativos
+#   ui/       interfaz de Angular compilada
+#   nats/     nats-server.exe
+#   seed/     agentes y add-ons de ejemplo, se copian al directorio de datos
+#             del usuario en el primer arranque
+appId: com.hydraops.desktop
+productName: HydraOps
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - src/**/*
+  - build/icon.png
+  - package.json
+
+extraResources:
+  - from: ../../build/backend
+    to: backend
+  # node_modules va aparte a propósito: electron-builder lo descarta siempre que
+  # aparece DENTRO de un extraResources, y ahí están los módulos nativos
+  # (better-sqlite3, sharp) que los bundles cargan de disco. Apuntando la copia
+  # directamente a esa carpeta sí entra.
+  - from: ../../build/backend/node_modules
+    to: backend/node_modules
+  - from: ../../ui/dist/ui/browser
+    to: ui
+  - from: ../../nats/nats-server-v2.10.22-windows-amd64/nats-server.exe
+    to: nats/nats-server.exe
+  - from: ../../agents
+    to: seed/agents
+  - from: ../../my_addons
+    to: seed/my_addons
+
+win:
+  icon: build/icon.ico
+  target:
+    - nsis
+  artifactName: ${productName}-${version}-setup.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: HydraOps

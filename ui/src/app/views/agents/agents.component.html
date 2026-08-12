@@ -1,0 +1,233 @@
+<div class="agents-view">
+  <div class="agents-list-panel">
+    <div class="panel-header">
+      <h2>{{ 'agents.title' | translate }}</h2>
+      <button class="new-agent-btn" (click)="openCreateAgent()" [title]="'agents.newAgent' | translate">＋</button>
+    </div>
+    <div class="agents-list">
+      @if (agentsService.loaded() && agentsService.agents().length === 0) {
+        <div class="list-empty">
+          <span class="list-empty-icon">🤖</span>
+          <p class="list-empty-title">{{ 'agents.emptyTitle' | translate }}</p>
+          <p class="list-empty-hint">{{ 'agents.emptyHint' | translate }}</p>
+          <button class="btn-primary" (click)="openCreateAgent()">
+            ＋ {{ 'agents.newAgent' | translate }}
+          </button>
+        </div>
+      }
+      @for (agent of agentsService.agents(); track agent.id) {
+        <div class="agent-card" [class.selected]="selectedAgent()?.id === agent.id" (click)="selectAgent(agent)">
+          <div class="agent-avatar">
+            @if (agent.avatarUrl) {
+              <img [src]="agent.avatarUrl" [alt]="agent.name" />
+            } @else {
+              <span>{{ agent.name[0] }}</span>
+            }
+            <span class="status-dot" [style.background]="statusColor(agent.status)"></span>
+          </div>
+          <div class="agent-info">
+            <span class="name">{{ agent.name }}</span>
+            <span class="type">{{ agent.workerType ?? 'coder' }}</span>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <div class="agent-detail">
+    @if (selectedAgent(); as agent) {
+      <div class="detail-header">
+        <div class="detail-avatar" (click)="openFilePicker()" [title]="'agents.changeAvatar' | translate">
+          @if (agent.avatarUrl) {
+            <img [src]="agent.avatarUrl" [alt]="agent.name" />
+          } @else {
+            <span>{{ agent.name[0] }}</span>
+          }
+          <div class="avatar-edit-overlay">
+            @if (uploading()) {
+              <span class="avatar-spinner">⏳</span>
+            } @else {
+              <span class="avatar-pencil">✏️</span>
+            }
+          </div>
+        </div>
+        <input #fileInput type="file" accept="image/png,image/jpeg,image/webp"
+               style="display: none" (change)="onFileSelected($event)" />
+        <div>
+          <div class="detail-name-row">
+            <h3>{{ agent.name }}</h3>
+            <!-- Vuelta al chat: con el panel de agentes minimizado no había
+                 ninguna otra forma de salir de aquí hacia la conversación. -->
+            <button class="chat-jump-btn" (click)="openChat(agent)"
+                    [title]="'agents.openChat' | translate">💬</button>
+          </div>
+          <span class="detail-status" [style.color]="statusColor(agent.status)">{{ agent.status }}</span>
+          @if (uploadError()) {
+            <span class="upload-error">{{ uploadError() }}</span>
+          }
+          @if (configSaved()) {
+            <span class="config-saved">✅ {{ 'common.saved' | translate }}</span>
+          }
+        </div>
+      </div>
+
+      <div class="detail-fields">
+        <!-- Model (dropdown with all available models) -->
+        <div class="detail-field">
+          <label>Model</label>
+          <select class="field-select" [ngModel]="currentModel"
+                  (ngModelChange)="onModelChange($event)">
+            @if (defaultModel()) {
+              <option [value]="defaultModel()">⭐ {{ defaultModel() }} ({{ 'agents.defaultModel' | translate }})</option>
+            }
+            @for (model of models(); track model.id) {
+              @if (model.id !== defaultModel()) {
+                <option [value]="model.id">{{ model.name }}</option>
+              }
+            }
+          </select>
+        </div>
+
+        <!-- ID (editable) -->
+        <div class="detail-field">
+          <label>ID</label>
+          @if (editingName()) {
+            <div class="rename-row">
+              <input class="rename-input" [ngModel]="nameInput()" (ngModelChange)="nameInput.set($event)"
+                     (keydown.enter)="confirmRename()" (keydown.escape)="cancelRename()" autofocus />
+              <button class="icon-btn confirm" (click)="confirmRename()" title="OK">✔</button>
+              <button class="icon-btn cancel" (click)="cancelRename()" title="Cancel">✕</button>
+            </div>
+            @if (renameError()) {
+              <span class="upload-error">{{ renameError() }}</span>
+            }
+          } @else {
+            <div class="value-row">
+              <span>{{ agent.id }}</span>
+              <button class="icon-btn" (click)="startRename()" [title]="'agents.rename' | translate">✏️</button>
+            </div>
+          }
+        </div>
+
+        <!-- Worker (dropdown) -->
+        <div class="detail-field">
+          <label>Worker</label>
+          <select class="field-select" [ngModel]="agent.workerType ?? 'coder'"
+                  (ngModelChange)="onWorkerChange($event)">
+            @for (wt of workerTypes; track wt) {
+              <option [value]="wt">{{ wt }}</option>
+            }
+          </select>
+          <label class="field-sublabel">Tipo</label>
+          <select class="field-select" [ngModel]="engine()"
+                  (ngModelChange)="onEngineChange($event)">
+            <option value="auto">⚙️ {{ 'agents.autoEngine' | translate }}</option>
+            @for (m of engineModels; track m.id) {
+              <option [value]="m.id">{{ m.emoji ? m.emoji + ' ' : '' }}{{ m.name }}</option>
+            }
+          </select>
+          <label class="field-sublabel" [class.disabled]="resolutionDisabled">{{ 'agents.resolution' | translate }}</label>
+          <select class="field-select" [ngModel]="resolution()" [disabled]="resolutionDisabled"
+                  (ngModelChange)="onResolutionChange($event)"
+                  [title]="resolutionDisabled ? ('agents.resolutionHint' | translate) : ''">
+            @for (r of resolutions; track r) {
+              <option [value]="r">{{ r === 'auto' ? ('agents.autoResolution' | translate) : r }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Personality / config files -->
+        <div class="detail-field">
+          <label>{{ 'agents.files' | translate }}</label>
+          <div class="files-grid">
+            @for (file of agentFiles(); track file) {
+              <div class="file-card">
+                <span class="file-emoji">{{ fileEmoji(file) }}</span>
+                <div class="file-card-info">
+                  <span class="file-type">{{ fileType(file) }}</span>
+                  <span class="file-name">{{ file }}</span>
+                </div>
+                <button class="icon-btn file-edit-btn" (click)="openFile(file)"
+                        [title]="'agents.editFile' | translate">✏️</button>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Floating file editor -->
+      @if (editingFile(); as filename) {
+        <div class="modal-overlay" (click)="closeFile()">
+          <div class="file-modal" (click)="$event.stopPropagation()">
+            <h3>{{ fileEmoji(filename) }} {{ filename }}</h3>
+            @if (fileLoading()) {
+              <p class="file-loading">…</p>
+            } @else {
+              <textarea class="file-textarea" spellcheck="false"
+                        [ngModel]="fileContent()"
+                        (ngModelChange)="fileContent.set($event)"></textarea>
+            }
+            @if (fileError()) {
+              <p class="file-error">⚠ {{ 'agents.fileError' | translate }}</p>
+            }
+            <div class="modal-actions">
+              <button class="btn-primary" (click)="saveFile()" [disabled]="fileSaving() || fileLoading()">
+                @if (fileSaving()) { {{ 'common.saving' | translate }} }
+                @else if (fileSaved()) { ✅ {{ 'common.saved' | translate }} }
+                @else { {{ 'common.save' | translate }} }
+              </button>
+              <button class="btn-secondary" (click)="closeFile()">{{ 'common.cancel' | translate }}</button>
+            </div>
+          </div>
+        </div>
+      }
+    } @else {
+      <div class="empty-detail">
+        <p>{{ 'agents.selectAgent' | translate }}</p>
+      </div>
+    }
+  </div>
+
+  <!-- Create agent modal -->
+  @if (creatingAgent()) {
+    <div class="modal-overlay" (click)="closeCreateAgent()">
+      <div class="file-modal create-modal" (click)="$event.stopPropagation()">
+        <h3>🤖 {{ 'agents.newAgent' | translate }}</h3>
+
+        <label class="field-sublabel">{{ 'agents.agentName' | translate }}</label>
+        <input class="rename-input" [ngModel]="newAgentName()" (ngModelChange)="newAgentName.set($event)"
+               [placeholder]="'agents.agentNamePlaceholder' | translate"
+               (keydown.enter)="confirmCreateAgent()" autofocus />
+
+        <label class="field-sublabel">Worker</label>
+        <select class="field-select" [ngModel]="newAgentWorker()" (ngModelChange)="newAgentWorker.set($event)">
+          @for (wt of workerTypes; track wt) {
+            <option [value]="wt">{{ wt }}</option>
+          }
+        </select>
+
+        <label class="field-sublabel">Model</label>
+        <select class="field-select" [ngModel]="newAgentModel()" (ngModelChange)="newAgentModel.set($event)">
+          <option value="">⭐ {{ defaultModel() || ('agents.defaultModel' | translate) }} ({{ 'agents.defaultModel' | translate }})</option>
+          @for (model of models(); track model.id) {
+            @if (model.id !== defaultModel()) {
+              <option [value]="model.id">{{ model.name }}</option>
+            }
+          }
+        </select>
+
+        @if (createError()) {
+          <p class="file-error">⚠ {{ createError() }}</p>
+        }
+        <div class="modal-actions">
+          <button class="btn-primary" (click)="confirmCreateAgent()"
+                  [disabled]="createSaving() || !newAgentName().trim()">
+            @if (createSaving()) { {{ 'common.saving' | translate }} }
+            @else { {{ 'common.create' | translate }} }
+          </button>
+          <button class="btn-secondary" (click)="closeCreateAgent()">{{ 'common.cancel' | translate }}</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

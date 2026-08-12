@@ -1,0 +1,95 @@
+<div class="addons-view">
+  <h2>{{ 'addons.title' | translate }}</h2>
+  <p class="addons-desc">{{ 'addons.description' | translate }}</p>
+
+  <!-- Native addons -->
+  <section class="addons-section">
+    <h3>{{ 'addons.nativeTitle' | translate }}</h3>
+    <div class="addons-grid">
+      @for (addon of nativeAddons(); track addon.name) {
+        <div class="addon-card">
+          <div class="addon-info">
+            <span class="addon-name">
+              {{ addon.name }}
+              @if (addon.source === 'my_addons') {
+                <span class="addon-badge">{{ 'addons.custom' | translate }}</span>
+              }
+            </span>
+            <span class="addon-type">{{ addon.description }}</span>
+          </div>
+          <button class="toggle-btn" [class.on]="addon.enabled" (click)="toggleNative(addon)">
+            {{ addon.enabled ? 'ON' : 'OFF' }}
+          </button>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- MCP servers -->
+  <section class="addons-section">
+    <div class="section-header">
+      <h3>{{ 'addons.mcpTitle' | translate }}</h3>
+      @if (mcpStatus(); as st) {
+        <span class="mcp-summary">
+          {{ st.summary.connected }}/{{ st.summary.total }} {{ 'addons.connected' | translate }}
+        </span>
+      }
+      <button class="json-btn" (click)="openJsonEditor()">{{ 'addons.editJson' | translate }}</button>
+      @if (jsonSaved()) {
+        <span class="saved-msg">✓ {{ 'common.saved' | translate }}</span>
+      }
+    </div>
+
+    @if (editingJson()) {
+      <div class="json-editor">
+        <textarea
+          class="json-textarea"
+          [ngModel]="jsonText()"
+          (ngModelChange)="jsonText.set($event)"
+          rows="14"
+          spellcheck="false"
+        ></textarea>
+        @if (jsonError() === 'invalid') {
+          <p class="json-error">{{ 'addons.jsonInvalid' | translate }}</p>
+        } @else if (jsonError() === 'structure') {
+          <p class="json-error">{{ 'addons.jsonStructure' | translate }}</p>
+        }
+        <div class="json-actions">
+          <button class="btn-primary" (click)="saveJson()">{{ 'common.save' | translate }}</button>
+          <button class="btn-secondary" (click)="cancelJson()">{{ 'common.cancel' | translate }}</button>
+        </div>
+      </div>
+    }
+
+    <div class="addons-grid">
+      @if (mcpStatus(); as st) {
+        @for (server of st.servers; track server.name) {
+          <div class="addon-card" [class.dimmed]="server.state === 'off'">
+            <span class="state-dot" [style.background]="stateColor(server.state)"></span>
+            <div class="addon-info">
+              <span class="addon-name">{{ server.name }}</span>
+              <span class="addon-type">
+                {{ 'addons.state.' + server.state | translate }}
+                @if (server.toolCount > 0) {
+                  · {{ server.toolCount }} tools
+                }
+                @if (server.transport !== 'unknown') {
+                  · {{ server.transport }}
+                }
+              </span>
+              @if (server.error) {
+                <span class="addon-error">{{ server.error }}</span>
+              }
+            </div>
+            <button class="toggle-btn" [class.on]="server.switch === 'on'" (click)="toggleServer(server.name)">
+              {{ server.switch === 'on' ? 'ON' : 'OFF' }}
+            </button>
+          </div>
+        }
+        @if (st.servers.length === 0) {
+          <p class="empty-msg">{{ 'addons.noMcp' | translate }}</p>
+        }
+      }
+    </div>
+  </section>
+</div>

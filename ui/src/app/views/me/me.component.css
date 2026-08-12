@@ -1,0 +1,63 @@
+.me-view { padding: 24px 32px; height: 100vh; overflow-y: auto; }
+.me-view h2 { font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+.me-subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+
+.profile-card {
+  background: var(--bg-surface); border: 1px solid var(--border-color);
+  border-radius: var(--radius-md); padding: 28px; max-width: 640px;
+}
+
+/* ── Header: avatar + name ── */
+.profile-header { display: flex; align-items: center; gap: 18px; margin-bottom: 24px; }
+.profile-avatar {
+  width: 72px; height: 72px; border-radius: 50%; background: var(--accent-soft);
+  display: flex; align-items: center; justify-content: center;
+  position: relative; cursor: pointer; overflow: hidden; flex-shrink: 0;
+}
+.profile-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.avatar-placeholder { font-size: 32px; }
+.avatar-edit-overlay {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.15s ease; font-size: 20px;
+}
+.profile-avatar:hover .avatar-edit-overlay { opacity: 1; }
+.profile-headline h3 { font-size: 18px; font-weight: 600; color: var(--text-primary); }
+.profile-headline p { font-size: 13px; color: var(--text-secondary); }
+
+/* ── Form ── */
+.profile-form { display: flex; flex-direction: column; gap: 16px; }
+.form-row.two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-field { display: flex; flex-direction: column; gap: 5px; }
+.form-field label {
+  font-size: 11px; font-weight: 500; color: var(--text-muted); text-transform: uppercase;
+}
+.form-field input, .form-field textarea {
+  padding: 9px 12px; border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm); background: var(--bg-input);
+  color: var(--text-primary); font-size: 13.5px; outline: none;
+  font-family: inherit; resize: vertical;
+}
+.form-field input:focus, .form-field textarea:focus { border-color: var(--accent); }
+.field-hint { font-size: 11.5px; color: var(--text-muted); }
+.field-error { font-size: 12px; color: var(--status-error); }
+
+.form-actions { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+.btn-primary {
+  padding: 8px 22px; font-size: 13px; cursor: pointer; border: none;
+  background: var(--accent, #3b82f6); color: white; border-radius: var(--radius-sm);
+}
+.btn-primary:disabled { opacity: 0.6; cursor: default; }
+.btn-logout {
+  margin-left: auto; padding: 8px 16px; font-size: 13px; cursor: pointer;
+  background: transparent; color: var(--status-error);
+  border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+}
+.btn-logout:hover { border-color: var(--status-error); }
+
+.me-loading { color: var(--text-muted); padding: 16px 0; }
+
+@media (max-width: 640px) {
+  .form-row.two-cols { grid-template-columns: 1fr; }
+}

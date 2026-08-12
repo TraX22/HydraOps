@@ -1,0 +1,23 @@
+{
+  "//": "Con `ng serve` la interfaz vive en :4200 y la API en :3000. Este proxy hace que desde el navegador todo cuelgue del mismo origen, igual que en producción, donde es la propia API quien sirve la interfaz. Sin él, las rutas relativas que devuelve la API (/avatars, /storage) buscarían en :4200 y darían 404.",
+  "/api": {
+    "target": "http://127.0.0.1:3000",
+    "secure": false
+  },
+  "/avatars": {
+    "target": "http://127.0.0.1:3000",
+    "secure": false
+  },
+  "/storage": {
+    "target": "http://127.0.0.1:3000",
+    "secure": false
+  },
+  "/img": {
+    "target": "http://127.0.0.1:3000",
+    "secure": false
+  },
+  "/users": {
+    "target": "http://127.0.0.1:3000",
+    "secure": false
+  }
+}

@@ -1,0 +1,57 @@
+<div class="stats-view">
+  <h2>{{ 'stats.title' | translate }}</h2>
+
+  @if (stats(); as s) {
+    <div class="metrics-grid">
+      @for (m of metrics(); track m.labelKey) {
+        <div class="metric-card">
+          <span class="metric-icon">{{ m.icon }}</span>
+          <span class="metric-value">
+            {{ m.value }}
+            @if (m.sub) {
+              <span class="metric-sub">{{ m.sub }}</span>
+            }
+          </span>
+          <span class="metric-label">{{ m.labelKey | translate }}</span>
+        </div>
+      }
+    </div>
+
+    @if (s.perAgent.length > 0) {
+      <h3>{{ 'stats.perAgent' | translate }}</h3>
+      <div class="table-wrap">
+        <table class="agents-table">
+          <thead>
+            <tr>
+              <th>{{ 'stats.agent' | translate }}</th>
+              <th>{{ 'stats.tasks' | translate }}</th>
+              <th>{{ 'stats.completed' | translate }}</th>
+              <th>{{ 'stats.failed' | translate }}</th>
+              <th>{{ 'stats.tokens' | translate }}</th>
+              <th>{{ 'stats.avgTime' | translate }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (a of s.perAgent; track a.agentId) {
+              <tr>
+                <td class="agent-cell">
+                  <span class="status-dot" [class.online]="a.online"></span>
+                  {{ a.agentId }}
+                </td>
+                <td>{{ a.total }}</td>
+                <td>{{ a.completed }}</td>
+                <td>{{ a.failed }}</td>
+                <td>{{ formatCount(a.tokens) }}</td>
+                <td>{{ formatMs(a.avgMs) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  } @else if (statsResource.error()) {
+    <p class="stats-note">{{ 'stats.error' | translate }}</p>
+  } @else {
+    <p class="stats-note">{{ 'stats.loading' | translate }}</p>
+  }
+</div>

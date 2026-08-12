@@ -1,0 +1,164 @@
+<div class="chat-view">
+  <!-- Header + Tabs -->
+  <div class="chat-header">
+    <h2 class="header-title">{{ 'chat.title' | translate }}</h2>
+    <div class="tabs-bar">
+      <button class="tab main-tab" [class.active]="chat.activeTab() === 'main'" (click)="switchTab('main')">
+        <span class="tab-dot main-dot"></span>
+        {{ 'chat.mainChannel' | translate }}
+      </button>
+      @for (tab of chat.tabs(); track trackTab($index, tab)) {
+        <button class="tab" [class.active]="chat.activeTab() === tab.id" (click)="switchTab(tab.id)">
+          <span class="tab-dot"></span>
+          {{ tab.label }}
+          <span class="tab-close" (click)="closeTab(tab.id, $event)">×</span>
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div class="messages-area">
+    <div class="messages">
+      @for (msg of messages; track trackMsg($index, msg)) {
+        <div class="msg-row" [class.user]="msg.role === 'user'" [class.bot]="msg.role === 'assistant'">
+          <!-- Doble clic en el avatar → ficha del agente (camino inverso al 💬 de esa vista) -->
+          <div class="msg-avatar" [class.clickable]="!!agentIdFor(msg)"
+               (dblclick)="openProfile(msg)"
+               [title]="agentIdFor(msg) ? ('chat.editProfile' | translate) : ''">
+            @if (msg.role === 'assistant' && msg.avatarUrl) {
+              <img [src]="msg.avatarUrl" [alt]="msg.agentName" class="avatar-img" />
+            } @else if (msg.role === 'assistant') {
+              <span class="avatar-letter">{{ (msg.agentName ?? 'A')[0] }}</span>
+            } @else {
+              <span class="avatar-letter user-avatar">Y</span>
+            }
+          </div>
+          <div class="msg-content">
+            <div class="msg-meta">
+              <span class="msg-name">{{ msg.role === 'user' ? ('chat.you' | translate) : (msg.agentName ?? 'Agent') }}</span>
+              <span class="msg-time">{{ msg.timestamp | date:'HH:mm' }}</span>
+            </div>
+
+            @if (msg.isTyping) {
+              <div class="typing-indicator">
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+              </div>
+            } @else if (editingMsgId() === msg.id) {
+              <div class="msg-edit">
+                <textarea class="msg-edit-textarea" [(ngModel)]="editingText" rows="3"></textarea>
+                <div class="msg-edit-actions">
+                  <button class="msg-edit-save" (click)="saveEdit(msg)">{{ 'common.save' | translate }}</button>
+                  <button class="msg-edit-cancel" (click)="cancelEdit()">{{ 'common.cancel' | translate }}</button>
+                </div>
+              </div>
+            } @else {
+              @if (displayContent(msg)) {
+                <div class="msg-bubble" [innerHTML]="displayContent(msg) | markdown"></div>
+              }
+
+              @if (msgAttachments(msg); as atts) {
+                @if (atts.length > 0) {
+                  <div class="msg-attachments">
+                    @for (att of atts; track att.url) {
+                      @if (isImage(att.mime)) {
+                        <a class="att-thumb" [href]="att.url" target="_blank" [title]="att.name">
+                          <img [src]="att.url" [alt]="att.name" />
+                        </a>
+                      } @else {
+                        <a class="att-chip" [href]="att.url" target="_blank" [title]="att.name">
+                          <span>{{ fileIcon(att) }}</span>
+                          <span class="att-chip-name">{{ att.name }}</span>
+                        </a>
+                      }
+                    }
+                  </div>
+                }
+              }
+
+              @if (hasImage(msg)) {
+                <div class="image-frame">
+                  <img [src]="getImageUrl(msg)" alt="Generated image" class="result-image"
+                       (click)="openLightbox(msg)" [title]="'chat.imageHint' | translate" />
+                  <button class="image-download-btn" (click)="downloadImage(msg)"
+                          [title]="'chat.downloadImage' | translate">⬇</button>
+                </div>
+              }
+
+              @if (hasVideo(msg)) {
+                <div class="video-frame">
+                  <video [src]="getVideoUrl(msg)" controls preload="metadata" class="result-video"></video>
+                  <button class="image-download-btn" (click)="downloadVideo(msg)"
+                          [title]="'chat.downloadVideo' | translate">⬇</button>
+                </div>
+              }
+
+              <div class="msg-actions">
+                @if (msg.role === 'user') {
+                  <button class="msg-action-btn" (click)="startEdit(msg)" title="Edit">✏️</button>
+                  <button class="msg-action-btn" (click)="deleteMsg(msg)" title="Delete">🗑️</button>
+                }
+                <button class="msg-action-btn" (click)="copyMsg(msg)">
+                  {{ copiedMsgId() === msg.id ? '✅' : '📋' }}
+                </button>
+              </div>
+            }
+          </div>
+        </div>
+      }
+      <div #messagesEnd></div>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div class="input-zone">
+    @if (attachments().length > 0 || uploadingCount() > 0 || attachError()) {
+      <div class="pending-attachments">
+        @for (att of attachments(); track att.path) {
+          <div class="pending-att">
+            @if (isImage(att.mime)) {
+              <img class="pending-att-img" [src]="att.url" [alt]="att.name" />
+            } @else {
+              <span class="pending-att-icon">{{ fileIcon(att) }}</span>
+            }
+            <span class="pending-att-name">{{ att.name }}</span>
+            <button class="pending-att-remove" (click)="removeAttachment(att)" title="Quitar">×</button>
+          </div>
+        }
+        @if (uploadingCount() > 0) {
+          <div class="pending-att uploading">⏳ {{ 'chat.uploading' | translate }}</div>
+        }
+        @if (attachError()) {
+          <span class="attach-error">⚠ {{ attachError() }}</span>
+        }
+      </div>
+    }
+    <textarea
+      class="input-field"
+      [placeholder]="'chat.placeholder' | translate"
+      [(ngModel)]="inputValue"
+      (keydown)="onKeydown($event)"
+      rows="1"
+    ></textarea>
+    <div class="input-footer">
+      <div class="input-actions">
+        <button class="attach-btn" (click)="openAttachPicker()" [title]="'chat.attach' | translate">📎</button>
+        <input #attachInput type="file" multiple style="display: none" (change)="onAttachSelected($event)" />
+        <span class="input-hint">Enter ↵</span>
+      </div>
+      <button class="send-btn" (click)="send()" [disabled]="chat.sending() || uploadingCount() > 0">
+        {{ chat.sending() ? '...' : '▶' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Lightbox (double-click on an image) -->
+  @if (lightboxUrl(); as url) {
+    <div class="lightbox-backdrop" (click)="closeLightbox()" (keydown.escape)="closeLightbox()" tabindex="0">
+      <img [src]="url" alt="Full size image" class="lightbox-image" (click)="$event.stopPropagation()" />
+      <button class="lightbox-close" (click)="closeLightbox()" title="Cerrar">✕</button>
+    </div>
+  }
+</div>

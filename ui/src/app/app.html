@@ -1,0 +1,15 @@
+<div class="app-shell">
+  @if (!isLogin()) {
+    <app-sidebar />
+  }
+  <main class="main-content">
+    <router-outlet />
+  </main>
+  @if (!isLogin()) {
+    <app-agents-panel
+      (agentClicked)="onAgentClicked($event)"
+      (agentDoubleClicked)="onAgentDoubleClicked($event)"
+      (createAgentRequested)="onCreateAgentRequested()"
+    />
+  }
+</div>

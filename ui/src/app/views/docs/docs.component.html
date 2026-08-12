@@ -1,0 +1,19 @@
+<div class="docs-view">
+  <aside class="docs-index">
+    <h2>{{ 'docs.title' | translate }}</h2>
+    <nav>
+      @for (p of pages(); track p.slug) {
+        <button [class.active]="p.slug === slug()" (click)="open(p.slug)">{{ title(p) }}</button>
+      }
+    </nav>
+  </aside>
+  <main class="doc-main">
+    @if (loading()) {
+      <p class="doc-status">{{ 'docs.loading' | translate }}</p>
+    } @else if (error()) {
+      <p class="doc-status doc-error">{{ 'docs.loadError' | translate }}</p>
+    } @else {
+      <article class="doc-content" [innerHTML]="content() | markdown" (click)="onContentClick($event)"></article>
+    }
+  </main>
+</div>

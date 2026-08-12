@@ -1,0 +1,58 @@
+<aside class="agents-panel" [class.minimized]="minimized()">
+  <div class="agents-header">
+    @if (!minimized()) {
+      <h3 class="agents-title">{{ 'agents.title' | translate }}</h3>
+      <span class="agents-count">{{ agentsService.agents().length }}</span>
+    }
+    <button class="agents-toggle-btn" (click)="toggleMinimized()">
+      {{ minimized() ? '◀' : '▶' }}
+    </button>
+  </div>
+
+  @if (!minimized()) {
+    <!-- Primer arranque: sin agentes no se puede hacer nada, y una tarea enviada
+         se quedaría en "pending" sin explicación (el orchestrator no encuentra a
+         quién asignarla). Por eso la invitación ocupa todo el panel. -->
+    @if (agentsService.loaded() && agentsService.agents().length === 0) {
+      <div class="agents-empty">
+        <span class="agents-empty-icon">🤖</span>
+        <p class="agents-empty-title">{{ 'agents.emptyTitle' | translate }}</p>
+        <p class="agents-empty-hint">{{ 'agents.emptyHint' | translate }}</p>
+        <button class="agents-empty-btn" (click)="createAgentRequested.emit()">
+          ＋ {{ 'agents.newAgent' | translate }}
+        </button>
+      </div>
+    } @else {
+    <div class="agents-list">
+      @for (agent of agentsService.agents(); track agent.id) {
+        <div class="agent-item" (click)="onAgentClick(agent)" (dblclick)="onAgentDblClick(agent)">
+          <div class="agent-avatar">
+            @if (agent.avatarUrl) {
+              <img [src]="agent.avatarUrl" [alt]="agent.name" class="avatar-img" />
+            } @else {
+              <span class="avatar-letter">{{ agent.name[0] }}</span>
+            }
+            <span class="agent-status-dot" [style.background]="statusColor(agent.status)"></span>
+          </div>
+          <div class="agent-info">
+            <span class="agent-name">{{ agent.name }}</span>
+            <span class="agent-role">{{ agent.workerType ?? 'coder' }}</span>
+          </div>
+          @if (agent.unreadCount) {
+            <span class="agent-badge">{{ agent.unreadCount }}</span>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="agents-legend">
+      <span class="legend-title">{{ 'agents.status' | translate }}</span>
+      <div class="legend-items">
+        <span class="legend-item"><span class="legend-dot online"></span> Online</span>
+        <span class="legend-item"><span class="legend-dot working"></span> Working</span>
+        <span class="legend-item"><span class="legend-dot offline"></span> Offline</span>
+      </div>
+    </div>
+    }
+  }
+</aside>

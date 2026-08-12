@@ -1,0 +1,28 @@
+<div class="login-view">
+  <div class="login-card">
+    <div class="login-logo">🐙</div>
+    <h1>HydraOps</h1>
+    <p class="login-subtitle">{{ 'login.subtitle' | translate }}</p>
+
+    <form (ngSubmit)="submit()">
+      <input
+        type="password"
+        name="token"
+        autocomplete="current-password"
+        [ngModel]="token()"
+        (ngModelChange)="token.set($event)"
+        [placeholder]="'login.placeholder' | translate"
+        autofocus
+      />
+      <button type="submit" class="btn-primary" [disabled]="submitting() || !token().trim()">
+        @if (submitting()) { … } @else { {{ 'login.submit' | translate }} }
+      </button>
+    </form>
+
+    @if (errorKey()) {
+      <p class="login-error">⚠ {{ errorKey() | translate }}</p>
+    }
+
+    <p class="login-hint">{{ 'login.hint' | translate }}</p>
+  </div>
+</div>

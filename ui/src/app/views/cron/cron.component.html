@@ -1,0 +1,108 @@
+<div class="cron-view">
+  <div class="cron-header">
+    <h2>{{ 'cron.title' | translate }}</h2>
+    <button class="add-btn" (click)="showForm.set(!showForm())">
+      {{ showForm() ? '✕' : '+ ' + ('cron.new' | translate) }}
+    </button>
+  </div>
+
+  <!-- Create form -->
+  @if (showForm()) {
+    <div class="cron-form animate-fade-in">
+      <div class="form-grid">
+        <div class="field">
+          <label>{{ 'cron.name' | translate }}</label>
+          <input [(ngModel)]="name" [placeholder]="'cron.namePlaceholder' | translate" />
+        </div>
+        <div class="field">
+          <label>{{ 'cron.agent' | translate }}</label>
+          <select [(ngModel)]="assignedAgent">
+            <option value="">{{ 'cron.smartRouting' | translate }}</option>
+            @for (agent of agents(); track agent.id) {
+              <option [value]="agent.id">{{ agent.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="field full-width">
+          <label>{{ 'cron.prompt' | translate }}</label>
+          <textarea [(ngModel)]="taskPrompt" rows="3" [placeholder]="'cron.promptPlaceholder' | translate"></textarea>
+        </div>
+        <div class="field full-width">
+          <label>{{ 'cron.schedule' | translate }}</label>
+          <div class="aliases">
+            @for (alias of aliases; track alias.value) {
+              <button class="alias-btn" [class.active]="cronExpression === alias.value"
+                      (click)="cronExpression = alias.value">
+                {{ alias.labelKey | translate }}
+              </button>
+            }
+          </div>
+          <input [(ngModel)]="cronExpression" placeholder="* * * * *" class="cron-input" />
+        </div>
+      </div>
+      <button class="create-btn" (click)="create()">{{ 'cron.create' | translate }}</button>
+    </div>
+  }
+
+  <!-- Cron list -->
+  <div class="cron-grid">
+    @for (cron of crons(); track cron.id) {
+      <div class="cron-card" [class.paused]="cron.status === 'paused'">
+        <div class="cron-card-header">
+          <span class="cron-name">{{ cron.name }}</span>
+          <span class="cron-status" [class.active]="cron.status === 'active'">
+            {{ 'cron.state.' + cron.status | translate }}
+          </span>
+        </div>
+        <p class="cron-prompt">{{ cron.prompt }}</p>
+        <div class="cron-meta">
+          <span>{{ cron.cronExpression }}</span>
+          <span>{{ cron.assignedAgent || ('cron.smartRouting' | translate) }}</span>
+        </div>
+        <div class="cron-actions">
+          <button (click)="toggle(cron.id)">{{ cron.status === 'active' ? '⏸' : '▶' }}</button>
+          <button (click)="openEdit(cron)">✏️</button>
+          <button (click)="delete(cron)">🗑️</button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Edit modal -->
+  @if (showEditModal()) {
+    <div class="modal-overlay" (click)="showEditModal.set(false)">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <h3>{{ 'cron.edit' | translate }}</h3>
+        <div class="field">
+          <label>{{ 'cron.name' | translate }}</label>
+          <input [value]="editingCron().name ?? ''"
+                 (input)="editingCron.update(c => ({...c, name: $any($event.target).value}))" />
+        </div>
+        <div class="field">
+          <label>{{ 'cron.agent' | translate }}</label>
+          <select [ngModel]="editingCron().assignedAgent ?? ''"
+                  (ngModelChange)="editingCron.update(c => ({...c, assignedAgent: $event || null}))">
+            <option value="">{{ 'cron.smartRouting' | translate }}</option>
+            @for (agent of agents(); track agent.id) {
+              <option [value]="agent.id">{{ agent.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="field">
+          <label>{{ 'cron.prompt' | translate }}</label>
+          <textarea rows="3" [value]="editingCron().prompt ?? ''"
+                    (input)="editingCron.update(c => ({...c, prompt: $any($event.target).value}))"></textarea>
+        </div>
+        <div class="field">
+          <label>{{ 'cron.schedule' | translate }}</label>
+          <input [value]="editingCron().cronExpression ?? ''"
+                 (input)="editingCron.update(c => ({...c, cronExpression: $any($event.target).value}))" />
+        </div>
+        <div class="modal-actions">
+          <button class="save-btn" (click)="saveEdit()">{{ 'common.save' | translate }}</button>
+          <button class="cancel-btn" (click)="showEditModal.set(false)">{{ 'common.cancel' | translate }}</button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

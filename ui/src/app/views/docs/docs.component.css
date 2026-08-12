@@ -1,0 +1,72 @@
+.docs-view { display: flex; height: 100vh; }
+
+.docs-index {
+  width: 240px; flex-shrink: 0; padding: 24px 12px;
+  border-right: 1px solid var(--border-color); overflow-y: auto;
+}
+.docs-index h2 { font-size: 20px; font-weight: 600; color: var(--text-primary); margin: 0 12px 16px; }
+.docs-index nav { display: flex; flex-direction: column; gap: 2px; }
+.docs-index button {
+  text-align: left; font-size: 13px; padding: 7px 12px; border: none; background: none;
+  color: var(--text-secondary); border-radius: var(--radius-sm); cursor: pointer;
+}
+.docs-index button:hover { background: var(--bg-hover); color: var(--text-primary); }
+.docs-index button.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+.doc-main { flex: 1; overflow-y: auto; padding: 28px 36px; }
+.doc-status { color: var(--text-secondary); font-size: 14px; }
+.doc-error { color: var(--status-error); }
+
+/* El HTML del manual llega por innerHTML: sin scoping de Angular. */
+.doc-content { max-width: 760px; margin: 0 auto; color: var(--text-primary); font-size: 14px; line-height: 1.65; }
+:host ::ng-deep .doc-content h1 { font-size: 24px; font-weight: 700; margin: 0 0 16px; }
+:host ::ng-deep .doc-content h2 { font-size: 18px; font-weight: 600; margin: 28px 0 10px; }
+:host ::ng-deep .doc-content h3 { font-size: 15px; font-weight: 600; margin: 20px 0 8px; }
+:host ::ng-deep .doc-content p { margin: 0 0 12px; }
+:host ::ng-deep .doc-content ul, :host ::ng-deep .doc-content ol { margin: 0 0 12px; padding-left: 22px; }
+:host ::ng-deep .doc-content li { margin-bottom: 4px; }
+:host ::ng-deep .doc-content a { color: var(--accent); text-decoration: none; }
+:host ::ng-deep .doc-content a:hover { text-decoration: underline; }
+/* Nada de --bg-code aquí: es oscuro en AMBOS temas (pensado para el chat) y
+   de día dejaba texto oscuro sobre fondo negro. Azul índigo del acento. */
+:host ::ng-deep .doc-content code {
+  background: var(--accent-soft); color: var(--accent);
+  padding: 1px 5px; border-radius: var(--radius-sm);
+  font-size: 12.5px; font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+}
+:host ::ng-deep .doc-content pre {
+  background: var(--accent-soft); border: 1px solid var(--border-color);
+  border-radius: var(--radius-md); padding: 12px 14px; overflow-x: auto; margin: 0 0 14px;
+}
+:host ::ng-deep .doc-content pre code {
+  background: none; color: var(--text-primary); padding: 0; font-size: 12.5px;
+}
+:host ::ng-deep .doc-content table { border-collapse: collapse; margin: 0 0 14px; width: 100%; }
+:host ::ng-deep .doc-content th, :host ::ng-deep .doc-content td {
+  border: 1px solid var(--border-color); padding: 6px 10px; text-align: left; font-size: 13px;
+}
+:host ::ng-deep .doc-content th { background: var(--bg-surface-alt); font-weight: 600; }
+:host ::ng-deep .doc-content blockquote {
+  border-left: 3px solid var(--accent); margin: 0 0 12px; padding: 4px 14px;
+  color: var(--text-secondary); background: var(--bg-surface-alt); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+:host ::ng-deep .doc-content img { max-width: 100%; border-radius: var(--radius-md); }
+:host ::ng-deep .doc-content hr { border: none; border-top: 1px solid var(--border-color); margin: 20px 0; }
+
+/* Prism, en los colores del tema: legible de día y de noche sin tema propio. */
+:host ::ng-deep .doc-content .token.comment { color: var(--text-muted); }
+:host ::ng-deep .doc-content .token.punctuation, :host ::ng-deep .doc-content .token.operator { color: var(--text-secondary); }
+:host ::ng-deep .doc-content .token.keyword, :host ::ng-deep .doc-content .token.builtin,
+:host ::ng-deep .doc-content .token.function { color: var(--accent); }
+:host ::ng-deep .doc-content .token.string, :host ::ng-deep .doc-content .token.number,
+:host ::ng-deep .doc-content .token.boolean, :host ::ng-deep .doc-content .token.property { color: var(--status-working); }
+
+@media (max-width: 760px) {
+  .docs-view { flex-direction: column; }
+  .docs-index {
+    width: auto; border-right: none; border-bottom: 1px solid var(--border-color);
+    padding: 12px; overflow-x: auto;
+  }
+  .docs-index nav { flex-direction: row; }
+  .docs-index button { white-space: nowrap; }
+}

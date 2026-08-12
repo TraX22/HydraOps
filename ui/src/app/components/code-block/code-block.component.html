@@ -1,0 +1,14 @@
+<div class="code-block">
+  <div class="code-header">
+    <div class="window-dots">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <span class="code-lang">{{ language().toUpperCase() }}</span>
+    <button class="copy-btn" (click)="copyCode()">
+      {{ copied() ? '✅ Copied' : '📋 Copy' }}
+    </button>
+  </div>
+  <pre class="code-content"><code>{{ code() }}</code></pre>
+</div>

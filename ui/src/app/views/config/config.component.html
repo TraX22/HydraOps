@@ -1,0 +1,96 @@
+<div class="config-view">
+  <div class="config-header">
+    <h2>{{ 'config.title' | translate }}</h2>
+  </div>
+
+  <div class="config-sections">
+    <!-- API Keys -->
+    <section class="config-section">
+      <h3>{{ 'config.apiKeys' | translate }}</h3>
+      <div class="fields-grid">
+        @for (field of apiKeyFields; track field.key) {
+          <div class="field">
+            <label>{{ field.label }}</label>
+            <input type="password" [value]="$any(config())[field.key] ?? ''"
+                   (input)="updateField(field.key, $any($event.target).value)"
+                   placeholder="sk-..." />
+          </div>
+        }
+      </div>
+    </section>
+
+    <!-- Default Model -->
+    <section class="config-section">
+      <h3>{{ 'config.defaultModel' | translate }}</h3>
+      <select class="model-select"
+              [ngModel]="config().defaultModel ?? ''"
+              (ngModelChange)="updateField('defaultModel', $event)">
+        <option value="">{{ 'config.selectModel' | translate }}</option>
+        @if (missingModel(); as mm) {
+          <option [value]="mm">⚠ {{ mm }} — {{ 'config.modelUnavailable' | translate }}</option>
+        }
+        @for (model of models(); track model.id) {
+          <option [value]="model.id">{{ model.name }}</option>
+        }
+      </select>
+    </section>
+
+    <!-- Language -->
+    <section class="config-section">
+      <h3>{{ 'config.languages' | translate }}</h3>
+      <div class="log-levels">
+        @for (lang of ['es', 'en', 'it', 'fr', 'pt']; track lang) {
+          <button class="level-btn" [class.active]="translate.currentLang() === lang"
+                  (click)="setLang(lang)">
+            {{ lang }}
+          </button>
+        }
+      </div>
+    </section>
+
+    <!-- Local LLM -->
+    <section class="config-section">
+      <h3>{{ 'config.localLlm' | translate }}</h3>
+      <div class="fields-grid">
+        <div class="field">
+          <label>URL</label>
+          <input type="text" [value]="config().localLlmUrl ?? ''"
+                 (input)="updateField('localLlmUrl', $any($event.target).value)"
+                 placeholder="http://127.0.0.1:8080/v1" />
+        </div>
+        <div class="field">
+          <label>Model</label>
+          <input type="text" [value]="config().localLlmModel ?? ''"
+                 (input)="updateField('localLlmModel', $any($event.target).value)" />
+        </div>
+        <div class="field">
+          <label>API Key</label>
+          <input type="password" [value]="config().localLlmKey ?? ''"
+                 (input)="updateField('localLlmKey', $any($event.target).value)" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Log Level -->
+    <section class="config-section">
+      <h3>{{ 'config.logLevel' | translate }}</h3>
+      <div class="log-levels">
+        @for (level of ['error', 'warn', 'info', 'debug']; track level) {
+          <button class="level-btn" [class.active]="config().logLevel === level"
+                  (click)="updateField('logLevel', level)">
+            {{ level }}
+          </button>
+        }
+      </div>
+    </section>
+  </div>
+
+  <!-- Save -->
+  <div class="config-footer">
+    <button class="save-btn" (click)="save()" [disabled]="isSaving()">
+      @if (isSaving()) { {{ 'common.saving' | translate }} }
+      @else if (saveSuccess()) { ✅ {{ 'common.saved' | translate }} }
+      @else { {{ 'common.save' | translate }} }
+    </button>
+  </div>
+</div>

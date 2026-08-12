@@ -1,0 +1,63 @@
+<aside class="sidebar" [class.minimized]="minimized()">
+  <!-- Logo -->
+  <div class="sidebar-logo" (click)="toggleMinimized()">
+    <span class="logo-icon">🐙</span>
+    @if (!minimized()) {
+      <span class="logo-text">HydraOps</span>
+    }
+  </div>
+
+  <!-- Navigation -->
+  <nav class="sidebar-nav">
+    <div class="nav-section">
+      @for (item of mainItems; track item.path) {
+        <a class="nav-item" [routerLink]="item.path" [class.active]="isActive(item.path)"
+           [title]="item.labelKey | translate">
+          <span class="nav-icon">{{ item.icon }}</span>
+          @if (!minimized()) {
+            <span class="nav-label">{{ item.labelKey | translate }}</span>
+          }
+        </a>
+      }
+    </div>
+
+    <div class="nav-divider"></div>
+
+    <div class="nav-section">
+      @for (item of toolItems; track item.path) {
+        <a class="nav-item" [routerLink]="item.path" [class.active]="isActive(item.path)"
+           [title]="item.labelKey | translate">
+          <span class="nav-icon">{{ item.icon }}</span>
+          @if (!minimized()) {
+            <span class="nav-label">{{ item.labelKey | translate }}</span>
+          }
+        </a>
+      }
+    </div>
+
+    <div class="nav-divider"></div>
+
+    <div class="nav-section">
+      @for (item of settingItems; track item.path) {
+        <a class="nav-item" [routerLink]="item.path" [class.active]="isActive(item.path)"
+           [title]="item.labelKey | translate">
+          <span class="nav-icon">{{ item.icon }}</span>
+          @if (!minimized()) {
+            <span class="nav-label">{{ item.labelKey | translate }}</span>
+          }
+        </a>
+      }
+    </div>
+  </nav>
+
+  <!-- Footer -->
+  <div class="sidebar-footer">
+    <button class="theme-toggle" (click)="toggleTheme()" [title]="'theme.toggle' | translate">
+      <div class="toggle-track" [class.light]="theme.theme() === 'light'">
+        <div class="toggle-thumb">
+          {{ theme.theme() === 'dark' ? '🌙' : '☀️' }}
+        </div>
+      </div>
+    </button>
+  </div>
+</aside>

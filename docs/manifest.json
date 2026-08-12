@@ -1,0 +1,16 @@
+{
+  "pages": [
+    { "slug": "introduction", "file": "01-introduction.md", "title": { "es": "¿Qué es HydraOps?", "en": "What is HydraOps?" } },
+    { "slug": "installation", "file": "02-installation.md", "title": { "es": "Instalación", "en": "Installation" } },
+    { "slug": "first-steps", "file": "03-first-steps.md", "title": { "es": "Primeros pasos", "en": "First steps" } },
+    { "slug": "api-keys", "file": "04-api-keys.md", "title": { "es": "Claves de API y modelos", "en": "API keys & models" } },
+    { "slug": "agents", "file": "05-agents.md", "title": { "es": "Agentes", "en": "Agents" } },
+    { "slug": "chat", "file": "06-chat.md", "title": { "es": "El chat", "en": "Chat" } },
+    { "slug": "addons", "file": "07-addons.md", "title": { "es": "Add-ons y MCP", "en": "Add-ons & MCP" } },
+    { "slug": "scheduled-tasks", "file": "08-scheduled-tasks.md", "title": { "es": "Tareas programadas", "en": "Scheduled tasks" } },
+    { "slug": "stats-system", "file": "09-stats-system.md", "title": { "es": "Estadísticas y Sistema", "en": "Statistics & System" } },
+    { "slug": "server-mode", "file": "10-server-mode.md", "title": { "es": "Modo servidor", "en": "Server mode" } },
+    { "slug": "security", "file": "11-security.md", "title": { "es": "Seguridad", "en": "Security" } },
+    { "slug": "troubleshooting", "file": "12-troubleshooting.md", "title": { "es": "Problemas frecuentes", "en": "Troubleshooting" } }
+  ]
+}

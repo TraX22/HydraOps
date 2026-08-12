@@ -1,0 +1,15 @@
+# El repositorio guarda todo con finales de línea LF. Sin esto, un checkout en
+# Windows introduce CRLF en archivos que después se copian tal cual a una imagen
+# de contenedor, y los scripts de shell dejan de arrancar.
+* text=auto eol=lf
+
+# Binarios: que git no intente convertir nada.
+*.png binary
+*.ico binary
+*.jpg binary
+*.webp binary
+*.gguf binary
+*.exe binary
+
+# Los scripts de PowerShell son de Windows y allí se quedan.
+*.ps1 text eol=crlf

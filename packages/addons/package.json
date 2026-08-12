@@ -1,0 +1,26 @@
+{
+  "name": "@hydraops/addons",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --out-dir dist",
+    "dev": "tsup src/index.ts --format esm --out-dir dist --watch"
+  },
+  "dependencies": {
+    "@hydraops/config": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.19.1",
+    "ai": "latest",
+    "cheerio": "^1.2.0",
+    "turndown": "^7.2.4",
+    "undici": "^7.16.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0"
+  },
+  "types": "./src/index.ts"
+}

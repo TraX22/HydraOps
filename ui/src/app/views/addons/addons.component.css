@@ -1,0 +1,65 @@
+.addons-view { padding: 24px; height: 100vh; overflow-y: auto; }
+.addons-view h2 { font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
+.addons-desc { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; }
+
+.addons-section { margin-bottom: 28px; max-width: 680px; }
+.addons-section h3 { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 10px; }
+
+.section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.section-header h3 { margin-bottom: 0; }
+.mcp-summary { font-size: 12px; color: var(--text-secondary); }
+.saved-msg { font-size: 12px; color: var(--status-online); }
+
+.addons-grid { display: flex; flex-direction: column; gap: 8px; }
+.addon-card {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg-surface); border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm); padding: 12px 16px;
+}
+.addon-card.dimmed { opacity: 0.6; }
+.addon-info { flex: 1; min-width: 0; }
+.addon-name { font-size: 14px; font-weight: 500; color: var(--text-primary); display: block; }
+.addon-badge {
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px;
+  background: var(--bg-hover); color: var(--text-secondary);
+  border: 1px solid var(--border-color); border-radius: var(--radius-full);
+  padding: 1px 8px; margin-left: 6px; vertical-align: middle;
+}
+.addon-type { font-size: 11px; color: var(--text-muted); }
+.addon-error {
+  display: block; font-size: 11px; color: #ef4444;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.state-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+.toggle-btn {
+  padding: 4px 16px; border: 1px solid var(--border-color); background: var(--bg-hover);
+  color: var(--text-muted); border-radius: var(--radius-full); cursor: pointer; font-size: 12px; font-weight: 600;
+  flex-shrink: 0;
+}
+.toggle-btn.on { background: var(--status-online); color: white; border-color: var(--status-online); }
+.empty-msg { color: var(--text-muted); font-size: 14px; }
+
+.json-btn {
+  margin-left: auto; padding: 4px 12px; font-size: 12px; cursor: pointer;
+  background: var(--bg-hover); color: var(--text-secondary);
+  border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+}
+.json-editor { margin-bottom: 12px; }
+.json-textarea {
+  width: 100%; font-family: monospace; font-size: 12px; line-height: 1.5;
+  background: var(--bg-surface); color: var(--text-primary);
+  border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+  padding: 10px; resize: vertical;
+}
+.json-error { font-size: 12px; color: #ef4444; margin: 6px 0; }
+.json-actions { display: flex; gap: 8px; margin-top: 8px; }
+.btn-primary {
+  padding: 6px 16px; font-size: 13px; cursor: pointer; border: none;
+  background: var(--accent, #3b82f6); color: white; border-radius: var(--radius-sm);
+}
+.btn-secondary {
+  padding: 6px 16px; font-size: 13px; cursor: pointer;
+  background: var(--bg-hover); color: var(--text-secondary);
+  border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+}

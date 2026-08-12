@@ -1,0 +1,37 @@
+{
+  "name": "@hydraops/llm",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup src/index.ts --format esm --out-dir dist",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "latest",
+    "@ai-sdk/google": "latest",
+    "@ai-sdk/mistral": "^3.0.37",
+    "@ai-sdk/openai": "latest",
+    "@types/cheerio": "^1.0.0",
+    "@types/turndown": "^5.0.6",
+    "ai": "latest",
+    "cheerio": "^1.2.0",
+    "turndown": "^7.2.4",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0"
+  },
+  "types": "./src/index.ts"
+}

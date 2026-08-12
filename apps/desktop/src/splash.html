@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
+    <title>HydraOps</title>
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        color: #e8e8f5;
+        background: radial-gradient(circle at 30% 20%, #2a2a4a 0%, #1b1b2f 60%);
+        user-select: none;
+      }
+      .logo {
+        font-size: 30px;
+        font-weight: 650;
+        letter-spacing: 0.5px;
+        background: linear-gradient(92deg, #a5b4fc, #f0abfc);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .bar {
+        width: 260px;
+        height: 3px;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.12);
+        overflow: hidden;
+      }
+      .bar span {
+        display: block;
+        width: 40%;
+        height: 100%;
+        border-radius: 3px;
+        background: linear-gradient(90deg, #818cf8, #e879f9);
+        animation: slide 1.3s ease-in-out infinite;
+      }
+      @keyframes slide {
+        0%   { transform: translateX(-100%); }
+        100% { transform: translateX(250%); }
+      }
+      #status {
+        font-size: 13px;
+        color: #b9b9d4;
+        min-height: 18px;
+        text-align: center;
+        padding: 0 24px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="logo">HydraOps</div>
+    <div class="bar"><span></span></div>
+    <div id="status">Iniciando…</div>
+    <script>
+      window.splash.onProgress((text) => {
+        document.getElementById("status").textContent = text;
+      });
+    </script>
+  </body>
+</html>

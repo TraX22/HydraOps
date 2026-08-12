@@ -1,0 +1,82 @@
+<div class="me-view">
+  <h2>{{ 'me.title' | translate }}</h2>
+  <p class="me-subtitle">{{ 'me.subtitle' | translate }}</p>
+
+  <div class="profile-card">
+    <div class="profile-header">
+      <div class="profile-avatar" (click)="openFilePicker()" [title]="'me.changePhoto' | translate">
+        @if (profile().avatarUrl) {
+          <img [src]="profile().avatarUrl" alt="avatar" />
+        } @else {
+          <span class="avatar-placeholder">👤</span>
+        }
+        <div class="avatar-edit-overlay">
+          @if (uploading()) { <span>⏳</span> } @else { <span>✏️</span> }
+        </div>
+      </div>
+      <input #fileInput type="file" accept="image/png,image/jpeg,image/webp"
+             style="display: none" (change)="onFileSelected($event)" />
+      <div class="profile-headline">
+        <h3>{{ profile().name || ('me.title' | translate) }}</h3>
+        <p>{{ profile().occupation }}</p>
+        @if (uploadError()) { <span class="field-error">{{ uploadError() }}</span> }
+      </div>
+    </div>
+
+    @if (!loading()) {
+      <div class="profile-form">
+        <div class="form-row two-cols">
+          <div class="form-field">
+            <label>{{ 'me.name' | translate }}</label>
+            <input [ngModel]="profile().name" (ngModelChange)="setField('name', $event)"
+                   [placeholder]="'me.namePlaceholder' | translate" />
+          </div>
+          <div class="form-field">
+            <label>{{ 'me.email' | translate }}</label>
+            <input [ngModel]="profile().email" (ngModelChange)="setField('email', $event)"
+                   placeholder="tu@email.com" type="email" />
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label>{{ 'me.occupation' | translate }}</label>
+          <input [ngModel]="profile().occupation" (ngModelChange)="setField('occupation', $event)"
+                 [placeholder]="'me.occupationPlaceholder' | translate" />
+        </div>
+
+        <div class="form-field">
+          <label>{{ 'me.tools' | translate }}</label>
+          <input [ngModel]="profile().tools" (ngModelChange)="setField('tools', $event)"
+                 [placeholder]="'me.toolsPlaceholder' | translate" />
+        </div>
+
+        <div class="form-field">
+          <label>{{ 'me.interests' | translate }}</label>
+          <input [ngModel]="profile().interests" (ngModelChange)="setField('interests', $event)"
+                 [placeholder]="'me.interestsPlaceholder' | translate" />
+        </div>
+
+        <div class="form-field">
+          <label>{{ 'me.notes' | translate }}</label>
+          <textarea rows="5" [ngModel]="profile().notes" (ngModelChange)="setField('notes', $event)"
+                    [placeholder]="'me.notesPlaceholder' | translate"></textarea>
+          <span class="field-hint">{{ 'me.notesHint' | translate }}</span>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn-primary" (click)="save()" [disabled]="saving()">
+            @if (saving()) { {{ 'common.saving' | translate }} }
+            @else if (saved()) { ✅ {{ 'common.saved' | translate }} }
+            @else { {{ 'common.save' | translate }} }
+          </button>
+          @if (saveError()) { <span class="field-error">⚠ {{ 'me.saveError' | translate }}</span> }
+          @if (canLogout()) {
+            <button class="btn-logout" (click)="logout()">{{ 'me.logout' | translate }}</button>
+          }
+        </div>
+      </div>
+    } @else {
+      <p class="me-loading">…</p>
+    }
+  </div>
+</div>
