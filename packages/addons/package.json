@@ -14,7 +14,7 @@
     "ai": "latest",
     "cheerio": "^1.2.0",
     "turndown": "^7.2.4",
-    "undici": "^7.16.0",
+    "undici": "^7.29.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {
