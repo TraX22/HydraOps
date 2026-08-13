@@ -84,6 +84,19 @@
    el flex la encoge y el sol se sale de ella. */
 .sidebar.minimized .sidebar-footer { padding: 12px 8px; }
 
+.app-version {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-sidebar-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: text;
+}
+/* En el pie el divisor no necesita el margen superior de la navegación. */
+.sidebar-footer .nav-divider { margin: 8px 0; }
+
 .theme-toggle {
   background: none;
   border: none;

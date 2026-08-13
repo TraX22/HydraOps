@@ -198,7 +198,14 @@ api.get("/auth/status", (req, res) => {
 // La versión instalada: apps/desktop/package.json es la fuente única (la que
 // sube el tag y la que usa electron-updater). Se lee una vez: no cambia
 // mientras el proceso vive; un git pull implica reiniciar.
+//
+// El supervisor (escritorio y headless) nos la pasa por HYDRA_APP_VERSION, que
+// es la fuente fiable: en el backend empaquetado no existe apps/desktop/
+// package.json y su lectura daría null. La lectura del archivo queda de reserva
+// para `pnpm dev`, donde appRoot es la raíz del repositorio.
 const APP_VERSION = (() => {
+  const fromEnv = process.env.HYDRA_APP_VERSION?.trim();
+  if (fromEnv) return fromEnv;
   try {
     return JSON.parse(readFileSync(path.join(appRoot, "apps", "desktop", "package.json"), "utf-8")).version ?? null;
   } catch { return null; }

@@ -44,6 +44,19 @@ const REPO_ROOT = process.env.HYDRA_BACKEND_ROOT
     : REPO;
 
 /**
+ * La versión de la aplicación vive en el package.json del escritorio, que se
+ * empaqueta dentro del asar. Leerlo relativo a este archivo funciona en los tres
+ * modos (escritorio empaquetado, headless y desarrollo). Se la pasamos a la API
+ * por env: en el backend desplegado ya no existe apps/desktop/package.json, así
+ * que su lectura directa daría null (y la vista no sabría qué versión corre).
+ */
+const APP_VERSION = (() => {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8")).version || "";
+  } catch { return ""; }
+})();
+
+/**
  * El binario de NATS ya no lleva la ruta (ni la versión) fijada. Orden de
  * búsqueda: NATS_SERVER_BIN explícito → el que viaja empaquetado → cualquier
  * nats-server bajo nats/ en el repositorio (dev en Windows) → el PATH, que es
@@ -285,6 +298,8 @@ class ServiceSupervisor extends EventEmitter {
       // La API sirve la interfaz. Empaquetada vive en resources/ui, que no
       // guarda relación con el árbol del repositorio, así que hay que decírselo.
       HYDRA_UI_DIR: UI_ROOT,
+      // La versión instalada, para que la API la muestre (ver APP_VERSION arriba).
+      HYDRA_APP_VERSION: APP_VERSION,
     };
     if (service.kind === "node") {
       // Convierte el ejecutable de Electron en un Node a secas para el hijo

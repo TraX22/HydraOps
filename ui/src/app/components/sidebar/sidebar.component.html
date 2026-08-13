@@ -52,6 +52,12 @@
 
   <!-- Footer -->
   <div class="sidebar-footer">
+    @if (version()?.current) {
+      <div class="app-version" [title]="'HydraOps v' + version()!.current">
+        v{{ version()!.current }}
+      </div>
+      <div class="nav-divider"></div>
+    }
     <button class="theme-toggle" (click)="toggleTheme()" [title]="'theme.toggle' | translate">
       <div class="toggle-track" [class.light]="theme.theme() === 'light'">
         <div class="toggle-thumb">

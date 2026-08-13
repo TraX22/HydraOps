@@ -1,7 +1,8 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ThemeService } from '../../services/theme.service';
+import { ApiService, VersionInfo } from '../../services/api.service';
 
 interface NavItem {
   path: string;
@@ -17,11 +18,22 @@ interface NavItem {
   templateUrl: './sidebar.component.html',
   styleUrl: './sidebar.component.css',
 })
-export class SidebarComponent {
+export class SidebarComponent implements OnInit {
   theme = inject(ThemeService);
   private router = inject(Router);
+  private api = inject(ApiService);
 
   minimized = signal(localStorage.getItem('hydra_sidebar_mini') === 'true');
+  version = signal<VersionInfo | null>(null);
+
+  ngOnInit(): void {
+    // La versión instalada, para mostrarla en el pie. Sin red no pasa nada:
+    // `current` es local y llega igual; solo `latest` depende de GitHub.
+    this.api.getVersion().subscribe({
+      next: (v) => this.version.set(v),
+      error: () => {},
+    });
+  }
 
   navItems: NavItem[] = [
     { path: '/', icon: '💬', labelKey: 'nav.chat', section: 'main' },
