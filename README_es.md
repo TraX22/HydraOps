@@ -2,6 +2,8 @@
 
 [English](README.md) | **Español**
 
+🌐 **[hydraops.org](https://hydraops.org)** · [Descarga la última versión](https://github.com/TraX22/HydraOps/releases/latest)
+
 Sistema multi-agente de IA con interfaz de chat. Varios agentes, cada uno con su
 personalidad, su modelo y sus herramientas, resuelven tareas en paralelo: escriben código,
 contestan preguntas, generan imágenes y vídeo.

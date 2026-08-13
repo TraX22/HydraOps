@@ -2,6 +2,8 @@
 
 **English** | [Español](README_es.md)
 
+🌐 **[hydraops.org](https://hydraops.org)** · [Download the latest release](https://github.com/TraX22/HydraOps/releases/latest)
+
 Multi-agent AI task system with a chat interface. Several agents, each with its own
 personality, model and tools, work on tasks in parallel: they write code, answer
 questions, generate images and video.
