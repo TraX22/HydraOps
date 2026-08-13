@@ -4,7 +4,7 @@
  * Ciclo de vida: splash → arrancar la pila (services.js) → servir la UI
  * compilada → mostrar la ventana. Al cerrar, para los procesos que lanzamos.
  */
-const { app, BrowserWindow, ipcMain, shell, dialog, Menu } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, dialog, Menu, nativeImage } = require("electron");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -60,7 +60,10 @@ process.on("unhandledRejection", (reason) => {
 
 const { ServiceSupervisor, REPO_ROOT, SEED_ROOT, UI_ROOT } = require("./services");
 const { ensureDataDir } = require("./data-dir");
-const { initAutoUpdate } = require("./updater");
+const { initAutoUpdate, checkForUpdatesNow } = require("./updater");
+
+const GITHUB_URL = "https://github.com/TraX22/HydraOps";
+const WEBSITE_URL = "https://hydraops.org";
 
 const UI_DIST = UI_ROOT;
 const APP_ICON = path.join(__dirname, "..", "build", "icon.png");
@@ -182,11 +185,49 @@ function createMainWindow(url) {
   mainWindow.loadURL(url);
 }
 
+/**
+ * Diálogo "Acerca de": logo, nombre + versión, una descripción breve y los
+ * enlaces a GitHub y a la web (se abren en el navegador del sistema).
+ */
+function showAbout() {
+  const icon = nativeImage.createFromPath(APP_ICON);
+  dialog
+    .showMessageBox(mainWindow ?? undefined, {
+      type: "none",
+      icon: icon.isEmpty() ? undefined : icon,
+      title: "Acerca de HydraOps",
+      message: `HydraOps ${app.getVersion()}`,
+      detail:
+        "Sistema multi-agente de IA con interfaz de chat. Varios agentes, cada uno " +
+        "con su personalidad, su modelo y sus herramientas, resuelven tareas en " +
+        "paralelo: escriben código, contestan preguntas, generan imágenes y vídeo.\n\n" +
+        `Electron ${process.versions.electron} · Node ${process.versions.node}\n` +
+        "Software libre bajo licencia Apache 2.0.",
+      buttons: ["GitHub", "Sitio web", "Cerrar"],
+      defaultId: 2,
+      cancelId: 2,
+      noLink: true,
+    })
+    .then(({ response }) => {
+      if (response === 0) shell.openExternal(GITHUB_URL);
+      else if (response === 1) shell.openExternal(WEBSITE_URL);
+    });
+}
+
 function buildMenu() {
   const template = [
     {
       label: "HydraOps",
       submenu: [
+        {
+          label: "Acerca de HydraOps",
+          click: () => showAbout(),
+        },
+        {
+          label: "Comprobar actualizaciones",
+          click: () => checkForUpdatesNow(),
+        },
+        { type: "separator" },
         {
           label: "Recargar interfaz",
           accelerator: "CmdOrCtrl+R",

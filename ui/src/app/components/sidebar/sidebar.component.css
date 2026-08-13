@@ -76,13 +76,13 @@
 .nav-icon { font-size: 18px; flex-shrink: 0; }
 .nav-label { overflow: hidden; text-overflow: ellipsis; }
 
+/* Mismo padding horizontal (8px) que .sidebar-nav para que los divisores del
+   pie midan exactamente igual que los de la navegación, en ambos anchos. La
+   separación con la navegación la da ahora el primer nav-divider del pie, no un
+   border-top a todo el ancho (que se veía más largo que las demás líneas). */
 .sidebar-footer {
-  padding: 12px 16px;
-  border-top: 1px solid var(--sidebar-divider);
+  padding: 8px 8px 12px;
 }
-/* Minimizada (64px) el padding normal deja 32px y la pista mide 48: sin esto
-   el flex la encoge y el sol se sale de ella. */
-.sidebar.minimized .sidebar-footer { padding: 12px 8px; }
 
 .app-version {
   text-align: center;
@@ -93,9 +93,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   user-select: text;
+  padding: 0 4px;
 }
-/* En el pie el divisor no necesita el margen superior de la navegación. */
-.sidebar-footer .nav-divider { margin: 8px 0; }
 
 .theme-toggle {
   background: none;

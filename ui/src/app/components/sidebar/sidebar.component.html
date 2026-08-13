@@ -52,9 +52,14 @@
 
   <!-- Footer -->
   <div class="sidebar-footer">
+    <div class="nav-divider"></div>
     @if (version()?.current) {
-      <div class="app-version" [title]="'HydraOps v' + version()!.current">
-        v{{ version()!.current }}
+      <div class="app-version" [title]="('common.version' | translate) + ' ' + version()!.current">
+        @if (minimized()) {
+          {{ version()!.current }}
+        } @else {
+          {{ 'common.version' | translate }} - {{ version()!.current }}
+        }
       </div>
       <div class="nav-divider"></div>
     }

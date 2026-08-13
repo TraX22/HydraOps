@@ -169,7 +169,8 @@
     "cancel": "Cancelar",
     "create": "Crear",
     "close": "Cerrar",
-    "delete": "Eliminar"
+    "delete": "Eliminar",
+    "version": "versión"
   },
   "update": {
     "available": "Hay una versión nueva ({{version}}) disponible.",
