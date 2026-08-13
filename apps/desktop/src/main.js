@@ -220,10 +220,6 @@ function buildMenu() {
       label: "HydraOps",
       submenu: [
         {
-          label: "Acerca de HydraOps",
-          click: () => showAbout(),
-        },
-        {
           label: "Comprobar actualizaciones",
           click: () => checkForUpdatesNow(),
         },
@@ -268,6 +264,12 @@ function buildMenu() {
         { type: "separator" },
         { role: "togglefullscreen", label: "Pantalla completa" },
       ],
+    },
+    {
+      // Menú de primer nivel, junto a "Ver": al pulsarlo abre el diálogo
+      // directamente (no despliega submenú).
+      label: "About",
+      click: () => showAbout(),
     },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
