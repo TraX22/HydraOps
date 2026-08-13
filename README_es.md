@@ -195,6 +195,11 @@ se exija también a esas conexiones.
 Para reportar un fallo, mira [SECURITY_es.md](SECURITY_es.md) o escribe a
 **security@hydraops.org**.
 
+## Privacidad
+
+HydraOps corre por completo en tu máquina y no recopila ningún dato propio — mira
+la [Política de Privacidad](PRIVACY_es.md).
+
 ## Contacto
 
 Preguntas, ideas, lo que sea: **hi@hydraops.org** — o abre un issue.

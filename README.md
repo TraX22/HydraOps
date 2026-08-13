@@ -194,6 +194,11 @@ like WireGuard or Tailscale) — and with a reverse proxy in front, enable
 To report a vulnerability, see [SECURITY.md](SECURITY.md) or write to
 **security@hydraops.org**.
 
+## Privacy
+
+HydraOps runs entirely on your machine and collects no data of its own — see the
+[Privacy Policy](PRIVACY.md).
+
 ## Contact
 
 Questions, ideas, anything: **hi@hydraops.org** — or open an issue.
