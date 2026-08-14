@@ -1,8 +1,9 @@
-import { Component, effect, inject, OnInit, signal, viewChild, ElementRef } from '@angular/core';
+import { Component, computed, effect, inject, OnInit, signal, viewChild, ElementRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ApiService, Agent, ModelOption } from '../../services/api.service';
+import { groupModels, modelLabel } from '../../shared/model-groups';
 import { AgentsService } from '../../services/agents.service';
 import { ChatService } from '../../services/chat.service';
 
@@ -47,6 +48,13 @@ export class AgentsComponent implements OnInit {
   // Config dropdowns
   models = signal<ModelOption[]>([]);
   defaultModel = signal('');
+
+  // Model dropdowns grouped by company (A→Z, models A→Z). The default model is
+  // shown starred on its own at the top, so it's excluded here to avoid an empty
+  // group. modelLabel strips the redundant "APIkey · Company:" prefix.
+  modelLabel = modelLabel;
+  groupedModels = computed(() =>
+    groupModels(this.models().filter(m => m.id !== this.defaultModel())));
   savingConfig = signal(false);
   configSaved = signal(false);
 

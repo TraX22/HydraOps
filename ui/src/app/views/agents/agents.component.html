@@ -80,10 +80,12 @@
             @if (defaultModel()) {
               <option [value]="defaultModel()">⭐ {{ defaultModel() }} ({{ 'agents.defaultModel' | translate }})</option>
             }
-            @for (model of models(); track model.id) {
-              @if (model.id !== defaultModel()) {
-                <option [value]="model.id">{{ model.name }}</option>
-              }
+            @for (group of groupedModels(); track group.provider) {
+              <optgroup [label]="group.label">
+                @for (model of group.models; track model.id) {
+                  <option [value]="model.id">{{ model.emoji }} {{ modelLabel(model.name) }}</option>
+                }
+              </optgroup>
             }
           </select>
         </div>
@@ -209,10 +211,12 @@
         <label class="field-sublabel">Model</label>
         <select class="field-select" [ngModel]="newAgentModel()" (ngModelChange)="newAgentModel.set($event)">
           <option value="">⭐ {{ defaultModel() || ('agents.defaultModel' | translate) }} ({{ 'agents.defaultModel' | translate }})</option>
-          @for (model of models(); track model.id) {
-            @if (model.id !== defaultModel()) {
-              <option [value]="model.id">{{ model.name }}</option>
-            }
+          @for (group of groupedModels(); track group.provider) {
+            <optgroup [label]="group.label">
+              @for (model of group.models; track model.id) {
+                <option [value]="model.id">{{ model.emoji }} {{ modelLabel(model.name) }}</option>
+              }
+            </optgroup>
           }
         </select>
 

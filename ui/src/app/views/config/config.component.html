@@ -29,8 +29,12 @@
         @if (missingModel(); as mm) {
           <option [value]="mm">⚠ {{ mm }} — {{ 'config.modelUnavailable' | translate }}</option>
         }
-        @for (model of models(); track model.id) {
-          <option [value]="model.id">{{ model.name }}</option>
+        @for (group of groupedModels(); track group.provider) {
+          <optgroup [label]="group.label">
+            @for (model of group.models; track model.id) {
+              <option [value]="model.id">{{ model.emoji }} {{ modelLabel(model.name) }}</option>
+            }
+          </optgroup>
         }
       </select>
     </section>
