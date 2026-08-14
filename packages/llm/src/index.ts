@@ -33,6 +33,10 @@ const PROXY_PREFIXES: [string, string][] = [
   ['https://api.anthropic.com', 'anthropic'],
   ['https://generativelanguage.googleapis.com', 'google'],
   ['https://cloud.leonardo.ai', 'leonardo'],
+  ['https://api.deepseek.com', 'deepseek'],
+  ['https://dashscope-intl.aliyuncs.com', 'qwen'],
+  ['https://api.moonshot.ai', 'kimi'],
+  ['https://api.z.ai', 'glm'],
 ];
 
 function proxied(url: string): string {
@@ -59,7 +63,11 @@ export function resolveLLMConfig(model: string, getGlobalConfig: (key: string, d
   const isPartialLocalMatch = localNorm && (
     localNorm.includes(mNorm) || mNorm.includes(localNorm)
   );
-  const isOSArchitecture = /gemma|deepseek|phi|yi|falcon/.test(m);
+  // NOTE: 'deepseek' is intentionally NOT here — it's now a first-class cloud
+  // provider (see below). Local DeepSeek builds are still matched by param size
+  // (e.g. deepseek-r1:8b), the '.gguf' suffix, the word 'local', or a partial
+  // match to LOCAL_LLM_MODEL.
+  const isOSArchitecture = /gemma|phi|yi|falcon/.test(m);
   const isParamSize = /\d+b/.test(m);
 
   // 1. Priority: Local models (.gguf, word 'local', os architectures, param sizes, or partial match to LOCAL_LLM_MODEL)
@@ -148,7 +156,9 @@ export function resolveLLMConfig(model: string, getGlobalConfig: (key: string, d
     };
   }
 
-  // 8. OpenRouter
+  // 8. OpenRouter — checked BEFORE the direct Chinese providers below so that
+  // OpenRouter ids like 'deepseek/deepseek-chat' or 'qwen/qwen-max' (they carry a
+  // slash) route to OpenRouter, while the slash-free direct ids fall through.
   if (m.includes('/') && !m.includes('http')) {
      // OpenRouter models usually have a slash (e.g., 'anthropic/claude-3')
      return {
@@ -157,6 +167,47 @@ export function resolveLLMConfig(model: string, getGlobalConfig: (key: string, d
        apiKey: getGlobalConfig('OPENROUTER_API_KEY', ''),
        baseURL: 'https://openrouter.ai/api/v1'
      };
+  }
+
+  // 9. DeepSeek (direct API, OpenAI-compatible)
+  if (m.startsWith('deepseek')) {
+    return {
+      provider: 'openai',
+      model,
+      apiKey: getGlobalConfig('DEEPSEEK_API_KEY', ''),
+      baseURL: 'https://api.deepseek.com/v1'
+    };
+  }
+
+  // 10. Qwen — Alibaba DashScope, OpenAI-compatible ("compatible-mode") endpoint
+  if (m.startsWith('qwen')) {
+    return {
+      provider: 'openai',
+      model,
+      apiKey: getGlobalConfig('QWEN_API_KEY', ''),
+      baseURL: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
+    };
+  }
+
+  // 11. Kimi (Moonshot AI), OpenAI-compatible
+  if (m.startsWith('kimi') || m.includes('moonshot')) {
+    return {
+      provider: 'openai',
+      model,
+      apiKey: getGlobalConfig('KIMI_API_KEY', ''),
+      baseURL: 'https://api.moonshot.ai/v1'
+    };
+  }
+
+  // 12. GLM (Zhipu / Z.ai) — flat Coding Plan endpoint. Spend the plan quota with
+  // an 'sk-sp-' key; a plain 'sk-' key here bills pay-per-token instead.
+  if (m.startsWith('glm')) {
+    return {
+      provider: 'openai',
+      model,
+      apiKey: getGlobalConfig('GLM_API_KEY', ''),
+      baseURL: 'https://api.z.ai/api/coding/paas/v4'
+    };
   }
 
   // Default: Google (or whatever is configured as GEMINI_API_KEY)
@@ -338,6 +389,42 @@ export async function listAvailableOpenRouterModels(apiKey: string): Promise<str
     console.error('[OpenRouter Discovery Error]:', error);
     return [];
   }
+}
+
+/**
+ * Lists models from any OpenAI-compatible `/models` endpoint (Bearer auth).
+ * Shared by the direct Chinese providers below (DeepSeek, Qwen, Kimi, GLM),
+ * which are all OpenAI-compatible.
+ */
+async function fetchOpenAICompatModels(baseURL: string, apiKey: string, label: string): Promise<string[]> {
+  try {
+    const url = `${baseURL.replace(/\/$/, '')}/models`;
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return Array.isArray(data?.data) ? data.data.map((m: any) => m.id) : [];
+  } catch (error) {
+    console.error(`[${label} Discovery Error]:`, error);
+    return [];
+  }
+}
+
+export function listAvailableDeepSeekModels(apiKey: string): Promise<string[]> {
+  return fetchOpenAICompatModels('https://api.deepseek.com/v1', apiKey, 'DeepSeek');
+}
+
+export function listAvailableQwenModels(apiKey: string): Promise<string[]> {
+  return fetchOpenAICompatModels('https://dashscope-intl.aliyuncs.com/compatible-mode/v1', apiKey, 'Qwen');
+}
+
+export function listAvailableKimiModels(apiKey: string): Promise<string[]> {
+  return fetchOpenAICompatModels('https://api.moonshot.ai/v1', apiKey, 'Kimi');
+}
+
+// GLM: the flat Coding Plan endpoint may not expose /models, so the API layer
+// merges this with a static fallback list.
+export function listAvailableGLMModels(apiKey: string): Promise<string[]> {
+  return fetchOpenAICompatModels('https://api.z.ai/api/paas/v4', apiKey, 'GLM');
 }
 
 /**

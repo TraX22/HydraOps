@@ -29,6 +29,10 @@ const PROVIDERS: Record<string, { host: string; keyName: string; auth: AuthStyle
   anthropic:  { host: "https://api.anthropic.com",                 keyName: "ANTHROPIC_API_KEY",  auth: "x-api-key" },
   google:     { host: "https://generativelanguage.googleapis.com", keyName: "GEMINI_API_KEY",     auth: "google" },
   leonardo:   { host: "https://cloud.leonardo.ai",                 keyName: "LEONARDO_API_KEY",   auth: "bearer" },
+  deepseek:   { host: "https://api.deepseek.com",                  keyName: "DEEPSEEK_API_KEY",   auth: "bearer" },
+  qwen:       { host: "https://dashscope-intl.aliyuncs.com",       keyName: "QWEN_API_KEY",       auth: "bearer" },
+  kimi:       { host: "https://api.moonshot.ai",                   keyName: "KIMI_API_KEY",       auth: "bearer" },
+  glm:        { host: "https://api.z.ai",                          keyName: "GLM_API_KEY",        auth: "bearer" },
 };
 
 // Hop-by-hop / auth headers that must never be forwarded as-is
