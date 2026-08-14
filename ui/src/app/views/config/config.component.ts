@@ -2,6 +2,7 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ApiService, AppConfig, ModelOption } from '../../services/api.service';
+import { groupModels, modelLabel } from '../../shared/model-groups';
 
 @Component({
   selector: 'app-config',
@@ -27,16 +28,23 @@ export class ConfigComponent implements OnInit {
     return this.models().some(m => m.id === dm) ? null : dm;
   });
 
+  // Sorted alphabetically by company so the grid stays readable as more are added.
   apiKeyFields = [
-    { key: 'openaiKey', label: 'OpenAI' },
+    { key: 'anthropicKey', label: 'Anthropic' },
     { key: 'geminiKey', label: 'Google Gemini' },
     { key: 'groqKey', label: 'Groq' },
-    { key: 'xaiKey', label: 'xAI / Grok' },
-    { key: 'anthropicKey', label: 'Anthropic' },
     { key: 'leonardoKey', label: 'Leonardo AI' },
-    { key: 'openrouterKey', label: 'OpenRouter' },
     { key: 'mistralKey', label: 'Mistral' },
+    { key: 'openaiKey', label: 'OpenAI' },
+    { key: 'openrouterKey', label: 'OpenRouter' },
+    { key: 'xaiKey', label: 'xAI / Grok' },
   ];
+
+  // Strips the redundant "APIkey · Company:" prefix for display inside a group.
+  modelLabel = modelLabel;
+
+  // Models grouped by company, both companies and their models sorted A→Z.
+  groupedModels = computed(() => groupModels(this.models()));
 
   ngOnInit(): void {
     this.fetchConfig();
