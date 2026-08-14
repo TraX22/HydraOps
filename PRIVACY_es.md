@@ -4,6 +4,8 @@
 
 _Última actualización: 2026-08-13_
 
+> Esta política también está publicada en <https://hydraops.org/es/privacy/>.
+
 HydraOps es software autoalojado que corre por completo en tu propia máquina.
 **El proyecto HydraOps no recopila, recibe, almacena ni transmite ninguno de tus
 datos.** No hay analítica, no hay telemetría, y no hay ningún servidor del
