@@ -4,6 +4,8 @@
 
 _Last updated: 2026-08-13_
 
+> This policy is also published at <https://hydraops.org/privacy/>.
+
 HydraOps is self-hosted software that runs entirely on your own machine. **The
 HydraOps project does not collect, receive, store or transmit any of your data.**
 There is no analytics, no telemetry, and no server operated by the project that
