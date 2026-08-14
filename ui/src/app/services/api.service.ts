@@ -112,6 +112,10 @@ export interface AppConfig {
   leonardoKey: string;
   openrouterKey: string;
   mistralKey: string;
+  deepseekKey: string;
+  qwenKey: string;
+  kimiKey: string;
+  glmKey: string;
   localLlmUrl: string;
   localLlmKey: string;
   localLlmModel: string;

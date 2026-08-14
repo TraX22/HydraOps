@@ -1046,6 +1046,10 @@ const envMapping: Record<string, string> = {
   leonardoKey: "LEONARDO_API_KEY",
   openrouterKey: "OPENROUTER_API_KEY",
   mistralKey: "MISTRAL_API_KEY",
+  deepseekKey: "DEEPSEEK_API_KEY",
+  qwenKey: "QWEN_API_KEY",
+  kimiKey: "KIMI_API_KEY",
+  glmKey: "GLM_API_KEY",
   localLlmUrl: "LOCAL_LLM_URL",
   localLlmKey: "LOCAL_LLM_KEY",
   localLlmModel: "LOCAL_LLM_MODEL",
@@ -1069,6 +1073,7 @@ const LOCAL_ENV_KEYS = new Set(["LOCAL_LLM_URL", "LOCAL_LLM_KEY", "LOCAL_LLM_MOD
 const PROVIDER_KEY_NAMES = [
   "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GROQ_API_KEY",
   "XAI_API_KEY", "LEONARDO_API_KEY", "OPENROUTER_API_KEY", "MISTRAL_API_KEY",
+  "DEEPSEEK_API_KEY", "QWEN_API_KEY", "KIMI_API_KEY", "GLM_API_KEY",
 ];
 const KEY_PLACEHOLDER = "proxy";
 // Masked values round-trip through the UI; POST /config already ignores
@@ -1175,6 +1180,10 @@ import {
   listAvailableMistralModels,
   listAvailableOpenRouterModels,
   listAvailableLeonardoModels,
+  listAvailableDeepSeekModels,
+  listAvailableQwenModels,
+  listAvailableKimiModels,
+  listAvailableGLMModels,
 } from "@hydraops/llm";
 
 api.get("/config/models", async (req, res) => {
@@ -1280,6 +1289,31 @@ api.get("/config/models", async (req, res) => {
     const openrouterKey = getKey("OPENROUTER_API_KEY");
     if (openrouterKey) providerJobs.push(listAvailableOpenRouterModels(openrouterKey).then(models => {
       allModels.push(...models.map(m => ({ id: m, name: viaKey(`OpenRouter: ${m}`), provider: 'openrouter', ...identify(m) })));
+    }).catch(() => {}));
+
+    const deepseekKey = getKey("DEEPSEEK_API_KEY");
+    if (deepseekKey) providerJobs.push(listAvailableDeepSeekModels(deepseekKey).then(models => {
+      allModels.push(...models.map(m => ({ id: m, name: viaKey(`DeepSeek: ${m}`), provider: 'deepseek', ...identify(m) })));
+    }).catch(() => {}));
+
+    const qwenKey = getKey("QWEN_API_KEY");
+    if (qwenKey) providerJobs.push(listAvailableQwenModels(qwenKey).then(models => {
+      allModels.push(...models.map(m => ({ id: m, name: viaKey(`Qwen: ${m}`), provider: 'qwen', ...identify(m) })));
+    }).catch(() => {}));
+
+    const kimiKey = getKey("KIMI_API_KEY");
+    if (kimiKey) providerJobs.push(listAvailableKimiModels(kimiKey).then(models => {
+      allModels.push(...models.map(m => ({ id: m, name: viaKey(`Kimi: ${m}`), provider: 'kimi', ...identify(m) })));
+    }).catch(() => {}));
+
+    const glmKey = getKey("GLM_API_KEY");
+    if (glmKey) providerJobs.push(listAvailableGLMModels(glmKey).then(models => {
+      // The flat Coding Plan endpoint may not expose /models (and an sk-sp- key
+      // can't query the general endpoint), so merge whatever discovery returns
+      // with a static fallback of the current GLM coding models.
+      const fallback = ['glm-4.6', 'glm-4.7', 'glm-5.1'];
+      const ids = Array.from(new Set([...(models ?? []), ...fallback]));
+      allModels.push(...ids.map(m => ({ id: m, name: viaKey(`GLM: ${m}`), provider: 'glm', ...identify(m) })));
     }).catch(() => {}));
 
     const leonardoKey = getKey("LEONARDO_API_KEY");

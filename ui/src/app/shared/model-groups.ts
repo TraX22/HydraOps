@@ -4,13 +4,17 @@ import { ModelOption } from '../services/api.service';
 // slug the API returns on each model. Anything not listed falls back to the slug.
 export const PROVIDER_LABELS: Record<string, string> = {
   anthropic: 'Anthropic',
+  deepseek: 'DeepSeek',
+  glm: 'GLM (Z.ai)',
   google: 'Google Gemini',
   groq: 'Groq',
+  kimi: 'Kimi (Moonshot)',
   leonardo: 'Leonardo AI',
   local: 'Local',
   mistral: 'Mistral',
   openai: 'OpenAI',
   openrouter: 'OpenRouter',
+  qwen: 'Qwen',
   xai: 'xAI / Grok',
 };
 

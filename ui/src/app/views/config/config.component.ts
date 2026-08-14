@@ -31,12 +31,16 @@ export class ConfigComponent implements OnInit {
   // Sorted alphabetically by company so the grid stays readable as more are added.
   apiKeyFields = [
     { key: 'anthropicKey', label: 'Anthropic' },
+    { key: 'deepseekKey', label: 'DeepSeek' },
+    { key: 'glmKey', label: 'GLM (Z.ai)' },
     { key: 'geminiKey', label: 'Google Gemini' },
     { key: 'groqKey', label: 'Groq' },
+    { key: 'kimiKey', label: 'Kimi (Moonshot)' },
     { key: 'leonardoKey', label: 'Leonardo AI' },
     { key: 'mistralKey', label: 'Mistral' },
     { key: 'openaiKey', label: 'OpenAI' },
     { key: 'openrouterKey', label: 'OpenRouter' },
+    { key: 'qwenKey', label: 'Qwen' },
     { key: 'xaiKey', label: 'xAI / Grok' },
   ];
 
