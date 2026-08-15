@@ -22,7 +22,7 @@
   cursor: pointer;
   user-select: none;
 }
-.logo-icon { font-size: 24px; }
+.logo-icon { width: 28px; height: 28px; object-fit: contain; flex-shrink: 0; display: block; }
 .logo-text {
   font-size: 18px;
   font-weight: 700;
