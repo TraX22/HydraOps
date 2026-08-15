@@ -39,11 +39,9 @@ git clone https://github.com/TraX22/HydraOps.git
 cd HydraOps
 pnpm install
 cp .env.example .env
-pnpm build                  # the monorepo packages
-pnpm --filter ui build      # the interface
 ```
 
-And to start:
+And to start (it builds the packages + interface for you, so after a `git pull` there's no separate build step to remember):
 
 ```bash
 pnpm serve

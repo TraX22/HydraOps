@@ -96,9 +96,11 @@ Requirements: **Node 20+**, **pnpm 9** and the **nats-server** binary.
 ```bash
 pnpm install
 cp .env.example .env
-pnpm build                  # the monorepo packages
-pnpm --filter ui build      # the interface
 ```
+
+Then start it with one of the modes below. Both `pnpm serve` and `pnpm desktop` **build the
+packages and the interface for you**, so a fresh clone (or a `git pull`) is ready right away —
+no separate build step to remember.
 
 #### Server mode (headless)
 
@@ -127,8 +129,8 @@ inside; the logs of every service end up in the journal (`journalctl -u hydraops
 The Electron window, with splash screen and supervisor built in:
 
 ```bash
-pnpm desktop        # builds the interface and opens the application
-pnpm desktop:quick  # without rebuilding the interface
+pnpm desktop        # builds packages + interface and opens the application
+pnpm desktop:quick  # skip the build (faster relaunch)
 ```
 
 #### Development mode
