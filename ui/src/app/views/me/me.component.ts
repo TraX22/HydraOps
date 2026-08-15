@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ApiService, UserProfile } from '../../services/api.service';
+import { IconComponent } from '../../components/icon/icon.component';
 
 const EMPTY_PROFILE: UserProfile = {
   name: '', email: '', occupation: '', tools: '', interests: '', notes: '', avatarUrl: null,
@@ -11,7 +12,7 @@ const EMPTY_PROFILE: UserProfile = {
 @Component({
   selector: 'app-me',
   standalone: true,
-  imports: [FormsModule, TranslatePipe],
+  imports: [FormsModule, TranslatePipe, IconComponent],
   templateUrl: './me.component.html',
   styleUrl: './me.component.css',
 })

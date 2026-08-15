@@ -2,6 +2,7 @@ import { Component, DestroyRef, computed, inject, resource } from '@angular/core
 import { TranslatePipe } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiService, StatsData } from '../../services/api.service';
+import { IconComponent } from '../../components/icon/icon.component';
 
 interface MetricCard {
   labelKey: string;
@@ -15,7 +16,7 @@ const REFRESH_MS = 10_000;
 @Component({
   selector: 'app-stats',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, IconComponent],
   templateUrl: './stats.component.html',
   styleUrl: './stats.component.css',
 })
@@ -41,23 +42,23 @@ export class StatsComponent {
         labelKey: 'stats.completedTasks',
         value: `${s.tasks.completed}`,
         sub: `/ ${s.tasks.total}`,
-        icon: '✅',
+        icon: 'check',
       },
-      { labelKey: 'stats.failedTasks', value: `${s.tasks.failed}`, icon: '❌' },
-      { labelKey: 'stats.responseTime', value: this.formatMs(s.avgResponseMs), icon: '⚡' },
-      { labelKey: 'stats.totalTokens', value: this.formatCount(s.totalTokens), icon: '🎟️' },
-      { labelKey: 'stats.messages', value: `${s.tasks.total}`, icon: '📨' },
+      { labelKey: 'stats.failedTasks', value: `${s.tasks.failed}`, icon: 'failed' },
+      { labelKey: 'stats.responseTime', value: this.formatMs(s.avgResponseMs), icon: 'zap' },
+      { labelKey: 'stats.totalTokens', value: this.formatCount(s.totalTokens), icon: 'ticket' },
+      { labelKey: 'stats.messages', value: `${s.tasks.total}`, icon: 'mail' },
       {
         labelKey: 'stats.activeAgents',
         value: `${s.activeAgents} / ${s.totalAgents}`,
-        icon: '🤖',
+        icon: 'agents',
       },
-      { labelKey: 'stats.cpu', value: `${s.system.cpuPercent}%`, icon: '🖥️' },
+      { labelKey: 'stats.cpu', value: `${s.system.cpuPercent}%`, icon: 'monitor' },
       {
         labelKey: 'stats.ram',
         value: `${s.system.ramPercent}%`,
         sub: `${this.formatGb(s.system.ramUsedBytes)} / ${this.formatGb(s.system.ramTotalBytes)} GB`,
-        icon: '💾',
+        icon: 'storage',
       },
     ];
   });

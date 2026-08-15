@@ -2,11 +2,12 @@ import { Component, inject, signal, output } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AgentsService } from '../../services/agents.service';
 import { Agent } from '../../services/api.service';
+import { IconComponent } from '../icon/icon.component';
 
 @Component({
   selector: 'app-agents-panel',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, IconComponent],
   templateUrl: './agents-panel.component.html',
   styleUrl: './agents-panel.component.css',
 })

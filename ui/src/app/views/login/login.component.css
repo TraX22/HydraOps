@@ -10,7 +10,8 @@
   width: 100%; max-width: 360px; text-align: center;
 }
 
-.login-logo { font-size: 48px; margin-bottom: 8px; }
+.login-logo { margin-bottom: 8px; }
+.login-logo img { width: 56px; height: 56px; object-fit: contain; display: block; margin: 0 auto; }
 .login-card h1 { font-size: 22px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
 .login-subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; }
 

@@ -8,21 +8,21 @@
   @if (version()?.updateAvailable || updating() || updateDone()) {
     <div class="update-card">
       @if (updateDone()) {
-        <span class="update-msg">✅ {{ 'system.update.done' | translate }}</span>
+        <span class="update-msg"><app-icon name="check" /> {{ 'system.update.done' | translate }}</span>
       } @else if (updating()) {
         <div class="update-working">
-          <span class="update-msg">⏳ {{ 'system.update.working' | translate }}</span>
+          <span class="update-msg"><app-icon name="hourglass" /> {{ 'system.update.working' | translate }}</span>
           @if (updateState()?.log) {
             <pre class="update-log">{{ updateState()!.log }}</pre>
           }
         </div>
       } @else {
         <div class="update-row">
-          <span class="update-msg">🔔 {{ 'system.update.title' | translate }} — v{{ version()?.latest }}</span>
+          <span class="update-msg"><app-icon name="bell" /> {{ 'system.update.title' | translate }} — v{{ version()?.latest }}</span>
           <button class="update-btn" (click)="startUpdate()">{{ 'system.update.cta' | translate }}</button>
         </div>
         @if (updateError()) {
-          <p class="update-error">⚠️ {{ updateError() }}</p>
+          <p class="update-error"><app-icon name="alert" /> {{ updateError() }}</p>
         }
       }
     </div>

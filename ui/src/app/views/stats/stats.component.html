@@ -5,7 +5,7 @@
     <div class="metrics-grid">
       @for (m of metrics(); track m.labelKey) {
         <div class="metric-card">
-          <span class="metric-icon">{{ m.icon }}</span>
+          <app-icon class="metric-icon" [name]="m.icon" />
           <span class="metric-value">
             {{ m.value }}
             @if (m.sub) {

@@ -8,10 +8,10 @@
         @if (profile().avatarUrl) {
           <img [src]="profile().avatarUrl" alt="avatar" />
         } @else {
-          <span class="avatar-placeholder">👤</span>
+          <app-icon class="avatar-placeholder" name="me" />
         }
         <div class="avatar-edit-overlay">
-          @if (uploading()) { <span>⏳</span> } @else { <span>✏️</span> }
+          @if (uploading()) { <app-icon name="hourglass" /> } @else { <app-icon name="pencil" /> }
         </div>
       </div>
       <input #fileInput type="file" accept="image/png,image/jpeg,image/webp"
@@ -66,10 +66,10 @@
         <div class="form-actions">
           <button class="btn-primary" (click)="save()" [disabled]="saving()">
             @if (saving()) { {{ 'common.saving' | translate }} }
-            @else if (saved()) { ✅ {{ 'common.saved' | translate }} }
+            @else if (saved()) { <app-icon name="check" /> {{ 'common.saved' | translate }} }
             @else { {{ 'common.save' | translate }} }
           </button>
-          @if (saveError()) { <span class="field-error">⚠ {{ 'me.saveError' | translate }}</span> }
+          @if (saveError()) { <span class="field-error"><app-icon name="alert" /> {{ 'me.saveError' | translate }}</span> }
           @if (canLogout()) {
             <button class="btn-logout" (click)="logout()">{{ 'me.logout' | translate }}</button>
           }

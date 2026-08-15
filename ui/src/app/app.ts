@@ -5,6 +5,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { AgentsPanelComponent } from './components/agents-panel/agents-panel.component';
+import { IconComponent } from './components/icon/icon.component';
 import { AgentsService } from './services/agents.service';
 import { ChatService } from './services/chat.service';
 import { ApiService, Agent, VersionInfo } from './services/api.service';
@@ -12,7 +13,7 @@ import { ApiService, Agent, VersionInfo } from './services/api.service';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, SidebarComponent, AgentsPanelComponent, TranslatePipe],
+  imports: [RouterOutlet, SidebarComponent, AgentsPanelComponent, TranslatePipe, IconComponent],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })

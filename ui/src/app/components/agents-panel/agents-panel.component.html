@@ -5,7 +5,7 @@
       <span class="agents-count">{{ agentsService.agents().length }}</span>
     }
     <button class="agents-toggle-btn" (click)="toggleMinimized()">
-      {{ minimized() ? '◀' : '▶' }}
+      <app-icon [name]="minimized() ? 'chevron-left' : 'chevron-right'" />
     </button>
   </div>
 
@@ -15,7 +15,7 @@
          quién asignarla). Por eso la invitación ocupa todo el panel. -->
     @if (agentsService.loaded() && agentsService.agents().length === 0) {
       <div class="agents-empty">
-        <span class="agents-empty-icon">🤖</span>
+        <app-icon class="agents-empty-icon" name="agents" />
         <p class="agents-empty-title">{{ 'agents.emptyTitle' | translate }}</p>
         <p class="agents-empty-hint">{{ 'agents.emptyHint' | translate }}</p>
         <button class="agents-empty-btn" (click)="createAgentRequested.emit()">
