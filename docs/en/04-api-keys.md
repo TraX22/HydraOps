@@ -2,7 +2,7 @@
 
 ## Adding an API key
 
-In **Settings → API Keys** there is one field per provider: OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, OpenRouter and Leonardo. Paste the key and save. You don't need to fill them all: with one provider, every agent using its models already works.
+In **Settings → API Keys** there is one field per provider: OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, DeepSeek, Qwen, Kimi, GLM, MiniMax, OpenRouter and Leonardo. Paste the key and save. You don't need to fill them all: with one provider, every agent using its models already works.
 
 ![The Settings view, keys always masked](../img/en/config.png)
 

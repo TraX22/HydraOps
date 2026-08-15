@@ -2,7 +2,7 @@
 
 **English** | [Español](PRIVACY_es.md)
 
-_Last updated: 2026-08-13_
+_Last updated: 2026-08-15_
 
 > This policy is also published at <https://hydraops.org/privacy/>.
 
@@ -34,7 +34,8 @@ HydraOps is a tool for talking to AI models and other services. When you use it,
 using your own accounts and keys** — not through the project:
 
 - **AI / model providers** (for example OpenAI, Anthropic, Google, Groq, xAI,
-  Mistral, OpenRouter, Leonardo, or any local model server you run). The prompts,
+  Mistral, DeepSeek, Qwen, Kimi, GLM, MiniMax, OpenRouter, Leonardo, or any local
+  model server you run). The prompts,
   attachments and context you send are processed by whichever provider you
   select, under **that provider's own privacy policy and terms**.
 - **Web and tool requests.** Some tools (such as fetching a URL) make outbound

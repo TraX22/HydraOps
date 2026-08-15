@@ -2,7 +2,7 @@
 
 [English](PRIVACY.md) | **Español**
 
-_Última actualización: 2026-08-13_
+_Última actualización: 2026-08-15_
 
 > Esta política también está publicada en <https://hydraops.org/es/privacy/>.
 
@@ -34,7 +34,8 @@ Cuando lo usas, **tus datos van directamente desde tu máquina a los proveedores
 que configures, con tus propias cuentas y claves** — no a través del proyecto:
 
 - **Proveedores de IA / modelos** (por ejemplo OpenAI, Anthropic, Google, Groq,
-  xAI, Mistral, OpenRouter, Leonardo, o cualquier servidor de modelo local que
+  xAI, Mistral, DeepSeek, Qwen, Kimi, GLM, MiniMax, OpenRouter, Leonardo, o
+  cualquier servidor de modelo local que
   ejecutes). Los prompts, adjuntos y contexto que envías los procesa el proveedor
   que elijas, bajo **la política de privacidad y los términos de ese proveedor**.
 - **Peticiones web y de herramientas.** Algunas herramientas (como recuperar una

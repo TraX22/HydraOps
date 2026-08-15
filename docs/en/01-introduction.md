@@ -6,7 +6,7 @@ HydraOps is a multi-agent AI system with a chat interface. You create agents —
 
 - **Agents.** Each agent is a folder with six Markdown files defining who it is and what it knows how to do. You edit them from the interface itself. See [Agents](./05-agents.md).
 - **Workers.** Four executor types: **code**, **general**, **image** and **video**. Every agent belongs to one, and that decides what kind of tasks it handles.
-- **Models.** Works with API models (OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, OpenRouter, Leonardo) and with local models through any OpenAI-compatible server — llama.cpp, LM Studio, vLLM, Ollama. See [API keys & models](./04-api-keys.md).
+- **Models.** Works with API models (OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, DeepSeek, Qwen, Kimi, GLM, MiniMax, OpenRouter, Leonardo) and with local models through any OpenAI-compatible server — llama.cpp, LM Studio, vLLM, Ollama. See [API keys & models](./04-api-keys.md).
 - **Tools.** Native add-ons, your own add-ons and MCP servers. See [Add-ons & MCP](./07-addons.md).
 - **Scheduled tasks.** Crons: "every morning at 8, summarize the news from…". See [Scheduled tasks](./08-scheduled-tasks.md).
 
