@@ -76,11 +76,19 @@ application never touches anything of yours.
 
 ### Option B — from source
 
-Requirements: **Node 20+**, **pnpm 9** and the **nats-server** binary — install it with
-your package manager (`apt`, `brew`, `choco`…) or download it from its
-[releases](https://github.com/nats-io/nats-server/releases). Having it on the `PATH` is
-enough; you can also drop it in a `nats/` folder inside the repository or point to it
-with `NATS_SERVER_BIN` in the `.env`.
+Requirements: **Node 20+**, **pnpm 9** and the **nats-server** binary.
+
+> **nats-server is required**: it is the message bus between the API and the agents; without
+> it the *workers* won't start. Download it from its
+> [releases](https://github.com/nats-io/nats-server/releases) for your system:
+> - **Debian/Ubuntu:** the `.deb` for your architecture (`…-amd64.deb` for a 64-bit PC,
+>   `…-arm64.deb` for ARM) → **double-click** to install, or `sudo dpkg -i nats-server-*-amd64.deb`.
+> - **Fedora/RHEL:** the matching `.rpm` → double-click, or `sudo rpm -i nats-server-*-amd64.rpm`.
+> - **macOS:** `brew install nats-server`. **Windows:** `choco install nats-server` (the `.exe`
+>   installer already bundles it).
+>
+> Having the binary on your `PATH`, in a `nats/` folder inside the repo, or pointed to by
+> `NATS_SERVER_BIN` in the `.env` also works. Check with `nats-server --version`.
 
 ```bash
 pnpm install

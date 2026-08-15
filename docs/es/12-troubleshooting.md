@@ -5,6 +5,7 @@
 - **¿Hay agentes?** Sin agentes, las tareas se quedan sin asignar en silencio. Crea uno en la vista Agentes.
 - **¿El agente tiene modelo utilizable?** Si su modelo es de un proveedor sin clave, la tarea falla. Mira su ficha y la vista Configuración.
 - **¿Están vivos los workers?** Vista Sistema: si el worker del tipo del agente está caído, sus logs dicen por qué.
+- **¿Está `nats-server` instalado?** Es el bus que conecta la API con los agentes; sin él los workers no arrancan y las tareas se quedan sin respuesta. Instálalo (`.deb`/`.rpm` de doble clic en Linux) siguiendo [Instalación](./02-installation.md) y comprueba con `nats-server --version`.
 
 ## "No hay servidor local configurado" / errores de conexión con el modelo local
 

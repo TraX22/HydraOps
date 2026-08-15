@@ -5,6 +5,7 @@
 - **Are there agents?** Without agents, tasks silently stay unassigned. Create one in the Agents view.
 - **Does the agent have a usable model?** If its model belongs to a provider with no key, the task fails. Check its profile and the Settings view.
 - **Are the workers alive?** System view: if the worker matching the agent's type is down, its logs say why.
+- **Is `nats-server` installed?** It is the bus that connects the API to the agents; without it the workers won't start and tasks go unanswered. Install it (double-click `.deb`/`.rpm` on Linux) per [Installation](./02-installation.md) and check with `nats-server --version`.
 
 ## "No local server configured" / connection errors with the local model
 
