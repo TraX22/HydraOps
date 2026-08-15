@@ -39,11 +39,9 @@ git clone https://github.com/TraX22/HydraOps.git
 cd HydraOps
 pnpm install
 cp .env.example .env
-pnpm build                  # los paquetes del monorepo
-pnpm --filter ui build      # la interfaz
 ```
 
-Y para arrancar:
+Y para arrancar (compila paquetes + interfaz por ti, así que tras un `git pull` no hay que recordar ningún build aparte):
 
 ```bash
 pnpm serve

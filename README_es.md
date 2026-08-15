@@ -96,9 +96,11 @@ Requisitos: **Node 20+**, **pnpm 9** y el binario de **nats-server**.
 ```bash
 pnpm install
 cp .env.example .env
-pnpm build                  # los paquetes del monorepo
-pnpm --filter ui build      # la interfaz
 ```
+
+Luego arráncalo con uno de los modos de abajo. Tanto `pnpm serve` como `pnpm desktop`
+**compilan los paquetes y la interfaz por ti**, así que un clon recién hecho (o un `git pull`)
+queda listo al momento — sin un paso de compilación aparte que recordar.
 
 #### Modo servidor (headless)
 
@@ -128,8 +130,8 @@ instalación dentro; los logs de todos los servicios acaban en el journal
 La ventana de Electron, con splash y supervisor integrados:
 
 ```bash
-pnpm desktop        # compila la interfaz y abre la aplicación
-pnpm desktop:quick  # sin recompilar la interfaz
+pnpm desktop        # compila paquetes + interfaz y abre la aplicación
+pnpm desktop:quick  # sin recompilar (relanzado más rápido)
 ```
 
 #### Modo desarrollo
