@@ -12,9 +12,10 @@ Funciona con modelos de API (OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, Deep
 Qwen, Kimi, GLM, MiniMax, OpenRouter, Leonardo) y con modelos locales por cualquier
 servidor compatible con OpenAI — llama.cpp, LM Studio, vLLM, Ollama.
 
-> **Estado:** en uso real sobre Windows, con instalador de escritorio. El modo servidor
-> (acceder desde el navegador de otro equipo) y la imagen de contenedor están en camino;
-> hoy la aplicación asume que todo corre en la misma máquina.
+> **Estado:** en uso real sobre Windows (instalador de escritorio) y en **modo servidor**
+> (headless) — accesible desde el navegador de otro equipo en tu red local con un token, o
+> 24/7 con systemd (ver [Modo servidor](#modo-servidor-headless)). Falta la imagen de
+> contenedor.
 
 ## Qué trae
 

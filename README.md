@@ -12,9 +12,10 @@ Works with API models (OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, DeepSeek, 
 Kimi, GLM, MiniMax, OpenRouter, Leonardo) and with local models through any
 OpenAI-compatible server — llama.cpp, LM Studio, vLLM, Ollama.
 
-> **Status:** in real daily use on Windows, with a desktop installer. Server mode
-> (opening the app from another machine's browser) and a container image are on the way;
-> today the application assumes everything runs on the same machine.
+> **Status:** in real daily use on Windows (desktop installer) and in **server mode**
+> (headless) — reachable from another machine's browser on your local network with a
+> token, or run 24/7 via systemd (see [Server mode](#server-mode-headless)). A container
+> image is still on the way.
 
 ## What you get
 
