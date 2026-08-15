@@ -21,7 +21,11 @@ Requirements:
 
     ```bash
     sudo dpkg -i nats-server-*-amd64.deb
+    # or, if you prefer apt (resolves dependencies) — note the ./ :
+    sudo apt install ./nats-server-*-amd64.deb
     ```
+
+    (A bare `apt install nats` does NOT work: `nats-server` is not in the apt repos.)
 
   - **Fedora / RHEL / openSUSE:** download the matching **`.rpm`** (`nats-server-vX.Y.Z-amd64.rpm`) and **double-click** it, or run `sudo rpm -i nats-server-*-amd64.rpm`.
   - **macOS:** `brew install nats-server`.
