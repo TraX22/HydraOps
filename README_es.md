@@ -8,9 +8,9 @@ Sistema multi-agente de IA con interfaz de chat. Varios agentes, cada uno con su
 personalidad, su modelo y sus herramientas, resuelven tareas en paralelo: escriben código,
 contestan preguntas, generan imágenes y vídeo.
 
-Funciona con modelos de API (OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, OpenRouter,
-Leonardo) y con modelos locales por cualquier servidor compatible con OpenAI —
-llama.cpp, LM Studio, vLLM, Ollama.
+Funciona con modelos de API (OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, DeepSeek,
+Qwen, Kimi, GLM, MiniMax, OpenRouter, Leonardo) y con modelos locales por cualquier
+servidor compatible con OpenAI — llama.cpp, LM Studio, vLLM, Ollama.
 
 > **Estado:** en uso real sobre Windows, con instalador de escritorio. El modo servidor
 > (acceder desde el navegador de otro equipo) y la imagen de contenedor están en camino;
