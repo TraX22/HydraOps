@@ -3,6 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ThemeService } from '../../services/theme.service';
 import { ApiService, VersionInfo } from '../../services/api.service';
+import { IconComponent } from '../icon/icon.component';
 
 interface NavItem {
   path: string;
@@ -14,7 +15,7 @@ interface NavItem {
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [RouterLink, TranslatePipe],
+  imports: [RouterLink, TranslatePipe, IconComponent],
   templateUrl: './sidebar.component.html',
   styleUrl: './sidebar.component.css',
 })
@@ -36,15 +37,15 @@ export class SidebarComponent implements OnInit {
   }
 
   navItems: NavItem[] = [
-    { path: '/', icon: '💬', labelKey: 'nav.chat', section: 'main' },
-    { path: '/agents', icon: '🤖', labelKey: 'nav.agents', section: 'main' },
-    { path: '/system', icon: '🖥️', labelKey: 'nav.system', section: 'main' },
-    { path: '/tasks', icon: '⏰', labelKey: 'nav.tasks', section: 'tools' },
-    { path: '/addons', icon: '🔌', labelKey: 'nav.addons', section: 'tools' },
-    { path: '/stats', icon: '📊', labelKey: 'nav.stats', section: 'tools' },
-    { path: '/docs', icon: '📚', labelKey: 'nav.docs', section: 'tools' },
-    { path: '/config', icon: '⚙️', labelKey: 'nav.config', section: 'settings' },
-    { path: '/me', icon: '👤', labelKey: 'nav.me', section: 'settings' },
+    { path: '/', icon: 'chat', labelKey: 'nav.chat', section: 'main' },
+    { path: '/agents', icon: 'agents', labelKey: 'nav.agents', section: 'main' },
+    { path: '/system', icon: 'system', labelKey: 'nav.system', section: 'main' },
+    { path: '/tasks', icon: 'tasks', labelKey: 'nav.tasks', section: 'tools' },
+    { path: '/addons', icon: 'addons', labelKey: 'nav.addons', section: 'tools' },
+    { path: '/stats', icon: 'stats', labelKey: 'nav.stats', section: 'tools' },
+    { path: '/docs', icon: 'docs', labelKey: 'nav.docs', section: 'tools' },
+    { path: '/config', icon: 'config', labelKey: 'nav.config', section: 'settings' },
+    { path: '/me', icon: 'me', labelKey: 'nav.me', section: 'settings' },
   ];
 
   get mainItems() { return this.navItems.filter(i => i.section === 'main'); }
