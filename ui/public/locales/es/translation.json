@@ -48,7 +48,13 @@
     "title": "Sistema",
     "newWorker": "Nuevo Worker",
     "workerName": "Nombre del worker",
-    "logs": "Logs"
+    "logs": "Logs",
+    "update": {
+      "title": "Actualización disponible",
+      "cta": "Actualizar",
+      "working": "Actualizando… la app se reiniciará sola",
+      "done": "Actualizado. Recargando…"
+    }
   },
   "config": {
     "title": "Configuración",

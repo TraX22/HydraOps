@@ -149,6 +149,18 @@ if (host === "0.0.0.0") {
 }
 console.log("[serve] Ctrl+C para parar la pila");
 
+// ─── Autoactualización (botón "Actualizar" de la UI) ─────────────────────────
+// La API escribe la petición; aquí se ejecuta git+rebuild y se reinician los
+// servicios en sitio. Solo tiene efecto en un checkout de git (la API ya lo
+// comprueba antes de encolar).
+const { watchForUpdateRequest } = require(path.join(repoRoot, "apps", "desktop", "src", "self-update.js"));
+watchForUpdateRequest({
+  repoRoot,
+  dataRoot,
+  stopAll: () => supervisor.stopAll(),
+  startAll: () => supervisor.startAll((msg) => console.log(`[serve] ${msg}`)),
+});
+
 // ─── Apagado limpio ──────────────────────────────────────────────────────────
 
 let stopping = false;

@@ -333,6 +333,21 @@ async function boot() {
     dialog.showErrorBox("HydraOps", `No se pudo arrancar la pila:\n${err.message}`);
   }
 
+  // Autoactualización desde código (checkout de git): la API encola la petición
+  // cuando el usuario pulsa "Actualizar" y aquí se ejecuta git+rebuild y se
+  // reinician los servicios, recargando la ventana al final. En el instalador
+  // (packaged) no aplica — ahí actualiza electron-updater.
+  if (!app.isPackaged) {
+    const { watchForUpdateRequest } = require("./self-update");
+    watchForUpdateRequest({
+      repoRoot: REPO_ROOT,
+      dataRoot,
+      stopAll: () => supervisor.stopAll(),
+      startAll: () => supervisor.startAll(splashMessage),
+      afterStart: () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.reload(); },
+    });
+  }
+
   // La interfaz la sirve la propia API, en el mismo origen que los datos. Antes
   // había aquí un servidor estático en un puerto efímero, pero eso obligaba a la
   // interfaz a llamar a la API por una dirección absoluta — justo lo que impedía

@@ -168,6 +168,13 @@ export interface VersionInfo {
   url: string | null;
 }
 
+export interface SelfUpdateStatus {
+  status: 'idle' | 'queued' | 'running' | 'restarting' | 'success' | 'error';
+  tag?: string;
+  log?: string;
+  error?: string;
+}
+
 export interface DocsPage {
   slug: string;
   file: string;
@@ -200,6 +207,15 @@ export class ApiService {
   // ── Version ──
   getVersion(): Observable<VersionInfo> {
     return this.http.get<VersionInfo>(`${this.base}/version`);
+  }
+
+  // ── Self-update (instalación desde código) ──
+  selfUpdate(): Observable<{ started: boolean; tag: string }> {
+    return this.http.post<{ started: boolean; tag: string }>(`${this.base}/self-update`, {});
+  }
+
+  selfUpdateStatus(): Observable<SelfUpdateStatus> {
+    return this.http.get<SelfUpdateStatus>(`${this.base}/self-update/status`);
   }
 
   // ── Docs ──
