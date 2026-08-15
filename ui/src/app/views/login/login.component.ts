@@ -3,11 +3,12 @@ import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ApiService } from '../../services/api.service';
+import { IconComponent } from '../../components/icon/icon.component';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [FormsModule, TranslatePipe],
+  imports: [FormsModule, TranslatePipe, IconComponent],
   templateUrl: './login.component.html',
   styleUrl: './login.component.css',
 })

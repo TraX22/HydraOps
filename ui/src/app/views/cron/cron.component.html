@@ -60,9 +60,9 @@
           <span>{{ cron.assignedAgent || ('cron.smartRouting' | translate) }}</span>
         </div>
         <div class="cron-actions">
-          <button (click)="toggle(cron.id)">{{ cron.status === 'active' ? '⏸' : '▶' }}</button>
-          <button (click)="openEdit(cron)">✏️</button>
-          <button (click)="delete(cron)">🗑️</button>
+          <button (click)="toggle(cron.id)"><app-icon [name]="cron.status === 'active' ? 'pause' : 'play'" /></button>
+          <button (click)="openEdit(cron)"><app-icon name="pencil" /></button>
+          <button (click)="delete(cron)"><app-icon name="trash" /></button>
         </div>
       </div>
     }

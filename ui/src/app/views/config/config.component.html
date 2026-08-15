@@ -93,7 +93,7 @@
   <div class="config-footer">
     <button class="save-btn" (click)="save()" [disabled]="isSaving()">
       @if (isSaving()) { {{ 'common.saving' | translate }} }
-      @else if (saveSuccess()) { ✅ {{ 'common.saved' | translate }} }
+      @else if (saveSuccess()) { <app-icon name="check" /> {{ 'common.saved' | translate }} }
       @else { {{ 'common.save' | translate }} }
     </button>
   </div>

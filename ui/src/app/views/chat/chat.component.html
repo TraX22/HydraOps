@@ -83,7 +83,7 @@
                   <img [src]="getImageUrl(msg)" alt="Generated image" class="result-image"
                        (click)="openLightbox(msg)" [title]="'chat.imageHint' | translate" />
                   <button class="image-download-btn" (click)="downloadImage(msg)"
-                          [title]="'chat.downloadImage' | translate">⬇</button>
+                          [title]="'chat.downloadImage' | translate"><app-icon name="download" /></button>
                 </div>
               }
 
@@ -91,17 +91,17 @@
                 <div class="video-frame">
                   <video [src]="getVideoUrl(msg)" controls preload="metadata" class="result-video"></video>
                   <button class="image-download-btn" (click)="downloadVideo(msg)"
-                          [title]="'chat.downloadVideo' | translate">⬇</button>
+                          [title]="'chat.downloadVideo' | translate"><app-icon name="download" /></button>
                 </div>
               }
 
               <div class="msg-actions">
                 @if (msg.role === 'user') {
-                  <button class="msg-action-btn" (click)="startEdit(msg)" title="Edit">✏️</button>
-                  <button class="msg-action-btn" (click)="deleteMsg(msg)" title="Delete">🗑️</button>
+                  <button class="msg-action-btn" (click)="startEdit(msg)" title="Edit"><app-icon name="pencil" /></button>
+                  <button class="msg-action-btn" (click)="deleteMsg(msg)" title="Delete"><app-icon name="trash" /></button>
                 }
                 <button class="msg-action-btn" (click)="copyMsg(msg)">
-                  {{ copiedMsgId() === msg.id ? '✅' : '📋' }}
+                  <app-icon [name]="copiedMsgId() === msg.id ? 'check' : 'clipboard'" />
                 </button>
               </div>
             }
@@ -121,17 +121,17 @@
             @if (isImage(att.mime)) {
               <img class="pending-att-img" [src]="att.url" [alt]="att.name" />
             } @else {
-              <span class="pending-att-icon">{{ fileIcon(att) }}</span>
+              <app-icon class="pending-att-icon" [name]="fileIcon(att)" />
             }
             <span class="pending-att-name">{{ att.name }}</span>
             <button class="pending-att-remove" (click)="removeAttachment(att)" title="Quitar">×</button>
           </div>
         }
         @if (uploadingCount() > 0) {
-          <div class="pending-att uploading">⏳ {{ 'chat.uploading' | translate }}</div>
+          <div class="pending-att uploading"><app-icon name="hourglass" /> {{ 'chat.uploading' | translate }}</div>
         }
         @if (attachError()) {
-          <span class="attach-error">⚠ {{ attachError() }}</span>
+          <span class="attach-error"><app-icon name="alert" /> {{ attachError() }}</span>
         }
       </div>
     }
@@ -144,12 +144,12 @@
     ></textarea>
     <div class="input-footer">
       <div class="input-actions">
-        <button class="attach-btn" (click)="openAttachPicker()" [title]="'chat.attach' | translate">📎</button>
+        <button class="attach-btn" (click)="openAttachPicker()" [title]="'chat.attach' | translate"><app-icon name="paperclip" /></button>
         <input #attachInput type="file" multiple style="display: none" (change)="onAttachSelected($event)" />
         <span class="input-hint">Enter ↵</span>
       </div>
       <button class="send-btn" (click)="send()" [disabled]="chat.sending() || uploadingCount() > 0">
-        {{ chat.sending() ? '...' : '▶' }}
+        @if (chat.sending()) { ... } @else { <app-icon name="send" /> }
       </button>
     </div>
   </div>

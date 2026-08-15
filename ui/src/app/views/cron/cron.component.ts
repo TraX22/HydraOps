@@ -2,6 +2,7 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ApiService, CronJob, Agent } from '../../services/api.service';
+import { IconComponent } from '../../components/icon/icon.component';
 
 interface CronAlias {
   labelKey: string;
@@ -11,7 +12,7 @@ interface CronAlias {
 @Component({
   selector: 'app-cron',
   standalone: true,
-  imports: [FormsModule, TranslatePipe],
+  imports: [FormsModule, TranslatePipe, IconComponent],
   templateUrl: './cron.component.html',
   styleUrl: './cron.component.css',
 })

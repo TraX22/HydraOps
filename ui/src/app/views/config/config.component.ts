@@ -3,11 +3,12 @@ import { FormsModule } from '@angular/forms';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ApiService, AppConfig, ModelOption } from '../../services/api.service';
 import { groupModels, modelLabel } from '../../shared/model-groups';
+import { IconComponent } from '../../components/icon/icon.component';
 
 @Component({
   selector: 'app-config',
   standalone: true,
-  imports: [FormsModule, TranslatePipe],
+  imports: [FormsModule, TranslatePipe, IconComponent],
   templateUrl: './config.component.html',
   styleUrl: './config.component.css',
 })

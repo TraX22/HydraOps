@@ -7,11 +7,12 @@ import { AgentsService } from '../../services/agents.service';
 import { ApiService, ChatAttachment, ChatMessage } from '../../services/api.service';
 import { DatePipe } from '@angular/common';
 import { MarkdownPipe } from '../../pipes/markdown.pipe';
+import { IconComponent } from '../../components/icon/icon.component';
 
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [FormsModule, TranslatePipe, MarkdownPipe, DatePipe],
+  imports: [FormsModule, TranslatePipe, MarkdownPipe, DatePipe, IconComponent],
   templateUrl: './chat.component.html',
   styleUrl: './chat.component.css',
 })
@@ -117,12 +118,12 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   fileIcon(att: { mime: string; name: string }): string {
-    if (this.isImage(att.mime)) return '🖼️';
+    if (this.isImage(att.mime)) return 'image';
     const ext = att.name.split('.').pop()?.toLowerCase() ?? '';
-    if (['pdf'].includes(ext)) return '📕';
-    if (['csv', 'xlsx', 'xls', 'tsv'].includes(ext)) return '📊';
-    if (['md', 'txt', 'doc', 'docx', 'log'].includes(ext)) return '📄';
-    return '📎';
+    if (['pdf'].includes(ext)) return 'file';
+    if (['csv', 'xlsx', 'xls', 'tsv'].includes(ext)) return 'stats';
+    if (['md', 'txt', 'doc', 'docx', 'log'].includes(ext)) return 'file';
+    return 'paperclip';
   }
 
   // ── Attachment rendering inside sent messages ──

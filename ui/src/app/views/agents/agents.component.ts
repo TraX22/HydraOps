@@ -6,11 +6,12 @@ import { ApiService, Agent, ModelOption } from '../../services/api.service';
 import { groupModels, modelLabel } from '../../shared/model-groups';
 import { AgentsService } from '../../services/agents.service';
 import { ChatService } from '../../services/chat.service';
+import { IconComponent } from '../../components/icon/icon.component';
 
 @Component({
   selector: 'app-agents',
   standalone: true,
-  imports: [FormsModule, TranslatePipe],
+  imports: [FormsModule, TranslatePipe, IconComponent],
   templateUrl: './agents.component.html',
   styleUrl: './agents.component.css',
 })
@@ -134,7 +135,7 @@ export class AgentsComponent implements OnInit {
   fileError = signal(false);
 
   private readonly fileEmojis: Record<string, string> = {
-    agent: '🤖', soul: '🧬', skill: '🎯', tools: '🛠️', memory: '🧠', heartbeat: '💓',
+    agent: 'agents', soul: 'soul', skill: 'skill', tools: 'tools', memory: 'memory', heartbeat: 'heartbeat',
   };
 
   // "elena.soul.md" → "soul"
@@ -144,7 +145,7 @@ export class AgentsComponent implements OnInit {
   }
 
   fileEmoji(filename: string): string {
-    return this.fileEmojis[this.fileType(filename)] ?? '📄';
+    return this.fileEmojis[this.fileType(filename)] ?? 'file';
   }
 
   private loadFiles(agentId: string): void {

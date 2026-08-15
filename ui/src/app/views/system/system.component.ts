@@ -1,11 +1,12 @@
 import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ApiService, SelfUpdateStatus, VersionInfo, Worker } from '../../services/api.service';
+import { IconComponent } from '../../components/icon/icon.component';
 
 @Component({
   selector: 'app-system',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, IconComponent],
   templateUrl: './system.component.html',
   styleUrl: './system.component.css',
 })

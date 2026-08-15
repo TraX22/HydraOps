@@ -1,8 +1,10 @@
 import { Component, input, signal } from '@angular/core';
+import { IconComponent } from '../icon/icon.component';
 
 @Component({
   selector: 'app-code-block',
   standalone: true,
+  imports: [IconComponent],
   templateUrl: './code-block.component.html',
   styleUrl: './code-block.component.css',
 })

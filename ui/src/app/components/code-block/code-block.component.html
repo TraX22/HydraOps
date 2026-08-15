@@ -7,7 +7,7 @@
     </div>
     <span class="code-lang">{{ language().toUpperCase() }}</span>
     <button class="copy-btn" (click)="copyCode()">
-      {{ copied() ? '✅ Copied' : '📋 Copy' }}
+      @if (copied()) { <app-icon name="check" /> Copied } @else { <app-icon name="clipboard" /> Copy }
     </button>
   </div>
   <pre class="code-content"><code>{{ code() }}</code></pre>
