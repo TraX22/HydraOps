@@ -13,7 +13,7 @@
       @for (item of mainItems; track item.path) {
         <a class="nav-item" [routerLink]="item.path" [class.active]="isActive(item.path)"
            [title]="item.labelKey | translate">
-          <span class="nav-icon">{{ item.icon }}</span>
+          <app-icon class="nav-icon" [name]="item.icon" />
           @if (!minimized()) {
             <span class="nav-label">{{ item.labelKey | translate }}</span>
           }
@@ -27,7 +27,7 @@
       @for (item of toolItems; track item.path) {
         <a class="nav-item" [routerLink]="item.path" [class.active]="isActive(item.path)"
            [title]="item.labelKey | translate">
-          <span class="nav-icon">{{ item.icon }}</span>
+          <app-icon class="nav-icon" [name]="item.icon" />
           @if (!minimized()) {
             <span class="nav-label">{{ item.labelKey | translate }}</span>
           }
@@ -41,7 +41,7 @@
       @for (item of settingItems; track item.path) {
         <a class="nav-item" [routerLink]="item.path" [class.active]="isActive(item.path)"
            [title]="item.labelKey | translate">
-          <span class="nav-icon">{{ item.icon }}</span>
+          <app-icon class="nav-icon" [name]="item.icon" />
           @if (!minimized()) {
             <span class="nav-label">{{ item.labelKey | translate }}</span>
           }
