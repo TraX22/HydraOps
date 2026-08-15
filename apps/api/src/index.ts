@@ -4,11 +4,13 @@ import cors from "cors";
 import path from "node:path";
 import { readdir, readFile, writeFile, mkdir, rm, access, rename } from "node:fs/promises";
 import { randomUUID, createHash, timingSafeEqual } from "node:crypto";
+import { spawn } from "node:child_process";
 import multer from "multer";
 
 import {
   loadEnv,
   appRoot,
+  dataRoot,
   agentsDir,
   usersDir,
   appsDir,
@@ -224,7 +226,7 @@ function cmpSemver(a: string, b: string): number {
 // Última release de GitHub vs la instalada, para avisar en el modo navegador
 // (el escritorio ya usa electron-updater). Cacheado 6 h: la API de GitHub sin
 // token limita a 60 peticiones/hora por IP.
-let versionCache: { at: number; latest: string | null; url: string | null } | null = null;
+let versionCache: { at: number; latest: string | null; url: string | null; tag: string | null } | null = null;
 const VERSION_TTL_MS = 6 * 60 * 60 * 1000;
 
 api.get("/version", async (_req, res) => {
@@ -236,16 +238,91 @@ api.get("/version", async (_req, res) => {
         signal: AbortSignal.timeout(5000),
       });
       const j = r.ok ? await r.json() as any : null;
-      const tag = j && typeof j.tag_name === "string" ? j.tag_name.replace(/^v/, "") : null;
-      versionCache = { at: now, latest: tag, url: j?.html_url ?? null };
+      const rawTag = j && typeof j.tag_name === "string" ? j.tag_name : null;
+      const latest = rawTag ? rawTag.replace(/^v/, "") : null;
+      versionCache = { at: now, latest, url: j?.html_url ?? null, tag: rawTag };
     } catch {
       // Sin red o sin releases todavía: no es un error, solo no hay dato.
-      versionCache = { at: now, latest: null, url: null };
+      versionCache = { at: now, latest: null, url: null, tag: null };
     }
   }
   const latest = versionCache.latest;
   const updateAvailable = Boolean(APP_VERSION && latest && cmpSemver(latest, APP_VERSION) > 0);
   res.json({ current: APP_VERSION, latest, updateAvailable, url: versionCache.url });
+});
+
+// ── Autoactualización desde código (Linux/macOS: git pull + rebuild + reinicio) ──
+// El botón "Actualizar" de la UI escribe una petición; el supervisor
+// (tools/serve.mjs o apps/desktop/src/main.js) la ejecuta y reinicia los
+// servicios. NO aplica al instalador de Windows (tiene su propio updater:
+// esa instalación no es un checkout de git, así que aquí se rechaza).
+const selfUpdateRequestFile = path.join(dataRoot, "self-update.request");
+const selfUpdateStateFile = path.join(dataRoot, "self-update.state.json");
+
+function runCmd(cmd: string, args: string[], cwd: string): Promise<{ code: number; out: string }> {
+  return new Promise((resolve) => {
+    let out = "";
+    let child;
+    try {
+      child = spawn(cmd, args, { cwd, shell: true, stdio: ["ignore", "pipe", "pipe"] });
+    } catch (e: any) {
+      return resolve({ code: -1, out: String(e?.message || e) });
+    }
+    child.stdout?.on("data", (c) => { out += c; });
+    child.stderr?.on("data", (c) => { out += c; });
+    child.on("exit", (code) => resolve({ code: code ?? -1, out }));
+    child.on("error", (e) => resolve({ code: -1, out: String(e?.message || e) }));
+  });
+}
+
+api.post("/self-update", async (_req, res) => {
+  try {
+    // 1. ¿Instalación desde código? El instalador de Windows no es un checkout de git.
+    if (!(await fileExists(path.join(appRoot, ".git")))) {
+      return res.status(400).json({ error: "not_git", message: "La autoactualización solo está disponible en la instalación desde código. En Windows, el instalador se actualiza solo." });
+    }
+    // 2. git disponible y árbol limpio (no pisar cambios locales).
+    const status = await runCmd("git", ["status", "--porcelain"], appRoot);
+    if (status.code !== 0) {
+      return res.status(400).json({ error: "no_git", message: "No se pudo ejecutar git. ¿Está instalado y en el PATH?" });
+    }
+    if (status.out.trim() !== "") {
+      return res.status(409).json({ error: "dirty", message: "Hay cambios locales sin guardar en el repositorio. Guárdalos o descártalos antes de actualizar." });
+    }
+    // 3. Resolver la última tag de release (refresca el caché si hace falta).
+    if (!versionCache || !versionCache.tag) {
+      try {
+        const r = await fetch("https://api.github.com/repos/TraX22/HydraOps/releases/latest", { headers: { "User-Agent": "HydraOps", Accept: "application/vnd.github+json" }, signal: AbortSignal.timeout(5000) });
+        const j = r.ok ? await r.json() as any : null;
+        const rawTag = j && typeof j.tag_name === "string" ? j.tag_name : null;
+        versionCache = { at: Date.now(), latest: rawTag ? rawTag.replace(/^v/, "") : null, url: j?.html_url ?? null, tag: rawTag };
+      } catch { /* sin red: se maneja abajo */ }
+    }
+    const tag = versionCache?.tag;
+    const latest = versionCache?.latest;
+    if (!tag || !latest) {
+      return res.status(400).json({ error: "no_release", message: "No se pudo determinar la última versión (¿sin conexión?)." });
+    }
+    if (!(APP_VERSION && cmpSemver(latest, APP_VERSION) > 0)) {
+      return res.status(400).json({ error: "up_to_date", message: "Ya estás en la última versión." });
+    }
+    // 4. Encolar: el supervisor lo recoge, ejecuta y reinicia.
+    await writeFile(selfUpdateStateFile, JSON.stringify({ status: "queued", tag, log: "", startedAt: Date.now() }), "utf-8");
+    await writeFile(selfUpdateRequestFile, JSON.stringify({ tag, at: Date.now() }), "utf-8");
+    res.json({ started: true, tag });
+  } catch (err: any) {
+    console.error("[api] POST /self-update failed", err);
+    res.status(500).json({ error: "internal", message: "Error interno al iniciar la actualización." });
+  }
+});
+
+api.get("/self-update/status", async (_req, res) => {
+  const raw = await readFile(selfUpdateStateFile, "utf-8").catch(() => "");
+  try {
+    res.json(raw ? JSON.parse(raw) : { status: "idle" });
+  } catch {
+    res.json({ status: "idle" });
+  }
 });
 
 // --- Worker Management Endpoints ---

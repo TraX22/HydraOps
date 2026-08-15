@@ -48,7 +48,13 @@
     "title": "Système",
     "newWorker": "Nouveau Worker",
     "workerName": "Nom du worker",
-    "logs": "Journaux"
+    "logs": "Journaux",
+    "update": {
+      "title": "Mise à jour disponible",
+      "cta": "Mettre à jour",
+      "working": "Mise à jour… l'application redémarrera seule",
+      "done": "Mis à jour. Rechargement…"
+    }
   },
   "config": {
     "title": "Réglages",

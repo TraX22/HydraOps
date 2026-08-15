@@ -36,3 +36,22 @@
   font-family: 'JetBrains Mono', monospace; font-size: 12px; max-height: 400px;
   overflow-y: auto; white-space: pre-wrap; margin-bottom: 12px;
 }
+
+/* Tarjeta de autoactualización */
+.update-card {
+  background: var(--bg-surface); border: 1px solid var(--accent);
+  border-radius: var(--radius-md); padding: 16px; margin-bottom: 20px;
+}
+.update-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.update-msg { font-size: 14px; color: var(--text-primary); font-weight: 500; }
+.update-btn {
+  padding: 8px 18px; background: var(--accent); color: white; border: none;
+  border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; font-weight: 600;
+}
+.update-error { margin-top: 10px; font-size: 13px; color: var(--status-offline); }
+.update-working { display: flex; flex-direction: column; gap: 10px; }
+.update-log {
+  background: #0d1117; color: #e6edf3; padding: 12px; border-radius: var(--radius-sm);
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; max-height: 260px;
+  overflow-y: auto; white-space: pre-wrap; margin: 0;
+}

@@ -48,7 +48,13 @@
     "title": "System",
     "newWorker": "New Worker",
     "workerName": "Worker name",
-    "logs": "Logs"
+    "logs": "Logs",
+    "update": {
+      "title": "Update available",
+      "cta": "Update",
+      "working": "Updating… the app will restart on its own",
+      "done": "Updated. Reloading…"
+    }
   },
   "config": {
     "title": "Configuration",
