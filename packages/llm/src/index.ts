@@ -37,6 +37,7 @@ const PROXY_PREFIXES: [string, string][] = [
   ['https://dashscope-intl.aliyuncs.com', 'qwen'],
   ['https://api.moonshot.ai', 'kimi'],
   ['https://api.z.ai', 'glm'],
+  ['https://api.minimax.io', 'minimax'],
 ];
 
 function proxied(url: string): string {
@@ -207,6 +208,16 @@ export function resolveLLMConfig(model: string, getGlobalConfig: (key: string, d
       model,
       apiKey: getGlobalConfig('GLM_API_KEY', ''),
       baseURL: 'https://api.z.ai/api/coding/paas/v4'
+    };
+  }
+
+  // 13. MiniMax, OpenAI-compatible (model ids: MiniMax-*, abab*)
+  if (m.startsWith('minimax') || m.includes('abab')) {
+    return {
+      provider: 'openai',
+      model,
+      apiKey: getGlobalConfig('MINIMAX_API_KEY', ''),
+      baseURL: 'https://api.minimax.io/v1'
     };
   }
 
@@ -425,6 +436,10 @@ export function listAvailableKimiModels(apiKey: string): Promise<string[]> {
 // merges this with a static fallback list.
 export function listAvailableGLMModels(apiKey: string): Promise<string[]> {
   return fetchOpenAICompatModels('https://api.z.ai/api/paas/v4', apiKey, 'GLM');
+}
+
+export function listAvailableMiniMaxModels(apiKey: string): Promise<string[]> {
+  return fetchOpenAICompatModels('https://api.minimax.io/v1', apiKey, 'MiniMax');
 }
 
 /**

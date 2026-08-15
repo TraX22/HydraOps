@@ -197,7 +197,12 @@ for await (const m of sub) {
     const cfgRows = await (db as any).select().from(agentConfigs).where(eq(agentConfigs.agentId, agentId)).limit(1);
     // "Tipo" (graphicEngine) overrides when set; 'auto' → agent model → global default.
     const engineOverride = cfgRows[0]?.graphicEngine && cfgRows[0].graphicEngine !== "auto" ? cfgRows[0].graphicEngine : null;
-    const selectedModel = engineOverride || cfgRows[0]?.model || process.env.DEFAULT_MODEL || "gemini-2.5-flash-lite";
+    // 'auto' → modelo del agente → modelo por defecto global. Sin fallback a un
+    // proveedor concreto: si no hay ninguno, la tarea falla con aviso claro.
+    const selectedModel = engineOverride || cfgRows[0]?.model || process.env.DEFAULT_MODEL || "";
+    if (!selectedModel) {
+      console.error("[worker-general] ERROR: no hay modelo. Elige uno en Configuración → Modelo por defecto, o asígnaselo al agente.");
+    }
 
     const globalConfigs = await (db as any).select().from(systemConfigs);
     // El LLM local se relee del .env en cada tarea. Es su única fuente (la API
@@ -213,7 +218,7 @@ for await (const m of sub) {
 
     let llmConfig = resolveLLMConfig(selectedModel, getGlobalConfig);
     if (llmConfig.provider === "leonardo") {
-      llmConfig = resolveLLMConfig(process.env.DEFAULT_MODEL || "gemini-2.5-flash-lite", getGlobalConfig);
+      llmConfig = resolveLLMConfig(process.env.DEFAULT_MODEL || "", getGlobalConfig);
     }
 
     const { context: personality, files: personalityFiles } = await loadPersonality(agentId);

@@ -11,6 +11,7 @@ export const PROVIDER_LABELS: Record<string, string> = {
   kimi: 'Kimi (Moonshot)',
   leonardo: 'Leonardo AI',
   local: 'Local',
+  minimax: 'MiniMax',
   mistral: 'Mistral',
   openai: 'OpenAI',
   openrouter: 'OpenRouter',

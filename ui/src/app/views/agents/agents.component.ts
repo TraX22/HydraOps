@@ -53,8 +53,13 @@ export class AgentsComponent implements OnInit {
   // shown starred on its own at the top, so it's excluded here to avoid an empty
   // group. modelLabel strips the redundant "APIkey · Company:" prefix.
   modelLabel = modelLabel;
-  groupedModels = computed(() =>
-    groupModels(this.models().filter(m => m.id !== this.defaultModel())));
+  // Todos los modelos agrupados. El estado "Automático" (modelo vacío) se ofrece
+  // como una opción propia en la plantilla, no filtrando la lista.
+  groupedModels = computed(() => groupModels(this.models()));
+
+  // Same grouping for the "Tipo" (engine) selector, but over the models that are
+  // compatible with the selected agent's worker type (see engineModels).
+  groupedEngineModels = computed(() => groupModels(this.engineModels));
   savingConfig = signal(false);
   configSaved = signal(false);
 
@@ -288,8 +293,11 @@ export class AgentsComponent implements OnInit {
   }
 
   // ── Worker & Model config ──
+  // Modelo crudo del agente: vacío = "Automático" (sigue el modelo por defecto
+  // global). No se resuelve al default aquí para que el selector muestre
+  // "Automático" en vez de un modelo concreto.
   get currentModel(): string {
-    return this.selectedAgent()?.llmModel || this.defaultModel();
+    return this.selectedAgent()?.llmModel || '';
   }
 
   // Models compatible with the selected agent's worker type

@@ -116,6 +116,7 @@ export interface AppConfig {
   qwenKey: string;
   kimiKey: string;
   glmKey: string;
+  minimaxKey: string;
   localLlmUrl: string;
   localLlmKey: string;
   localLlmModel: string;

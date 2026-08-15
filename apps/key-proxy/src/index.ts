@@ -33,6 +33,7 @@ const PROVIDERS: Record<string, { host: string; keyName: string; auth: AuthStyle
   qwen:       { host: "https://dashscope-intl.aliyuncs.com",       keyName: "QWEN_API_KEY",       auth: "bearer" },
   kimi:       { host: "https://api.moonshot.ai",                   keyName: "KIMI_API_KEY",       auth: "bearer" },
   glm:        { host: "https://api.z.ai",                          keyName: "GLM_API_KEY",        auth: "bearer" },
+  minimax:    { host: "https://api.minimax.io",                    keyName: "MINIMAX_API_KEY",    auth: "bearer" },
 };
 
 // Hop-by-hop / auth headers that must never be forwarded as-is

@@ -29,6 +29,7 @@
     "changeAvatar": "Trocar avatar (PNG/JPG/WebP, máx 2MB)",
     "rename": "Renomear agente",
     "defaultModel": "padrão",
+    "autoModel": "Automático",
     "autoEngine": "Automático (o worker decide)",
     "resolution": "Resolução / Proporção",
     "autoResolution": "Automático",

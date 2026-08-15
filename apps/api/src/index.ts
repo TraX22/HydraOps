@@ -735,8 +735,9 @@ api.post("/agents", async (req, res) => {
       await writeFile(path.join(agentPath, fileName), template, "utf-8");
     }
 
-    // Register in DB so the agent gets a workerType/model and worker heartbeats
-    const finalModel = model || process.env.DEFAULT_MODEL || "gemini-2.5-flash-lite";
+    // Register in DB so the agent gets a workerType/model and worker heartbeats.
+    // Sin modelo → "" (Automático): el agente sigue el modelo por defecto global.
+    const finalModel = model || "";
     const finalWorker = workerType || "general";
     await (db as any).insert(agentConfigs)
       .values({ agentId: id, model: finalModel, workerType: finalWorker, updatedAt: new Date() })
@@ -867,11 +868,13 @@ api.post("/agents/:id/config", async (req, res) => {
   const { id } = req.params;
   if (!AGENT_ID_RE.test(id)) return res.status(400).json({ error: "Invalid agent id" });
   const { model, workerType, graphicEngine, graphicFormat, resolution } = req.body;
-  if (!model) return res.status(400).json({ error: "model is required" });
+  // El campo debe venir, pero "" es válido: significa "Automático" (sigue el
+  // modelo por defecto global). Solo se rechaza si falta del todo.
+  if (model === undefined || model === null) return res.status(400).json({ error: "model is required" });
 
   try {
-    // 1. Update/Insert in database
-    const finalModel = model || process.env.DEFAULT_MODEL || 'gemini-2.5-flash-lite';
+    // 1. Update/Insert in database — "" se guarda tal cual (Automático).
+    const finalModel = model || "";
     const updatePayload: any = { model: finalModel, updatedAt: new Date() };
     if (workerType) updatePayload.workerType = workerType;
     if (graphicEngine) updatePayload.graphicEngine = graphicEngine;
@@ -1050,6 +1053,7 @@ const envMapping: Record<string, string> = {
   qwenKey: "QWEN_API_KEY",
   kimiKey: "KIMI_API_KEY",
   glmKey: "GLM_API_KEY",
+  minimaxKey: "MINIMAX_API_KEY",
   localLlmUrl: "LOCAL_LLM_URL",
   localLlmKey: "LOCAL_LLM_KEY",
   localLlmModel: "LOCAL_LLM_MODEL",
@@ -1073,7 +1077,7 @@ const LOCAL_ENV_KEYS = new Set(["LOCAL_LLM_URL", "LOCAL_LLM_KEY", "LOCAL_LLM_MOD
 const PROVIDER_KEY_NAMES = [
   "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GROQ_API_KEY",
   "XAI_API_KEY", "LEONARDO_API_KEY", "OPENROUTER_API_KEY", "MISTRAL_API_KEY",
-  "DEEPSEEK_API_KEY", "QWEN_API_KEY", "KIMI_API_KEY", "GLM_API_KEY",
+  "DEEPSEEK_API_KEY", "QWEN_API_KEY", "KIMI_API_KEY", "GLM_API_KEY", "MINIMAX_API_KEY",
 ];
 const KEY_PLACEHOLDER = "proxy";
 // Masked values round-trip through the UI; POST /config already ignores
@@ -1184,6 +1188,7 @@ import {
   listAvailableQwenModels,
   listAvailableKimiModels,
   listAvailableGLMModels,
+  listAvailableMiniMaxModels,
 } from "@hydraops/llm";
 
 api.get("/config/models", async (req, res) => {
@@ -1314,6 +1319,14 @@ api.get("/config/models", async (req, res) => {
       const fallback = ['glm-4.6', 'glm-4.7', 'glm-5.1'];
       const ids = Array.from(new Set([...(models ?? []), ...fallback]));
       allModels.push(...ids.map(m => ({ id: m, name: viaKey(`GLM: ${m}`), provider: 'glm', ...identify(m) })));
+    }).catch(() => {}));
+
+    const minimaxKey = getKey("MINIMAX_API_KEY");
+    if (minimaxKey) providerJobs.push(listAvailableMiniMaxModels(minimaxKey).then(models => {
+      // Static fallback in case /models isn't exposed on the account.
+      const fallback = ['MiniMax-M2', 'MiniMax-M1', 'MiniMax-Text-01'];
+      const ids = Array.from(new Set([...(models ?? []), ...fallback]));
+      allModels.push(...ids.map(m => ({ id: m, name: viaKey(`MiniMax: ${m}`), provider: 'minimax', ...identify(m) })));
     }).catch(() => {}));
 
     const leonardoKey = getKey("LEONARDO_API_KEY");

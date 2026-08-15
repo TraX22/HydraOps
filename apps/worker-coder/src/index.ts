@@ -241,10 +241,10 @@ for await (const m of sub) {
     // "Tipo" (graphicEngine) overrides when set; 'auto' → agent model → global default.
     const cfgRows = await (db as any).select().from(agentConfigs).where(eq(agentConfigs.agentId, agentId)).limit(1);
     const engineOverride = cfgRows[0]?.graphicEngine && cfgRows[0].graphicEngine !== "auto" ? cfgRows[0].graphicEngine : null;
-    const selectedModel = engineOverride || cfgRows[0]?.model || process.env.DEFAULT_MODEL;
+    const selectedModel = engineOverride || cfgRows[0]?.model || process.env.DEFAULT_MODEL || "";
 
     if (!selectedModel) {
-      const errorMsg = "No default model found. Set it in Settings -> 'default ai model'";
+      const errorMsg = "No hay modelo. Elige uno en Configuración → Modelo por defecto, o asígnaselo al agente.";
       console.error(`[worker-coder] ERROR: ${errorMsg}`);
     }
 
@@ -265,7 +265,7 @@ for await (const m of sub) {
     let llmConfig = resolveLLMConfig(selectedModel, getGlobalConfig);
     if (llmConfig.provider === 'leonardo') {
         console.warn(`[worker-coder] Model ${selectedModel} is an image provider. Falling back to default text model.`);
-        llmConfig = resolveLLMConfig(process.env.DEFAULT_MODEL || "gemini-2.0-flash-lite", getGlobalConfig);
+        llmConfig = resolveLLMConfig(process.env.DEFAULT_MODEL || "", getGlobalConfig);
     }
     console.log(`[worker-coder] Resolved config: ${llmConfig.provider} at ${llmConfig.baseURL || 'default'}`);
 
