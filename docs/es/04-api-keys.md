@@ -2,7 +2,7 @@
 
 ## Poner una clave de API
 
-En **Configuración → Claves API** hay un campo por proveedor: OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, OpenRouter y Leonardo. Pega la clave y guarda. No hace falta rellenarlos todos: con un proveedor ya funcionan los agentes que usen sus modelos.
+En **Configuración → Claves API** hay un campo por proveedor: OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, DeepSeek, Qwen, Kimi, GLM, MiniMax, OpenRouter y Leonardo. Pega la clave y guarda. No hace falta rellenarlos todos: con un proveedor ya funcionan los agentes que usen sus modelos.
 
 ![La vista Configuración, con las claves siempre enmascaradas](../img/es/config.png)
 
