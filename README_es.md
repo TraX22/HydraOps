@@ -82,7 +82,9 @@ Requisitos: **Node 20+**, **pnpm 9** y el binario de **nats-server**.
 > él los *workers* no arrancan. Descárgalo de sus
 > [releases](https://github.com/nats-io/nats-server/releases) según tu sistema:
 > - **Debian/Ubuntu:** el paquete `.deb` de tu arquitectura (`…-amd64.deb` para PC de 64 bits,
->   `…-arm64.deb` para ARM) → **doble clic** para instalar, o `sudo dpkg -i nats-server-*-amd64.deb`.
+>   `…-arm64.deb` para ARM) → **doble clic** para instalar, o `sudo dpkg -i nats-server-*-amd64.deb`
+>   (o con apt, ojo al `./`: `sudo apt install ./nats-server-*-amd64.deb`; `apt install nats` a
+>   secas no existe).
 > - **Fedora/RHEL:** el `.rpm` equivalente → doble clic, o `sudo rpm -i nats-server-*-amd64.rpm`.
 > - **macOS:** `brew install nats-server`. **Windows:** `choco install nats-server` (el instalador
 >   `.exe` ya lo trae).
