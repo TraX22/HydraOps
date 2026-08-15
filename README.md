@@ -8,9 +8,9 @@ Multi-agent AI task system with a chat interface. Several agents, each with its 
 personality, model and tools, work on tasks in parallel: they write code, answer
 questions, generate images and video.
 
-Works with API models (OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, OpenRouter,
-Leonardo) and with local models through any OpenAI-compatible server — llama.cpp,
-LM Studio, vLLM, Ollama.
+Works with API models (OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, DeepSeek, Qwen,
+Kimi, GLM, MiniMax, OpenRouter, Leonardo) and with local models through any
+OpenAI-compatible server — llama.cpp, LM Studio, vLLM, Ollama.
 
 > **Status:** in real daily use on Windows, with a desktop installer. Server mode
 > (opening the app from another machine's browser) and a container image are on the way;
