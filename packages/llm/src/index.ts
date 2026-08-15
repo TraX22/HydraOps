@@ -529,6 +529,27 @@ export async function buildUserMessage(prompt: string, rootDir: string): Promise
   return { role: 'user', content: [{ type: 'text', text: fullText }, ...imageParts] } as CoreMessage;
 }
 
+// Algunos modelos de razonamiento (MiniMax M2/M3, etc.) NO devuelven el
+// "pensamiento" en un campo aparte (reasoning_content, como DeepSeek/Kimi), sino
+// inline dentro del content envuelto en <think>...</think> —a menudo en inglés—.
+// El SDK lo deja tal cual en response.text, así que el usuario ve el razonamiento
+// antes de la respuesta real. Lo quitamos para mostrar solo la contestación.
+function stripReasoning(text: string): string {
+  if (!text) return text;
+  // Bloques completos <think>…</think> / <thinking>…</thinking>
+  let out = text.replace(/<think(?:ing)?>[\s\S]*?<\/think(?:ing)?>/gi, '');
+  // Etiqueta de cierre suelta (el razonamiento empezó antes del content): quédate con lo de después.
+  const close = out.toLowerCase().lastIndexOf('</think');
+  if (close !== -1) {
+    const gt = out.indexOf('>', close);
+    if (gt !== -1) out = out.slice(gt + 1);
+  }
+  // Apertura sin cierre (razonamiento truncado por max_tokens): descarta desde ahí.
+  const open = out.toLowerCase().indexOf('<think');
+  if (open !== -1) out = out.slice(0, open);
+  return out.trim();
+}
+
 export async function generateText(config: LLMConfig, messages: CoreMessage[], systemPrompt?: string, aiTools?: Record<string, any>, rawTools?: any[]) {
   try {
     const hasTools = aiTools && Object.keys(aiTools).length > 0;
@@ -693,7 +714,7 @@ export async function generateText(config: LLMConfig, messages: CoreMessage[], s
     }
 
     // Logging for debugging why response.text is sometimes empty after tool calls
-    let finalText = response.text;
+    let finalText = stripReasoning(response.text);
     if (!finalText) {
       if (response.toolResults?.length) {
          console.log(`[LLM Debug] Model went silent after tools. Forcing secondary text generation...`);
@@ -707,7 +728,7 @@ export async function generateText(config: LLMConfig, messages: CoreMessage[], s
              ],
              system: finalSystemPrompt,
            });
-           finalText = forcedResponse.text || "✅ Tool executed successfully. (The model did not generate an additional comment).";
+           finalText = stripReasoning(forcedResponse.text) || "✅ Tool executed successfully. (The model did not generate an additional comment).";
          } catch (e) {
            finalText = "✅ Tool executed successfully. (The model did not generate an additional comment about the results).";
          }
