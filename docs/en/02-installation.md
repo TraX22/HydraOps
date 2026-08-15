@@ -16,7 +16,19 @@ Requirements:
 
 - **Node 20 or newer**
 - **pnpm 9** (`corepack enable` activates it if you have Node)
-- The **nats-server** binary: install it with your package manager (`apt`, `brew`, `choco`…) or download it from its [releases](https://github.com/nats-io/nats-server/releases). Having it on the `PATH` is enough; you can also drop it in a `nats/` folder inside the repository or point to it with `NATS_SERVER_BIN` in the `.env`.
+- The **nats-server** binary — **required**: it is the message bus that connects the API to the agents; without it the *workers* won't start and tasks never get answered. Install it for your system (pick the latest version from the [nats-server releases](https://github.com/nats-io/nats-server/releases)):
+  - **Debian / Ubuntu (and derivatives):** download the **`.deb`** for your architecture — `nats-server-vX.Y.Z-amd64.deb` for a 64-bit PC, `-arm64.deb` for ARM (Raspberry Pi, etc.). Install it by **double-clicking** it (opens the system's software installer) or from the terminal:
+
+    ```bash
+    sudo dpkg -i nats-server-*-amd64.deb
+    ```
+
+  - **Fedora / RHEL / openSUSE:** download the matching **`.rpm`** (`nats-server-vX.Y.Z-amd64.rpm`) and **double-click** it, or run `sudo rpm -i nats-server-*-amd64.rpm`.
+  - **macOS:** `brew install nats-server`.
+  - **Windows:** `choco install nats-server` (or just use the `.exe` installer from Option A, which already bundles it).
+  - **Universal fallback (any OS):** download the compressed binary (`.tar.gz` / `.zip`) and put it on your `PATH`, in a `nats/` folder inside the repository, or point to it with `NATS_SERVER_BIN` in the `.env`.
+
+  To check it installed correctly: `nats-server --version`.
 
 ```bash
 git clone https://github.com/TraX22/HydraOps.git
