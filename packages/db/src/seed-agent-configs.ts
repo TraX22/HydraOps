@@ -35,9 +35,10 @@ const DEFAULT_WORKER_TYPES: Record<string, string> = {
   valentina: "video",
 };
 
-// Un modelo de API barato y sin dependencias locales. El LLM local no sirve de
-// defecto: en una máquina recién instalada no hay ningún llama-server escuchando.
-const DEFAULT_MODEL = process.env.DEFAULT_MODEL || "gemini-2.5-flash-lite";
+// Los agentes nuevos nacen en "Automático" (modelo vacío): siguen el modelo por
+// defecto que el usuario elija en Configuración. No se fuerza ningún proveedor
+// concreto — en una instalación recién hecha no hay ninguna clave todavía.
+const DEFAULT_MODEL = process.env.DEFAULT_MODEL || "";
 
 async function main() {
   let dirs: string[];

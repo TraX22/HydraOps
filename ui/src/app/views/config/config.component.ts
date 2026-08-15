@@ -37,6 +37,7 @@ export class ConfigComponent implements OnInit {
     { key: 'groqKey', label: 'Groq' },
     { key: 'kimiKey', label: 'Kimi (Moonshot)' },
     { key: 'leonardoKey', label: 'Leonardo AI' },
+    { key: 'minimaxKey', label: 'MiniMax' },
     { key: 'mistralKey', label: 'Mistral' },
     { key: 'openaiKey', label: 'OpenAI' },
     { key: 'openrouterKey', label: 'OpenRouter' },

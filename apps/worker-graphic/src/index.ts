@@ -259,10 +259,13 @@ for await (const m of sub) {
       }
     } else {
       // --- CHAT PATH (personality-driven text reply) ---
-      const textModel = agentCfg.model || process.env.DEFAULT_MODEL || "gemini-2.5-flash-lite";
+      const textModel = agentCfg.model || process.env.DEFAULT_MODEL || "";
+      if (!textModel) {
+        console.error("[worker-graphic] ERROR: no hay modelo de texto. Elige uno en Configuración → Modelo por defecto, o asígnaselo al agente.");
+      }
       let llmConfig = resolveLLMConfig(textModel, getGlobalConfig);
       if (llmConfig.provider === "leonardo") {
-        llmConfig = resolveLLMConfig(process.env.DEFAULT_MODEL || "gemini-2.5-flash-lite", getGlobalConfig);
+        llmConfig = resolveLLMConfig(process.env.DEFAULT_MODEL || "", getGlobalConfig);
       }
       const { context: personality, files: personalityFiles } = await loadPersonality(agentId);
       const craft = await loadCraft();
