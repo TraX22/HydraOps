@@ -36,6 +36,9 @@ export class App implements OnInit {
   ngOnInit(): void {
     const savedLang = localStorage.getItem('hydra_lang');
     if (savedLang) this.translate.use(savedLang);
+    // En el escritorio, arranca el menú nativo/Acerca de en el idioma de la UI.
+    (window as unknown as { hydraDesktop?: { setLang?: (l: string) => void } })
+      .hydraDesktop?.setLang?.(savedLang || 'en');
     this.router.events.pipe(filter(e => e instanceof NavigationEnd)).subscribe(() => {
       this.isLogin.set(this.router.url.startsWith('/login'));
     });
