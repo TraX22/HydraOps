@@ -81,5 +81,8 @@ export class ConfigComponent implements OnInit {
   setLang(lang: string): void {
     this.translate.use(lang);
     localStorage.setItem('hydra_lang', lang);
+    // En el escritorio, refleja el idioma en el menú nativo y el Acerca de.
+    (window as unknown as { hydraDesktop?: { setLang?: (l: string) => void } })
+      .hydraDesktop?.setLang?.(lang);
   }
 }

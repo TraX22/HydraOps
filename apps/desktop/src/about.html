@@ -83,15 +83,11 @@
     <img class="brand" id="brand" src="../build/icon.png" alt="HydraOps" />
     <div class="name">HydraOps</div>
     <div class="version" id="version"></div>
-    <div class="desc">
-      Sistema multi-agente de IA con interfaz de chat. Varios agentes, cada uno con su
-      personalidad, su modelo y sus herramientas, resuelven tareas en paralelo: escriben
-      código, contestan preguntas, generan imágenes y vídeo.
-    </div>
+    <div class="desc" id="desc"></div>
     <div class="links">
       <a class="link" id="website" target="_blank" rel="noopener">
         <img src="../build/icon.png" alt="" />
-        <span>Sitio web</span>
+        <span id="websiteLabel">Sitio web</span>
       </a>
       <a class="link" id="github" target="_blank" rel="noopener">
         <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -110,12 +106,18 @@
     <button class="close" id="close" type="button">Cerrar</button>
     <script>
       const q = new URLSearchParams(location.search);
-      const v = q.get("v") || "";
-      document.getElementById("version").textContent = "Versión " + v;
-      document.getElementById("meta").textContent =
+      const txt = (id, s) => { document.getElementById(id).textContent = s; };
+      document.documentElement.lang = q.get("lang") || "en";
+      if (q.get("title")) document.title = q.get("title");
+      txt("version", (q.get("versionLabel") || "Version") + " " + (q.get("v") || ""));
+      txt("desc", q.get("description") || "");
+      txt("websiteLabel", q.get("websiteLabel") || "Website");
+      txt("close", q.get("closeLabel") || "Close");
+      const meta = document.getElementById("meta");
+      meta.textContent =
         "Electron " + (q.get("electron") || "") + " · Node " + (q.get("node") || "") +
-        "\nSoftware libre bajo licencia Apache 2.0.";
-      document.getElementById("meta").style.whiteSpace = "pre-line";
+        "\n" + (q.get("apache") || "");
+      meta.style.whiteSpace = "pre-line";
       document.getElementById("website").href = q.get("website") || "#";
       document.getElementById("github").href = q.get("github") || "#";
       document.getElementById("x").href = q.get("x") || "#";

@@ -61,6 +61,12 @@ process.on("unhandledRejection", (reason) => {
 const { ServiceSupervisor, REPO_ROOT, SEED_ROOT, UI_ROOT } = require("./services");
 const { ensureDataDir } = require("./data-dir");
 const { initAutoUpdate, checkForUpdatesNow } = require("./updater");
+const shellI18n = require("./i18n");
+
+// Idioma del menú nativo y de la ventana Acerca de. Arranca en el mismo por
+// defecto que la UI (en); se ajusta al leer `hydra_lang` del renderer al cargar
+// y cada vez que el usuario lo cambia (IPC `ui:lang`).
+let currentLang = "en";
 
 const GITHUB_URL = "https://github.com/TraX22/HydraOps";
 const WEBSITE_URL = "https://hydraops.org";
@@ -182,6 +188,15 @@ function createMainWindow(url) {
     return { action: "deny" };
   });
 
+  // Idioma persistido de la UI: lo leemos en cuanto carga para que el menú
+  // nazca ya en el idioma correcto, incluso antes de que Angular avise por IPC.
+  mainWindow.webContents.on("did-finish-load", () => {
+    mainWindow?.webContents
+      .executeJavaScript("localStorage.getItem('hydra_lang')")
+      .then((lang) => setShellLang(lang))
+      .catch(() => { /* sin acceso: se queda en el por defecto */ });
+  });
+
   mainWindow.on("closed", () => { mainWindow = null; });
   mainWindow.loadURL(url);
 }
@@ -226,80 +241,103 @@ function showAbout() {
   });
   aboutWindow.once("ready-to-show", () => aboutWindow.show());
   aboutWindow.on("closed", () => { aboutWindow = null; });
+  const a = shellI18n.t(currentLang).about;
+  aboutWindow.setTitle(a.title);
   aboutWindow.loadFile(path.join(__dirname, "about.html"), {
     query: {
+      lang: currentLang,
       v: app.getVersion(),
       electron: process.versions.electron,
       node: process.versions.node,
       website: WEBSITE_URL,
       github: GITHUB_URL,
       x: X_URL,
+      title: a.title,
+      versionLabel: a.versionLabel,
+      description: a.description,
+      apache: a.apache,
+      websiteLabel: a.website,
+      closeLabel: a.close,
     },
   });
 }
 
 function buildMenu() {
+  const m = shellI18n.t(currentLang).menu;
   const template = [
     {
       label: "HydraOps",
       submenu: [
         {
-          label: "Comprobar actualizaciones",
+          label: m.updates,
           click: () => checkForUpdatesNow(),
         },
         { type: "separator" },
         {
-          label: "Recargar interfaz",
+          label: m.reload,
           accelerator: "CmdOrCtrl+R",
           click: () => mainWindow?.webContents.reload(),
         },
         {
-          label: "Herramientas de desarrollo",
+          label: m.devtools,
           accelerator: "CmdOrCtrl+Shift+I",
           click: () => mainWindow?.webContents.toggleDevTools(),
         },
         { type: "separator" },
         {
-          label: "Abrir carpeta de logs",
+          label: m.openLogs,
           click: () => shell.openPath(path.join(app.getPath("userData"), "logs")),
         },
         { type: "separator" },
-        { role: "quit", label: "Salir" },
+        { role: "quit", label: m.quit },
       ],
     },
     {
-      label: "Editar",
+      label: m.edit,
       submenu: [
-        { role: "undo", label: "Deshacer" },
-        { role: "redo", label: "Rehacer" },
+        { role: "undo", label: m.undo },
+        { role: "redo", label: m.redo },
         { type: "separator" },
-        { role: "cut", label: "Cortar" },
-        { role: "copy", label: "Copiar" },
-        { role: "paste", label: "Pegar" },
-        { role: "selectAll", label: "Seleccionar todo" },
+        { role: "cut", label: m.cut },
+        { role: "copy", label: m.copy },
+        { role: "paste", label: m.paste },
+        { role: "selectAll", label: m.selectAll },
       ],
     },
     {
-      label: "Ver",
+      label: m.view,
       submenu: [
-        { role: "resetZoom", label: "Zoom normal" },
-        { role: "zoomIn", label: "Acercar" },
-        { role: "zoomOut", label: "Alejar" },
+        { role: "resetZoom", label: m.resetZoom },
+        { role: "zoomIn", label: m.zoomIn },
+        { role: "zoomOut", label: m.zoomOut },
         { type: "separator" },
-        { role: "togglefullscreen", label: "Pantalla completa" },
+        { role: "togglefullscreen", label: m.fullscreen },
       ],
     },
     {
-      // Menú de primer nivel, junto a "Ver": al pulsarlo abre el diálogo
+      // Menú de primer nivel, junto a "Ver": al pulsarlo abre la ventana
       // directamente (no despliega submenú).
-      label: "About",
+      label: m.about,
       click: () => showAbout(),
     },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+/**
+ * Ajusta el idioma del menú/Acerca de al que trae la UI. Lo llama el IPC
+ * `ui:lang` (cambio del usuario) y la lectura inicial de `hydra_lang`.
+ */
+function setShellLang(lang) {
+  if (!lang || lang === currentLang || !shellI18n.LANGS.includes(lang)) return;
+  currentLang = lang;
+  buildMenu();
+}
+
 function registerIpc() {
+  // La UI avisa del idioma elegido (al arrancar y al cambiarlo) para que el
+  // menú nativo y el Acerca de lo respeten.
+  ipcMain.on("ui:lang", (_event, lang) => setShellLang(lang));
   ipcMain.handle("services:list", () => supervisor.snapshot());
   ipcMain.handle("services:logs", (_event, id) => supervisor.logsFor(id));
   ipcMain.handle("services:restart", (_event, id) => supervisor.restart(id));

@@ -9,6 +9,8 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("hydraDesktop", {
   isDesktop: true,
   info: () => ipcRenderer.invoke("app:info"),
+  // Idioma de la UI → menú nativo y ventana Acerca de.
+  setLang: (lang) => ipcRenderer.send("ui:lang", lang),
   services: {
     list: () => ipcRenderer.invoke("services:list"),
     logs: (id) => ipcRenderer.invoke("services:logs", id),
