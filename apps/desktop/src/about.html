@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: file:; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
+    <title>Acerca de HydraOps</title>
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        padding: 30px 28px 22px;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        color: #e8e8f5;
+        background: radial-gradient(circle at 30% 15%, #2a2a4a 0%, #1b1b2f 65%);
+        user-select: none;
+        text-align: center;
+      }
+      .brand { width: 76px; height: 76px; border-radius: 18px; }
+      .name {
+        font-size: 22px;
+        font-weight: 650;
+        letter-spacing: 0.3px;
+        background: linear-gradient(92deg, #a5b4fc, #f0abfc);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .version { font-size: 13px; color: #b9b9d4; margin-top: -8px; }
+      .desc { font-size: 12.5px; line-height: 1.55; color: #c8c8de; max-width: 340px; }
+      .meta { font-size: 11.5px; color: #8f8fb0; line-height: 1.5; }
+      .links {
+        display: flex;
+        gap: 12px;
+        margin-top: 6px;
+        width: 100%;
+        justify-content: center;
+      }
+      .link {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 7px;
+        flex: 1 1 0;
+        max-width: 96px;
+        padding: 14px 8px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: #e8e8f5;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 550;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s, transform 0.1s;
+      }
+      .link:hover {
+        background: rgba(129, 140, 248, 0.16);
+        border-color: rgba(129, 140, 248, 0.5);
+        transform: translateY(-1px);
+      }
+      .link svg { width: 26px; height: 26px; }
+      .link img { width: 28px; height: 28px; border-radius: 7px; }
+      .close {
+        margin-top: 10px;
+        background: none;
+        border: none;
+        color: #9a9ac0;
+        font: 500 12.5px "Segoe UI", system-ui, sans-serif;
+        cursor: pointer;
+        padding: 6px 14px;
+        border-radius: 8px;
+      }
+      .close:hover { color: #e8e8f5; background: rgba(255, 255, 255, 0.06); }
+    </style>
+  </head>
+  <body>
+    <img class="brand" id="brand" src="../build/icon.png" alt="HydraOps" />
+    <div class="name">HydraOps</div>
+    <div class="version" id="version"></div>
+    <div class="desc">
+      Sistema multi-agente de IA con interfaz de chat. Varios agentes, cada uno con su
+      personalidad, su modelo y sus herramientas, resuelven tareas en paralelo: escriben
+      código, contestan preguntas, generan imágenes y vídeo.
+    </div>
+    <div class="links">
+      <a class="link" id="website" target="_blank" rel="noopener">
+        <img src="../build/icon.png" alt="" />
+        <span>Sitio web</span>
+      </a>
+      <a class="link" id="github" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+        </svg>
+        <span>GitHub</span>
+      </a>
+      <a class="link" id="x" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+        </svg>
+        <span>X</span>
+      </a>
+    </div>
+    <div class="meta" id="meta"></div>
+    <button class="close" id="close" type="button">Cerrar</button>
+    <script>
+      const q = new URLSearchParams(location.search);
+      const v = q.get("v") || "";
+      document.getElementById("version").textContent = "Versión " + v;
+      document.getElementById("meta").textContent =
+        "Electron " + (q.get("electron") || "") + " · Node " + (q.get("node") || "") +
+        "\nSoftware libre bajo licencia Apache 2.0.";
+      document.getElementById("meta").style.whiteSpace = "pre-line";
+      document.getElementById("website").href = q.get("website") || "#";
+      document.getElementById("github").href = q.get("github") || "#";
+      document.getElementById("x").href = q.get("x") || "#";
+      document.getElementById("close").addEventListener("click", () => window.close());
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape") window.close(); });
+    </script>
+  </body>
+</html>

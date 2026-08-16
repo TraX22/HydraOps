@@ -4,7 +4,7 @@
  * Ciclo de vida: splash → arrancar la pila (services.js) → servir la UI
  * compilada → mostrar la ventana. Al cerrar, para los procesos que lanzamos.
  */
-const { app, BrowserWindow, ipcMain, shell, dialog, Menu, nativeImage } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, dialog, Menu } = require("electron");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -64,6 +64,7 @@ const { initAutoUpdate, checkForUpdatesNow } = require("./updater");
 
 const GITHUB_URL = "https://github.com/TraX22/HydraOps";
 const WEBSITE_URL = "https://hydraops.org";
+const X_URL = "https://x.com/HydraOpsApp";
 
 const UI_DIST = UI_ROOT;
 const APP_ICON = path.join(__dirname, "..", "build", "icon.png");
@@ -186,32 +187,55 @@ function createMainWindow(url) {
 }
 
 /**
- * Diálogo "Acerca de": logo, nombre + versión, una descripción breve y los
- * enlaces a GitHub y a la web (se abren en el navegador del sistema).
+ * Ventana "Acerca de": logo, nombre + versión, una descripción breve y tres
+ * botones con icono — Sitio web (logo de la marca), GitHub y X — que abren el
+ * enlace en el navegador del sistema. Es una ventana HTML propia (no el diálogo
+ * nativo) porque sus botones sí admiten iconos SVG, como el resto de la app.
  */
+let aboutWindow = null;
 function showAbout() {
-  const icon = nativeImage.createFromPath(APP_ICON);
-  dialog
-    .showMessageBox(mainWindow ?? undefined, {
-      type: "none",
-      icon: icon.isEmpty() ? undefined : icon,
-      title: "Acerca de HydraOps",
-      message: `HydraOps ${app.getVersion()}`,
-      detail:
-        "Sistema multi-agente de IA con interfaz de chat. Varios agentes, cada uno " +
-        "con su personalidad, su modelo y sus herramientas, resuelven tareas en " +
-        "paralelo: escriben código, contestan preguntas, generan imágenes y vídeo.\n\n" +
-        `Electron ${process.versions.electron} · Node ${process.versions.node}\n` +
-        "Software libre bajo licencia Apache 2.0.",
-      buttons: ["GitHub", "Sitio web", "Cerrar"],
-      defaultId: 2,
-      cancelId: 2,
-      noLink: true,
-    })
-    .then(({ response }) => {
-      if (response === 0) shell.openExternal(GITHUB_URL);
-      else if (response === 1) shell.openExternal(WEBSITE_URL);
-    });
+  if (aboutWindow && !aboutWindow.isDestroyed()) {
+    aboutWindow.focus();
+    return;
+  }
+  aboutWindow = new BrowserWindow({
+    width: 440,
+    height: 560,
+    parent: mainWindow ?? undefined,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    show: false,
+    title: "Acerca de HydraOps",
+    backgroundColor: "#1b1b2f",
+    icon: APP_ICON,
+    autoHideMenuBar: true,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  aboutWindow.setMenuBarVisibility(false);
+  // Los enlaces (target=_blank) van al navegador del sistema, nunca a una
+  // ventana de Electron.
+  aboutWindow.webContents.setWindowOpenHandler(({ url: target }) => {
+    shell.openExternal(target);
+    return { action: "deny" };
+  });
+  aboutWindow.once("ready-to-show", () => aboutWindow.show());
+  aboutWindow.on("closed", () => { aboutWindow = null; });
+  aboutWindow.loadFile(path.join(__dirname, "about.html"), {
+    query: {
+      v: app.getVersion(),
+      electron: process.versions.electron,
+      node: process.versions.node,
+      website: WEBSITE_URL,
+      github: GITHUB_URL,
+      x: X_URL,
+    },
+  });
 }
 
 function buildMenu() {
