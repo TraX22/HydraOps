@@ -43,4 +43,4 @@ No. Data and keys live outside the installation (`%APPDATA%\HydraOps` and `%APPD
 
 ## Where to look when none of this fits
 
-The logs: System view, or the files in `storage/logs/` inside the data folder (under systemd, `journalctl -u hydraops -f`). With the error snippet, open an issue in the repository or write to **hi@hydraops.org**.
+The logs: System view, or the files in `storage/logs/` inside the data folder (under systemd, `journalctl -u hydraops -f`). With the error snippet, open an issue in the repository or write to **hi@hydraops.org**. You can also follow the project and reach us on X: [@HydraOpsApp](https://x.com/HydraOpsApp).

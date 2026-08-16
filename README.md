@@ -2,7 +2,7 @@
 
 **English** | [Español](README_es.md)
 
-🌐 **[hydraops.org](https://hydraops.org)** · [Download the latest release](https://github.com/TraX22/HydraOps/releases/latest)
+🌐 **[hydraops.org](https://hydraops.org)** · [Download the latest release](https://github.com/TraX22/HydraOps/releases/latest) · [X @HydraOpsApp](https://x.com/HydraOpsApp)
 
 Multi-agent AI task system with a chat interface. Several agents, each with its own
 personality, model and tools, work on tasks in parallel: they write code, answer
@@ -215,6 +215,8 @@ HydraOps runs entirely on your machine and collects no data of its own — see t
 ## Contact
 
 Questions, ideas, anything: **hi@hydraops.org** — or open an issue.
+
+Follow the project on X: [@HydraOpsApp](https://x.com/HydraOpsApp).
 
 ## License
 

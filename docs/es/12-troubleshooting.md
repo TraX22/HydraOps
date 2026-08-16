@@ -43,4 +43,4 @@ No. Datos y claves viven fuera de la instalación (`%APPDATA%\HydraOps` y `%APPD
 
 ## Dónde mirar cuando nada de esto encaja
 
-Los logs: vista Sistema, o los archivos de `storage/logs/` en la carpeta de datos (en el modo systemd, `journalctl -u hydraops -f`). Con el fragmento del error, abre un issue en el repositorio o escribe a **hi@hydraops.org**.
+Los logs: vista Sistema, o los archivos de `storage/logs/` en la carpeta de datos (en el modo systemd, `journalctl -u hydraops -f`). Con el fragmento del error, abre un issue en el repositorio o escribe a **hi@hydraops.org**. También puedes seguir el proyecto y escribirnos en X: [@HydraOpsApp](https://x.com/HydraOpsApp).

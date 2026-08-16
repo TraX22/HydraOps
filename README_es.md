@@ -2,7 +2,7 @@
 
 [English](README.md) | **Español**
 
-🌐 **[hydraops.org](https://hydraops.org)** · [Descarga la última versión](https://github.com/TraX22/HydraOps/releases/latest)
+🌐 **[hydraops.org](https://hydraops.org)** · [Descarga la última versión](https://github.com/TraX22/HydraOps/releases/latest) · [X @HydraOpsApp](https://x.com/HydraOpsApp)
 
 Sistema multi-agente de IA con interfaz de chat. Varios agentes, cada uno con su
 personalidad, su modelo y sus herramientas, resuelven tareas en paralelo: escriben código,
@@ -216,6 +216,8 @@ la [Política de Privacidad](PRIVACY_es.md).
 ## Contacto
 
 Preguntas, ideas, lo que sea: **hi@hydraops.org** — o abre un issue.
+
+Síguenos en X: [@HydraOpsApp](https://x.com/HydraOpsApp).
 
 ## Licencia
 
