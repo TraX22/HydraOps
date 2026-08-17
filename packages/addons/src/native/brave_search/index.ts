@@ -5,26 +5,60 @@ import { HydraTool } from "../../../types.js";
 //
 // Add-on independiente de web_search (que usa DuckDuckGo). La API key real
 // NUNCA la ve el worker: la petición sale hacia el key-proxy local
-// (KEY_PROXY_URL, p. ej. http://127.0.0.1:9099) bajo el prefijo /brave/…, y el
-// proxy inyecta el header X-Subscription-Token con la key guardada en el
-// almacén de claves. Misma arquitectura que los proveedores LLM. La key se
-// ingresa en la sección Addons (ver `requiresKey` abajo).
+// (KEY_PROXY_URL) bajo el prefijo /brave/…, y el proxy inyecta el header
+// X-Subscription-Token con la key del almacén de claves. La key se ingresa en
+// la sección Addons (ver `requiresKey` abajo).
+//
+// Región: la API de Brave NO usa la IP de quien llama (por defecto asume US),
+// así que replicamos lo que hace DuckDuckGo — detectamos el país de la IP de
+// salida y lo pasamos como `country` (relevancia regional, NO filtro de idioma;
+// nunca se fija `search_lang`, para no encerrar los resultados en un idioma).
 
 const MAX_RESULTS = 8;
 const MAX_SNIPPET = 300;
 
 // Enruta la llamada por el key-proxy si KEY_PROXY_URL está configurado.
-// Sin proxy no hay forma segura de autenticar (el worker no tiene la key).
 function proxiedBrave(path: string): string | null {
   const proxyBase = (process.env.KEY_PROXY_URL || "").trim().replace(/\/$/, "");
   if (!proxyBase) return null;
   return `${proxyBase}/brave${path}`;
 }
 
-async function searchBrave(query: string): Promise<string> {
-  console.log(`[Tool: BraveSearch] Searching for: ${query}`);
+// País de la IP de salida, cacheado (la región no cambia a menudo). Cloudflare
+// trace primero (HTTPS, sin key, rápido); ipapi.co como reserva.
+let cachedCountry: string | null = null;
+let countryResolvedAt = 0;
+const COUNTRY_TTL_MS = 6 * 60 * 60 * 1000; // 6 h
 
-  const path = `/res/v1/web/search?q=${encodeURIComponent(query)}&count=${MAX_RESULTS}`;
+async function detectCountry(): Promise<string | null> {
+  const now = Date.now();
+  if (cachedCountry && now - countryResolvedAt < COUNTRY_TTL_MS) return cachedCountry;
+
+  const set = (c: string) => { cachedCountry = c.toUpperCase(); countryResolvedAt = now; return cachedCountry; };
+  try {
+    const r = await fetch("https://www.cloudflare.com/cdn-cgi/trace", { signal: AbortSignal.timeout(3000) });
+    if (r.ok) {
+      const m = (await r.text()).match(/^loc=([A-Z]{2})$/m);
+      if (m) return set(m[1]);
+    }
+  } catch { /* siguiente */ }
+  try {
+    const r = await fetch("https://ipapi.co/country/", { signal: AbortSignal.timeout(3000) });
+    if (r.ok) {
+      const c = (await r.text()).trim();
+      if (/^[A-Za-z]{2}$/.test(c)) return set(c);
+    }
+  } catch { /* sin geo → sin country */ }
+  return null;
+}
+
+async function searchBrave(query: string, countryOverride?: string): Promise<string> {
+  // País: el que pida el agente, o el auto-detectado por IP (como DuckDuckGo).
+  const country = (countryOverride || (await detectCountry()) || "").toUpperCase();
+  const geoSuffix = /^[A-Z]{2}$/.test(country) ? `&country=${country}` : "";
+  console.log(`[Tool: BraveSearch] Searching for: ${query}${geoSuffix ? ` (country=${country})` : ""}`);
+
+  const path = `/res/v1/web/search?q=${encodeURIComponent(query)}&count=${MAX_RESULTS}${geoSuffix}`;
   const url = proxiedBrave(path);
   if (!url) {
     return "brave_search no está disponible: falta el key-proxy (KEY_PROXY_URL). No se puede autenticar la búsqueda de forma segura.";
@@ -60,11 +94,16 @@ async function searchBrave(query: string): Promise<string> {
 export const braveSearchTool: HydraTool = {
   name: "brave_search",
   description:
-    "Search the web using the Brave Search API. Reliable web results when you need recent or verifiable information.",
+    "Search the web using the Brave Search API. Reliable web results when you need recent or verifiable information. Results are biased to the server's region automatically; pass `country` to target another region.",
   schema: z.object({
     query: z.string().describe("The search term or phrase"),
+    country: z
+      .string()
+      .length(2)
+      .optional()
+      .describe("Optional 2-letter country code (e.g. 'US', 'AR', 'ES') to bias regional relevance. Defaults to the server's detected region."),
   }),
-  execute: async ({ query }) => await searchBrave(query),
+  execute: async ({ query, country }) => await searchBrave(query, country),
   requiresKey: {
     configField: "braveKey",
     keyName: "BRAVE_API_KEY",
