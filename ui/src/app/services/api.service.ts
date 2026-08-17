@@ -309,6 +309,17 @@ export class ApiService {
     return this.http.post<void>(`${this.base}/config`, config);
   }
 
+  // ── OpenRouter OAuth (PKCE) ──
+  startOpenRouterLogin(lang: string): Observable<{ url: string }> {
+    return this.http.post<{ url: string }>(`${this.base}/config/openrouter/oauth/start`, { lang });
+  }
+
+  getOpenRouterLoginStatus(): Observable<{ pending: boolean; done: boolean | null; error: string | null }> {
+    const params = new HttpParams().set('t', Date.now().toString());
+    return this.http.get<{ pending: boolean; done: boolean | null; error: string | null }>(
+      `${this.base}/config/openrouter/oauth/status`, { params });
+  }
+
   // ── Crons ──
   getCrons(): Observable<CronJob[]> {
     const params = new HttpParams().set('t', Date.now().toString());

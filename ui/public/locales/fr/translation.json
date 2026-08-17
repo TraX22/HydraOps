@@ -64,7 +64,11 @@
     "modelUnavailable": "indisponible (choisissez-en un autre)",
     "languages": "Langues",
     "localLlm": "LLM Local",
-    "logLevel": "Niveau de Log"
+    "logLevel": "Niveau de Log",
+    "oauthConnect": "Se connecter avec OpenRouter",
+    "oauthWaiting": "Autorisez dans le navigateur…",
+    "oauthDone": "Connecté",
+    "oauthError": "Connexion impossible. Réessayer"
   },
   "cron": {
     "title": "Tâches Planifiées",

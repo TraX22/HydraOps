@@ -50,6 +50,24 @@
 }
 .field input:focus { border-color: var(--accent); }
 
+/* Login con OpenRouter: alternativa a pegar la key, debajo de su campo */
+.oauth-btn {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 12px;
+}
+.oauth-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--text-primary); }
+.oauth-btn:disabled { opacity: 0.6; cursor: default; }
+.oauth-btn.error { border-color: #ef4444; color: #ef4444; }
+
 .model-select {
   width: 100%;
   padding: 8px 12px;

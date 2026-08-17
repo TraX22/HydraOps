@@ -14,6 +14,17 @@
             <input type="password" [value]="$any(config())[field.key] ?? ''"
                    (input)="updateField(field.key, $any($event.target).value)"
                    placeholder="sk-..." />
+            @if (field.key === 'openrouterKey') {
+              <button type="button" class="oauth-btn" [class.error]="orLogin() === 'error'"
+                      (click)="connectOpenRouter()" [disabled]="orLogin() === 'waiting'">
+                @switch (orLogin()) {
+                  @case ('waiting') { <app-icon name="hourglass" /> {{ 'config.oauthWaiting' | translate }} }
+                  @case ('done') { <app-icon name="check" /> {{ 'config.oauthDone' | translate }} }
+                  @case ('error') { <app-icon name="alert" /> {{ 'config.oauthError' | translate }} }
+                  @default { <app-icon name="log-in" /> {{ 'config.oauthConnect' | translate }} }
+                }
+              </button>
+            }
           </div>
         }
       </div>

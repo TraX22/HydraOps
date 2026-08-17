@@ -64,7 +64,11 @@
     "modelUnavailable": "indisponível (escolha outro)",
     "languages": "Idiomas",
     "localLlm": "LLM Local",
-    "logLevel": "Nível de Log"
+    "logLevel": "Nível de Log",
+    "oauthConnect": "Entrar com OpenRouter",
+    "oauthWaiting": "Autorize no navegador…",
+    "oauthDone": "Conectado",
+    "oauthError": "Não foi possível conectar. Tentar de novo"
   },
   "cron": {
     "title": "Tarefas Agendadas",

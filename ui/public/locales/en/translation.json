@@ -64,7 +64,11 @@
     "modelUnavailable": "unavailable (pick another)",
     "languages": "Languages",
     "localLlm": "Local LLM",
-    "logLevel": "Log Level"
+    "logLevel": "Log Level",
+    "oauthConnect": "Log in with OpenRouter",
+    "oauthWaiting": "Authorize in your browser…",
+    "oauthDone": "Connected",
+    "oauthError": "Could not connect. Retry"
   },
   "cron": {
     "title": "Scheduled Tasks",

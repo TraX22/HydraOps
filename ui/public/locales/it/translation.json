@@ -64,7 +64,11 @@
     "modelUnavailable": "non disponibile (scegline un altro)",
     "languages": "Lingue",
     "localLlm": "LLM Locale",
-    "logLevel": "Livello di Log"
+    "logLevel": "Livello di Log",
+    "oauthConnect": "Accedi con OpenRouter",
+    "oauthWaiting": "Autorizza nel browser…",
+    "oauthDone": "Connesso",
+    "oauthError": "Connessione non riuscita. Riprova"
   },
   "cron": {
     "title": "Attività Programmate",

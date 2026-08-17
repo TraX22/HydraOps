@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ApiService, AppConfig, ModelOption } from '../../services/api.service';
@@ -12,7 +12,7 @@ import { IconComponent } from '../../components/icon/icon.component';
   templateUrl: './config.component.html',
   styleUrl: './config.component.css',
 })
-export class ConfigComponent implements OnInit {
+export class ConfigComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   translate = inject(TranslateService);
 
@@ -20,6 +20,11 @@ export class ConfigComponent implements OnInit {
   models = signal<ModelOption[]>([]);
   isSaving = signal(false);
   saveSuccess = signal(false);
+
+  // Login con OpenRouter (OAuth): idle → waiting (autorizando en el navegador)
+  // → done | error. El sondeo muere solo a los 10 min, cuando caduca el flujo.
+  orLogin = signal<'idle' | 'waiting' | 'done' | 'error'>('idle');
+  private orPollTimer: ReturnType<typeof setInterval> | null = null;
 
   // Saved default model that no longer exists in the providers' lists (e.g. the
   // local LLM was renamed) — rendered as its own option so the select is never blank.
@@ -76,6 +81,43 @@ export class ConfigComponent implements OnInit {
       },
       error: () => this.isSaving.set(false),
     });
+  }
+
+  // Abre la autorización de OpenRouter en el navegador del sistema (Electron
+  // desvía todo window.open por setWindowOpenHandler) y sondea el estado hasta
+  // que el callback canjea el código y guarda la key.
+  connectOpenRouter(): void {
+    if (this.orLogin() === 'waiting') return;
+    this.orLogin.set('waiting');
+    const lang = this.translate.currentLang() || 'en';
+    this.api.startOpenRouterLogin(lang).subscribe({
+      next: ({ url }) => {
+        window.open(url, '_blank');
+        this.stopOrPolling();
+        this.orPollTimer = setInterval(() => {
+          this.api.getOpenRouterLoginStatus().subscribe(s => {
+            if (s.done === true) {
+              this.stopOrPolling();
+              this.orLogin.set('done');
+              this.fetchConfig(); // recoge la máscara de la key y los modelos nuevos
+              setTimeout(() => this.orLogin.set('idle'), 5000);
+            } else if (s.done === false || !s.pending) {
+              this.stopOrPolling();
+              this.orLogin.set('error');
+            }
+          });
+        }, 2000);
+      },
+      error: () => this.orLogin.set('error'),
+    });
+  }
+
+  private stopOrPolling(): void {
+    if (this.orPollTimer) { clearInterval(this.orPollTimer); this.orPollTimer = null; }
+  }
+
+  ngOnDestroy(): void {
+    this.stopOrPolling();
   }
 
   setLang(lang: string): void {

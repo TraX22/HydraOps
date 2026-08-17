@@ -8,6 +8,10 @@ En **Configuración → Claves API** hay un campo por proveedor: OpenAI, Anthrop
 
 Las claves **no se guardan en el proyecto, ni en la base de datos, ni en ningún `.env`**: van a un almacén propio fuera de la aplicación (`%APPDATA%\hydraops\keys.json` en Windows) y un proceso local —el key-proxy— las inyecta solo en el momento de llamar al proveedor. Por eso la vista Configuración te las enseña enmascaradas: es lo esperado. Más en [Seguridad](./11-security.md).
 
+## Iniciar sesión con OpenRouter
+
+Con OpenRouter no hace falta copiar la clave a mano: pulsa **Iniciar sesión con OpenRouter** bajo su campo, autoriza en el navegador y OpenRouter le entrega a HydraOps una clave propia, que se guarda en el mismo almacén seguro que las demás. Los modelos que llegan por esta vía se etiquetan `Log ·` en el selector (en lugar de `APIkey ·`). Si algún día pegas una clave a mano en el campo, esa pasa a mandar y la etiqueta vuelve a `APIkey ·`.
+
 ## Elegir modelo
 
 - **Modelo por defecto:** en Configuración; se usa cuando un agente no tiene uno propio.

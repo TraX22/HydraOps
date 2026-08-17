@@ -8,6 +8,10 @@ In **Settings → API Keys** there is one field per provider: OpenAI, Anthropic,
 
 Keys are **not stored in the project, nor in the database, nor in any `.env`**: they go to a store of their own outside the application (`%APPDATA%\hydraops\keys.json` on Windows) and a local process — the key-proxy — injects them only at the moment of calling the provider. That is why the Settings view shows them masked: that's expected. More in [Security](./11-security.md).
 
+## Logging in with OpenRouter
+
+With OpenRouter you don't need to copy a key by hand: click **Log in with OpenRouter** under its field, authorize in your browser, and OpenRouter hands HydraOps a key of its own, stored in the same secure store as the rest. Models that arrive this way are labeled `Log ·` in the model selector (instead of `APIkey ·`). If you ever paste a key manually into the field, that one takes over and the label goes back to `APIkey ·`.
+
 ## Choosing a model
 
 - **Default model:** in Settings; used when an agent has none of its own.

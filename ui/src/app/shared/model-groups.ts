@@ -24,10 +24,11 @@ export function providerLabel(provider: string): string {
 }
 
 // The API prefixes every model name with its access source and company
-// ("APIkey · OpenAI: gpt-4o", "Local: LM Studio"). Inside a company group that
-// prefix is redundant, so strip it down to just the model.
+// ("APIkey · OpenAI: gpt-4o", "Log · OpenRouter: gpt-4o", "Local: LM Studio").
+// Inside a company group that prefix is redundant, so strip it down to just
+// the model.
 export function modelLabel(name: string): string {
-  return name.replace(/^APIkey · [^:]+:\s*/, '').replace(/^Local:\s*/, '').trim() || name;
+  return name.replace(/^(APIkey|Log) · [^:]+:\s*/, '').replace(/^Local:\s*/, '').trim() || name;
 }
 
 export interface ModelGroup {

@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import path from "node:path";
 import { readdir, readFile, writeFile, mkdir, rm, access, rename } from "node:fs/promises";
-import { randomUUID, createHash, timingSafeEqual } from "node:crypto";
+import { randomUUID, randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { spawn } from "node:child_process";
 import multer from "multer";
 
@@ -130,7 +130,14 @@ function requestAuthState(req: express.Request): { required: boolean; authentica
 const PROTECTED_PREFIXES = ["/api", "/avatars", "/storage", "/img", "/users"];
 // /api/login es la puerta y /api/auth/status es lo que la UI pregunta para
 // saber si debe enseñarla — ninguna de las dos puede estar detrás del muro.
-const AUTH_EXEMPT_PATHS = new Set(["/api/login", "/api/auth/status"]);
+// El callback OAuth de OpenRouter llega desde el navegador del sistema (sin
+// cookie ni Bearer); lo protege el propio PKCE, no el token (ver el bloque
+// "OpenRouter: inicio de sesión" más abajo).
+const AUTH_EXEMPT_PATHS = new Set([
+  "/api/login",
+  "/api/auth/status",
+  "/api/config/openrouter/oauth/callback",
+]);
 
 app.use((req, res, next) => {
   const p = req.path;
@@ -1157,6 +1164,10 @@ const PROVIDER_KEY_NAMES = [
   "DEEPSEEK_API_KEY", "QWEN_API_KEY", "KIMI_API_KEY", "GLM_API_KEY", "MINIMAX_API_KEY",
 ];
 const KEY_PLACEHOLDER = "proxy";
+// Fila de system_configs que recuerda si la key de OpenRouter vino del login
+// OAuth ("oauth") o de pegarla a mano (fila ausente) — decide la etiqueta
+// "Log ·" / "APIkey ·" del selector de modelos.
+const OPENROUTER_SOURCE_KEY = "OPENROUTER_KEY_SOURCE";
 // Masked values round-trip through the UI; POST /config already ignores
 // anything containing this dotted placeholder, so a re-saved mask is a no-op.
 const KEY_MASK_DOTS = "...............";
@@ -1328,8 +1339,11 @@ api.get("/config/models", async (req, res) => {
     // tell at a glance how a model is paid/accessed:
     //   "APIkey · ..." → uses one of the configured API keys (tokens billed)
     //   "Local: ..."   → the local llama-server/LM Studio model
-    //   (future) "Log · ..." → models accessed via login, added later
+    //   "Log · ..."    → key obtained via login (today: OpenRouter OAuth)
     const viaKey = (label: string) => `APIkey · ${label}`;
+    const viaLogin = (label: string) => `Log · ${label}`;
+    const openrouterViaLogin =
+      dbConfigs.find((c: any) => c.key === OPENROUTER_SOURCE_KEY)?.value === "oauth";
 
     const groqKey = getKey("GROQ_API_KEY");
     if (groqKey) providerJobs.push(listAvailableGroqModels(groqKey).then(models => {
@@ -1370,7 +1384,8 @@ api.get("/config/models", async (req, res) => {
 
     const openrouterKey = getKey("OPENROUTER_API_KEY");
     if (openrouterKey) providerJobs.push(listAvailableOpenRouterModels(openrouterKey).then(models => {
-      allModels.push(...models.map(m => ({ id: m, name: viaKey(`OpenRouter: ${m}`), provider: 'openrouter', ...identify(m) })));
+      const label = openrouterViaLogin ? viaLogin : viaKey;
+      allModels.push(...models.map(m => ({ id: m, name: label(`OpenRouter: ${m}`), provider: 'openrouter', ...identify(m) })));
     }).catch(() => {}));
 
     const deepseekKey = getKey("DEEPSEEK_API_KEY");
@@ -1582,6 +1597,12 @@ api.post("/config", async (req, res) => {
         }
       }
       if (storeChanged) await saveKeyStore(store);
+      // Pegar (o borrar) la key de OpenRouter a mano retira el marcador OAuth:
+      // la etiqueta "Log ·" solo vale mientras la key activa venga del login.
+      // Un mask sin cambios no llega aquí (se borra de envDocs arriba).
+      if ("OPENROUTER_API_KEY" in envDocs) {
+        await (db as any).delete(systemConfigs).where(eq(systemConfigs.key, OPENROUTER_SOURCE_KEY)).run();
+      }
     }
 
     const envPathPath = envFile;
@@ -1653,6 +1674,108 @@ api.post("/config", async (req, res) => {
     console.error("[api] POST /config failed", err);
     res.status(500).json({ error: "Failed to write config" });
   }
+});
+
+// ─── OpenRouter: inicio de sesión (OAuth PKCE) ───────────────────────────────
+//
+// La alternativa a pegar una API key: el usuario pulsa "Iniciar sesión con
+// OpenRouter", autoriza en su navegador y OpenRouter redirige al callback con
+// un código que se canjea por una API key normal (sk-or-v1-…). Esa key acaba
+// en el key store como OPENROUTER_API_KEY, igual que una pegada a mano — el
+// key-proxy y los workers no distinguen el origen.
+//
+// Seguridad: PKCE con S256. El code_verifier nunca sale de este proceso, así
+// que un código ajeno (CSRF contra el callback, que está exento de token) no
+// canjea: OpenRouter liga cada código al code_challenge de SU flujo, no al
+// nuestro. El `state` viaja además en la callback_url como refuerzo, pero el
+// callback tolera su ausencia porque la doc de OpenRouter no garantiza que la
+// query de la callback_url se conserve en la redirección.
+
+const OR_OAUTH_TTL_MS = 10 * 60 * 1000; // los códigos de OpenRouter caducan a los 10 min
+let orOauthFlow: { verifier: string; state: string; lang: string; createdAt: number } | null = null;
+let orOauthDone: { ok: boolean; error?: string } | null = null;
+
+// La página del callback vive en el navegador del sistema, fuera de la SPA,
+// así que lleva sus propios textos (mismos 5 idiomas que la UI).
+const OR_OAUTH_TEXTS: Record<string, { ok: string; okHint: string; fail: string; failHint: string }> = {
+  es: { ok: "Sesión iniciada", okHint: "Ya puedes cerrar esta pestaña y volver a HydraOps.", fail: "No se pudo iniciar sesión", failHint: "Vuelve a HydraOps e inténtalo de nuevo, o pega una API key a mano." },
+  en: { ok: "Logged in", okHint: "You can close this tab and return to HydraOps.", fail: "Login failed", failHint: "Go back to HydraOps and try again, or paste an API key manually." },
+  fr: { ok: "Session ouverte", okHint: "Vous pouvez fermer cet onglet et revenir à HydraOps.", fail: "Échec de la connexion", failHint: "Revenez à HydraOps et réessayez, ou collez une clé API manuellement." },
+  it: { ok: "Accesso effettuato", okHint: "Puoi chiudere questa scheda e tornare a HydraOps.", fail: "Accesso non riuscito", failHint: "Torna a HydraOps e riprova, oppure incolla una chiave API manualmente." },
+  pt: { ok: "Sessão iniciada", okHint: "Você pode fechar esta aba e voltar ao HydraOps.", fail: "Falha ao iniciar sessão", failHint: "Volte ao HydraOps e tente novamente, ou cole uma chave de API manualmente." },
+};
+
+function orOauthPage(title: string, hint: string, ok: boolean): string {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>HydraOps</title></head>
+<body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f1115;color:#e5e7eb;font-family:system-ui,sans-serif;text-align:center">
+<div><div style="font-size:42px">${ok ? "✅" : "⚠️"}</div>
+<h1 style="font-size:20px;margin:12px 0 6px">${title}</h1>
+<p style="color:#9ca3af;margin:0">${hint}</p></div>
+</body></html>`;
+}
+
+api.post("/config/openrouter/oauth/start", (req, res) => {
+  const lang = typeof req.body?.lang === "string" && OR_OAUTH_TEXTS[req.body.lang] ? req.body.lang : "en";
+  const verifier = randomBytes(32).toString("base64url");
+  const state = randomBytes(16).toString("base64url");
+  orOauthFlow = { verifier, state, lang, createdAt: Date.now() };
+  orOauthDone = null;
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+  // El host de la petición sirve tal cual: el navegador del sistema alcanza el
+  // mismo 127.0.0.1:puerto que la UI (Electron y headless comparten servidor).
+  const callback = `${req.protocol}://${req.get("host")}/api/config/openrouter/oauth/callback?state=${state}`;
+  const url = `https://openrouter.ai/auth?callback_url=${encodeURIComponent(callback)}&code_challenge=${challenge}&code_challenge_method=S256`;
+  res.json({ url });
+});
+
+api.get("/config/openrouter/oauth/callback", async (req, res) => {
+  const flow = orOauthFlow;
+  const t = OR_OAUTH_TEXTS[flow?.lang ?? "en"];
+  const fail = (error: string) => {
+    orOauthDone = { ok: false, error };
+    res.status(400).send(orOauthPage(t.fail, t.failHint, false));
+  };
+  const code = typeof req.query.code === "string" ? req.query.code : "";
+  const state = typeof req.query.state === "string" ? req.query.state : "";
+  if (!flow || Date.now() - flow.createdAt > OR_OAUTH_TTL_MS) return fail("no_pending_flow");
+  if (state && state !== flow.state) return fail("state_mismatch");
+  if (!code) return fail("missing_code");
+  orOauthFlow = null; // cada flujo admite un solo intento de canje
+  try {
+    const resp = await fetch("https://openrouter.ai/api/v1/auth/keys", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, code_verifier: flow.verifier, code_challenge_method: "S256" }),
+    });
+    const data: any = await resp.json().catch(() => ({}));
+    const key = typeof data?.key === "string" ? data.key.trim() : "";
+    if (!resp.ok || !key) {
+      console.error(`[api] OpenRouter OAuth: canje rechazado (HTTP ${resp.status})`);
+      return fail(`exchange_http_${resp.status}`);
+    }
+    const store = await loadKeyStore();
+    store["OPENROUTER_API_KEY"] = key;
+    await saveKeyStore(store);
+    // La misma huella que deja una key pegada a mano (placeholder en la BD para
+    // que los workers vean el proveedor configurado) más el marcador de origen.
+    for (const [k, v] of [["OPENROUTER_API_KEY", KEY_PLACEHOLDER], [OPENROUTER_SOURCE_KEY, "oauth"]]) {
+      await (db as any).insert(systemConfigs).values({ key: k, value: v, updatedAt: new Date() })
+        .onConflictDoUpdate({ target: systemConfigs.key, set: { value: v, updatedAt: new Date() } }).run();
+    }
+    orOauthDone = { ok: true };
+    console.log("[api] OpenRouter OAuth: key guardada en el key store");
+    res.send(orOauthPage(t.ok, t.okHint, true));
+  } catch (err) {
+    console.error("[api] OpenRouter OAuth: canje fallido", err);
+    fail("exchange_unreachable");
+  }
+});
+
+// La UI sondea esto tras abrir el navegador: pending mientras el usuario
+// autoriza, done true/false cuando el callback resolvió.
+api.get("/config/openrouter/oauth/status", (_req, res) => {
+  const pending = !!orOauthFlow && Date.now() - orOauthFlow.createdAt <= OR_OAUTH_TTL_MS;
+  res.json({ pending, done: orOauthDone?.ok ?? null, error: orOauthDone?.error ?? null });
 });
 
 // --- Task endpoints ---
