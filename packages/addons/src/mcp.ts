@@ -110,6 +110,53 @@ function killTransport(transport: any): void {
   try { transport.process?.kill?.(); } catch (_) {}
 }
 
+// --- Tool-result sanitisation ---
+// Cap total del texto que un resultado MCP inyecta en el contexto del modelo.
+// Sin esto, una captura de Playwright (parte `image` con base64) o un snapshot
+// de DOM entero se volcaban en crudo (100k+ tokens) y desbordaban la ventana
+// de los modelos locales, arruinando la respuesta. Equivale al MAX_OUTPUT de
+// fetch_url, con algo más de holgura para texto legítimo.
+const MAX_MCP_OUTPUT = 8_000;
+
+// Estima el tamaño (KB) del payload original de una parte no-textual para el
+// marcador, sin volcar su contenido. Base64 ≈ 3/4 de bytes reales.
+function partSizeKB(part: any): number {
+  const raw = part?.data ?? part?.blob ?? "";
+  const len = typeof raw === "string" ? raw.length : 0;
+  return Math.max(1, Math.round((len * 0.75) / 1024));
+}
+
+// Convierte el array `content` de un resultado MCP en texto seguro para el
+// contexto: el texto se conserva; imágenes/audio/blobs se sustituyen por un
+// marcador con su tamaño (nunca su base64); recursos y demás se serializan
+// truncados. El total se capa a MAX_MCP_OUTPUT.
+function sanitizeMcpContent(content: any[], toolName: string): string {
+  const parts: string[] = (Array.isArray(content) ? content : []).map((c: any) => {
+    if (c && typeof c.text === "string") return c.text;
+    const type = c?.type;
+    if (type === "image" || type === "audio") {
+      const mime = c?.mimeType || type;
+      return `[${type} ${mime} omitida: ~${partSizeKB(c)} KB — no insertable en contexto de texto]`;
+    }
+    if (type === "resource" && c?.resource) {
+      const r = c.resource;
+      if (typeof r.text === "string") return r.text;
+      return `[recurso ${r.mimeType || ""} ${r.uri || ""} omitido: ~${partSizeKB(r)} KB]`;
+    }
+    // Parte desconocida: serializar pero acotada, para no volcar blobs enormes.
+    const s = JSON.stringify(c);
+    return s.length > 1_000 ? s.slice(0, 1_000) + `…[parte ${type || "?"} truncada]` : s;
+  });
+
+  let out = parts.join("\n");
+  if (out.length > MAX_MCP_OUTPUT) {
+    const omitted = out.length - MAX_MCP_OUTPUT;
+    console.warn(`[MCP Tool Exec] Resultado de ${toolName} truncado: ${omitted} chars omitidos (cap ${MAX_MCP_OUTPUT}).`);
+    out = out.slice(0, MAX_MCP_OUTPUT) + `\n…[resultado truncado, ${omitted} chars omitidos]`;
+  }
+  return out;
+}
+
 // --- Main MCP Client Manager ---
 export class McpClientManager {
   private clients = new Map<string, Client>();
@@ -269,10 +316,10 @@ export class McpClientManager {
         );
 
         if (res.isError) {
-          return `MCP Server Error: ${JSON.stringify(res.content)}`;
+          return `MCP Server Error: ${sanitizeMcpContent(res.content, toolOriginalName)}`;
         }
 
-        return res.content.map((c: any) => c.text || JSON.stringify(c)).join("\n");
+        return sanitizeMcpContent(res.content, toolOriginalName);
       } catch (execErr: any) {
         const errMsg = execErr.message || 'Unknown execution error';
         console.error(`[MCP Tool Exec] ❌ ${toolOriginalName} on ${serverName} failed: ${errMsg}`);
