@@ -1131,6 +1131,7 @@ const envMapping: Record<string, string> = {
   kimiKey: "KIMI_API_KEY",
   glmKey: "GLM_API_KEY",
   minimaxKey: "MINIMAX_API_KEY",
+  braveKey: "BRAVE_API_KEY",
   localLlmUrl: "LOCAL_LLM_URL",
   localLlmKey: "LOCAL_LLM_KEY",
   localLlmModel: "LOCAL_LLM_MODEL",
@@ -1155,6 +1156,7 @@ const PROVIDER_KEY_NAMES = [
   "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GROQ_API_KEY",
   "XAI_API_KEY", "LEONARDO_API_KEY", "OPENROUTER_API_KEY", "MISTRAL_API_KEY",
   "DEEPSEEK_API_KEY", "QWEN_API_KEY", "KIMI_API_KEY", "GLM_API_KEY", "MINIMAX_API_KEY",
+  "BRAVE_API_KEY",
 ];
 const KEY_PLACEHOLDER = "proxy";
 // Masked values round-trip through the UI; POST /config already ignores

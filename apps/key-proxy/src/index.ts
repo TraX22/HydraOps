@@ -19,7 +19,7 @@ import { keyStoreFile } from "@hydraops/config";
 const PORT = Number(process.env.KEY_PROXY_PORT || 9099);
 const KEYS_PATH = keyStoreFile;
 
-type AuthStyle = "bearer" | "x-api-key" | "google";
+type AuthStyle = "bearer" | "x-api-key" | "google" | "x-subscription-token";
 const PROVIDERS: Record<string, { host: string; keyName: string; auth: AuthStyle }> = {
   openai:     { host: "https://api.openai.com",                    keyName: "OPENAI_API_KEY",     auth: "bearer" },
   groq:       { host: "https://api.groq.com",                      keyName: "GROQ_API_KEY",       auth: "bearer" },
@@ -34,12 +34,14 @@ const PROVIDERS: Record<string, { host: string; keyName: string; auth: AuthStyle
   kimi:       { host: "https://api.moonshot.ai",                   keyName: "KIMI_API_KEY",       auth: "bearer" },
   glm:        { host: "https://api.z.ai",                          keyName: "GLM_API_KEY",        auth: "bearer" },
   minimax:    { host: "https://api.minimax.io",                    keyName: "MINIMAX_API_KEY",    auth: "bearer" },
+  // Brave Search API — web_search tool. Auth via X-Subscription-Token header.
+  brave:      { host: "https://api.search.brave.com",              keyName: "BRAVE_API_KEY",      auth: "x-subscription-token" },
 };
 
 // Hop-by-hop / auth headers that must never be forwarded as-is
 const STRIP_REQUEST_HEADERS = new Set([
   "host", "connection", "content-length", "transfer-encoding", "keep-alive",
-  "accept-encoding", "authorization", "x-api-key", "x-goog-api-key", "proxy-authorization",
+  "accept-encoding", "authorization", "x-api-key", "x-goog-api-key", "x-subscription-token", "proxy-authorization",
 ]);
 // fetch() auto-decompresses, so these response headers would lie to the client
 const STRIP_RESPONSE_HEADERS = new Set([
@@ -97,6 +99,8 @@ const server = http.createServer(async (req, res) => {
       headers["authorization"] = `Bearer ${realKey}`;
     } else if (provider.auth === "x-api-key") {
       headers["x-api-key"] = realKey;
+    } else if (provider.auth === "x-subscription-token") {
+      headers["x-subscription-token"] = realKey;
     } else {
       // google: header auth + replace any placeholder ?key= param
       headers["x-goog-api-key"] = realKey;
