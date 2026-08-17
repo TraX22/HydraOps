@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
   ApiService,
+  AppConfig,
   McpConfig,
   McpStatusResponse,
   NativeAddon,
@@ -30,6 +31,10 @@ export class AddonsComponent implements OnInit {
   jsonError = signal('');
   jsonSaved = signal(false);
 
+  // Per-addon API-key input (only addons with requiresKey). Keyed by addon name.
+  keyInput = signal<Record<string, string>>({});
+  keySaved = signal<Record<string, boolean>>({});
+
   constructor() {
     const timer = setInterval(() => this.refreshStatus(), STATUS_POLL_MS);
     inject(DestroyRef).onDestroy(() => clearInterval(timer));
@@ -54,6 +59,28 @@ export class AddonsComponent implements OnInit {
     const state: Record<string, boolean> = {};
     for (const a of updated) state[a.name] = a.enabled;
     this.api.saveNativeAddons(state).subscribe();
+  }
+
+  // ── API key de un add-on (p. ej. brave_search) ──
+  updateKeyInput(name: string, value: string): void {
+    this.keyInput.update(m => ({ ...m, [name]: value }));
+  }
+
+  saveAddonKey(addon: NativeAddon): void {
+    const req = addon.requiresKey;
+    const value = (this.keyInput()[addon.name] || '').trim();
+    if (!req || !value) return;
+    // Reutiliza el contrato POST /config: la key real va SOLO al keystore
+    // (via PROVIDER_KEY_NAMES) y el worker recibe el placeholder "proxy".
+    this.api.saveConfig({ [req.configField]: value } as Partial<AppConfig>).subscribe(() => {
+      // Marca configurada y limpia el input; feedback breve.
+      this.nativeAddons.update(list =>
+        list.map(a => (a.name === addon.name ? { ...a, keyConfigured: true } : a)),
+      );
+      this.keyInput.update(m => ({ ...m, [addon.name]: '' }));
+      this.keySaved.update(m => ({ ...m, [addon.name]: true }));
+      setTimeout(() => this.keySaved.update(m => ({ ...m, [addon.name]: false })), 2000);
+    });
   }
 
   // ── MCP servers ──

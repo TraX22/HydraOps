@@ -32,7 +32,6 @@ export class ConfigComponent implements OnInit {
   // Sorted alphabetically by company so the grid stays readable as more are added.
   apiKeyFields = [
     { key: 'anthropicKey', label: 'Anthropic' },
-    { key: 'braveKey', label: 'Brave Search' },
     { key: 'deepseekKey', label: 'DeepSeek' },
     { key: 'glmKey', label: 'GLM (Z.ai)' },
     { key: 'geminiKey', label: 'Google Gemini' },

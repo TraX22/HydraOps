@@ -7,19 +7,49 @@
     <h3>{{ 'addons.nativeTitle' | translate }}</h3>
     <div class="addons-grid">
       @for (addon of nativeAddons(); track addon.name) {
-        <div class="addon-card">
-          <div class="addon-info">
-            <span class="addon-name">
-              {{ addon.name }}
-              @if (addon.source === 'my_addons') {
-                <span class="addon-badge">{{ 'addons.custom' | translate }}</span>
-              }
-            </span>
-            <span class="addon-type">{{ addon.description }}</span>
+        <div class="addon-card" [class.has-key]="addon.requiresKey">
+          <div class="addon-row">
+            <div class="addon-info">
+              <span class="addon-name">
+                {{ addon.name }}
+                @if (addon.source === 'my_addons') {
+                  <span class="addon-badge">{{ 'addons.custom' | translate }}</span>
+                }
+                @if (addon.requiresKey) {
+                  <span class="addon-badge" [class.key-ok]="addon.keyConfigured">
+                    {{ (addon.keyConfigured ? 'addons.keyConfigured' : 'addons.keyMissing') | translate }}
+                  </span>
+                }
+              </span>
+              <span class="addon-type">{{ addon.description }}</span>
+            </div>
+            <button class="toggle-btn" [class.on]="addon.enabled" (click)="toggleNative(addon)">
+              {{ addon.enabled ? 'ON' : 'OFF' }}
+            </button>
           </div>
-          <button class="toggle-btn" [class.on]="addon.enabled" (click)="toggleNative(addon)">
-            {{ addon.enabled ? 'ON' : 'OFF' }}
-          </button>
+
+          @if (addon.requiresKey; as req) {
+            <div class="addon-keyrow">
+              <input
+                type="password"
+                class="key-input"
+                autocomplete="off"
+                [placeholder]="addon.keyConfigured ? '••••••••••••' : req.label"
+                [value]="keyInput()[addon.name] ?? ''"
+                (input)="updateKeyInput(addon.name, $any($event.target).value)"
+                (keyup.enter)="saveAddonKey(addon)"
+              />
+              <button class="btn-primary key-save" [disabled]="!(keyInput()[addon.name] || '').trim()" (click)="saveAddonKey(addon)">
+                {{ 'addons.saveKey' | translate }}
+              </button>
+              @if (keySaved()[addon.name]) {
+                <span class="saved-msg">✓ {{ 'common.saved' | translate }}</span>
+              }
+              @if (req.helpUrl) {
+                <a class="key-help" [href]="req.helpUrl" target="_blank" rel="noopener">{{ 'addons.getKey' | translate }}</a>
+              }
+            </div>
+          }
         </div>
       }
     </div>

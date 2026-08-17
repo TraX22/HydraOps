@@ -136,7 +136,11 @@
       "disconnected": "Desconectado",
       "off": "Desligado",
       "unknown": "Sem relatório dos workers"
-    }
+    },
+    "keyConfigured": "Chave salva",
+    "keyMissing": "Sem chave",
+    "saveKey": "Salvar chave",
+    "getKey": "Obter uma chave"
   },
   "me": {
     "title": "Perfil do Usuário",

@@ -78,11 +78,20 @@ export interface McpConfig {
   mcpServers: Record<string, { switch: 'on' | 'off'; command?: string; args?: string[] }>;
 }
 
+export interface ToolKeyRequirement {
+  configField: string;
+  keyName: string;
+  label: string;
+  helpUrl?: string;
+}
+
 export interface NativeAddon {
   name: string;
   description: string;
   enabled: boolean;
   source?: 'native' | 'my_addons';
+  requiresKey?: ToolKeyRequirement;
+  keyConfigured?: boolean;
 }
 
 export interface McpServerStatus {

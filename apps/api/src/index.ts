@@ -1915,6 +1915,7 @@ const addonsRegistry = await createRegistry();
 // UI-friendly Spanish descriptions for the built-in tools; custom addons show their own
 const ADDON_DESCRIPTION_OVERRIDES: Record<string, string> = {
   web_search: "Busca información actualizada en internet (DuckDuckGo).",
+  brave_search: "Búsqueda web con Brave Search API (requiere API key).",
   fetch_url: "Lee una página web y la convierte a Markdown.",
 };
 
@@ -1922,6 +1923,8 @@ api.get("/system/addons", async (_req, res) => {
   try {
     const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, "native_addons_state")).limit(1);
     const state = rows[0] ? JSON.parse(rows[0].value) : {};
+    // For addons that need a key: report ONLY whether one is stored, never the value.
+    const store = await loadKeyStore();
     // Workers treat anything !== false as enabled
     res.json({
       addons: addonsRegistry.listNative().map(a => ({
@@ -1929,6 +1932,10 @@ api.get("/system/addons", async (_req, res) => {
         description: ADDON_DESCRIPTION_OVERRIDES[a.name] ?? a.description,
         source: a.source,
         enabled: state[a.name] !== false,
+        ...(a.requiresKey ? {
+          requiresKey: a.requiresKey,
+          keyConfigured: isRealKeyValue(store[a.requiresKey.keyName] || ""),
+        } : {}),
       })),
     });
   } catch (err: any) {
