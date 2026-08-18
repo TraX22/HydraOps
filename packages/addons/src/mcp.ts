@@ -111,48 +111,48 @@ function killTransport(transport: any): void {
 }
 
 // --- Tool-result sanitisation ---
-// Cap total del texto que un resultado MCP inyecta en el contexto del modelo.
-// Sin esto, una captura de Playwright (parte `image` con base64) o un snapshot
-// de DOM entero se volcaban en crudo (100k+ tokens) y desbordaban la ventana
-// de los modelos locales, arruinando la respuesta. Equivale al MAX_OUTPUT de
-// fetch_url, con algo más de holgura para texto legítimo.
+// Overall cap on the text an MCP result injects into the model's context.
+// Without it, a Playwright screenshot (an `image` part with base64) or a full
+// DOM snapshot got dumped raw (100k+ tokens) and overflowed the context window
+// of local models, wrecking the response. Mirrors fetch_url's MAX_OUTPUT, with
+// a bit more headroom for legitimate text.
 const MAX_MCP_OUTPUT = 8_000;
 
-// Estima el tamaño (KB) del payload original de una parte no-textual para el
-// marcador, sin volcar su contenido. Base64 ≈ 3/4 de bytes reales.
+// Estimates the size (KB) of a non-text part's original payload for the marker,
+// without dumping its content. Base64 ≈ 3/4 of the real bytes.
 function partSizeKB(part: any): number {
   const raw = part?.data ?? part?.blob ?? "";
   const len = typeof raw === "string" ? raw.length : 0;
   return Math.max(1, Math.round((len * 0.75) / 1024));
 }
 
-// Convierte el array `content` de un resultado MCP en texto seguro para el
-// contexto: el texto se conserva; imágenes/audio/blobs se sustituyen por un
-// marcador con su tamaño (nunca su base64); recursos y demás se serializan
-// truncados. El total se capa a MAX_MCP_OUTPUT.
+// Turns an MCP result's `content` array into text that is safe for the context:
+// text is kept; images/audio/blobs are replaced by a marker with their size
+// (never their base64); resources and the rest are serialised and truncated.
+// The total is capped to MAX_MCP_OUTPUT.
 function sanitizeMcpContent(content: any[], toolName: string): string {
   const parts: string[] = (Array.isArray(content) ? content : []).map((c: any) => {
     if (c && typeof c.text === "string") return c.text;
     const type = c?.type;
     if (type === "image" || type === "audio") {
       const mime = c?.mimeType || type;
-      return `[${type} ${mime} omitida: ~${partSizeKB(c)} KB — no insertable en contexto de texto]`;
+      return `[${type} ${mime} omitted: ~${partSizeKB(c)} KB — not embeddable in text context]`;
     }
     if (type === "resource" && c?.resource) {
       const r = c.resource;
       if (typeof r.text === "string") return r.text;
-      return `[recurso ${r.mimeType || ""} ${r.uri || ""} omitido: ~${partSizeKB(r)} KB]`;
+      return `[resource ${r.mimeType || ""} ${r.uri || ""} omitted: ~${partSizeKB(r)} KB]`;
     }
-    // Parte desconocida: serializar pero acotada, para no volcar blobs enormes.
+    // Unknown part: serialise but bounded, so we don't dump huge blobs.
     const s = JSON.stringify(c);
-    return s.length > 1_000 ? s.slice(0, 1_000) + `…[parte ${type || "?"} truncada]` : s;
+    return s.length > 1_000 ? s.slice(0, 1_000) + `…[${type || "?"} part truncated]` : s;
   });
 
   let out = parts.join("\n");
   if (out.length > MAX_MCP_OUTPUT) {
     const omitted = out.length - MAX_MCP_OUTPUT;
-    console.warn(`[MCP Tool Exec] Resultado de ${toolName} truncado: ${omitted} chars omitidos (cap ${MAX_MCP_OUTPUT}).`);
-    out = out.slice(0, MAX_MCP_OUTPUT) + `\n…[resultado truncado, ${omitted} chars omitidos]`;
+    console.warn(`[MCP Tool Exec] ${toolName} result truncated: ${omitted} chars omitted (cap ${MAX_MCP_OUTPUT}).`);
+    out = out.slice(0, MAX_MCP_OUTPUT) + `\n…[result truncated, ${omitted} chars omitted]`;
   }
   return out;
 }

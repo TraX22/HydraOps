@@ -34,7 +34,7 @@ const PROVIDERS: Record<string, { host: string; keyName: string; auth: AuthStyle
   kimi:       { host: "https://api.moonshot.ai",                   keyName: "KIMI_API_KEY",       auth: "bearer" },
   glm:        { host: "https://api.z.ai",                          keyName: "GLM_API_KEY",        auth: "bearer" },
   minimax:    { host: "https://api.minimax.io",                    keyName: "MINIMAX_API_KEY",    auth: "bearer" },
-  // Brave Search API — web_search tool. Auth via X-Subscription-Token header.
+  // Brave Search API — brave_search tool. Auth via X-Subscription-Token header.
   brave:      { host: "https://api.search.brave.com",              keyName: "BRAVE_API_KEY",      auth: "x-subscription-token" },
 };
 

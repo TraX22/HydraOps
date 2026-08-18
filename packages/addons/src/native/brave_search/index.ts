@@ -1,26 +1,26 @@
 import { z } from "zod";
 import { HydraTool } from "../../../types.js";
 
-// brave_search — búsqueda web vía Brave Search API.
+// brave_search — web search via the Brave Search API.
 //
-// Add-on independiente de web_search (que usa DuckDuckGo). La API key real
-// NUNCA la ve el worker: la petición sale hacia el key-proxy local
-// (KEY_PROXY_URL) bajo el prefijo /brave/…, y el proxy inyecta el header
-// X-Subscription-Token con la key del almacén de claves. La key se ingresa en
-// la sección Addons (ver `requiresKey` abajo).
+// Independent add-on from web_search (which uses DuckDuckGo). The real API key
+// is NEVER seen by the worker: the request goes to the local key-proxy
+// (KEY_PROXY_URL) under the /brave/… prefix, and the proxy injects the
+// X-Subscription-Token header with the key from the key store. The key is
+// entered in the Addons section (see `requiresKey` below).
 //
-// Región: la API de Brave NO usa la IP de quien llama (por defecto asume US),
-// así que replicamos lo que hace DuckDuckGo — detectamos el país de la IP de
-// salida y lo pasamos como `country` (relevancia regional, NO filtro de idioma;
-// nunca se fija `search_lang`, para no encerrar los resultados en un idioma).
+// Region: the Brave API does NOT use the caller's IP (it defaults to US), so we
+// replicate what DuckDuckGo does — detect the country of the egress IP and pass
+// it as `country` (regional relevance, NOT a language filter; `search_lang` is
+// never set, so results aren't locked to a single language).
 
 const MAX_RESULTS = 8;
 const MAX_SNIPPET = 300;
 
-// Convierte el HTML del snippet de Brave en texto plano. Los snippets traen
-// etiquetas de resaltado (<strong>…); las quitamos en bucle hasta que la cadena
-// se estabiliza (un único replace es evadible — "bad tag filter") y eliminamos
-// cualquier ángulo residual: el snippet es texto para el modelo, nunca HTML.
+// Turns Brave's HTML snippet into plain text. Snippets carry highlight tags
+// (<strong>…); we strip them in a loop until the string stabilises (a single
+// replace is bypassable — "bad tag filter") and drop any leftover angle
+// brackets: the snippet is text for the model, never HTML.
 function stripHtml(input: string): string {
   let out = input;
   let prev: string;
@@ -31,15 +31,15 @@ function stripHtml(input: string): string {
   return out.replace(/[<>]/g, "");
 }
 
-// Enruta la llamada por el key-proxy si KEY_PROXY_URL está configurado.
+// Route the call through the key-proxy if KEY_PROXY_URL is configured.
 function proxiedBrave(path: string): string | null {
   const proxyBase = (process.env.KEY_PROXY_URL || "").trim().replace(/\/$/, "");
   if (!proxyBase) return null;
   return `${proxyBase}/brave${path}`;
 }
 
-// País de la IP de salida, cacheado (la región no cambia a menudo). Cloudflare
-// trace primero (HTTPS, sin key, rápido); ipapi.co como reserva.
+// Country of the egress IP, cached (the region doesn't change often). Cloudflare
+// trace first (HTTPS, no key, fast); ipapi.co as a fallback.
 let cachedCountry: string | null = null;
 let countryResolvedAt = 0;
 const COUNTRY_TTL_MS = 6 * 60 * 60 * 1000; // 6 h
@@ -55,19 +55,19 @@ async function detectCountry(): Promise<string | null> {
       const m = (await r.text()).match(/^loc=([A-Z]{2})$/m);
       if (m) return set(m[1]);
     }
-  } catch { /* siguiente */ }
+  } catch { /* try next */ }
   try {
     const r = await fetch("https://ipapi.co/country/", { signal: AbortSignal.timeout(3000) });
     if (r.ok) {
       const c = (await r.text()).trim();
       if (/^[A-Za-z]{2}$/.test(c)) return set(c);
     }
-  } catch { /* sin geo → sin country */ }
+  } catch { /* no geo → no country */ }
   return null;
 }
 
 async function searchBrave(query: string, countryOverride?: string): Promise<string> {
-  // País: el que pida el agente, o el auto-detectado por IP (como DuckDuckGo).
+  // Country: the one the agent asks for, or the IP-detected one (like DuckDuckGo).
   const country = (countryOverride || (await detectCountry()) || "").toUpperCase();
   const geoSuffix = /^[A-Z]{2}$/.test(country) ? `&country=${country}` : "";
   console.log(`[Tool: BraveSearch] Searching for: ${query}${geoSuffix ? ` (country=${country})` : ""}`);
@@ -75,20 +75,20 @@ async function searchBrave(query: string, countryOverride?: string): Promise<str
   const path = `/res/v1/web/search?q=${encodeURIComponent(query)}&count=${MAX_RESULTS}${geoSuffix}`;
   const url = proxiedBrave(path);
   if (!url) {
-    return "brave_search no está disponible: falta el key-proxy (KEY_PROXY_URL). No se puede autenticar la búsqueda de forma segura.";
+    return "brave_search is unavailable: the key-proxy (KEY_PROXY_URL) is missing. The search cannot be authenticated securely.";
   }
 
   try {
     const response = await fetch(url, { headers: { Accept: "application/json" } });
 
     if (response.status === 401) {
-      return "brave_search: no hay API key de Brave configurada. Añádela en la sección Addons → Brave Search para habilitar la búsqueda web.";
+      return "brave_search: no Brave API key is configured. Add it in the Addons section → Brave Search to enable web search.";
     }
     if (response.status === 429) {
-      return "brave_search: límite de peticiones de Brave alcanzado (rate limit). Prueba de nuevo en unos segundos.";
+      return "brave_search: Brave request limit reached (rate limit). Try again in a few seconds.";
     }
     if (!response.ok) {
-      return `brave_search: error del proveedor (HTTP ${response.status}).`;
+      return `brave_search: provider error (HTTP ${response.status}).`;
     }
 
     const data: any = await response.json();

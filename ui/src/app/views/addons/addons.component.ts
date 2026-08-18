@@ -61,7 +61,7 @@ export class AddonsComponent implements OnInit {
     this.api.saveNativeAddons(state).subscribe();
   }
 
-  // ── API key de un add-on (p. ej. brave_search) ──
+  // ── An add-on's API key (e.g. brave_search) ──
   updateKeyInput(name: string, value: string): void {
     this.keyInput.update(m => ({ ...m, [name]: value }));
   }
@@ -70,10 +70,10 @@ export class AddonsComponent implements OnInit {
     const req = addon.requiresKey;
     const value = (this.keyInput()[addon.name] || '').trim();
     if (!req || !value) return;
-    // Reutiliza el contrato POST /config: la key real va SOLO al keystore
-    // (via PROVIDER_KEY_NAMES) y el worker recibe el placeholder "proxy".
+    // Reuse the POST /config contract: the real key goes ONLY to the keystore
+    // (via PROVIDER_KEY_NAMES) and the worker receives the "proxy" placeholder.
     this.api.saveConfig({ [req.configField]: value } as Partial<AppConfig>).subscribe(() => {
-      // Marca configurada y limpia el input; feedback breve.
+      // Mark it configured and clear the input; brief feedback.
       this.nativeAddons.update(list =>
         list.map(a => (a.name === addon.name ? { ...a, keyConfigured: true } : a)),
       );
