@@ -136,7 +136,11 @@
       "disconnected": "Disconnesso",
       "off": "Spento",
       "unknown": "Nessun report dai worker"
-    }
+    },
+    "keyConfigured": "Chiave salvata",
+    "keyMissing": "Nessuna chiave",
+    "saveKey": "Salva chiave",
+    "getKey": "Ottieni una chiave"
   },
   "me": {
     "title": "Profilo Utente",
