@@ -1,5 +1,5 @@
 import { tool } from 'ai';
-import { HydraTool } from './types.js';
+import { HydraTool, ToolKeyRequirement } from './types.js';
 import { McpClientManager, McpServerStatus } from './mcp.js';
 import { guardTool } from './guard.js';
 
@@ -21,11 +21,12 @@ export class ToolRegistry {
   }
 
   // Metadata for the UI (no schema/execute)
-  listNative(): { name: string; description: string; source: string }[] {
+  listNative(): { name: string; description: string; source: string; requiresKey?: ToolKeyRequirement }[] {
     return [...this.nativeTools.values()].map(t => ({
       name: t.name,
       description: t.description,
       source: t.source ?? 'native',
+      ...(t.requiresKey ? { requiresKey: t.requiresKey } : {}),
     }));
   }
 

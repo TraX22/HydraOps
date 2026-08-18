@@ -17,6 +17,19 @@
   border-radius: var(--radius-sm); padding: 12px 16px;
 }
 .addon-card.dimmed { opacity: 0.6; }
+/* Tarjetas nativas con fila de key: apilar cabecera + fila de key */
+.addon-card:has(.addon-row) { flex-direction: column; align-items: stretch; }
+.addon-row { display: flex; align-items: center; gap: 12px; width: 100%; }
+.addon-keyrow { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.key-input {
+  flex: 1; min-width: 180px; padding: 6px 10px; font-size: 13px;
+  background: var(--bg-surface); color: var(--text-primary);
+  border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+}
+.key-save { padding: 6px 14px; font-size: 12px; }
+.key-save:disabled { opacity: 0.5; cursor: default; }
+.key-help { font-size: 12px; color: var(--accent, #3b82f6); text-decoration: none; white-space: nowrap; }
+.addon-badge.key-ok { background: var(--status-online); color: white; border-color: var(--status-online); }
 .addon-info { flex: 1; min-width: 0; }
 .addon-name { font-size: 14px; font-weight: 500; color: var(--text-primary); display: block; }
 .addon-badge {

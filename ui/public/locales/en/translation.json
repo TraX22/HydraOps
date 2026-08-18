@@ -136,7 +136,11 @@
       "disconnected": "Disconnected",
       "off": "Off",
       "unknown": "Not reported by workers"
-    }
+    },
+    "keyConfigured": "Key set",
+    "keyMissing": "No key",
+    "saveKey": "Save key",
+    "getKey": "Get a key"
   },
   "me": {
     "title": "User Profile",
