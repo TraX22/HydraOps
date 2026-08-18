@@ -17,6 +17,20 @@ import { HydraTool } from "../../../types.js";
 const MAX_RESULTS = 8;
 const MAX_SNIPPET = 300;
 
+// Convierte el HTML del snippet de Brave en texto plano. Los snippets traen
+// etiquetas de resaltado (<strong>…); las quitamos en bucle hasta que la cadena
+// se estabiliza (un único replace es evadible — "bad tag filter") y eliminamos
+// cualquier ángulo residual: el snippet es texto para el modelo, nunca HTML.
+function stripHtml(input: string): string {
+  let out = input;
+  let prev: string;
+  do {
+    prev = out;
+    out = out.replace(/<[^>]*>/g, "");
+  } while (out !== prev);
+  return out.replace(/[<>]/g, "");
+}
+
 // Enruta la llamada por el key-proxy si KEY_PROXY_URL está configurado.
 function proxiedBrave(path: string): string | null {
   const proxyBase = (process.env.KEY_PROXY_URL || "").trim().replace(/\/$/, "");
@@ -82,7 +96,7 @@ async function searchBrave(query: string, countryOverride?: string): Promise<str
     const results = raw.slice(0, MAX_RESULTS).map((r: any) => ({
       title: (r.title || "").trim(),
       link: r.url || "",
-      snippet: (r.description || "").replace(/<\/?[^>]+>/g, "").trim().slice(0, MAX_SNIPPET),
+      snippet: stripHtml(r.description || "").trim().slice(0, MAX_SNIPPET),
     })).filter((r: any) => r.title && r.link);
 
     return results.length > 0 ? JSON.stringify(results, null, 2) : "No results found.";
