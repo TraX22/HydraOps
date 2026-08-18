@@ -1,6 +1,6 @@
 {
   "name": "@hydraops/desktop",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "private": true,
   "description": "HydraOps desktop shell (Electron)",
   "main": "src/main.js",
