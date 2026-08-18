@@ -1,7 +1,8 @@
 import { Component, DestroyRef, computed, inject, resource } from '@angular/core';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiService, StatsData } from '../../services/api.service';
+import { AgentsService } from '../../services/agents.service';
 import { IconComponent } from '../../components/icon/icon.component';
 
 interface MetricCard {
@@ -11,7 +12,31 @@ interface MetricCard {
   icon: string;
 }
 
+// One FUT-style attribute on an agent card (0-99 rating + real value tooltip).
+interface CardAttr {
+  labelKey: string; // i18n key for the full stat name (Speed, Tasks…)
+  value: number;    // 0-99 rating
+  title: string;    // tooltip with the real underlying stat
+}
+
+interface AgentCard {
+  agentId: string;
+  name: string;
+  avatarUrl?: string;
+  initial: string;
+  online: boolean;
+  position: string;             // role abbreviation (DEV/GEN/ART/VID)
+  ovr: number;                  // 0-99 overall
+  tier: 'gold' | 'platinum' | 'bronze';
+  attrs: CardAttr[];
+}
+
 const REFRESH_MS = 10_000;
+
+// Worker role → FUT-style position label.
+const POSITION_BY_ROLE: Record<string, string> = {
+  coder: 'DEV', general: 'GEN', graphic: 'ART', video: 'VID',
+};
 
 @Component({
   selector: 'app-stats',
@@ -22,6 +47,8 @@ const REFRESH_MS = 10_000;
 })
 export class StatsComponent {
   private api = inject(ApiService);
+  private agentsService = inject(AgentsService);
+  private t = inject(TranslateService);
 
   statsResource = resource({
     loader: (): Promise<StatsData> => firstValueFrom(this.api.getStats()),
@@ -62,6 +89,73 @@ export class StatsComponent {
       },
     ];
   });
+
+  // FUT-style cards for the per-agent stats. Each of the six attributes is a
+  // 0-99 rating derived from a real column; counts are scaled relative to the
+  // busiest agent so the numbers land in a football-card range, while rate-based
+  // ones (success, avoiding failures) are absolute percentages. Tooltips carry
+  // the real underlying value so nothing is lost to the flavour.
+  agentCards = computed<AgentCard[]>(() => {
+    const s = this.stats();
+    if (!s || s.perAgent.length === 0) return [];
+    const agents = this.agentsService.agents();
+
+    const maxTotal = Math.max(1, ...s.perAgent.map(a => a.total));
+    const maxTokens = Math.max(1, ...s.perAgent.map(a => a.tokens));
+    const maxCompleted = Math.max(1, ...s.perAgent.map(a => a.completed));
+    const positiveMs = s.perAgent.map(a => a.avgMs).filter(ms => ms > 0);
+    const minMs = positiveMs.length ? Math.min(...positiveMs) : 0;
+
+    // 0 → 40, max → 99 (avoids the ugly sub-40 numbers a real FUT card never shows).
+    const scale = (v: number, max: number) => this.clamp99(Math.round(40 + 59 * (v / max)));
+    const rateScore = (r: number) => this.clamp99(Math.round(40 + 59 * Math.max(0, Math.min(1, r))));
+
+    const label = (key: string) => this.t.instant(key);
+
+    return s.perAgent.map(a => {
+      const meta = agents.find(g => g.id === a.agentId);
+      const successRate = a.total > 0 ? a.completed / a.total : 0;
+      const failRate = a.total > 0 ? a.failed / a.total : 0;
+      const pace = minMs > 0 && a.avgMs > 0 ? this.clamp99(Math.round(40 + 59 * (minMs / a.avgMs))) : 40;
+      const pct = Math.round(successRate * 100);
+
+      const attrs: CardAttr[] = [
+        { labelKey: 'stats.attrSpeed', value: pace, title: `${label('stats.avgTime')}: ${this.formatMs(a.avgMs)}` },
+        { labelKey: 'stats.attrCompleted', value: scale(a.completed, maxCompleted), title: `${label('stats.completed')}: ${a.completed}` },
+        { labelKey: 'stats.attrTasks', value: scale(a.total, maxTotal), title: `${label('stats.tasks')}: ${a.total}` },
+        { labelKey: 'stats.attrSuccess', value: rateScore(successRate), title: `${label('stats.completed')} / ${label('stats.tasks')}: ${pct}%` },
+        { labelKey: 'stats.attrReliability', value: rateScore(1 - failRate), title: `${label('stats.failed')}: ${a.failed}` },
+        { labelKey: 'stats.attrLoad', value: scale(a.tokens, maxTokens), title: `${label('stats.tokens')}: ${this.formatCount(a.tokens)}` },
+      ];
+
+      // OVR leans on output and reliability, like a striker's rating.
+      const ovr = Math.round(
+        (attrs[1].value * 1.5 + attrs[3].value * 1.3 + attrs[4].value * 1.2 +
+          attrs[0].value + attrs[2].value + attrs[5].value) / 7.0,
+      );
+      const name = meta?.name ?? a.agentId;
+      const role = (meta?.workerType ?? '').toLowerCase();
+
+      return {
+        agentId: a.agentId,
+        name,
+        avatarUrl: meta?.avatarUrl,
+        initial: (name[0] ?? 'A').toUpperCase(),
+        online: a.online,
+        position: POSITION_BY_ROLE[role] ?? (role ? role.slice(0, 3).toUpperCase() : 'AGT'),
+        ovr,
+        tier: 'bronze' as AgentCard['tier'], // set by rank below
+        attrs,
+      };
+    })
+      .sort((a, b) => b.ovr - a.ovr)
+      // Tier by ranking: 1st → gold, 2nd/3rd → platinum, the rest → bronze.
+      .map((card, i) => ({ ...card, tier: i === 0 ? 'gold' : i <= 2 ? 'platinum' : 'bronze' } as AgentCard));
+  });
+
+  private clamp99(n: number): number {
+    return Math.max(0, Math.min(99, n));
+  }
 
   formatMs(ms: number): string {
     if (!ms) return '—';

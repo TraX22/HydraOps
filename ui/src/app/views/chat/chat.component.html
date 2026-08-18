@@ -18,7 +18,7 @@
   </div>
 
   <!-- Messages -->
-  <div class="messages-area">
+  <div class="messages-area" #messagesArea (scroll)="onMessagesScroll()">
     <div class="messages">
       @for (msg of messages; track trackMsg($index, msg)) {
         <div class="msg-row" [class.user]="msg.role === 'user'" [class.bot]="msg.role === 'assistant'">
@@ -114,6 +114,12 @@
 
   <!-- Input -->
   <div class="input-zone">
+    @if (showScrollDown()) {
+      <button class="scroll-down-btn" (click)="scrollToBottom()"
+              [title]="'chat.scrollToBottom' | translate" [attr.aria-label]="'chat.scrollToBottom' | translate">
+        <app-icon name="chevron-down" />
+      </button>
+    }
     @if (attachments().length > 0 || uploadingCount() > 0 || attachError()) {
       <div class="pending-attachments">
         @for (att of attachments(); track att.path) {
