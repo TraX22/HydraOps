@@ -20,7 +20,8 @@
     "imageHint": "Cliquez pour voir en taille réelle",
     "attach": "Joindre des fichiers (images ou documents)",
     "uploading": "Envoi…",
-    "editProfile": "Double-clic : modifier le profil de cet agent"
+    "editProfile": "Double-clic : modifier le profil de cet agent",
+    "scrollToBottom": "Aller au dernier message"
   },
   "agents": {
     "title": "Agents",
@@ -109,7 +110,15 @@
     "tokens": "Tokens",
     "avgTime": "Temps moyen",
     "loading": "Chargement des métriques…",
-    "error": "Impossible de charger les métriques"
+    "error": "Impossible de charger les métriques",
+    "online": "En ligne",
+    "offline": "Hors ligne",
+    "attrSpeed": "Vitesse",
+    "attrCompleted": "Terminées",
+    "attrTasks": "Tâches",
+    "attrSuccess": "Réussite",
+    "attrReliability": "Fiabilité",
+    "attrLoad": "Charge"
   },
   "docs": {
     "title": "Documentation",

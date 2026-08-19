@@ -28,6 +28,11 @@ export class ChatComponent implements OnInit, OnDestroy {
   copiedMsgId = signal<string | null>(null);
 
   messagesEnd = viewChild<ElementRef>('messagesEnd');
+  messagesArea = viewChild<ElementRef<HTMLElement>>('messagesArea');
+
+  // Floating "scroll to bottom" button: shown once the user has scrolled up
+  // far enough from the latest message.
+  showScrollDown = signal(false);
 
   ngOnInit(): void {
     this.chat.fetchHistory(this.chat.activeTab());
@@ -194,6 +199,14 @@ export class ChatComponent implements OnInit, OnDestroy {
     setTimeout(() => {
       this.messagesEnd()?.nativeElement.scrollIntoView({ behavior: 'smooth' });
     }, 100);
+  }
+
+  // Toggle the floating button based on how far the user is from the bottom.
+  onMessagesScroll(): void {
+    const el = this.messagesArea()?.nativeElement;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    this.showScrollDown.set(distanceFromBottom > 240);
   }
 
   hasImage(msg: ChatMessage): boolean {

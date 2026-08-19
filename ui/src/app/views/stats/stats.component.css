@@ -13,16 +13,82 @@
 .metric-label { font-size: 12px; color: var(--text-secondary); }
 .stats-note { margin-top: 24px; text-align: center; color: var(--text-muted); font-size: 14px; font-style: italic; }
 
-.table-wrap { overflow-x: auto; }
-.agents-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.agents-table th, .agents-table td {
-  padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border-color);
+/* ── FUT-style agent cards ── */
+.fut-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 20px;
 }
-.agents-table th { color: var(--text-secondary); font-weight: 500; font-size: 12px; }
-.agents-table td { color: var(--text-primary); }
-.agent-cell { display: flex; align-items: center; gap: 8px; text-transform: capitalize; }
-.status-dot {
-  width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted);
-  flex-shrink: 0;
+.fut-card {
+  position: relative;
+  border-radius: 14px;
+  padding: 18px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
-.status-dot.online { background: #22c55e; }
+.fut-card:hover { transform: translateY(-4px); box-shadow: 0 12px 26px rgba(0, 0, 0, 0.38); }
+/* Sheen sweep across the card, like a foil FUT card. */
+.fut-card::before {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 42%);
+  pointer-events: none;
+}
+
+/* Tiers — fixed metallic palettes, independent of the app theme.
+   Assigned by ranking: 1st = gold, 2nd/3rd = platinum, the rest = bronze. */
+.fut-card.tier-gold     { background: linear-gradient(160deg, #f9ee9e 0%, #e6c65c 42%, #b8891f 100%); color: #4a3708; }
+.fut-card.tier-platinum { background: linear-gradient(160deg, #f4fbfd 0%, #d3e6ec 40%, #a9c6cf 100%); color: #2b3b40; }
+.fut-card.tier-bronze   { background: linear-gradient(160deg, #f0c79c 0%, #cf884f 42%, #8f5227 100%); color: #45260f; }
+
+.fut-status {
+  position: absolute; top: 12px; right: 12px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+}
+.fut-status.online { background: #22c55e; }
+
+.fut-top {
+  align-self: flex-start;
+  display: flex; flex-direction: column; align-items: center;
+  line-height: 1; z-index: 1;
+}
+.fut-ovr { font-size: 38px; font-weight: 800; letter-spacing: -1px; }
+.fut-pos { font-size: 13px; font-weight: 700; opacity: 0.85; margin-top: 2px; letter-spacing: 0.5px; }
+
+.fut-avatar {
+  width: 84px; height: 84px; border-radius: 50%;
+  margin: -14px 0 8px;   /* pulled up toward the OVR row */
+  background: rgba(255, 255, 255, 0.35);
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; z-index: 1;
+}
+.fut-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.fut-initial { font-size: 34px; font-weight: 800; }
+
+.fut-name {
+  font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+  text-align: center; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding-bottom: 9px; margin-bottom: 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.18);
+  width: 100%; z-index: 1;
+}
+
+.fut-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%; z-index: 1;
+}
+.fut-stat { display: flex; align-items: baseline; gap: 10px; line-height: 1.2; }
+.fut-stat-val { font-size: 16px; font-weight: 800; min-width: 26px; text-align: right; }
+.fut-stat-name {
+  font-size: 12.5px; font-weight: 600; letter-spacing: 0.2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}

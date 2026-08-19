@@ -28,6 +28,7 @@ import { Component, Input } from '@angular/core';
         @case ('me') { <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /> <circle cx="12" cy="7" r="4" /> }
         @case ('chevron-left') { <path d="m15 18-6-6 6-6" /> }
         @case ('chevron-right') { <path d="m9 18 6-6-6-6" /> }
+        @case ('chevron-down') { <path d="m6 9 6 6 6-6" /> }
         @case ('check') { <path d="M20 6 9 17l-5-5" /> }
         @case ('x') { <path d="M18 6 6 18" /> <path d="m6 6 12 12" /> }
         @case ('pencil') { <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /> <path d="m15 5 4 4" /> }

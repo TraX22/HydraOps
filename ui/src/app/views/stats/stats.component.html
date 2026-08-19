@@ -17,36 +17,39 @@
       }
     </div>
 
-    @if (s.perAgent.length > 0) {
+    @if (agentCards().length > 0) {
       <h3>{{ 'stats.perAgent' | translate }}</h3>
-      <div class="table-wrap">
-        <table class="agents-table">
-          <thead>
-            <tr>
-              <th>{{ 'stats.agent' | translate }}</th>
-              <th>{{ 'stats.tasks' | translate }}</th>
-              <th>{{ 'stats.completed' | translate }}</th>
-              <th>{{ 'stats.failed' | translate }}</th>
-              <th>{{ 'stats.tokens' | translate }}</th>
-              <th>{{ 'stats.avgTime' | translate }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (a of s.perAgent; track a.agentId) {
-              <tr>
-                <td class="agent-cell">
-                  <span class="status-dot" [class.online]="a.online"></span>
-                  {{ a.agentId }}
-                </td>
-                <td>{{ a.total }}</td>
-                <td>{{ a.completed }}</td>
-                <td>{{ a.failed }}</td>
-                <td>{{ formatCount(a.tokens) }}</td>
-                <td>{{ formatMs(a.avgMs) }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
+      <div class="fut-grid">
+        @for (c of agentCards(); track c.agentId) {
+          <div class="fut-card" [class]="'tier-' + c.tier">
+            <span class="fut-status" [class.online]="c.online"
+                  [title]="(c.online ? 'stats.online' : 'stats.offline') | translate"></span>
+
+            <div class="fut-top">
+              <span class="fut-ovr">{{ c.ovr }}</span>
+              <span class="fut-pos">{{ c.position }}</span>
+            </div>
+
+            <div class="fut-avatar">
+              @if (c.avatarUrl) {
+                <img [src]="c.avatarUrl" [alt]="c.name" />
+              } @else {
+                <span class="fut-initial">{{ c.initial }}</span>
+              }
+            </div>
+
+            <div class="fut-name">{{ c.name }}</div>
+
+            <div class="fut-stats">
+              @for (at of c.attrs; track at.labelKey) {
+                <div class="fut-stat" [title]="at.title">
+                  <span class="fut-stat-val">{{ at.value }}</span>
+                  <span class="fut-stat-name">{{ at.labelKey | translate }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
       </div>
     }
   } @else if (statsResource.error()) {
