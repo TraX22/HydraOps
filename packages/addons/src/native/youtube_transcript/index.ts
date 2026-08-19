@@ -74,15 +74,22 @@ interface CaptionTrack {
   kind?: string; // "asr" for auto-generated
 }
 
+// Single-pass entity decoder: each match is replaced exactly once, so a
+// sequence like "&amp;lt;" decodes to the literal "&lt;" and never to "<"
+// (decoding &amp; first would double-unescape it).
+const NAMED_ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
 function decodeEntities(s: string): string {
-  return s
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)));
+  return s.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (m, body) => {
+    if (body[0] === "#") {
+      const code =
+        body[1] === "x" || body[1] === "X"
+          ? parseInt(body.slice(2), 16)
+          : Number(body.slice(1));
+      return Number.isFinite(code) && code > 0 ? String.fromCharCode(code) : m;
+    }
+    const rep = NAMED_ENTITIES[body.toLowerCase()];
+    return rep !== undefined ? rep : m;
+  });
 }
 
 // The caption endpoint returns XML: <text start="…" dur="…">line</text>.
