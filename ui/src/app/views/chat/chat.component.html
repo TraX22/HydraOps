@@ -18,7 +18,7 @@
   </div>
 
   <!-- Messages -->
-  <div class="messages-area" #messagesArea (scroll)="onMessagesScroll()">
+  <div class="messages-area" #messagesArea (scroll)="onMessagesScroll()" (click)="onMessagesClick($event)">
     <div class="messages">
       @for (msg of messages; track trackMsg($index, msg)) {
         <div class="msg-row" [class.user]="msg.role === 'user'" [class.bot]="msg.role === 'assistant'">

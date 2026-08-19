@@ -1673,6 +1673,9 @@ api.post("/tasks", async (req, res) => {
 
     if (!prompt) return res.status(400).json({ error: "prompt is required" });
     const channel = String(req.body?.channel ?? "main");
+    // Default read (the user's own message typed in the UI); external transports
+    // (e.g. the Telegram bot) pass isRead:false so the agent shows unread activity.
+    const isRead = req.body?.isRead !== false;
 
     const taskId = randomUUID();
     const eventId = randomUUID();
@@ -1701,7 +1704,7 @@ api.post("/tasks", async (req, res) => {
         prompt,
         channel,
         status: "pending",
-        isRead: true, // user's own message starts read
+        isRead, // user's own UI message starts read; external transports pass false
         createdAt: new Date(),
         updatedAt: new Date(),
       }).run();

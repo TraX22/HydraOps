@@ -31,15 +31,19 @@ export const BASE_COMMANDS: Command[] = [
   {
     name: "use",
     aliases: ["switch", "talk"],
-    description: "Set the agent this chat talks to by default",
-    usage: "/use <agentId>",
+    description: "Set the agent this chat talks to (optionally with a first message)",
+    usage: "/use <agentId> [message]",
     handler: async (ctx, args) => {
-      const id = args.trim().split(/\s+/)[0]?.toLowerCase();
-      if (!id) return { text: "Usage: /use <agentId>. See /agents for the list." };
+      const trimmed = args.trim();
+      const id = trimmed.split(/\s+/)[0]?.toLowerCase();
+      if (!id) return { text: "Usage: /use <agentId> [message]. See /agents for the list." };
       if (!(await ctx.api.hasAgent(id))) {
         return { text: `No agent called "${id}". See /agents for the list.` };
       }
       await ctx.session.set(id);
+      // "/use <id> <message>" switches AND sends that first message right away.
+      const rest = trimmed.slice(id.length).trim();
+      if (rest) return { text: await ctx.api.sendToAgent(id, rest) };
       return { text: `Now talking to ${id}. Just type a message, or use /agents to switch.` };
     },
   },

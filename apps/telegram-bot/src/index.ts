@@ -6,6 +6,7 @@ import { readFile } from "node:fs/promises";
 
 import { dispatch } from "./commands/registry.js";
 import type { AgentSummary, CommandContext } from "./commands/types.js";
+import { toTelegramHtml } from "./format.js";
 
 loadDotenv({ path: envFile });
 
@@ -126,17 +127,30 @@ async function tg(token: string, method: string, params: Record<string, unknown>
   return data.result;
 }
 
-const TG_MAX = 4096;
+// Chunk under 3500 (not 4096) because HTML-escaping expands the text; split on
+// newline boundaries. Each chunk is converted to Telegram HTML on its own, so a
+// code block that spans a split simply degrades to escaped text in one chunk
+// (never a broken tag). If Telegram still rejects the HTML, resend as plain.
+const TG_CHUNK = 3500;
 async function sendMessage(token: string, chatId: number, text: string): Promise<void> {
   const body = text.trim() || "(empty reply)";
-  // Split long replies on newline boundaries under Telegram's 4096-char limit.
   for (let i = 0; i < body.length; ) {
-    let end = Math.min(i + TG_MAX, body.length);
+    let end = Math.min(i + TG_CHUNK, body.length);
     if (end < body.length) {
       const nl = body.lastIndexOf("\n", end);
-      if (nl > i + 1000) end = nl;
+      if (nl > i + 500) end = nl;
     }
-    await tg(token, "sendMessage", { chat_id: chatId, text: body.slice(i, end), disable_web_page_preview: true });
+    const chunk = body.slice(i, end);
+    try {
+      await tg(token, "sendMessage", {
+        chat_id: chatId,
+        text: toTelegramHtml(chunk),
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+      });
+    } catch {
+      await tg(token, "sendMessage", { chat_id: chatId, text: chunk, disable_web_page_preview: true });
+    }
     i = end;
   }
 }
@@ -163,11 +177,15 @@ async function sendToAgent(chatId: number, token: string, agentId: string, promp
   const createRes = await fetch(`${API_URL}/api/tasks`, {
     method: "POST",
     headers: apiHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({ prompt, channel: agentId, userId: senderId }),
+    // isRead:false so the agent shows an unread/activity indicator in the app
+    // until the user opens that chat (a Telegram-originated task, not the user's
+    // own message typed in the UI).
+    body: JSON.stringify({ prompt, channel: agentId, userId: senderId, isRead: false }),
     signal: AbortSignal.timeout(10_000),
   });
   if (!createRes.ok) throw new Error(`POST /api/tasks ${createRes.status}`);
   const { taskId } = (await createRes.json()) as { taskId: string };
+  console.log(`[telegram-bot] → ${agentId} (task ${taskId}) from ${senderId}`);
 
   const deadline = Date.now() + 120_000; // 2 min
   let nextTyping = 0;
@@ -182,9 +200,12 @@ async function sendToAgent(chatId: number, token: string, agentId: string, promp
       if (!r.ok) continue;
       const task = (await r.json()) as any;
       if (task.status === "completed") {
-        return task.resultMeta?.text || task.result_meta?.text || "(the agent returned an empty reply)";
+        const reply = task.resultMeta?.text || task.result_meta?.text || "(the agent returned an empty reply)";
+        console.log(`[telegram-bot] ← ${agentId} replied (${reply.length} chars, task ${taskId})`);
+        return reply;
       }
       if (task.status === "failed") {
+        console.log(`[telegram-bot] ✖ ${agentId} task ${taskId} failed`);
         return `The task failed: ${task.resultMeta?.error || task.result_meta?.error || "unknown error"}`;
       }
     } catch { /* transient — keep polling */ }
@@ -233,6 +254,7 @@ async function handleUpdate(token: string, cfg: TelegramConfig, update: any): Pr
   }
 
   // --- Authorized: run the transport-agnostic command layer ---
+  console.log(`[telegram-bot] msg from tg:${fromId}: ${text.slice(0, 80)}`);
   const senderId = `tg:${fromId}`;
   const chatKey = String(chatId);
   const ctx: CommandContext = {
