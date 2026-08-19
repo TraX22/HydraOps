@@ -20,7 +20,8 @@
     "imageHint": "Click to view full size",
     "attach": "Attach files (images or documents)",
     "uploading": "Uploading…",
-    "editProfile": "Double-click: edit this agent's profile"
+    "editProfile": "Double-click: edit this agent's profile",
+    "scrollToBottom": "Scroll to latest"
   },
   "agents": {
     "title": "Agents",
@@ -109,7 +110,15 @@
     "tokens": "Tokens",
     "avgTime": "Avg time",
     "loading": "Loading metrics…",
-    "error": "Failed to load metrics"
+    "error": "Failed to load metrics",
+    "online": "Online",
+    "offline": "Offline",
+    "attrSpeed": "Speed",
+    "attrCompleted": "Completed",
+    "attrTasks": "Tasks",
+    "attrSuccess": "Success",
+    "attrReliability": "Reliability",
+    "attrLoad": "Workload"
   },
   "docs": {
     "title": "Documentation",
