@@ -4,6 +4,7 @@ import { loadDirectoryAddons } from './loader.js';
 import { webSearchTool } from './native/web_search/index.js';
 import { braveSearchTool } from './native/brave_search/index.js';
 import { fetchUrlTool } from './native/fetch_url/index.js';
+import { youtubeTranscriptTool } from './native/youtube_transcript/index.js';
 export * from './types.js';
 export { ToolRegistry };
 export { guardTool, checkToolArgs, redactSecrets, assertPublicUrl } from './guard.js';
@@ -16,6 +17,7 @@ export async function createRegistry(): Promise<ToolRegistry> {
   registry.registerNative({ ...webSearchTool, source: 'native' });
   registry.registerNative({ ...braveSearchTool, source: 'native' });
   registry.registerNative({ ...fetchUrlTool, source: 'native' });
+  registry.registerNative({ ...youtubeTranscriptTool, source: 'native' });
 
   const dir = process.env.MY_ADDONS_DIR ?? myAddonsDir;
   await loadDirectoryAddons(dir, 'my_addons', registry);
