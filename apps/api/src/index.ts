@@ -1917,6 +1917,7 @@ const ADDON_DESCRIPTION_OVERRIDES: Record<string, string> = {
   web_search: "Busca información actualizada en internet (DuckDuckGo).",
   brave_search: "Búsqueda web con Brave Search API (requiere API key).",
   fetch_url: "Lee una página web y la convierte a Markdown.",
+  youtube_transcript: "Trae la transcripción (subtítulos) de un vídeo de YouTube.",
 };
 
 api.get("/system/addons", async (_req, res) => {
