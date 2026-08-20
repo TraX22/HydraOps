@@ -60,6 +60,19 @@
           </select>
         </div>
 
+        <!-- Notifications -->
+        <div class="tool-field">
+          <div class="notify-row">
+            <div class="notify-text">
+              <span class="tool-label">{{ 'herramientas.telegram.notifyCron' | translate }}</span>
+              <p class="tool-hint">{{ 'herramientas.telegram.notifyCronHint' | translate }}</p>
+            </div>
+            <button class="toggle-btn" [class.on]="t.notifications?.cron !== false" (click)="toggleNotifyCron()">
+              {{ (t.notifications?.cron !== false) ? 'ON' : 'OFF' }}
+            </button>
+          </div>
+        </div>
+
         <!-- Pairing code -->
         <div class="tool-field">
           <label class="tool-label">{{ 'herramientas.telegram.pairingCode' | translate }}</label>

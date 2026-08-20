@@ -7,6 +7,7 @@ import { readFile } from "node:fs/promises";
 import { dispatch } from "./commands/registry.js";
 import type { AgentSummary, CommandContext } from "./commands/types.js";
 import { toTelegramHtml } from "./format.js";
+import { startNotifier } from "./notifications.js";
 
 loadDotenv({ path: envFile });
 
@@ -64,6 +65,8 @@ interface TelegramConfig {
   allowlist: number[];
   pairingCode: string;
   defaultAgent: string;
+  /** Proactive push notifications (see notifications.ts). */
+  notifications: { cron: boolean };
   /** Per-chat active agent; runtime state owned by the bot. */
   sessions: Record<string, string>;
 }
@@ -73,6 +76,7 @@ const DEFAULT_CONFIG: TelegramConfig = {
   allowlist: [],
   pairingCode: "",
   defaultAgent: "",
+  notifications: { cron: true },
   sessions: {},
 };
 
@@ -332,6 +336,20 @@ async function loop(): Promise<void> {
 }
 
 loop();
+
+// Proactive push notifications run alongside the long-poll: the NATS subscriber
+// connects regardless of the enable state; only the actual send is gated on
+// config (enabled + token + notifications.cron + a non-empty allowlist).
+startNotifier({
+  db,
+  natsUrl: env.NATS_URL,
+  getConfig: async () => {
+    const c = await readConfig();
+    return { enabled: c.enabled, allowlist: c.allowlist, notifications: c.notifications };
+  },
+  getToken: readToken,
+  sendMessage,
+}).catch((e) => console.error("[telegram-bot] notifier failed to start", e));
 
 process.on("SIGINT", async () => {
   console.log("[telegram-bot] Shutting down...");

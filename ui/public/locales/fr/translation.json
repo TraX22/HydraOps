@@ -143,6 +143,8 @@
       "getToken": "Obtenir un jeton",
       "defaultAgent": "Agent par défaut",
       "noDefaultAgent": "Aucun (nécessite /use)",
+      "notifyCron": "M'avertir quand une tâche planifiée se termine",
+      "notifyCronHint": "Quand un cron termine sa tâche, le bot vous envoie le résultat sur Telegram.",
       "pairingCode": "Code d'appairage",
       "noPairingCode": "non défini",
       "generate": "Générer",
