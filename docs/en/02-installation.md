@@ -47,7 +47,7 @@ And to start (it builds the packages + interface for you, so after a `git pull` 
 pnpm serve
 ```
 
-That brings up the whole stack and leaves the application at `http://127.0.0.1:3000`. The command's output prints the exact URLs. To keep it running 24/7 or open it to your local network, continue in [Server mode](./10-server-mode.md).
+That brings up the whole stack and leaves the application at `http://127.0.0.1:3000`. The command's output prints the exact URLs. To keep it running 24/7 or open it to your local network, continue in [Server mode](./11-server-mode.md).
 
 On Windows you can also use the desktop window from source with `pnpm desktop`.
 

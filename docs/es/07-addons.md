@@ -8,7 +8,7 @@ Las herramientas son lo que separa a un agente que *contesta* de uno que *hace*.
 
 Vienen con la aplicación: hoy son `web_search` (buscar en la web) y `fetch_url` (descargar una página). Cada tarjeta explica qué hace el suyo.
 
-Todos pasan por un **guard de seguridad** que bloquea rutas de credenciales, comandos catastróficos y peticiones a redes internas, y redacta secretos de los resultados. Más en [Seguridad](./11-security.md).
+Todos pasan por un **guard de seguridad** que bloquea rutas de credenciales, comandos catastróficos y peticiones a redes internas, y redacta secretos de los resultados. Más en [Seguridad](./12-security.md).
 
 ## Tus add-ons (`my_addons/`)
 
