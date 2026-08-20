@@ -99,6 +99,7 @@ const SERVICES = [
   { id: "worker-general", label: "Worker general", phase: 2, kind: "node", app: "worker-general" },
   { id: "worker-graphic", label: "Worker graphic", phase: 2, kind: "node", app: "worker-graphic" },
   { id: "worker-video",   label: "Worker video",   phase: 2, kind: "node", app: "worker-video" },
+  { id: "telegram-bot",   label: "Telegram bot",   phase: 2, kind: "node", app: "telegram-bot" },
 ];
 
 const MAX_LOG_LINES = 400;

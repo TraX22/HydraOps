@@ -34,6 +34,7 @@ const SERVICES = [
   "worker-general",
   "worker-graphic",
   "worker-video",
+  "telegram-bot",
 ];
 
 /**

@@ -1,0 +1,127 @@
+<div class="addons-view">
+  <h2>{{ 'herramientas.title' | translate }}</h2>
+  <p class="addons-desc">{{ 'herramientas.description' | translate }}</p>
+
+  <section class="addons-section tools-section">
+    <!-- Telegram -->
+    @if (telegram(); as t) {
+      <div class="tool-card">
+        <div class="tool-head">
+          <div class="tool-title">
+            <app-icon name="send" class="tool-icon" />
+            <div class="tool-title-text">
+              <span class="addon-name">{{ 'herramientas.telegram.name' | translate }}</span>
+              <span class="addon-type">{{ 'herramientas.telegram.description' | translate }}</span>
+            </div>
+          </div>
+          <button class="toggle-btn" [class.on]="t.enabled" (click)="toggleEnabled()">
+            {{ t.enabled ? 'ON' : 'OFF' }}
+          </button>
+        </div>
+
+        <!-- Bot token -->
+        <div class="tool-field">
+          <label class="tool-label">
+            {{ 'herramientas.telegram.token' | translate }}
+            <span class="addon-badge" [class.key-ok]="t.tokenConfigured">
+              {{ (t.tokenConfigured ? 'herramientas.telegram.tokenSet' : 'herramientas.telegram.tokenMissing') | translate }}
+            </span>
+          </label>
+          <div class="addon-keyrow">
+            <input
+              type="password"
+              class="key-input"
+              autocomplete="off"
+              [placeholder]="'herramientas.telegram.tokenPlaceholder' | translate"
+              [value]="tokenInput()"
+              (input)="tokenInput.set($any($event.target).value)"
+              (keyup.enter)="saveToken()"
+            />
+            <button class="btn-primary key-save" [disabled]="!tokenInput().trim()" (click)="saveToken()">
+              {{ 'common.save' | translate }}
+            </button>
+            @if (tokenSaved()) {
+              <span class="saved-msg">✓ {{ 'common.saved' | translate }}</span>
+            }
+            <a class="key-help" href="https://t.me/BotFather" target="_blank" rel="noopener">
+              {{ 'herramientas.telegram.getToken' | translate }}
+            </a>
+          </div>
+        </div>
+
+        <!-- Default agent -->
+        <div class="tool-field">
+          <label class="tool-label">{{ 'herramientas.telegram.defaultAgent' | translate }}</label>
+          <select class="tool-select" [ngModel]="t.defaultAgent" (ngModelChange)="onDefaultAgentChange($event)">
+            <option value="">{{ 'herramientas.telegram.noDefaultAgent' | translate }}</option>
+            @for (a of agents(); track a.id) {
+              <option [value]="a.id">{{ a.name }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Pairing code -->
+        <div class="tool-field">
+          <label class="tool-label">{{ 'herramientas.telegram.pairingCode' | translate }}</label>
+          <div class="addon-keyrow">
+            <input
+              class="key-input pairing"
+              readonly
+              [value]="t.pairingCode || ('herramientas.telegram.noPairingCode' | translate)"
+            />
+            <button class="btn-secondary" (click)="generatePairingCode()">
+              {{ 'herramientas.telegram.generate' | translate }}
+            </button>
+          </div>
+          <p class="tool-hint">{{ 'herramientas.telegram.pairingHint' | translate }}</p>
+        </div>
+
+        <!-- Allowlist -->
+        <div class="tool-field">
+          <label class="tool-label">{{ 'herramientas.telegram.allowlist' | translate }}</label>
+          <div class="chips">
+            @for (id of t.allowlist; track id) {
+              <span class="chip">
+                {{ id }}
+                <button class="chip-x" (click)="removeAllowId(id)" aria-label="remove">×</button>
+              </span>
+            }
+            @if (t.allowlist.length === 0) {
+              <span class="empty-msg">{{ 'herramientas.telegram.allowlistEmpty' | translate }}</span>
+            }
+          </div>
+          <div class="addon-keyrow">
+            <input
+              class="key-input"
+              type="text"
+              inputmode="numeric"
+              [placeholder]="'herramientas.telegram.allowlistPlaceholder' | translate"
+              [value]="newAllowId()"
+              (input)="newAllowId.set($any($event.target).value)"
+              (keyup.enter)="addAllowId()"
+            />
+            <button class="btn-secondary" (click)="addAllowId()">{{ 'herramientas.telegram.add' | translate }}</button>
+          </div>
+        </div>
+
+        @if (cfgSaved()) {
+          <span class="saved-msg">✓ {{ 'common.saved' | translate }}</span>
+        }
+      </div>
+    }
+
+    <!-- Future connectors -->
+    <h3 class="coming-title">{{ 'herramientas.comingSoon' | translate }}</h3>
+    <div class="addons-grid">
+      @for (c of comingSoon; track c) {
+        <div class="addon-card dimmed">
+          <div class="addon-info">
+            <span class="addon-name">{{ 'herramientas.soon.' + c | translate }}</span>
+            <span class="addon-type">{{ 'herramientas.comingSoonDesc' | translate }}</span>
+          </div>
+          <span class="addon-badge">{{ 'herramientas.soonBadge' | translate }}</span>
+        </div>
+      }
+    </div>
+  </section>
+</div>

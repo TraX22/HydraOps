@@ -5,6 +5,7 @@
     "system": "System",
     "tasks": "Tasks",
     "addons": "Add-ons",
+    "herramientas": "Tools",
     "stats": "Stats",
     "docs": "Docs",
     "config": "Config",
@@ -124,6 +125,33 @@
     "title": "Documentation",
     "loading": "Loading…",
     "loadError": "Could not load this manual page"
+  },
+  "herramientas": {
+    "title": "Tools",
+    "description": "Connect HydraOps to external services. Manage the agents from apps like Telegram.",
+    "comingSoon": "Coming soon",
+    "comingSoonDesc": "Planned connector",
+    "soonBadge": "Soon",
+    "soon": { "github": "GitHub", "discord": "Discord", "signal": "Signal", "reddit": "Reddit" },
+    "telegram": {
+      "name": "Telegram",
+      "description": "Talk to your agents from Telegram.",
+      "token": "Bot token",
+      "tokenSet": "Token set",
+      "tokenMissing": "No token",
+      "tokenPlaceholder": "Bot token from @BotFather",
+      "getToken": "Get a token",
+      "defaultAgent": "Default agent",
+      "noDefaultAgent": "None (require /use)",
+      "pairingCode": "Pairing code",
+      "noPairingCode": "not set",
+      "generate": "Generate",
+      "pairingHint": "New users send /start <code> to link their Telegram chat.",
+      "allowlist": "Authorized users",
+      "allowlistEmpty": "No users yet — share the pairing code, or add a Telegram ID.",
+      "allowlistPlaceholder": "Telegram user ID",
+      "add": "Add"
+    }
   },
   "addons": {
     "title": "Add-ons",

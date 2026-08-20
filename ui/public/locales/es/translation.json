@@ -5,6 +5,7 @@
     "system": "Sistema",
     "tasks": "Tareas",
     "addons": "Add-ons",
+    "herramientas": "Herramientas",
     "stats": "Estadísticas",
     "docs": "Docs",
     "config": "Configuración",
@@ -124,6 +125,33 @@
     "title": "Documentación",
     "loading": "Cargando…",
     "loadError": "No se pudo cargar la página del manual"
+  },
+  "herramientas": {
+    "title": "Herramientas",
+    "description": "Conecta HydraOps con servicios externos. Maneja los agentes desde apps como Telegram.",
+    "comingSoon": "Próximamente",
+    "comingSoonDesc": "Conector previsto",
+    "soonBadge": "Pronto",
+    "soon": { "github": "GitHub", "discord": "Discord", "signal": "Signal", "reddit": "Reddit" },
+    "telegram": {
+      "name": "Telegram",
+      "description": "Habla con tus agentes desde Telegram.",
+      "token": "Token del bot",
+      "tokenSet": "Token configurado",
+      "tokenMissing": "Sin token",
+      "tokenPlaceholder": "Token del bot de @BotFather",
+      "getToken": "Conseguir un token",
+      "defaultAgent": "Agente por defecto",
+      "noDefaultAgent": "Ninguno (requiere /use)",
+      "pairingCode": "Código de emparejamiento",
+      "noPairingCode": "sin definir",
+      "generate": "Generar",
+      "pairingHint": "Los usuarios nuevos envían /start <código> para vincular su chat de Telegram.",
+      "allowlist": "Usuarios autorizados",
+      "allowlistEmpty": "Aún no hay usuarios: comparte el código o añade un ID de Telegram.",
+      "allowlistPlaceholder": "ID de usuario de Telegram",
+      "add": "Añadir"
+    }
   },
   "addons": {
     "title": "Add-ons",

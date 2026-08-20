@@ -118,6 +118,10 @@
   color: var(--text-bubble-user);
 }
 
+/* Code blocks rendered from agent markdown live in [innerHTML] (unscoped), so
+   their styling — frame, header, copy button, Prism tokens — is in the global
+   styles.css under .msg-bubble, not here. */
+
 .msg-row.user .msg-avatar { display: none; }
 
 /* Typing indicator */
@@ -253,11 +257,12 @@
   position: relative;
 }
 
-/* Floating "scroll to bottom" button: sits just above the input, bottom-right. */
+/* Floating "scroll to bottom" button: sits just above the input, centered. */
 .scroll-down-btn {
   position: absolute;
   top: -52px;
-  right: 24px;
+  left: 50%;
+  transform: translateX(-50%);
   width: 38px;
   height: 38px;
   border-radius: 50%;
@@ -278,7 +283,7 @@
   background: var(--accent);
   color: white;
   border-color: var(--accent);
-  transform: translateY(2px);
+  transform: translateX(-50%) translateY(2px);
 }
 .input-field {
   width: 100%;

@@ -42,6 +42,7 @@ export class SidebarComponent implements OnInit {
     { path: '/system', icon: 'system', labelKey: 'nav.system', section: 'main' },
     { path: '/tasks', icon: 'tasks', labelKey: 'nav.tasks', section: 'tools' },
     { path: '/addons', icon: 'addons', labelKey: 'nav.addons', section: 'tools' },
+    { path: '/herramientas', icon: 'tools', labelKey: 'nav.herramientas', section: 'tools' },
     { path: '/stats', icon: 'stats', labelKey: 'nav.stats', section: 'tools' },
     { path: '/docs', icon: 'docs', labelKey: 'nav.docs', section: 'tools' },
     { path: '/config', icon: 'config', labelKey: 'nav.config', section: 'settings' },

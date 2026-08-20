@@ -94,6 +94,15 @@ export interface NativeAddon {
   keyConfigured?: boolean;
 }
 
+// External integrations (Herramientas). Telegram is the first connector.
+export interface TelegramIntegration {
+  enabled: boolean;
+  tokenConfigured: boolean;
+  allowlist: number[];
+  pairingCode: string;
+  defaultAgent: string;
+}
+
 export interface McpServerStatus {
   name: string;
   switch: 'on' | 'off';
@@ -127,6 +136,7 @@ export interface AppConfig {
   glmKey: string;
   minimaxKey: string;
   braveKey: string;
+  telegramBotToken: string;
   localLlmUrl: string;
   localLlmKey: string;
   localLlmModel: string;
@@ -380,6 +390,15 @@ export class ApiService {
 
   saveNativeAddons(state: Record<string, boolean>): Observable<void> {
     return this.http.post<void>(`${this.base}/system/addons`, state);
+  }
+
+  // ── Integrations (Herramientas) ──
+  getTelegramIntegration(): Observable<TelegramIntegration> {
+    return this.http.get<TelegramIntegration>(`${this.base}/system/integrations/telegram`);
+  }
+
+  saveTelegramIntegration(cfg: Partial<TelegramIntegration>): Observable<void> {
+    return this.http.post<void>(`${this.base}/system/integrations/telegram`, cfg);
   }
 
   // ── User ──

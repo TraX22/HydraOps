@@ -1,0 +1,95 @@
+/* Reuses the addons view vocabulary (.addons-view, .addon-card, .toggle-btn,
+   .key-input, .btn-primary/.btn-secondary, .addon-badge, .saved-msg, .empty-msg)
+   which are defined per-component; redeclare the ones this view needs plus its
+   own tool-card styles. */
+
+.addons-view { padding: 24px; height: 100vh; overflow-y: auto; }
+.addons-view h2 { font-size: 20px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
+.addons-desc { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; }
+.addons-section { margin-bottom: 28px; max-width: 680px; }
+.addons-grid { display: flex; flex-direction: column; gap: 8px; }
+
+.addon-card {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg-surface); border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm); padding: 12px 16px;
+}
+.addon-card.dimmed { opacity: 0.55; }
+.addon-info { flex: 1; min-width: 0; }
+.addon-name { font-size: 14px; font-weight: 500; color: var(--text-primary); display: block; }
+.addon-type { font-size: 11px; color: var(--text-muted); }
+.addon-badge {
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px;
+  background: var(--bg-hover); color: var(--text-secondary);
+  border: 1px solid var(--border-color); border-radius: var(--radius-full);
+  padding: 1px 8px; margin-left: 6px; vertical-align: middle;
+}
+.addon-badge.key-ok { background: var(--status-online); color: white; border-color: var(--status-online); }
+
+.toggle-btn {
+  padding: 4px 16px; border: 1px solid var(--border-color); background: var(--bg-hover);
+  color: var(--text-muted); border-radius: var(--radius-full); cursor: pointer; font-size: 12px; font-weight: 600;
+  flex-shrink: 0;
+}
+.toggle-btn.on { background: var(--status-online); color: white; border-color: var(--status-online); }
+
+.addon-keyrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.key-input {
+  flex: 1; min-width: 180px; padding: 6px 10px; font-size: 13px;
+  background: var(--bg-surface); color: var(--text-primary);
+  border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+}
+.key-input.pairing { font-family: monospace; letter-spacing: 2px; max-width: 140px; flex: 0 0 auto; }
+.key-save { padding: 6px 14px; font-size: 12px; }
+.key-save:disabled { opacity: 0.5; cursor: default; }
+.key-help { font-size: 12px; color: var(--accent, #3b82f6); text-decoration: none; white-space: nowrap; }
+.saved-msg { font-size: 12px; color: var(--status-online); }
+.empty-msg { color: var(--text-muted); font-size: 13px; }
+
+.btn-primary {
+  padding: 6px 16px; font-size: 13px; cursor: pointer; border: none;
+  background: var(--accent, #3b82f6); color: white; border-radius: var(--radius-sm);
+}
+.btn-secondary {
+  padding: 6px 16px; font-size: 13px; cursor: pointer;
+  background: var(--bg-hover); color: var(--text-secondary);
+  border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+}
+
+/* ── Telegram tool card ── */
+.tool-card {
+  background: var(--bg-surface); border: 1px solid var(--border-color);
+  border-radius: var(--radius-md, 12px); padding: 18px 18px 14px; margin-bottom: 22px;
+}
+.tool-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.tool-title { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.tool-icon { color: #29a9eb; width: 26px; height: 26px; flex-shrink: 0; }
+.tool-title-text { display: flex; flex-direction: column; }
+.tool-title-text .addon-name { font-size: 15px; font-weight: 600; }
+
+.tool-field { margin-bottom: 16px; }
+.tool-label {
+  display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.tool-select {
+  width: 100%; max-width: 260px; padding: 6px 10px; font-size: 13px;
+  background: var(--bg-surface); color: var(--text-primary);
+  border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+}
+.tool-hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--bg-hover); color: var(--text-primary);
+  border: 1px solid var(--border-color); border-radius: var(--radius-full);
+  padding: 2px 6px 2px 10px; font-size: 12px; font-family: monospace;
+}
+.chip-x {
+  border: none; background: transparent; color: var(--text-muted); cursor: pointer;
+  font-size: 15px; line-height: 1; padding: 0 2px;
+}
+.chip-x:hover { color: #ef4444; }
+
+.coming-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); margin: 6px 0 10px; }

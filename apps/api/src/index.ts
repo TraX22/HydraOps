@@ -340,6 +340,7 @@ const KNOWN_SERVICES = [
   "worker-general",
   "worker-graphic",
   "worker-video",
+  "telegram-bot",
 ];
 
 async function listServiceNames(): Promise<string[]> {
@@ -1132,6 +1133,7 @@ const envMapping: Record<string, string> = {
   glmKey: "GLM_API_KEY",
   minimaxKey: "MINIMAX_API_KEY",
   braveKey: "BRAVE_API_KEY",
+  telegramBotToken: "TELEGRAM_BOT_TOKEN",
   localLlmUrl: "LOCAL_LLM_URL",
   localLlmKey: "LOCAL_LLM_KEY",
   localLlmModel: "LOCAL_LLM_MODEL",
@@ -1157,6 +1159,9 @@ const PROVIDER_KEY_NAMES = [
   "XAI_API_KEY", "LEONARDO_API_KEY", "OPENROUTER_API_KEY", "MISTRAL_API_KEY",
   "DEEPSEEK_API_KEY", "QWEN_API_KEY", "KIMI_API_KEY", "GLM_API_KEY", "MINIMAX_API_KEY",
   "BRAVE_API_KEY",
+  // Not an LLM provider key, but a secret credential all the same: stored in the
+  // key store (never DB/.env), masked in GET /config, read by the telegram-bot.
+  "TELEGRAM_BOT_TOKEN",
 ];
 const KEY_PLACEHOLDER = "proxy";
 // Masked values round-trip through the UI; POST /config already ignores
@@ -1668,6 +1673,9 @@ api.post("/tasks", async (req, res) => {
 
     if (!prompt) return res.status(400).json({ error: "prompt is required" });
     const channel = String(req.body?.channel ?? "main");
+    // Default read (the user's own message typed in the UI); external transports
+    // (e.g. the Telegram bot) pass isRead:false so the agent shows unread activity.
+    const isRead = req.body?.isRead !== false;
 
     const taskId = randomUUID();
     const eventId = randomUUID();
@@ -1696,7 +1704,7 @@ api.post("/tasks", async (req, res) => {
         prompt,
         channel,
         status: "pending",
-        isRead: true, // user's own message starts read
+        isRead, // user's own UI message starts read; external transports pass false
         createdAt: new Date(),
         updatedAt: new Date(),
       }).run();
@@ -1959,6 +1967,61 @@ api.post("/system/addons", async (req, res) => {
     res.json({ success: true });
   } catch (err: any) {
     console.error("[api] POST /system/addons failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// --- External integrations (Herramientas) ---
+// Connectors that operate ON HydraOps from the outside (Telegram today; GitHub,
+// Discord… later), distinct from add-ons (tools the agents call). Non-secret
+// config lives in system_configs.telegram_config; the bot token is a secret and
+// goes to the key store via POST /config (telegramBotToken), never here.
+
+const TELEGRAM_CONFIG_KEY = "telegram_config";
+
+async function readTelegramConfig(): Promise<any> {
+  const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, TELEGRAM_CONFIG_KEY)).limit(1);
+  const base = { enabled: false, allowlist: [] as number[], pairingCode: "", defaultAgent: "", sessions: {} as Record<string, string> };
+  return rows[0] ? { ...base, ...JSON.parse(rows[0].value) } : base;
+}
+
+api.get("/system/integrations/telegram", async (_req, res) => {
+  try {
+    const cfg = await readTelegramConfig();
+    const store = await loadKeyStore();
+    res.json({
+      enabled: cfg.enabled === true,
+      tokenConfigured: isRealKeyValue(store["TELEGRAM_BOT_TOKEN"] || ""),
+      allowlist: Array.isArray(cfg.allowlist) ? cfg.allowlist : [],
+      pairingCode: cfg.pairingCode || "",
+      defaultAgent: cfg.defaultAgent || "",
+    });
+  } catch (err: any) {
+    console.error("[api] GET /system/integrations/telegram failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+api.post("/system/integrations/telegram", async (req, res) => {
+  try {
+    // Merge onto the existing blob so we never clobber runtime state (sessions,
+    // and the allowlist entries the bot adds during pairing).
+    const cfg = await readTelegramConfig();
+    const b = req.body ?? {};
+    if (typeof b.enabled === "boolean") cfg.enabled = b.enabled;
+    if (typeof b.pairingCode === "string") cfg.pairingCode = b.pairingCode.trim();
+    if (typeof b.defaultAgent === "string") cfg.defaultAgent = b.defaultAgent.trim();
+    if (Array.isArray(b.allowlist)) {
+      cfg.allowlist = [...new Set(b.allowlist.map((n: any) => Number(n)).filter((n: number) => Number.isFinite(n)))];
+    }
+    const value = JSON.stringify(cfg);
+    await (db as any).insert(systemConfigs)
+      .values({ key: TELEGRAM_CONFIG_KEY, value, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: systemConfigs.key, set: { value, updatedAt: new Date() } })
+      .run();
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("[api] POST /system/integrations/telegram failed", err);
     res.status(500).json({ error: "internal_error" });
   }
 });
