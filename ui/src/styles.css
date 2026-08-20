@@ -115,3 +115,76 @@ body {
 
 .animate-fade-in { animation: fadeIn 0.3s ease-out; }
 .animate-pulse-slow { animation: pulse-custom 2s ease-in-out infinite; }
+
+/* ── Chat code blocks (agent markdown rendered via [innerHTML]) ──
+   Global on purpose: the content is unscoped, so component-scoped rules can't
+   reach it. The block is always dark (--bg-code) in both themes, so one Prism
+   palette (One Dark) works everywhere. */
+.msg-bubble .code-block {
+  margin: 8px 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-code);
+  max-width: 100%;
+}
+.msg-bubble .code-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 6px 4px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.msg-bubble .code-lang {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase;
+  color: #9aa4b8; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.msg-bubble .code-copy {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border: none; background: transparent;
+  color: #9aa4b8; cursor: pointer; border-radius: 5px; transition: background 0.15s, color 0.15s;
+}
+.msg-bubble .code-copy:hover { background: rgba(255, 255, 255, 0.1); color: #e6e6f0; }
+.msg-bubble .code-copy.copied { color: var(--status-online); }
+.msg-bubble .code-pre {
+  margin: 0; padding: 12px 14px; overflow-x: auto; background: transparent;
+}
+.msg-bubble .code-pre code {
+  display: block; background: none; padding: 0; border: 0; white-space: pre;
+  font-family: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px; line-height: 1.5; color: #dcdfe4;
+}
+/* Inline code (not a fenced block). */
+.msg-bubble code:not(.prism) {
+  background: rgba(120, 120, 140, 0.18); padding: 1px 5px; border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.92em;
+}
+.msg-bubble p:first-child { margin-top: 0; }
+.msg-bubble p:last-child { margin-bottom: 0; }
+
+/* Prism One Dark palette (on the dark code background). */
+.msg-bubble .token.comment,
+.msg-bubble .token.prolog,
+.msg-bubble .token.cdata { color: #7f848e; font-style: italic; }
+.msg-bubble .token.punctuation { color: #abb2bf; }
+.msg-bubble .token.keyword,
+.msg-bubble .token.atrule,
+.msg-bubble .token.important { color: #c678dd; }
+.msg-bubble .token.string,
+.msg-bubble .token.char,
+.msg-bubble .token.attr-value,
+.msg-bubble .token.inserted,
+.msg-bubble .token.builtin { color: #98c379; }
+.msg-bubble .token.number,
+.msg-bubble .token.boolean,
+.msg-bubble .token.constant,
+.msg-bubble .token.symbol { color: #d19a66; }
+.msg-bubble .token.function,
+.msg-bubble .token.class-name { color: #61afef; }
+.msg-bubble .token.property,
+.msg-bubble .token.tag,
+.msg-bubble .token.attr-name { color: #56b6c2; }
+.msg-bubble .token.operator,
+.msg-bubble .token.entity,
+.msg-bubble .token.url { color: #56b6c2; }
+.msg-bubble .token.regex,
+.msg-bubble .token.variable { color: #e5c07b; }

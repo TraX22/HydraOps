@@ -7,6 +7,7 @@ export const routes: Routes = [
   { path: 'config', loadComponent: () => import('./views/config/config.component').then(m => m.ConfigComponent) },
   { path: 'tasks', loadComponent: () => import('./views/cron/cron.component').then(m => m.CronComponent) },
   { path: 'addons', loadComponent: () => import('./views/addons/addons.component').then(m => m.AddonsComponent) },
+  { path: 'herramientas', loadComponent: () => import('./views/herramientas/herramientas.component').then(m => m.HerramientasComponent) },
   { path: 'stats', loadComponent: () => import('./views/stats/stats.component').then(m => m.StatsComponent) },
   { path: 'docs', loadComponent: () => import('./views/docs/docs.component').then(m => m.DocsComponent) },
   { path: 'me', loadComponent: () => import('./views/me/me.component').then(m => m.MeComponent) },

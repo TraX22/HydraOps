@@ -209,6 +209,19 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.showScrollDown.set(distanceFromBottom > 240);
   }
 
+  // Copy button on rendered code blocks (event delegation: the code HTML is
+  // injected via [innerHTML], so there are no per-button Angular listeners).
+  onMessagesClick(ev: MouseEvent): void {
+    const btn = (ev.target as HTMLElement).closest('.code-copy') as HTMLElement | null;
+    if (!btn) return;
+    const code = btn.closest('.code-block')?.querySelector('.code-pre code') as HTMLElement | null;
+    if (!code) return;
+    navigator.clipboard.writeText(code.innerText).then(() => {
+      btn.classList.add('copied');
+      setTimeout(() => btn.classList.remove('copied'), 1500);
+    }).catch(() => {});
+  }
+
   hasImage(msg: ChatMessage): boolean {
     const meta = msg.resultMeta as Record<string, unknown> | undefined;
     return !!meta?.['imageUrl'];
