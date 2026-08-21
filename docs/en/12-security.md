@@ -26,7 +26,7 @@ The guard is not a sandbox: full isolation requires containers, and it is on the
 - Out of the box, the API listens **only on `127.0.0.1`**: nobody on your network can touch it.
 - Opening it takes two explicit decisions: `HYDRA_HOST=0.0.0.0` **and** a `HYDRA_AUTH_TOKEN`. Without a token, it stays on loopback.
 - Connections from the machine itself pay no token (a local process can already read your disk; asking it adds nothing). If you have a reverse proxy in front and want it always required: `HYDRA_AUTH_STRICT=1`.
-- The token travels in the clear over HTTP: local network yes, internet no. For remote access, HTTPS or a VPN in front — see [Server mode](./10-server-mode.md).
+- The token travels in the clear over HTTP: local network yes, internet no. For remote access, HTTPS or a VPN in front — see [Server mode](./11-server-mode.md).
 
 ## Reporting a security issue
 

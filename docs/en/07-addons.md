@@ -8,7 +8,7 @@ Tools are what separate an agent that *answers* from one that *does*. HydraOps h
 
 They ship with the application: today they are `web_search` (searching the web) and `fetch_url` (downloading a page). Each card explains what its add-on does.
 
-All of them go through a **security guard** that blocks credential paths, catastrophic commands and requests to internal networks, and redacts secrets from results. More in [Security](./11-security.md).
+All of them go through a **security guard** that blocks credential paths, catastrophic commands and requests to internal networks, and redacts secrets from results. More in [Security](./12-security.md).
 
 ## Your add-ons (`my_addons/`)
 

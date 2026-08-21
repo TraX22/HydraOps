@@ -6,7 +6,7 @@ In **Settings → API Keys** there is one field per provider: OpenAI, Anthropic,
 
 ![The Settings view, keys always masked](../img/en/config.png)
 
-Keys are **not stored in the project, nor in the database, nor in any `.env`**: they go to a store of their own outside the application (`%APPDATA%\hydraops\keys.json` on Windows) and a local process — the key-proxy — injects them only at the moment of calling the provider. That is why the Settings view shows them masked: that's expected. More in [Security](./11-security.md).
+Keys are **not stored in the project, nor in the database, nor in any `.env`**: they go to a store of their own outside the application (`%APPDATA%\hydraops\keys.json` on Windows) and a local process — the key-proxy — injects them only at the moment of calling the provider. That is why the Settings view shows them masked: that's expected. More in [Security](./12-security.md).
 
 ## Choosing a model
 
