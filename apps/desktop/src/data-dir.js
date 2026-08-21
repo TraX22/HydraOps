@@ -7,10 +7,11 @@
  * app.getPath("userData"), que es escribible; el directorio de instalación no
  * tiene por qué serlo.
  *
- * Sembrado: se copian los agentes y los add-ons de ejemplo que viajan con la
- * aplicación, se crea un perfil de usuario vacío y un .env por defecto (con las
- * claves apuntando al key-proxy, nunca con claves reales dentro), y se corren
- * las migraciones de drizzle.
+ * Sembrado: se copian los add-ons de ejemplo que viajan con la aplicación, se
+ * crea un directorio de agentes vacío (una instalación nueva NO trae agentes ni
+ * configuraciones: el usuario los crea), un perfil de usuario vacío y un .env por
+ * defecto (con las claves apuntando al key-proxy, nunca con claves reales
+ * dentro), y se corren las migraciones de drizzle.
  */
 const fs = require("node:fs");
 const path = require("node:path");
@@ -119,7 +120,7 @@ function runDbScript(name, { repoRoot, dataRoot, isPackaged }) {
 /**
  * @param {object} opts
  * @param {string} opts.dataRoot   dónde viven los datos del usuario
- * @param {string} opts.seedRoot   de dónde se copian agentes y add-ons de ejemplo
+ * @param {string} opts.seedRoot   de dónde se copian los add-ons de ejemplo
  * @param {string} opts.repoRoot   dónde está el código (para las migraciones)
  * @param {boolean} opts.isPackaged
  * @param {(msg: string) => void} [opts.onProgress]
@@ -129,6 +130,9 @@ async function ensureDataDir({ dataRoot, seedRoot, repoRoot, isPackaged, onProgr
 
   for (const dir of [
     dataRoot,
+    // A fresh install ships no agents: create the dir empty so the API can list
+    // it and the user can create their first agent from the Agents view.
+    path.join(dataRoot, "agents"),
     path.join(dataRoot, "storage"),
     path.join(dataRoot, "storage", "logs"),
     path.join(dataRoot, "storage", "uploads"),
@@ -137,9 +141,6 @@ async function ensureDataDir({ dataRoot, seedRoot, repoRoot, isPackaged, onProgr
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  if (copyDirIfMissing(path.join(seedRoot, "agents"), path.join(dataRoot, "agents"))) {
-    created.push("agents");
-  }
   if (copyDirIfMissing(path.join(seedRoot, "my_addons"), path.join(dataRoot, "my_addons"))) {
     created.push("my_addons");
   }

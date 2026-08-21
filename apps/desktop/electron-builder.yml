@@ -11,8 +11,8 @@
 #   backend/  bundles de los 8 servicios + migraciones + los módulos nativos
 #   ui/       interfaz de Angular compilada
 #   nats/     nats-server.exe
-#   seed/     agentes y add-ons de ejemplo, se copian al directorio de datos
-#             del usuario en el primer arranque
+#   seed/     add-ons de ejemplo, se copian al directorio de datos del usuario
+#             en el primer arranque (los agentes NO se siembran: instalación vacía)
 appId: com.hydraops.desktop
 productName: HydraOps
 directories:
@@ -37,8 +37,9 @@ extraResources:
     to: ui
   - from: ../../nats/nats-server-v2.10.22-windows-amd64/nats-server.exe
     to: nats/nats-server.exe
-  - from: ../../agents
-    to: seed/agents
+  # A fresh install ships NO agents and NO agent configs: the app starts empty
+  # and the user creates their own agents from the Agents view. The developer's
+  # working agents/ (personal prompts, memory) must never leak into a release.
   - from: ../../my_addons
     to: seed/my_addons
 
