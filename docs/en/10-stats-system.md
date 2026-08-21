@@ -19,4 +19,4 @@ The **System** view shows the moving parts:
 - **The workers** — every service with its live status (workers heartbeat every few seconds; if one stops, it shows as down).
 - **Logs** — each service's output, to see what is actually going on.
 
-Logs are also kept as files in `storage/logs/` inside the data folder, one per service. If something fails and you can't see why, the full story is there — and it is what you should copy when [reporting a problem](./12-troubleshooting.md).
+Logs are also kept as files in `storage/logs/` inside the data folder, one per service. If something fails and you can't see why, the full story is there — and it is what you should copy when [reporting a problem](./13-troubleshooting.md).
