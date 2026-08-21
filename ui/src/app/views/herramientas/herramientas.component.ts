@@ -66,6 +66,14 @@ export class HerramientasComponent implements OnInit {
     this.api.saveTelegramIntegration({ defaultAgent: id }).subscribe(() => this.flashCfgSaved());
   }
 
+  toggleNotifyCron(): void {
+    const t = this.telegram();
+    if (!t) return;
+    const cron = !(t.notifications?.cron !== false);
+    this.patch({ notifications: { cron } });
+    this.api.saveTelegramIntegration({ notifications: { cron } }).subscribe(() => this.flashCfgSaved());
+  }
+
   generatePairingCode(): void {
     const code = String(Math.floor(1000 + Math.random() * 9000));
     this.patch({ pairingCode: code });

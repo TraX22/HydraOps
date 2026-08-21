@@ -101,6 +101,7 @@ export interface TelegramIntegration {
   allowlist: number[];
   pairingCode: string;
   defaultAgent: string;
+  notifications?: { cron: boolean };
 }
 
 export interface McpServerStatus {
