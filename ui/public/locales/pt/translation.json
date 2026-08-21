@@ -143,6 +143,8 @@
       "getToken": "Obter um token",
       "defaultAgent": "Agente padrão",
       "noDefaultAgent": "Nenhum (requer /use)",
+      "notifyCron": "Avisar quando uma tarefa agendada terminar",
+      "notifyCronHint": "Quando um cron conclui sua tarefa, o bot envia o resultado no Telegram.",
       "pairingCode": "Código de emparelhamento",
       "noPairingCode": "não definido",
       "generate": "Gerar",

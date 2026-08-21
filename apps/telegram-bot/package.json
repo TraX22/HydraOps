@@ -12,8 +12,11 @@
   "dependencies": {
     "@hydraops/config": "workspace:*",
     "@hydraops/db": "workspace:*",
+    "@hydraops/events": "workspace:*",
+    "@hydraops/nats": "workspace:*",
     "dotenv": "^16.4.5",
-    "drizzle-orm": "^0.45.2"
+    "drizzle-orm": "^0.45.2",
+    "nats": "^2.29.0"
   },
   "devDependencies": {
     "tsup": "^8.5.0",

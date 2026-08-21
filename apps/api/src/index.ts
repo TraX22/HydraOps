@@ -1981,7 +1981,7 @@ const TELEGRAM_CONFIG_KEY = "telegram_config";
 
 async function readTelegramConfig(): Promise<any> {
   const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, TELEGRAM_CONFIG_KEY)).limit(1);
-  const base = { enabled: false, allowlist: [] as number[], pairingCode: "", defaultAgent: "", sessions: {} as Record<string, string> };
+  const base = { enabled: false, allowlist: [] as number[], pairingCode: "", defaultAgent: "", notifications: { cron: true }, sessions: {} as Record<string, string> };
   return rows[0] ? { ...base, ...JSON.parse(rows[0].value) } : base;
 }
 
@@ -1995,6 +1995,7 @@ api.get("/system/integrations/telegram", async (_req, res) => {
       allowlist: Array.isArray(cfg.allowlist) ? cfg.allowlist : [],
       pairingCode: cfg.pairingCode || "",
       defaultAgent: cfg.defaultAgent || "",
+      notifications: { cron: cfg.notifications?.cron !== false },
     });
   } catch (err: any) {
     console.error("[api] GET /system/integrations/telegram failed", err);
@@ -2013,6 +2014,9 @@ api.post("/system/integrations/telegram", async (req, res) => {
     if (typeof b.defaultAgent === "string") cfg.defaultAgent = b.defaultAgent.trim();
     if (Array.isArray(b.allowlist)) {
       cfg.allowlist = [...new Set(b.allowlist.map((n: any) => Number(n)).filter((n: number) => Number.isFinite(n)))];
+    }
+    if (b.notifications && typeof b.notifications.cron === "boolean") {
+      cfg.notifications = { ...(cfg.notifications || {}), cron: b.notifications.cron };
     }
     const value = JSON.stringify(cfg);
     await (db as any).insert(systemConfigs)

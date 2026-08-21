@@ -79,6 +79,10 @@
 }
 .tool-hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
 
+.notify-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.notify-text { min-width: 0; }
+.notify-text .tool-hint { margin-top: 2px; }
+
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .chip {
   display: inline-flex; align-items: center; gap: 4px;
