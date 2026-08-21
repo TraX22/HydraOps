@@ -2,7 +2,7 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import { IconComponent } from '../../components/icon/icon.component';
-import { ApiService, Agent, AppConfig, TelegramIntegration } from '../../services/api.service';
+import { ApiService, Agent, AppConfig, TelegramIntegration, GitHubIntegration } from '../../services/api.service';
 
 @Component({
   selector: 'app-herramientas',
@@ -15,6 +15,7 @@ export class HerramientasComponent implements OnInit {
   private api = inject(ApiService);
 
   telegram = signal<TelegramIntegration | null>(null);
+  github = signal<GitHubIntegration | null>(null);
   agents = signal<Agent[]>([]);
 
   tokenInput = signal('');
@@ -22,12 +23,42 @@ export class HerramientasComponent implements OnInit {
   cfgSaved = signal(false);
   newAllowId = signal('');
 
+  ghTokenInput = signal('');
+  ghTokenSaved = signal(false);
+
   // Future connectors, shown as disabled "coming soon" cards to convey the idea.
-  comingSoon = ['github', 'discord', 'signal', 'reddit'];
+  comingSoon = ['discord', 'signal', 'reddit'];
 
   ngOnInit(): void {
     this.api.getTelegramIntegration().subscribe(t => this.telegram.set(t));
+    this.api.getGitHubIntegration().subscribe(g => this.github.set(g));
     this.api.getAgents().subscribe(a => this.agents.set(a));
+  }
+
+  // ── GitHub ──
+  private patchGithub(part: Partial<GitHubIntegration>): void {
+    const cur = this.github();
+    if (cur) this.github.set({ ...cur, ...part });
+  }
+
+  toggleGithub(): void {
+    const g = this.github();
+    if (!g) return;
+    const enabled = !g.enabled;
+    this.patchGithub({ enabled });
+    this.api.saveGitHubIntegration({ enabled }).subscribe();
+  }
+
+  saveGithubToken(): void {
+    const value = this.ghTokenInput().trim();
+    if (!value) return;
+    // Same firewall as the Telegram token: the PAT goes ONLY to the key store.
+    this.api.saveConfig({ githubToken: value } as Partial<AppConfig>).subscribe(() => {
+      this.patchGithub({ tokenConfigured: true });
+      this.ghTokenInput.set('');
+      this.ghTokenSaved.set(true);
+      setTimeout(() => this.ghTokenSaved.set(false), 2000);
+    });
   }
 
   private patch(part: Partial<TelegramIntegration>): void {

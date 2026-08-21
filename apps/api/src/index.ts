@@ -1134,6 +1134,7 @@ const envMapping: Record<string, string> = {
   minimaxKey: "MINIMAX_API_KEY",
   braveKey: "BRAVE_API_KEY",
   telegramBotToken: "TELEGRAM_BOT_TOKEN",
+  githubToken: "GITHUB_TOKEN",
   localLlmUrl: "LOCAL_LLM_URL",
   localLlmKey: "LOCAL_LLM_KEY",
   localLlmModel: "LOCAL_LLM_MODEL",
@@ -1162,6 +1163,8 @@ const PROVIDER_KEY_NAMES = [
   // Not an LLM provider key, but a secret credential all the same: stored in the
   // key store (never DB/.env), masked in GET /config, read by the telegram-bot.
   "TELEGRAM_BOT_TOKEN",
+  // GitHub PAT for the github tool — injected by the key-proxy, never seen by workers.
+  "GITHUB_TOKEN",
 ];
 const KEY_PLACEHOLDER = "proxy";
 // Masked values round-trip through the UI; POST /config already ignores
@@ -1926,6 +1929,16 @@ const ADDON_DESCRIPTION_OVERRIDES: Record<string, string> = {
   brave_search: "Búsqueda web con Brave Search API (requiere API key).",
   fetch_url: "Lee una página web y la convierte a Markdown.",
   youtube_transcript: "Trae la transcripción (subtítulos) de un vídeo de YouTube.",
+  github_list_repos: "GitHub: lista tus repositorios (o los de un usuario/organización).",
+  github_get_file: "GitHub: lee el contenido de un archivo de un repositorio.",
+  github_list_issues: "GitHub: lista las issues de un repositorio (con filtros).",
+  github_get_issue: "GitHub: trae una issue con su cuerpo y, opcionalmente, sus comentarios.",
+  github_create_issue: "GitHub: abre una issue nueva (requiere un token con permiso de escritura).",
+  github_comment: "GitHub: comenta en una issue o pull request (requiere escritura).",
+  github_list_pulls: "GitHub: lista los pull requests de un repositorio.",
+  github_get_pull: "GitHub: trae un pull request con su descripción y archivos.",
+  github_search: "GitHub: busca repositorios, código o issues/PRs.",
+  github_api: "GitHub: llama a cualquier endpoint de la API REST (comodín).",
 };
 
 api.get("/system/addons", async (_req, res) => {
@@ -2026,6 +2039,53 @@ api.post("/system/integrations/telegram", async (req, res) => {
     res.json({ success: true });
   } catch (err: any) {
     console.error("[api] POST /system/integrations/telegram failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// GitHub integration (Herramientas). The PAT is a secret saved to the key store
+// via POST /config (githubToken); the github tools reach the API through the
+// key-proxy so the token is never visible to workers. "enabled" is not a separate
+// flag — it IS the native_addons_state of the github_* tools (the same gate the
+// workers already honor), so toggling it here and in the Add-ons view stay in sync.
+const githubToolNames = () => addonsRegistry.getNativeToolNames().filter((n) => n.startsWith("github"));
+
+async function readNativeState(): Promise<Record<string, boolean>> {
+  const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, "native_addons_state")).limit(1);
+  return rows[0] ? JSON.parse(rows[0].value) : {};
+}
+
+api.get("/system/integrations/github", async (_req, res) => {
+  try {
+    const state = await readNativeState();
+    const store = await loadKeyStore();
+    const names = githubToolNames();
+    // Enabled = the github tools are not disabled (workers treat !== false as on).
+    const enabled = names.length > 0 && names.every((n) => state[n] !== false);
+    res.json({
+      enabled,
+      tokenConfigured: isRealKeyValue(store["GITHUB_TOKEN"] || ""),
+    });
+  } catch (err: any) {
+    console.error("[api] GET /system/integrations/github failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+api.post("/system/integrations/github", async (req, res) => {
+  try {
+    const enabled = req.body?.enabled === true;
+    // Merge into native_addons_state so we don't clobber other tools' flags.
+    const state = await readNativeState();
+    for (const n of githubToolNames()) state[n] = enabled;
+    const value = JSON.stringify(state);
+    await (db as any).insert(systemConfigs)
+      .values({ key: "native_addons_state", value, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: systemConfigs.key, set: { value, updatedAt: new Date() } })
+      .run();
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("[api] POST /system/integrations/github failed", err);
     res.status(500).json({ error: "internal_error" });
   }
 });

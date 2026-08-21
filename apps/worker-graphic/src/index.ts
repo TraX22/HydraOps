@@ -304,17 +304,9 @@ ${personality}
         .split("\n").map((l: string) => l.trim())
         .filter((l: string) => l.startsWith("-"))
         .map((l: string) => l.substring(1).trim());
-      const allowedTools: string[] = [...globalRegistry.getNativeToolNames()];
-      for (const t of Array.from(globalRegistry.mcpManager.mcpTools.keys())) {
-        if (enabledMcpServers.length > 0) {
-          if (enabledMcpServers.some(s => t.startsWith(s.replace(/\s+/g, "_").toLowerCase() + "_"))) allowedTools.push(t);
-        } else if (agentRequestedTools.some((req: string) => {
-          const clean = req.replace(/\s+/g, "_").toLowerCase();
-          return t === clean || t.startsWith(clean + "_");
-        })) {
-          allowedTools.push(t);
-        }
-      }
+      // Strict per-agent gating: a tool (native or MCP) runs only if this agent's
+      // tools.md names it. Identical rule across all workers (see registry).
+      const allowedTools = globalRegistry.resolveAllowedToolNames(agentRequestedTools, enabledMcpServers);
       const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState);
       const rawTools = globalRegistry.getRawTools(allowedTools, nativeState);
 

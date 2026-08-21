@@ -123,6 +123,55 @@
       </div>
     }
 
+    <!-- GitHub -->
+    @if (github(); as g) {
+      <div class="tool-card">
+        <div class="tool-head">
+          <div class="tool-title">
+            <app-icon name="github" class="tool-icon github" />
+            <div class="tool-title-text">
+              <span class="addon-name">{{ 'herramientas.github.name' | translate }}</span>
+              <span class="addon-type">{{ 'herramientas.github.description' | translate }}</span>
+            </div>
+          </div>
+          <button class="toggle-btn" [class.on]="g.enabled" (click)="toggleGithub()">
+            {{ g.enabled ? 'ON' : 'OFF' }}
+          </button>
+        </div>
+
+        <!-- PAT -->
+        <div class="tool-field">
+          <label class="tool-label">
+            {{ 'herramientas.github.token' | translate }}
+            <span class="addon-badge" [class.key-ok]="g.tokenConfigured">
+              {{ (g.tokenConfigured ? 'herramientas.github.tokenSet' : 'herramientas.github.tokenMissing') | translate }}
+            </span>
+          </label>
+          <div class="addon-keyrow">
+            <input
+              type="password"
+              class="key-input"
+              autocomplete="off"
+              [placeholder]="'herramientas.github.tokenPlaceholder' | translate"
+              [value]="ghTokenInput()"
+              (input)="ghTokenInput.set($any($event.target).value)"
+              (keyup.enter)="saveGithubToken()"
+            />
+            <button class="btn-primary key-save" [disabled]="!ghTokenInput().trim()" (click)="saveGithubToken()">
+              {{ 'common.save' | translate }}
+            </button>
+            @if (ghTokenSaved()) {
+              <span class="saved-msg">✓ {{ 'common.saved' | translate }}</span>
+            }
+            <a class="key-help" href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">
+              {{ 'herramientas.github.getToken' | translate }}
+            </a>
+          </div>
+          <p class="tool-hint">{{ 'herramientas.github.connectHint' | translate }}</p>
+        </div>
+      </div>
+    }
+
     <!-- Future connectors -->
     <h3 class="coming-title">{{ 'herramientas.comingSoon' | translate }}</h3>
     <div class="addons-grid">
