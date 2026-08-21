@@ -1929,17 +1929,14 @@ const ADDON_DESCRIPTION_OVERRIDES: Record<string, string> = {
   brave_search: "Búsqueda web con Brave Search API (requiere API key).",
   fetch_url: "Lee una página web y la convierte a Markdown.",
   youtube_transcript: "Trae la transcripción (subtítulos) de un vídeo de YouTube.",
-  github_list_repos: "GitHub: lista tus repositorios (o los de un usuario/organización).",
-  github_get_file: "GitHub: lee el contenido de un archivo de un repositorio.",
-  github_list_issues: "GitHub: lista las issues de un repositorio (con filtros).",
-  github_get_issue: "GitHub: trae una issue con su cuerpo y, opcionalmente, sus comentarios.",
-  github_create_issue: "GitHub: abre una issue nueva (requiere un token con permiso de escritura).",
-  github_comment: "GitHub: comenta en una issue o pull request (requiere escritura).",
-  github_list_pulls: "GitHub: lista los pull requests de un repositorio.",
-  github_get_pull: "GitHub: trae un pull request con su descripción y archivos.",
-  github_search: "GitHub: busca repositorios, código o issues/PRs.",
-  github_api: "GitHub: llama a cualquier endpoint de la API REST (comodín).",
+  // github_* tools are managed under Herramientas → GitHub, not the Add-ons view.
 };
+
+// Tools that belong to an external integration (managed in Herramientas, e.g.
+// the github_* tools) are NOT shown in the Add-ons view: the integration's
+// connection (its token) and each agent's tools.md already govern them, so a
+// per-tool toggle here would just be noise.
+const isIntegrationTool = (name: string) => name.startsWith("github");
 
 api.get("/system/addons", async (_req, res) => {
   try {
@@ -1949,7 +1946,7 @@ api.get("/system/addons", async (_req, res) => {
     const store = await loadKeyStore();
     // Workers treat anything !== false as enabled
     res.json({
-      addons: addonsRegistry.listNative().map(a => ({
+      addons: addonsRegistry.listNative().filter(a => !isIntegrationTool(a.name)).map(a => ({
         name: a.name,
         description: ADDON_DESCRIPTION_OVERRIDES[a.name] ?? a.description,
         source: a.source,
@@ -1968,8 +1965,12 @@ api.get("/system/addons", async (_req, res) => {
 
 api.post("/system/addons", async (req, res) => {
   try {
-    const state: Record<string, boolean> = {};
+    // Merge into the existing state so we preserve entries this view doesn't own —
+    // notably the github_* flags managed by the Herramientas GitHub toggle.
+    const existing = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, "native_addons_state")).limit(1);
+    const state: Record<string, boolean> = existing[0] ? JSON.parse(existing[0].value) : {};
     for (const a of addonsRegistry.listNative()) {
+      if (isIntegrationTool(a.name)) continue; // github_* is managed in Herramientas
       if (typeof req.body?.[a.name] === "boolean") state[a.name] = req.body[a.name];
     }
     const value = JSON.stringify(state);
