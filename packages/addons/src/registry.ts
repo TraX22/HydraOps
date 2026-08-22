@@ -20,6 +20,38 @@ export class ToolRegistry {
     return [...this.nativeTools.keys()];
   }
 
+  /**
+   * Strict per-agent tool gating. An agent gets a tool (native, my_addons or MCP)
+   * ONLY if its tools.md names it — either the exact tool name, or a group/server
+   * prefix (e.g. `github` enables every `github_*` tool; an MCP server name
+   * enables its tools). An empty/prose-only tools.md grants nothing. This is the
+   * single source of truth used by every worker, so the rule is identical
+   * regardless of worker type.
+   *
+   * `requested` are the bullet lines from the agent's tools.md.
+   * `enabledMcpServers` (from the chat UI) further NARROWS which MCP servers may
+   * run this turn — a tool must be BOTH named in tools.md AND, when that list is
+   * non-empty, belong to an enabled server.
+   */
+  resolveAllowedToolNames(requested: string[], enabledMcpServers: string[] = []): string[] {
+    const norm = requested.map((r) => r.replace(/\s+/g, "_").toLowerCase()).filter(Boolean);
+    const named = (toolName: string) => norm.some((c) => toolName === c || toolName.startsWith(c + "_"));
+
+    const allowed: string[] = [];
+    for (const name of this.nativeTools.keys()) {
+      if (named(name)) allowed.push(name);
+    }
+    for (const t of this.mcpManager.mcpTools.keys()) {
+      if (!named(t)) continue;
+      if (enabledMcpServers.length > 0) {
+        const onEnabledServer = enabledMcpServers.some((s) => t.startsWith(s.replace(/\s+/g, "_").toLowerCase() + "_"));
+        if (!onEnabledServer) continue;
+      }
+      allowed.push(t);
+    }
+    return allowed;
+  }
+
   // Metadata for the UI (no schema/execute)
   listNative(): { name: string; description: string; source: string; requiresKey?: ToolKeyRequirement }[] {
     return [...this.nativeTools.values()].map(t => ({

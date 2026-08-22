@@ -353,35 +353,9 @@ ${agentPersonalityContext}
 
     console.log(`[worker-coder] Agent ${agentId} requested tools: ${agentRequestedTools.join(', ')}`);
     
-    const allowedTools = [];
-    // Native/my_addons tools are allowed if mentioned or if no tools specified (compatibility)
-    for (const toolName of globalRegistry.getNativeToolNames()) {
-      if (agentRequestedTools.includes(toolName) || agentRequestedTools.length === 0) allowedTools.push(toolName);
-    }
-    
-    // MCP tools are allowed if explicitly mentioned OR if the server name is mentioned in tools.md
-    // AND the server is enabled by the user in the chat UI (enabledMcpServers)
-    for (const t of Array.from(globalRegistry.mcpManager.mcpTools.keys())) {
-      // If enabledMcpServers is provided, only allow tools from those servers
-      if (enabledMcpServers.length > 0) {
-        const serverMatch = enabledMcpServers.some(serverName => {
-          const prefix = serverName.replace(/\s+/g, '_').toLowerCase();
-          return t.startsWith(prefix + '_');
-        });
-        if (serverMatch) {
-          allowedTools.push(t);
-        }
-      } else {
-        // Legacy: use tools.md filtering if no enabledMcpServers specified
-        const toolMatches = agentRequestedTools.some(req => {
-          const cleanReq = req.replace(/\s+/g, '_').toLowerCase();
-          return t === cleanReq || t.startsWith(cleanReq + "_");
-        });
-        if (toolMatches) {
-          allowedTools.push(t);
-        }
-      }
-    }
+    // Strict per-agent gating: a tool (native or MCP) runs only if this agent's
+    // tools.md names it. Identical rule across all workers (see registry).
+    const allowedTools = globalRegistry.resolveAllowedToolNames(agentRequestedTools, enabledMcpServers);
 
     console.log(`[worker-coder] Enabled MCP servers from chat: [${enabledMcpServers.join(', ')}] → ${allowedTools.length} tools total`);
 

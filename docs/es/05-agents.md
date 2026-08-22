@@ -41,6 +41,8 @@ Cada agente es una carpeta `agents/<id>/` con seis archivos Markdown. Son texto 
 
 Los cambios se aplican en las tareas siguientes, sin reiniciar nada.
 
+**Herramientas por agente (`<id>.tools.md`).** Un agente solo puede usar una herramienta —nativa, add-on o servidor MCP— si su `tools.md` la **nombra**, en una línea con viñeta. Si no lista ninguna, el agente no tiene herramientas. Puedes poner el nombre exacto (`- web_search`) o un grupo por prefijo (`- github` habilita todas las `github_*`; el nombre de un servidor MCP habilita sus herramientas). El resto del archivo es texto libre para el agente; solo las viñetas con nombres de herramienta conceden acceso. Esto vale para cualquier tipo de worker.
+
 Además de estos archivos, **cada tipo de worker aporta su oficio de serie**: el de imagen sabe de teoría del color y composición, el de vídeo de encuadre y cinematografía, el de código de arquitectura y patrones, y el general del trato con las personas. Ese saber viene con la aplicación y lo heredan todos los agentes del tipo — tus seis archivos definen *quién es* tu agente y su especialización concreta; el worker pone la profesión.
 
 ## Borrar un agente

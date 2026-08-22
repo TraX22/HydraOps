@@ -809,7 +809,13 @@ api.post("/agents", async (req, res) => {
     const baseFiles = ["soul", "skill", "agent", "heartbeat", "memory", "tools"];
     for (const type of baseFiles) {
       const fileName = `${id}.${type}.md`;
-      const template = `# ${name} — ${type.toUpperCase()}\n\nEste es el archivo ${type} del agente ${name}.\nConfiguración inicial generada por HydraOps UI.`;
+      // The tools file is seeded with web_search so a brand-new agent can always
+      // search/verify information out of the box. It is a starting default, not a
+      // lock: the user may remove it (or add more) from the agent editor. Mirrors
+      // the format the workers parse (one tool name per bullet under a heading).
+      const template = type === "tools"
+        ? `# ${name} — Tools\n\nTools this agent may use. List one tool name (or an MCP server name) per bullet:\nadd a line to grant it, remove a line to revoke it. Nothing listed means no tools.\n\n## Enabled tools\n- web_search\n`
+        : `# ${name} — ${type.toUpperCase()}\n\nEste es el archivo ${type} del agente ${name}.\nConfiguración inicial generada por HydraOps UI.`;
       await writeFile(path.join(agentPath, fileName), template, "utf-8");
     }
 
@@ -1134,6 +1140,7 @@ const envMapping: Record<string, string> = {
   minimaxKey: "MINIMAX_API_KEY",
   braveKey: "BRAVE_API_KEY",
   telegramBotToken: "TELEGRAM_BOT_TOKEN",
+  githubToken: "GITHUB_TOKEN",
   localLlmUrl: "LOCAL_LLM_URL",
   localLlmKey: "LOCAL_LLM_KEY",
   localLlmModel: "LOCAL_LLM_MODEL",
@@ -1162,6 +1169,8 @@ const PROVIDER_KEY_NAMES = [
   // Not an LLM provider key, but a secret credential all the same: stored in the
   // key store (never DB/.env), masked in GET /config, read by the telegram-bot.
   "TELEGRAM_BOT_TOKEN",
+  // GitHub PAT for the github tool — injected by the key-proxy, never seen by workers.
+  "GITHUB_TOKEN",
 ];
 const KEY_PLACEHOLDER = "proxy";
 // Masked values round-trip through the UI; POST /config already ignores
@@ -1926,7 +1935,14 @@ const ADDON_DESCRIPTION_OVERRIDES: Record<string, string> = {
   brave_search: "Búsqueda web con Brave Search API (requiere API key).",
   fetch_url: "Lee una página web y la convierte a Markdown.",
   youtube_transcript: "Trae la transcripción (subtítulos) de un vídeo de YouTube.",
+  // github_* tools are managed under Herramientas → GitHub, not the Add-ons view.
 };
+
+// Tools that belong to an external integration (managed in Herramientas, e.g.
+// the github_* tools) are NOT shown in the Add-ons view: the integration's
+// connection (its token) and each agent's tools.md already govern them, so a
+// per-tool toggle here would just be noise.
+const isIntegrationTool = (name: string) => name.startsWith("github");
 
 api.get("/system/addons", async (_req, res) => {
   try {
@@ -1936,7 +1952,7 @@ api.get("/system/addons", async (_req, res) => {
     const store = await loadKeyStore();
     // Workers treat anything !== false as enabled
     res.json({
-      addons: addonsRegistry.listNative().map(a => ({
+      addons: addonsRegistry.listNative().filter(a => !isIntegrationTool(a.name)).map(a => ({
         name: a.name,
         description: ADDON_DESCRIPTION_OVERRIDES[a.name] ?? a.description,
         source: a.source,
@@ -1955,8 +1971,12 @@ api.get("/system/addons", async (_req, res) => {
 
 api.post("/system/addons", async (req, res) => {
   try {
-    const state: Record<string, boolean> = {};
+    // Merge into the existing state so we preserve entries this view doesn't own —
+    // notably the github_* flags managed by the Herramientas GitHub toggle.
+    const existing = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, "native_addons_state")).limit(1);
+    const state: Record<string, boolean> = existing[0] ? JSON.parse(existing[0].value) : {};
     for (const a of addonsRegistry.listNative()) {
+      if (isIntegrationTool(a.name)) continue; // github_* is managed in Herramientas
       if (typeof req.body?.[a.name] === "boolean") state[a.name] = req.body[a.name];
     }
     const value = JSON.stringify(state);
@@ -2026,6 +2046,53 @@ api.post("/system/integrations/telegram", async (req, res) => {
     res.json({ success: true });
   } catch (err: any) {
     console.error("[api] POST /system/integrations/telegram failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// GitHub integration (Herramientas). The PAT is a secret saved to the key store
+// via POST /config (githubToken); the github tools reach the API through the
+// key-proxy so the token is never visible to workers. "enabled" is not a separate
+// flag — it IS the native_addons_state of the github_* tools (the same gate the
+// workers already honor), so toggling it here and in the Add-ons view stay in sync.
+const githubToolNames = () => addonsRegistry.getNativeToolNames().filter((n) => n.startsWith("github"));
+
+async function readNativeState(): Promise<Record<string, boolean>> {
+  const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, "native_addons_state")).limit(1);
+  return rows[0] ? JSON.parse(rows[0].value) : {};
+}
+
+api.get("/system/integrations/github", async (_req, res) => {
+  try {
+    const state = await readNativeState();
+    const store = await loadKeyStore();
+    const names = githubToolNames();
+    // Enabled = the github tools are not disabled (workers treat !== false as on).
+    const enabled = names.length > 0 && names.every((n) => state[n] !== false);
+    res.json({
+      enabled,
+      tokenConfigured: isRealKeyValue(store["GITHUB_TOKEN"] || ""),
+    });
+  } catch (err: any) {
+    console.error("[api] GET /system/integrations/github failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+api.post("/system/integrations/github", async (req, res) => {
+  try {
+    const enabled = req.body?.enabled === true;
+    // Merge into native_addons_state so we don't clobber other tools' flags.
+    const state = await readNativeState();
+    for (const n of githubToolNames()) state[n] = enabled;
+    const value = JSON.stringify(state);
+    await (db as any).insert(systemConfigs)
+      .values({ key: "native_addons_state", value, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: systemConfigs.key, set: { value, updatedAt: new Date() } })
+      .run();
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("[api] POST /system/integrations/github failed", err);
     res.status(500).json({ error: "internal_error" });
   }
 });

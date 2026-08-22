@@ -104,6 +104,11 @@ export interface TelegramIntegration {
   notifications?: { cron: boolean };
 }
 
+export interface GitHubIntegration {
+  enabled: boolean;
+  tokenConfigured: boolean;
+}
+
 export interface McpServerStatus {
   name: string;
   switch: 'on' | 'off';
@@ -138,6 +143,7 @@ export interface AppConfig {
   minimaxKey: string;
   braveKey: string;
   telegramBotToken: string;
+  githubToken: string;
   localLlmUrl: string;
   localLlmKey: string;
   localLlmModel: string;
@@ -400,6 +406,14 @@ export class ApiService {
 
   saveTelegramIntegration(cfg: Partial<TelegramIntegration>): Observable<void> {
     return this.http.post<void>(`${this.base}/system/integrations/telegram`, cfg);
+  }
+
+  getGitHubIntegration(): Observable<GitHubIntegration> {
+    return this.http.get<GitHubIntegration>(`${this.base}/system/integrations/github`);
+  }
+
+  saveGitHubIntegration(cfg: Partial<GitHubIntegration>): Observable<void> {
+    return this.http.post<void>(`${this.base}/system/integrations/github`, cfg);
   }
 
   // ── User ──

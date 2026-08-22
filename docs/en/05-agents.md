@@ -41,6 +41,8 @@ Each agent is a folder `agents/<id>/` with six Markdown files. They are free-for
 
 Changes apply to the next tasks, no restart needed.
 
+**Per-agent tools (`<id>.tools.md`).** An agent can use a tool — native, add-on or MCP server — only if its `tools.md` **names** it, on a bullet line. If it lists none, the agent has no tools. Use the exact name (`- web_search`) or a group prefix (`- github` enables every `github_*` tool; an MCP server name enables its tools). The rest of the file is free text for the agent; only the tool-name bullets grant access. This holds for every worker type.
+
 Beyond these files, **each worker type brings its trade out of the box**: the image one knows color theory and composition, the video one framing and cinematography, the code one architecture and patterns, and the general one how to deal with people. That knowledge ships with the application and every agent of the type inherits it — your six files define *who* your agent is and its concrete specialization; the worker brings the profession.
 
 ## Deleting an agent

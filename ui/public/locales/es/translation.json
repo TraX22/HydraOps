@@ -153,6 +153,16 @@
       "allowlistEmpty": "Aún no hay usuarios: comparte el código o añade un ID de Telegram.",
       "allowlistPlaceholder": "ID de usuario de Telegram",
       "add": "Añadir"
+    },
+    "github": {
+      "name": "GitHub",
+      "description": "Deja que los agentes trabajen con tus repositorios de GitHub.",
+      "token": "Token de acceso (PAT)",
+      "tokenSet": "Token configurado",
+      "tokenMissing": "Sin token",
+      "tokenPlaceholder": "Fine-grained PAT de GitHub",
+      "getToken": "Crear un token",
+      "connectHint": "Usa un token fine-grained y acota sus permisos y repos en GitHub. El token vive solo en el almacén cifrado; nunca lo ve el agente. Lo que puede hacer lo decide el propio token."
     }
   },
   "addons": {

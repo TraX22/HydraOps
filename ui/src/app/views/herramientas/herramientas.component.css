@@ -64,6 +64,7 @@
 .tool-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .tool-title { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
 .tool-icon { color: #29a9eb; width: 26px; height: 26px; flex-shrink: 0; }
+.tool-icon.github { color: var(--text-primary); }
 .tool-title-text { display: flex; flex-direction: column; }
 .tool-title-text .addon-name { font-size: 15px; font-weight: 600; }
 

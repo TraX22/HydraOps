@@ -153,6 +153,16 @@
       "allowlistEmpty": "Aucun utilisateur : partagez le code ou ajoutez un ID Telegram.",
       "allowlistPlaceholder": "ID utilisateur Telegram",
       "add": "Ajouter"
+    },
+    "github": {
+      "name": "GitHub",
+      "description": "Laissez les agents travailler avec vos dépôts GitHub.",
+      "token": "Jeton d'accès (PAT)",
+      "tokenSet": "Jeton configuré",
+      "tokenMissing": "Aucun jeton",
+      "tokenPlaceholder": "PAT fine-grained de GitHub",
+      "getToken": "Créer un jeton",
+      "connectHint": "Utilisez un jeton fine-grained et limitez ses permissions et dépôts sur GitHub. Le jeton ne vit que dans le coffre chiffré ; l'agent ne le voit jamais. Ce qu'il peut faire est décidé par le jeton lui-même."
     }
   },
   "addons": {
