@@ -173,3 +173,35 @@
 .list-empty-icon { font-size: 34px; opacity: 0.8; }
 .list-empty-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 .list-empty-hint { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+/* ── Tools: granted vs used (usage tracking) ── */
+.tools-window { color: var(--text-muted); font-weight: 400; font-size: 11px; margin-left: 6px; }
+.tools-loading { color: var(--text-muted); font-size: 13px; }
+.tools-empty { color: var(--text-muted); font-size: 12px; font-style: italic; }
+
+.tools-list { display: flex; flex-direction: column; gap: 2px; }
+.tool-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 8px; border-radius: var(--radius-sm);
+  background: var(--bg-surface-alt); font-size: 12px;
+}
+.tool-row:hover { background: var(--bg-hover); }
+.tool-src {
+  flex: 0 0 auto; font-size: 10px; text-transform: uppercase; letter-spacing: .03em;
+  padding: 1px 6px; border-radius: 999px; color: var(--text-secondary);
+  background: var(--bg-active); border: 1px solid var(--border-color);
+}
+.tool-src.src-mcp { color: var(--accent); border-color: var(--accent-soft); }
+.tool-src.src-my_addons { color: var(--status-online); }
+.tool-name { flex: 1 1 auto; color: var(--text-primary); font-family: ui-monospace, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tool-count { flex: 0 0 auto; font-weight: 700; color: var(--text-primary); min-width: 20px; text-align: right; }
+.tool-last { flex: 0 0 auto; color: var(--text-muted); font-size: 11px; min-width: 64px; text-align: right; }
+.tool-blocked { flex: 0 0 auto; color: var(--status-error); font-size: 11px; font-weight: 600; }
+
+.tools-unused { margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tools-unused-label { font-size: 11px; color: var(--text-muted); }
+.tool-chip {
+  font-size: 11px; font-family: ui-monospace, monospace; color: var(--text-secondary);
+  padding: 2px 7px; border-radius: 999px;
+  background: var(--bg-surface-alt); border: 1px dashed var(--border-color);
+}

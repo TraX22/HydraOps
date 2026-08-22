@@ -3,6 +3,36 @@ import { HydraTool, ToolKeyRequirement } from './types.js';
 import { McpClientManager, McpServerStatus } from './mcp.js';
 import { guardTool } from './guard.js';
 
+/**
+ * Called once per tool invocation for usage tracking. `source` is native |
+ * my_addons | mcp; `status` is ok | blocked (by the security guard) | error.
+ * Wired by the workers so we can record what each agent actually uses.
+ */
+export type ToolUsageSink = (toolName: string, source: string, status: 'ok' | 'blocked' | 'error') => void;
+
+/**
+ * Wraps an already-guarded tool so every call is reported to the sink, without
+ * touching the security layer. It sits OUTSIDE guardTool: a guard block returns
+ * the ⛔ marker string (→ 'blocked'), a thrown error → 'error', anything else →
+ * 'ok'. Tracking is best-effort and must never change what the model receives.
+ */
+function instrumentTool(t: HydraTool, source: string, sink: ToolUsageSink): HydraTool {
+  return {
+    ...t,
+    execute: async (args: any) => {
+      try {
+        const result = await t.execute(args);
+        const blocked = typeof result === 'string' && result.startsWith('⛔ Blocked by HydraOps security guard');
+        try { sink(t.name, source, blocked ? 'blocked' : 'ok'); } catch { /* tracking never breaks a call */ }
+        return result;
+      } catch (err) {
+        try { sink(t.name, source, 'error'); } catch { /* ignore */ }
+        throw err;
+      }
+    },
+  };
+}
+
 export class ToolRegistry {
   private nativeTools = new Map<string, HydraTool>();
   public mcpManager = new McpClientManager();
@@ -62,32 +92,35 @@ export class ToolRegistry {
     }));
   }
 
-  // Obtains the raw HydraTools (useful for local fallback logic)
-  getRawTools(allowedNames: string[], globalNativeState: Record<string, boolean>): HydraTool[] {
+  // Obtains the raw HydraTools (useful for local fallback logic). An optional
+  // usage sink reports every invocation (tool + source + status) for tracking.
+  getRawTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink): HydraTool[] {
     const activeTools: HydraTool[] = [];
-    
+
+    const finalize = (t: HydraTool, source: string) => sink ? instrumentTool(guardTool(t), source, sink) : guardTool(t);
+
     for (const name of allowedNames) {
       const nt = this.nativeTools.get(name);
       // Solo devolvemos nativas si no están desactivadas globalmente.
       // guardTool() envuelve TODA tool (nativa o MCP) con la blocklist dura
       // y la redacción de secretos — este es el único punto de salida.
       if (nt && globalNativeState[name] !== false) {
-        activeTools.push(guardTool(nt));
+        activeTools.push(finalize(nt, nt.source === 'my_addons' ? 'my_addons' : 'native'));
       }
 
       // Herramientas MCP
       const mt = this.mcpManager.mcpTools.get(name);
       if (mt) {
-        activeTools.push(guardTool(mt));
+        activeTools.push(finalize(mt, 'mcp'));
       }
     }
-    
+
     return activeTools;
   }
 
   // Devuelve el objeto formateado para Vercel AI SDK
-  getAiSdkTools(allowedNames: string[], globalNativeState: Record<string, boolean>) {
-    const rawTools = this.getRawTools(allowedNames, globalNativeState);
+  getAiSdkTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink) {
+    const rawTools = this.getRawTools(allowedNames, globalNativeState, sink);
     if (rawTools.length === 0) return undefined;
     
     const aiTools: Record<string, any> = {};

@@ -9,7 +9,7 @@ import { loadEnv, envFile, dataRoot, agentsDir, logsDir, usersDir, resultsDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus } from "@hydraops/db";
+import { createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType } from "@hydraops/nats";
 import { eq, and, desc } from "drizzle-orm";
@@ -359,8 +359,12 @@ ${agentPersonalityContext}
 
     console.log(`[worker-coder] Enabled MCP servers from chat: [${enabledMcpServers.join(', ')}] → ${allowedTools.length} tools total`);
 
-    const aiTools = globalRegistry.getAiSdkTools(allowedTools, globalNativeState);
-    const rawTools = globalRegistry.getRawTools(allowedTools, globalNativeState);
+    // Usage tracking: the sink collects every tool call this turn; flushed to DB
+    // after the LLM finishes so we can report what each agent actually uses.
+    const toolUsageLog: { toolName: string; source: string; status: string }[] = [];
+    const usageSink = (toolName: string, source: string, status: 'ok' | 'blocked' | 'error') => { toolUsageLog.push({ toolName, source, status }); };
+    const aiTools = globalRegistry.getAiSdkTools(allowedTools, globalNativeState, usageSink);
+    const rawTools = globalRegistry.getRawTools(allowedTools, globalNativeState, usageSink);
 
     // Fetch conversation history (last 10 completed tasks in this channel)
     const historyRows = await (db as any).select()
@@ -395,7 +399,13 @@ ${agentPersonalityContext}
       `LLM call (${llmConfig.provider}:${llmConfig.model})`
     );
     console.log(`[worker-coder] [LLM] Call finished. Success: ${success}`);
-    
+
+    // Persist tool usage for this task (best-effort; never break processing).
+    if (toolUsageLog.length) {
+      try { await recordToolUsage(db, agentId, taskId, toolUsageLog); }
+      catch (e: any) { console.warn(`[worker-coder] tool usage tracking failed: ${e?.message ?? e}`); }
+    }
+
     if (success) {
       console.log(`[worker-coder] DEBUG -> Response: "${text}"`);
     }
