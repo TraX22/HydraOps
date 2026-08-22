@@ -44,7 +44,16 @@
     "agentNamePlaceholder": "Agent name",
     "openChat": "Open this agent's chat",
     "emptyTitle": "No agents yet",
-    "emptyHint": "Create the first one to start sending tasks: with no agents, messages are never assigned."
+    "emptyHint": "Create the first one to start sending tasks: with no agents, messages are never assigned.",
+    "tools": {
+      "title": "Tools",
+      "window": "last 7 days",
+      "none": "This agent has no tools granted (edit its tools.md).",
+      "unused": "No usage in this window.",
+      "calls": "calls",
+      "blocked": "Blocked by the security guard",
+      "grantedUnused": "Granted, unused"
+    }
   },
   "system": {
     "title": "System",
@@ -119,7 +128,19 @@
     "attrTasks": "Tasks",
     "attrSuccess": "Success",
     "attrReliability": "Reliability",
-    "attrLoad": "Workload"
+    "attrLoad": "Workload",
+    "toolUsage": {
+      "title": "Tool usage",
+      "window": "last 7 days",
+      "empty": "No tool usage recorded yet.",
+      "calls": "calls",
+      "tools": "tools",
+      "agents": "agents",
+      "blocked": "blocked",
+      "byTool": "By tool",
+      "byAgent": "By agent",
+      "distinct": "distinct"
+    }
   },
   "docs": {
     "title": "Documentation",
@@ -132,7 +153,12 @@
     "comingSoon": "Coming soon",
     "comingSoonDesc": "Planned connector",
     "soonBadge": "Soon",
-    "soon": { "github": "GitHub", "discord": "Discord", "signal": "Signal", "reddit": "Reddit" },
+    "soon": {
+      "github": "GitHub",
+      "discord": "Discord",
+      "signal": "Signal",
+      "reddit": "Reddit"
+    },
     "telegram": {
       "name": "Telegram",
       "description": "Talk to your agents from Telegram.",
