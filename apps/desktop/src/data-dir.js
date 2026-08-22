@@ -7,10 +7,10 @@
  * app.getPath("userData"), que es escribible; el directorio de instalación no
  * tiene por qué serlo.
  *
- * Sembrado: se copian los agentes y los add-ons de ejemplo que viajan con la
- * aplicación, se crea un perfil de usuario vacío y un .env por defecto (con las
- * claves apuntando al key-proxy, nunca con claves reales dentro), y se corren
- * las migraciones de drizzle.
+ * Sembrado: una instalación nueva NO trae agentes, add-ons ni configuraciones —
+ * el usuario los crea. Se crean vacíos los directorios agents/ y my_addons/, un
+ * perfil de usuario vacío y un .env por defecto (con las claves apuntando al
+ * key-proxy, nunca con claves reales dentro), y se corren las migraciones de drizzle.
  */
 const fs = require("node:fs");
 const path = require("node:path");
@@ -59,15 +59,6 @@ const DEFAULT_PROFILE = {
   interests: "",
   notes: "",
 };
-
-function copyDirIfMissing(src, dest) {
-  if (!fs.existsSync(src)) return false;
-  // Solo se siembra si el destino no existe o está vacío: nunca se pisa lo que
-  // el usuario haya editado.
-  if (fs.existsSync(dest) && fs.readdirSync(dest).length > 0) return false;
-  fs.cpSync(src, dest, { recursive: true });
-  return true;
-}
 
 /**
  * Ejecuta un script de @hydraops/db en un proceso aparte y espera a que acabe.
@@ -119,16 +110,20 @@ function runDbScript(name, { repoRoot, dataRoot, isPackaged }) {
 /**
  * @param {object} opts
  * @param {string} opts.dataRoot   dónde viven los datos del usuario
- * @param {string} opts.seedRoot   de dónde se copian agentes y add-ons de ejemplo
  * @param {string} opts.repoRoot   dónde está el código (para las migraciones)
  * @param {boolean} opts.isPackaged
  * @param {(msg: string) => void} [opts.onProgress]
  */
-async function ensureDataDir({ dataRoot, seedRoot, repoRoot, isPackaged, onProgress = () => {} }) {
+async function ensureDataDir({ dataRoot, repoRoot, isPackaged, onProgress = () => {} }) {
   const created = [];
 
   for (const dir of [
     dataRoot,
+    // A fresh install ships NO agents and NO add-ons: create both dirs empty so
+    // the app can list them, and the user creates their own from the UI (agents)
+    // or by dropping a folder into my_addons.
+    path.join(dataRoot, "agents"),
+    path.join(dataRoot, "my_addons"),
     path.join(dataRoot, "storage"),
     path.join(dataRoot, "storage", "logs"),
     path.join(dataRoot, "storage", "uploads"),
@@ -137,16 +132,9 @@ async function ensureDataDir({ dataRoot, seedRoot, repoRoot, isPackaged, onProgr
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  if (copyDirIfMissing(path.join(seedRoot, "agents"), path.join(dataRoot, "agents"))) {
-    created.push("agents");
-  }
-  if (copyDirIfMissing(path.join(seedRoot, "my_addons"), path.join(dataRoot, "my_addons"))) {
-    created.push("my_addons");
-  }
-
-  // Los add-ons se importan en caliente desde <dataRoot>/my_addons/<x>/index.ts,
-  // así que sus imports se resuelven subiendo desde ahí. Sin esto, un add-on tan
-  // simple como el de ejemplo (que usa zod) no carga en una instalación.
+  // A user add-on imports from <dataRoot>/my_addons/<x>/index.ts, so its imports
+  // resolve upward from there. zod is copied even though no add-on ships, so the
+  // first add-on the user writes (which typically uses zod) loads out of the box.
   // En desarrollo no se toca nada: dataRoot es el repositorio y ya tiene el suyo.
   for (const pkg of ADDON_RUNTIME) {
     const src = path.join(repoRoot, "node_modules", pkg);
