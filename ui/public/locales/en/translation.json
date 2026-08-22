@@ -153,6 +153,16 @@
       "allowlistEmpty": "No users yet — share the pairing code, or add a Telegram ID.",
       "allowlistPlaceholder": "Telegram user ID",
       "add": "Add"
+    },
+    "github": {
+      "name": "GitHub",
+      "description": "Let the agents work with your GitHub repositories.",
+      "token": "Access token (PAT)",
+      "tokenSet": "Token set",
+      "tokenMissing": "No token",
+      "tokenPlaceholder": "GitHub fine-grained PAT",
+      "getToken": "Create a token",
+      "connectHint": "Use a fine-grained token and scope its permissions and repos on GitHub. The token lives only in the encrypted store; the agent never sees it. What it can do is decided by the token itself."
     }
   },
   "addons": {
