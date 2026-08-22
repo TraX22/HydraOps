@@ -35,9 +35,11 @@
               [placeholder]="'herramientas.telegram.tokenPlaceholder' | translate"
               [value]="tokenInput()"
               (input)="tokenInput.set($any($event.target).value)"
+              (focus)="onTokenFocus()"
+              (blur)="onTokenBlur()"
               (keyup.enter)="saveToken()"
             />
-            <button class="btn-primary key-save" [disabled]="!tokenInput().trim()" (click)="saveToken()">
+            <button class="btn-primary key-save" [disabled]="!tokenInput().trim() || tokenInput() === tokenMask" (click)="saveToken()">
               {{ 'common.save' | translate }}
             </button>
             @if (tokenSaved()) {
@@ -155,9 +157,11 @@
               [placeholder]="'herramientas.github.tokenPlaceholder' | translate"
               [value]="ghTokenInput()"
               (input)="ghTokenInput.set($any($event.target).value)"
+              (focus)="onGhTokenFocus()"
+              (blur)="onGhTokenBlur()"
               (keyup.enter)="saveGithubToken()"
             />
-            <button class="btn-primary key-save" [disabled]="!ghTokenInput().trim()" (click)="saveGithubToken()">
+            <button class="btn-primary key-save" [disabled]="!ghTokenInput().trim() || ghTokenInput() === tokenMask" (click)="saveGithubToken()">
               {{ 'common.save' | translate }}
             </button>
             @if (ghTokenSaved()) {
