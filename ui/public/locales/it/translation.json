@@ -44,7 +44,16 @@
     "agentNamePlaceholder": "Nome dell'agente",
     "openChat": "Apri la chat con questo agente",
     "emptyTitle": "Ancora nessun agente",
-    "emptyHint": "Crea il primo per poter inviare attività: senza agenti, i messaggi restano non assegnati."
+    "emptyHint": "Crea il primo per poter inviare attività: senza agenti, i messaggi restano non assegnati.",
+    "tools": {
+      "title": "Strumenti",
+      "window": "ultimi 7 giorni",
+      "none": "Questo agente non ha strumenti concessi (modifica il suo tools.md).",
+      "unused": "Nessun utilizzo nel periodo.",
+      "calls": "chiamate",
+      "blocked": "Bloccate dalla guardia di sicurezza",
+      "grantedUnused": "Concessi, non usati"
+    }
   },
   "system": {
     "title": "Sistema",
@@ -119,7 +128,19 @@
     "attrTasks": "Attività",
     "attrSuccess": "Successo",
     "attrReliability": "Affidabilità",
-    "attrLoad": "Carico"
+    "attrLoad": "Carico",
+    "toolUsage": {
+      "title": "Uso degli strumenti",
+      "window": "ultimi 7 giorni",
+      "empty": "Nessun utilizzo di strumenti registrato finora.",
+      "calls": "chiamate",
+      "tools": "strumenti",
+      "agents": "agenti",
+      "blocked": "bloccate",
+      "byTool": "Per strumento",
+      "byAgent": "Per agente",
+      "distinct": "distinti"
+    }
   },
   "docs": {
     "title": "Documentazione",
@@ -132,7 +153,12 @@
     "comingSoon": "Prossimamente",
     "comingSoonDesc": "Connettore previsto",
     "soonBadge": "Presto",
-    "soon": { "github": "GitHub", "discord": "Discord", "signal": "Signal", "reddit": "Reddit" },
+    "soon": {
+      "github": "GitHub",
+      "discord": "Discord",
+      "signal": "Signal",
+      "reddit": "Reddit"
+    },
     "telegram": {
       "name": "Telegram",
       "description": "Parla con i tuoi agenti da Telegram.",
