@@ -109,3 +109,25 @@ export const workerStatus = sqliteTable("worker_status", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 
+// One row per tool invocation, written by the worker after the LLM turn. Powers
+// the per-agent tool tracking: which tools/add-ons/MCP an agent actually uses,
+// how often, when last, and how many were blocked by the security guard. This is
+// usage history — distinct from what a tools.md merely grants an agent.
+export const toolUsage = sqliteTable(
+  "tool_usage",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    agentId: text("agent_id").notNull(),
+    taskId: text("task_id"),
+    toolName: text("tool_name").notNull(),
+    source: text("source").notNull().default("native"), // native | my_addons | mcp
+    status: text("status").notNull().default("ok"),      // ok | blocked | error
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  },
+  (t) => ({
+    agentIdx: index("tool_usage_agent_idx").on(t.agentId),
+    toolIdx: index("tool_usage_tool_idx").on(t.toolName),
+    createdIdx: index("tool_usage_created_idx").on(t.createdAt),
+  })
+);
+

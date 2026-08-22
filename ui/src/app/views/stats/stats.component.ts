@@ -1,7 +1,7 @@
 import { Component, DestroyRef, computed, inject, resource } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
-import { ApiService, StatsData } from '../../services/api.service';
+import { ApiService, StatsData, ToolUsageReport } from '../../services/api.service';
 import { AgentsService } from '../../services/agents.service';
 import { IconComponent } from '../../components/icon/icon.component';
 
@@ -54,12 +54,32 @@ export class StatsComponent {
     loader: (): Promise<StatsData> => firstValueFrom(this.api.getStats()),
   });
 
+  // Tool usage over the last 7 days (which tools/add-ons/MCP agents actually use).
+  toolUsageResource = resource({
+    loader: (): Promise<ToolUsageReport> => firstValueFrom(this.api.getToolUsage(7)),
+  });
+
   constructor() {
-    const timer = setInterval(() => this.statsResource.reload(), REFRESH_MS);
+    const timer = setInterval(() => {
+      this.statsResource.reload();
+      this.toolUsageResource.reload();
+    }, REFRESH_MS);
     inject(DestroyRef).onDestroy(() => clearInterval(timer));
   }
 
   stats = computed(() => (this.statsResource.hasValue() ? this.statsResource.value() : null));
+  toolUsage = computed(() => (this.toolUsageResource.hasValue() ? this.toolUsageResource.value() : null));
+
+  // Per-agent usage rows enriched with the agent's display name.
+  toolByAgent = computed(() => {
+    const u = this.toolUsage();
+    if (!u) return [];
+    const agents = this.agentsService.agents();
+    return u.byAgent.map(a => ({
+      ...a,
+      name: agents.find(g => g.id === a.agentId)?.name ?? a.agentId,
+    }));
+  });
 
   metrics = computed<MetricCard[]>(() => {
     const s = this.stats();
@@ -170,5 +190,15 @@ export class StatsComponent {
 
   formatGb(bytes: number): string {
     return (bytes / 1024 ** 3).toFixed(1);
+  }
+
+  relativeTime(ms: number): string {
+    if (!ms) return '—';
+    const m = Math.floor((Date.now() - ms) / 60000);
+    if (m < 1) return 'ahora';
+    if (m < 60) return `hace ${m} min`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `hace ${h} h`;
+    return `hace ${Math.floor(h / 24)} d`;
   }
 }

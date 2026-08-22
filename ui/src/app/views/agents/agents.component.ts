@@ -2,7 +2,7 @@ import { Component, computed, effect, inject, OnInit, signal, viewChild, Element
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { ApiService, Agent, ModelOption } from '../../services/api.service';
+import { ApiService, Agent, ModelOption, AgentToolsReport } from '../../services/api.service';
 import { groupModels, modelLabel } from '../../shared/model-groups';
 import { AgentsService } from '../../services/agents.service';
 import { ChatService } from '../../services/chat.service';
@@ -125,6 +125,39 @@ export class AgentsComponent implements OnInit {
     });
   }
 
+  // ── Tools: granted (from tools.md) vs actually used (tracking) ──
+  agentTools = signal<AgentToolsReport | null>(null);
+  toolsLoading = signal(false);
+
+  // Tool names the agent actually called in the window.
+  usedNames = computed(() => new Set(this.agentTools()?.usage.map(u => u.toolName) ?? []));
+  // Granted but never used in the window — candidates to prune from tools.md.
+  unusedGranted = computed(() => (this.agentTools()?.granted ?? []).filter(g => !this.usedNames().has(g.name)));
+  // Total blocked-by-guard calls in the window.
+  blockedCount = computed(() => (this.agentTools()?.usage ?? []).reduce((n, u) => n + u.blocked, 0));
+
+  private loadAgentTools(agentId: string): void {
+    this.agentTools.set(null);
+    this.toolsLoading.set(true);
+    this.api.getAgentTools(agentId, 7).subscribe({
+      next: r => { if (this.selectedAgent()?.id === agentId) { this.agentTools.set(r); this.toolsLoading.set(false); } },
+      error: () => { if (this.selectedAgent()?.id === agentId) this.toolsLoading.set(false); },
+    });
+  }
+
+  // "hace 3 h" style relative label for a timestamp in ms (0 = never).
+  relativeTime(ms: number): string {
+    if (!ms) return '—';
+    const diff = Date.now() - ms;
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return 'ahora';
+    if (m < 60) return `hace ${m} min`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `hace ${h} h`;
+    const d = Math.floor(h / 24);
+    return `hace ${d} d`;
+  }
+
   // ── Personality files (soul, tools, memory…) ──
   agentFiles = signal<string[]>([]);
   editingFile = signal<string | null>(null); // filename open in the floating editor
@@ -209,6 +242,7 @@ export class AgentsComponent implements OnInit {
     this.resolution.set('auto');
     this.editingFile.set(null);
     this.loadFiles(agent.id);
+    this.loadAgentTools(agent.id);
     this.api.getAgentConfig(agent.id).subscribe(cfg => {
       if (this.selectedAgent()?.id === agent.id) {
         this.engine.set((cfg['graphicEngine'] as string) || 'auto');

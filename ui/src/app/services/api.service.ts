@@ -109,6 +109,25 @@ export interface GitHubIntegration {
   tokenConfigured: boolean;
 }
 
+// Tool usage tracking (Agents + Stats)
+export interface AgentToolGranted { name: string; source: string; description: string; }
+export interface ToolUsageStat { toolName: string; source: string; count: number; blocked: number; errors: number; lastUsedAt: number; }
+export interface AgentToolsReport {
+  agentId: string;
+  days: number;
+  declared: string[];               // raw tools.md bullets
+  granted: AgentToolGranted[];      // resolved through the gate (e.g. github → 10)
+  usage: ToolUsageStat[];           // what the agent actually called in the window
+}
+export interface GlobalToolStat extends ToolUsageStat { agents: string[]; }
+export interface AgentUsageStat { agentId: string; count: number; blocked: number; tools: number; }
+export interface ToolUsageReport {
+  days: number;
+  totals: { calls: number; blocked: number; errors: number; agents: number; tools: number; };
+  byTool: GlobalToolStat[];
+  byAgent: AgentUsageStat[];
+}
+
 export interface McpServerStatus {
   name: string;
   switch: 'on' | 'off';
@@ -374,6 +393,16 @@ export class ApiService {
   // ── Stats ──
   getStats(): Observable<StatsData> {
     return this.http.get<StatsData>(`${this.base}/stats`);
+  }
+
+  // Per-agent tools: granted (from tools.md via the gate) + real usage.
+  getAgentTools(agentId: string, days = 7): Observable<AgentToolsReport> {
+    return this.http.get<AgentToolsReport>(`${this.base}/agents/${agentId}/tools`, { params: { days: String(days) } });
+  }
+
+  // Global tool usage for the Stats view.
+  getToolUsage(days = 7): Observable<ToolUsageReport> {
+    return this.http.get<ToolUsageReport>(`${this.base}/system/tool-usage`, { params: { days: String(days) } });
   }
 
   // ── MCP ──

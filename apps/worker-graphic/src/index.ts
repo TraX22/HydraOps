@@ -12,7 +12,7 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus } from "@hydraops/db";
+import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType } from "@hydraops/nats";
 import { and, desc, eq } from "drizzle-orm";
@@ -307,8 +307,12 @@ ${personality}
       // Strict per-agent gating: a tool (native or MCP) runs only if this agent's
       // tools.md names it. Identical rule across all workers (see registry).
       const allowedTools = globalRegistry.resolveAllowedToolNames(agentRequestedTools, enabledMcpServers);
-      const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState);
-      const rawTools = globalRegistry.getRawTools(allowedTools, nativeState);
+      // Usage tracking: the sink collects every tool call this turn; flushed to
+      // DB after the LLM finishes so we can report what each agent actually uses.
+      const toolUsageLog: { toolName: string; source: string; status: string }[] = [];
+      const usageSink = (toolName: string, source: string, status: 'ok' | 'blocked' | 'error') => { toolUsageLog.push({ toolName, source, status }); };
+      const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink);
+      const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink);
 
       const historyRows = await (db as any).select()
         .from(tasks)
@@ -333,6 +337,12 @@ ${personality}
       );
       previewText = text || error || "No response.";
       resultMeta = { text, usage, success, error, modelUsed: llmConfig.model };
+
+      // Persist tool usage for this task (best-effort; never break processing).
+      if (toolUsageLog.length) {
+        try { await recordToolUsage(db, agentId, taskId, toolUsageLog); }
+        catch (e: any) { console.warn(`[${consumerName}] tool usage tracking failed: ${e?.message ?? e}`); }
+      }
     }
 
     const dir = path.join(storageDir, "results", taskId);

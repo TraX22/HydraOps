@@ -13,5 +13,30 @@ export const agentConfigs = schema.agentConfigs as any;
 export const systemConfigs = schema.systemConfigs as any;
 export const cronJobs = schema.cronJobs as any;
 export const workerStatus = schema.workerStatus as any;
+export const toolUsage = schema.toolUsage as any;
 
 export * from "./client.js";
+
+/**
+ * Persist a batch of tool invocations for one agent/task. Called by the workers
+ * after an LLM turn with the events collected by the usage sink. Best-effort:
+ * tracking must never break task processing, so callers wrap this in try/catch.
+ */
+export async function recordToolUsage(
+  db: any,
+  agentId: string,
+  taskId: string | null,
+  events: { toolName: string; source: string; status: string }[],
+): Promise<void> {
+  if (!events.length) return;
+  const now = new Date();
+  const rows = events.map((e) => ({
+    agentId,
+    taskId,
+    toolName: e.toolName,
+    source: e.source,
+    status: e.status,
+    createdAt: now,
+  }));
+  await db.insert(schema.toolUsage).values(rows).run();
+}

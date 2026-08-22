@@ -92,3 +92,33 @@
   font-size: 12.5px; font-weight: 600; letter-spacing: 0.2px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+/* ── Tool usage tracking ── */
+.tu-window { color: var(--text-muted); font-weight: 400; font-size: 12px; margin-left: 8px; }
+.tu-totals { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 4px 0 16px; }
+.tu-total { font-size: 13px; color: var(--text-secondary); }
+.tu-total b { color: var(--text-primary); font-size: 15px; }
+.tu-total.blocked { color: var(--status-error); }
+.tu-total.blocked b { color: var(--status-error); }
+
+.tu-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.tu-col h4 { font-size: 13px; color: var(--text-secondary); margin: 0 0 8px; font-weight: 600; }
+.tu-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 8px; border-radius: var(--radius-sm);
+  font-size: 12px; border-bottom: 1px solid var(--border-color);
+}
+.tu-row:hover { background: var(--bg-hover); }
+.tu-name { flex: 0 0 auto; color: var(--text-primary); font-family: ui-monospace, monospace; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tu-agent-tools { flex: 0 0 auto; color: var(--text-muted); font-size: 11px; }
+.tu-bar-wrap { flex: 1 1 auto; height: 6px; background: var(--bg-surface-alt); border-radius: 999px; overflow: hidden; min-width: 30px; }
+.tu-bar { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.tu-count { flex: 0 0 auto; font-weight: 700; color: var(--text-primary); min-width: 26px; text-align: right; }
+.tu-blocked { flex: 0 0 auto; color: var(--status-error); font-size: 11px; font-weight: 600; }
+
+.tool-src {
+  flex: 0 0 auto; font-size: 10px; text-transform: uppercase; letter-spacing: .03em;
+  padding: 1px 6px; border-radius: 999px; color: var(--text-secondary);
+  background: var(--bg-active); border: 1px solid var(--border-color);
+}
+.tool-src.src-mcp { color: var(--accent); }

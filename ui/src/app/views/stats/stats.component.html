@@ -57,4 +57,48 @@
   } @else {
     <p class="stats-note">{{ 'stats.loading' | translate }}</p>
   }
+
+  <!-- Tool usage tracking: what tools/add-ons/MCP agents actually use -->
+  @if (toolUsage(); as tu) {
+    <h3>{{ 'stats.toolUsage.title' | translate }}<span class="tu-window">· {{ 'stats.toolUsage.window' | translate }}</span></h3>
+    @if (tu.totals.calls === 0) {
+      <p class="stats-note">{{ 'stats.toolUsage.empty' | translate }}</p>
+    } @else {
+      <div class="tu-totals">
+        <span class="tu-total"><b>{{ tu.totals.calls }}</b> {{ 'stats.toolUsage.calls' | translate }}</span>
+        <span class="tu-total"><b>{{ tu.totals.tools }}</b> {{ 'stats.toolUsage.tools' | translate }}</span>
+        <span class="tu-total"><b>{{ tu.totals.agents }}</b> {{ 'stats.toolUsage.agents' | translate }}</span>
+        @if (tu.totals.blocked > 0) {
+          <span class="tu-total blocked">⛔ <b>{{ tu.totals.blocked }}</b> {{ 'stats.toolUsage.blocked' | translate }}</span>
+        }
+      </div>
+
+      <div class="tu-columns">
+        <div class="tu-col">
+          <h4>{{ 'stats.toolUsage.byTool' | translate }}</h4>
+          @for (t of tu.byTool; track t.toolName) {
+            <div class="tu-row">
+              <span class="tool-src" [class]="'src-' + t.source">{{ t.source }}</span>
+              <span class="tu-name">{{ t.toolName }}</span>
+              <span class="tu-bar-wrap"><span class="tu-bar" [style.width.%]="(t.count / tu.byTool[0].count) * 100"></span></span>
+              <span class="tu-count">{{ t.count }}</span>
+              @if (t.blocked > 0) { <span class="tu-blocked">⛔{{ t.blocked }}</span> }
+            </div>
+          }
+        </div>
+
+        <div class="tu-col">
+          <h4>{{ 'stats.toolUsage.byAgent' | translate }}</h4>
+          @for (a of toolByAgent(); track a.agentId) {
+            <div class="tu-row">
+              <span class="tu-name">{{ a.name }}</span>
+              <span class="tu-agent-tools">{{ a.tools }} {{ 'stats.toolUsage.distinct' | translate }}</span>
+              <span class="tu-count">{{ a.count }}</span>
+              @if (a.blocked > 0) { <span class="tu-blocked">⛔{{ a.blocked }}</span> }
+            </div>
+          }
+        </div>
+      </div>
+    }
+  }
 </div>

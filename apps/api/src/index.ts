@@ -27,7 +27,7 @@ import {
 loadDotenv({ path: envFile });
 
 import { createRegistry } from "@hydraops/addons";
-import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus } from "@hydraops/db";
+import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage } from "@hydraops/db";
 import { buildEnvelope } from "@hydraops/events";
 import { eq, and, gte, asc, like } from "drizzle-orm";
 import os from "node:os";
@@ -2093,6 +2093,122 @@ api.post("/system/integrations/github", async (req, res) => {
     res.json({ success: true });
   } catch (err: any) {
     console.error("[api] POST /system/integrations/github failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// --- Tool usage tracking (Agents + Stats) ---
+// Two questions, one dataset. "Granted" (capabilities) is derived from the
+// agent's tools.md through the SAME gate the workers use (resolveAllowedToolNames),
+// so it always matches what an agent can actually run. "Usage" (history) comes
+// from the tool_usage table the workers write after each turn: what was really
+// called, how often, when last, and how many were blocked by the security guard.
+
+// Bullet lines of an agent's tools.md → requested tool/group names.
+async function readAgentRequestedTools(id: string): Promise<string[]> {
+  // safeJoin contains the request-provided :id inside agentsDir (rejects "../").
+  const filePath = safeJoin(agentsDir, id, `${id}.tools.md`);
+  if (!filePath) return [];
+  try {
+    const md = await readFile(filePath, "utf-8");
+    return md.split("\n").map((l) => l.trim()).filter((l) => l.startsWith("-")).map((l) => l.substring(1).trim()).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+// Parse a ?days window (default 7, clamped 1..365) into a cutoff Date.
+function usageWindowSince(daysRaw: unknown): { days: number; since: Date } {
+  const days = Math.min(365, Math.max(1, Math.floor(Number(daysRaw) || 7)));
+  return { days, since: new Date(Date.now() - days * 86_400_000) };
+}
+
+// Aggregate raw tool_usage rows into per-tool counters (count, blocked, errors,
+// last used, the agents involved). Used by both endpoints below.
+function aggregateUsage(rows: any[]): { toolName: string; source: string; count: number; blocked: number; errors: number; lastUsedAt: number; agents: string[] }[] {
+  const byTool = new Map<string, { toolName: string; source: string; count: number; blocked: number; errors: number; lastUsedAt: number; agents: Set<string> }>();
+  for (const r of rows) {
+    let e = byTool.get(r.toolName);
+    if (!e) { e = { toolName: r.toolName, source: r.source, count: 0, blocked: 0, errors: 0, lastUsedAt: 0, agents: new Set() }; byTool.set(r.toolName, e); }
+    e.count++;
+    if (r.status === "blocked") e.blocked++;
+    if (r.status === "error") e.errors++;
+    const ts = r.createdAt instanceof Date ? r.createdAt.getTime() : new Date(r.createdAt).getTime();
+    if (ts > e.lastUsedAt) e.lastUsedAt = ts;
+    if (r.agentId) e.agents.add(r.agentId);
+  }
+  return [...byTool.values()]
+    .map((e) => ({ ...e, agents: [...e.agents] }))
+    .sort((a, b) => b.count - a.count);
+}
+
+// Per-agent view: what the agent is granted (from tools.md via the gate) and
+// what it actually used in the window.
+api.get("/agents/:id/tools", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { days, since } = usageWindowSince(req.query.days);
+
+    const declared = await readAgentRequestedTools(id);
+    const grantedNames = addonsRegistry.resolveAllowedToolNames(declared, []);
+    const meta = new Map(addonsRegistry.listNative().map((a) => [a.name, a]));
+    const granted = grantedNames.map((name) => {
+      const m = meta.get(name);
+      return {
+        name,
+        source: m?.source ?? (name.startsWith("mcp_") ? "mcp" : "native"),
+        description: (m ? (ADDON_DESCRIPTION_OVERRIDES[name] ?? m.description) : "") || "",
+      };
+    });
+
+    const rows = await (db as any).select().from(toolUsage)
+      .where(and(eq(toolUsage.agentId, id), gte(toolUsage.createdAt, since)));
+    const usage = aggregateUsage(rows).map((u) => ({
+      toolName: u.toolName, source: u.source, count: u.count, blocked: u.blocked, errors: u.errors, lastUsedAt: u.lastUsedAt,
+    }));
+
+    res.json({ agentId: id, days, declared, granted, usage });
+  } catch (err: any) {
+    // Keep :id out of the format-string position (it is request-controlled).
+    console.error("[api] GET /agents/:id/tools failed", { id: req.params.id }, err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// Global view for Stats: tool ranking, per-agent breakdown, and totals.
+api.get("/system/tool-usage", async (req, res) => {
+  try {
+    const { days, since } = usageWindowSince(req.query.days);
+    const rows = await (db as any).select().from(toolUsage).where(gte(toolUsage.createdAt, since));
+
+    const byTool = aggregateUsage(rows);
+
+    const agentMap = new Map<string, { agentId: string; count: number; blocked: number; tools: Set<string> }>();
+    for (const r of rows) {
+      let e = agentMap.get(r.agentId);
+      if (!e) { e = { agentId: r.agentId, count: 0, blocked: 0, tools: new Set() }; agentMap.set(r.agentId, e); }
+      e.count++;
+      if (r.status === "blocked") e.blocked++;
+      e.tools.add(r.toolName);
+    }
+    const byAgent = [...agentMap.values()]
+      .map((e) => ({ agentId: e.agentId, count: e.count, blocked: e.blocked, tools: e.tools.size }))
+      .sort((a, b) => b.count - a.count);
+
+    res.json({
+      days,
+      totals: {
+        calls: rows.length,
+        blocked: rows.filter((r: any) => r.status === "blocked").length,
+        errors: rows.filter((r: any) => r.status === "error").length,
+        agents: agentMap.size,
+        tools: byTool.length,
+      },
+      byTool: byTool.map((u) => ({ toolName: u.toolName, source: u.source, count: u.count, blocked: u.blocked, errors: u.errors, lastUsedAt: u.lastUsedAt, agents: u.agents })),
+      byAgent,
+    });
+  } catch (err: any) {
+    console.error("[api] GET /system/tool-usage failed", err);
     res.status(500).json({ error: "internal_error" });
   }
 });

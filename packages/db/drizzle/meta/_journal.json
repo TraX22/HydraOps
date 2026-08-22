@@ -15,6 +15,13 @@
       "when": 1785330843850,
       "tag": "0001_damp_tarantula",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787404875594,
+      "tag": "0002_curvy_zeigeist",
+      "breakpoints": true
     }
   ]
 }

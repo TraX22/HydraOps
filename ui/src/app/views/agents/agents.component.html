@@ -157,6 +157,46 @@
             }
           </div>
         </div>
+
+        <!-- Tools: granted (from tools.md) vs actually used (tracking) -->
+        <div class="detail-field">
+          <label>{{ 'agents.tools.title' | translate }}<span class="tools-window">· {{ 'agents.tools.window' | translate }}</span></label>
+
+          @if (toolsLoading()) {
+            <p class="tools-loading">…</p>
+          } @else if (agentTools(); as t) {
+            @if (t.granted.length === 0) {
+              <p class="tools-empty">{{ 'agents.tools.none' | translate }}</p>
+            } @else {
+              @if (t.usage.length > 0) {
+                <div class="tools-list">
+                  @for (u of t.usage; track u.toolName) {
+                    <div class="tool-row">
+                      <span class="tool-src" [class]="'src-' + u.source">{{ u.source }}</span>
+                      <span class="tool-name">{{ u.toolName }}</span>
+                      <span class="tool-count" [title]="'agents.tools.calls' | translate">{{ u.count }}</span>
+                      <span class="tool-last">{{ relativeTime(u.lastUsedAt) }}</span>
+                      @if (u.blocked > 0) {
+                        <span class="tool-blocked" [title]="'agents.tools.blocked' | translate">⛔ {{ u.blocked }}</span>
+                      }
+                    </div>
+                  }
+                </div>
+              } @else {
+                <p class="tools-empty">{{ 'agents.tools.unused' | translate }}</p>
+              }
+
+              @if (unusedGranted().length > 0) {
+                <div class="tools-unused">
+                  <span class="tools-unused-label">{{ 'agents.tools.grantedUnused' | translate }}:</span>
+                  @for (g of unusedGranted(); track g.name) {
+                    <span class="tool-chip" [title]="g.description">{{ g.name }}</span>
+                  }
+                </div>
+              }
+            }
+          }
+        </div>
       </div>
 
       <!-- Floating file editor -->
