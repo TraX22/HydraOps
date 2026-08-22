@@ -58,7 +58,7 @@ process.on("unhandledRejection", (reason) => {
   writeCrashLog(reason instanceof Error ? reason : new Error(String(reason)));
 });
 
-const { ServiceSupervisor, REPO_ROOT, SEED_ROOT, UI_ROOT } = require("./services");
+const { ServiceSupervisor, REPO_ROOT, UI_ROOT } = require("./services");
 const { ensureDataDir } = require("./data-dir");
 const { initAutoUpdate, checkForUpdatesNow } = require("./updater");
 const shellI18n = require("./i18n");
@@ -361,7 +361,6 @@ async function boot() {
   try {
     await ensureDataDir({
       dataRoot,
-      seedRoot: SEED_ROOT,
       repoRoot: REPO_ROOT,
       isPackaged: app.isPackaged,
       onProgress: splashMessage,
