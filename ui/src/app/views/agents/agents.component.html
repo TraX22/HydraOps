@@ -160,7 +160,17 @@
 
         <!-- Tools: granted (from tools.md) vs actually used (tracking) -->
         <div class="detail-field">
-          <label>{{ 'agents.tools.title' | translate }}<span class="tools-window">· {{ 'agents.tools.window' | translate }}</span></label>
+          <div class="tools-header">
+            <label>{{ 'agents.tools.title' | translate }}</label>
+            <div class="tools-window-toggle">
+              @for (w of usageWindows; track w) {
+                <button type="button" class="tools-window-btn" [class.active]="toolsDays() === w"
+                        (click)="setToolsDays(w)">
+                  {{ 'agents.tools.days' | translate: { count: w } }}
+                </button>
+              }
+            </div>
+          </div>
 
           @if (toolsLoading()) {
             <p class="tools-loading">…</p>

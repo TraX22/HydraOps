@@ -94,7 +94,15 @@
 }
 
 /* ── Tool usage tracking ── */
-.tu-window { color: var(--text-muted); font-weight: 400; font-size: 12px; margin-left: 8px; }
+.tu-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.tu-header h3 { margin: 0; }
+.tu-window-toggle { display: inline-flex; gap: 2px; background: var(--bg-input); border-radius: 8px; padding: 2px; }
+.tu-window-btn {
+  border: none; background: transparent; color: var(--text-secondary);
+  font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 6px; cursor: pointer;
+}
+.tu-window-btn:hover { color: var(--text-primary); }
+.tu-window-btn.active { background: var(--bg-surface); color: var(--text-primary); box-shadow: var(--shadow-sm); }
 .tu-totals { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 4px 0 16px; }
 .tu-total { font-size: 13px; color: var(--text-secondary); }
 .tu-total b { color: var(--text-primary); font-size: 15px; }
