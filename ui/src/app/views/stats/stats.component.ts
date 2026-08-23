@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, inject, resource } from '@angular/core';
+import { Component, DestroyRef, computed, inject, resource, signal } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiService, StatsData, ToolUsageReport } from '../../services/api.service';
@@ -54,9 +54,16 @@ export class StatsComponent {
     loader: (): Promise<StatsData> => firstValueFrom(this.api.getStats()),
   });
 
-  // Tool usage over the last 7 days (which tools/add-ons/MCP agents actually use).
+  // Window (in days) for the tool-usage stats. The backend keeps 60 days, so 7
+  // and 30 both fall inside retention; the user switches to compare recent vs
+  // month-scale usage.
+  readonly usageWindows = [7, 30] as const;
+  usageDays = signal(7);
+
+  // Tool usage over the selected window (which tools/add-ons/MCP agents use).
   toolUsageResource = resource({
-    loader: (): Promise<ToolUsageReport> => firstValueFrom(this.api.getToolUsage(7)),
+    params: () => this.usageDays(),
+    loader: ({ params }): Promise<ToolUsageReport> => firstValueFrom(this.api.getToolUsage(params)),
   });
 
   constructor() {

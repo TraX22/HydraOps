@@ -128,6 +128,9 @@ export class AgentsComponent implements OnInit {
   // ── Tools: granted (from tools.md) vs actually used (tracking) ──
   agentTools = signal<AgentToolsReport | null>(null);
   toolsLoading = signal(false);
+  // Usage window in days. The backend retains 60 days, so 7 and 30 both resolve.
+  readonly usageWindows = [7, 30] as const;
+  toolsDays = signal(7);
 
   // Tool names the agent actually called in the window.
   usedNames = computed(() => new Set(this.agentTools()?.usage.map(u => u.toolName) ?? []));
@@ -139,10 +142,18 @@ export class AgentsComponent implements OnInit {
   private loadAgentTools(agentId: string): void {
     this.agentTools.set(null);
     this.toolsLoading.set(true);
-    this.api.getAgentTools(agentId, 7).subscribe({
+    this.api.getAgentTools(agentId, this.toolsDays()).subscribe({
       next: r => { if (this.selectedAgent()?.id === agentId) { this.agentTools.set(r); this.toolsLoading.set(false); } },
       error: () => { if (this.selectedAgent()?.id === agentId) this.toolsLoading.set(false); },
     });
+  }
+
+  // Switch the usage window and reload the selected agent's tool stats.
+  setToolsDays(days: number): void {
+    if (this.toolsDays() === days) return;
+    this.toolsDays.set(days);
+    const agent = this.selectedAgent();
+    if (agent) this.loadAgentTools(agent.id);
   }
 
   // "hace 3 h" style relative label for a timestamp in ms (0 = never).

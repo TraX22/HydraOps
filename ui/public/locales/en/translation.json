@@ -52,7 +52,8 @@
       "unused": "No usage in this window.",
       "calls": "calls",
       "blocked": "Blocked by the security guard",
-      "grantedUnused": "Granted, unused"
+      "grantedUnused": "Granted, unused",
+      "days": "{{count}} days"
     }
   },
   "system": {
@@ -139,7 +140,8 @@
       "blocked": "blocked",
       "byTool": "By tool",
       "byAgent": "By agent",
-      "distinct": "distinct"
+      "distinct": "distinct",
+      "days": "{{count}} days"
     }
   },
   "docs": {
