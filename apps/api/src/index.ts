@@ -27,7 +27,7 @@ import {
 loadDotenv({ path: envFile });
 
 import { createRegistry } from "@hydraops/addons";
-import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage } from "@hydraops/db";
+import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage } from "@hydraops/db";
 import { buildEnvelope } from "@hydraops/events";
 import { eq, and, gte, asc, like } from "drizzle-orm";
 import os from "node:os";
@@ -2478,6 +2478,22 @@ app.listen(port, host, () => {
     console.warn(`[api] ⚠ escuchando en ${host}: accesible desde la red, protegida por HYDRA_AUTH_TOKEN`);
   }
 });
+
+// Tool-usage retention: keep the last 60 days so a user working in a given month
+// still has the previous month's stats, and drop anything older so the table does
+// not grow forever. Prune once at startup, then daily. Best-effort — a failed
+// prune only logs and never affects request handling.
+const TOOL_USAGE_RETENTION_DAYS = 60;
+async function pruneToolUsage(): Promise<void> {
+  try {
+    const removed = await purgeOldToolUsage(db, TOOL_USAGE_RETENTION_DAYS);
+    if (removed > 0) console.log(`[api] tool_usage retention: pruned ${removed} rows older than ${TOOL_USAGE_RETENTION_DAYS} days`);
+  } catch (err) {
+    console.warn("[api] tool_usage retention prune failed", err);
+  }
+}
+void pruneToolUsage();
+setInterval(() => void pruneToolUsage(), 24 * 60 * 60 * 1000).unref();
 
 process.on("SIGINT", async () => {
   await pool.end();

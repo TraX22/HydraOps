@@ -60,7 +60,17 @@
 
   <!-- Tool usage tracking: what tools/add-ons/MCP agents actually use -->
   @if (toolUsage(); as tu) {
-    <h3>{{ 'stats.toolUsage.title' | translate }}<span class="tu-window">· {{ 'stats.toolUsage.window' | translate }}</span></h3>
+    <div class="tu-header">
+      <h3>{{ 'stats.toolUsage.title' | translate }}</h3>
+      <div class="tu-window-toggle">
+        @for (w of usageWindows; track w) {
+          <button type="button" class="tu-window-btn" [class.active]="usageDays() === w"
+                  (click)="usageDays.set(w)">
+            {{ 'stats.toolUsage.days' | translate: { count: w } }}
+          </button>
+        }
+      </div>
+    </div>
     @if (tu.totals.calls === 0) {
       <p class="stats-note">{{ 'stats.toolUsage.empty' | translate }}</p>
     } @else {

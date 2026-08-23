@@ -52,7 +52,8 @@
       "unused": "Sem uso no período.",
       "calls": "chamadas",
       "blocked": "Bloqueadas pelo guarda de segurança",
-      "grantedUnused": "Concedidas, sem uso"
+      "grantedUnused": "Concedidas, sem uso",
+      "days": "{{count}} dias"
     }
   },
   "system": {
@@ -139,7 +140,8 @@
       "blocked": "bloqueadas",
       "byTool": "Por ferramenta",
       "byAgent": "Por agente",
-      "distinct": "distintas"
+      "distinct": "distintas",
+      "days": "{{count}} dias"
     }
   },
   "docs": {

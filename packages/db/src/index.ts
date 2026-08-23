@@ -1,4 +1,5 @@
 import * as sqliteSchema from "./schema.js";
+import { lt } from "drizzle-orm";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -39,4 +40,23 @@ export async function recordToolUsage(
     createdAt: now,
   }));
   await db.insert(schema.toolUsage).values(rows).run();
+}
+
+/**
+ * Delete tool_usage rows older than the retention window (default 60 days, so a
+ * user working in month N still sees month N-1's stats). Best-effort maintenance
+ * called on a schedule; returns how many rows were removed. Callers wrap this in
+ * try/catch — pruning must never break the API.
+ */
+export async function purgeOldToolUsage(
+  db: any,
+  retentionDays = 60,
+): Promise<number> {
+  const days = Math.max(1, Math.floor(retentionDays));
+  const cutoff = new Date(Date.now() - days * 86_400_000);
+  const result: any = await db
+    .delete(schema.toolUsage)
+    .where(lt(schema.toolUsage.createdAt, cutoff))
+    .run();
+  return Number(result?.changes ?? result?.rowCount ?? 0);
 }
