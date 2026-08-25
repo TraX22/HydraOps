@@ -66,7 +66,7 @@ interface TelegramConfig {
   pairingCode: string;
   defaultAgent: string;
   /** Proactive push notifications (see notifications.ts). */
-  notifications: { cron: boolean };
+  notifications: { cron: boolean; cronFailures: boolean };
   /** Per-chat active agent; runtime state owned by the bot. */
   sessions: Record<string, string>;
 }
@@ -76,7 +76,7 @@ const DEFAULT_CONFIG: TelegramConfig = {
   allowlist: [],
   pairingCode: "",
   defaultAgent: "",
-  notifications: { cron: true },
+  notifications: { cron: true, cronFailures: true },
   sessions: {},
 };
 

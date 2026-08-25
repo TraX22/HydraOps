@@ -101,7 +101,7 @@ export interface TelegramIntegration {
   allowlist: number[];
   pairingCode: string;
   defaultAgent: string;
-  notifications?: { cron: boolean };
+  notifications?: { cron?: boolean; cronFailures?: boolean };
 }
 
 export interface GitHubIntegration {

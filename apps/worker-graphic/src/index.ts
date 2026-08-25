@@ -386,6 +386,24 @@ ${personality}
   } catch (err: any) {
     console.error(`[${consumerName}] Error processing task ${taskId ?? "(unknown)"}:`, err);
     if (taskId) {
+      // Emit task.failed so subscribers (e.g. the Telegram bot) can notify on
+      // cron failures. Best-effort: publishing must never break the ack.
+      try {
+        const failed = buildEnvelope({
+          id: randomUUID(),
+          type: "task.failed",
+          version: 1,
+          occurredAt: new Date().toISOString(),
+          producer: consumerName,
+          subject: { entity: "task", id: taskId },
+          data: {
+            taskId,
+            error: String(err?.message ?? err ?? "unknown error").slice(0, 2000),
+            durationMs: Date.now() - started,
+          },
+        });
+        await publishJson(js, subjectForType(failed.type), failed);
+      } catch (e) { console.error(`[${consumerName}] failed to publish task.failed`, e); }
       try {
         await (db as any).update(tasks).set({ status: "failed", updatedAt: new Date() }).where(eq(tasks.id, taskId));
       } catch { /* ignore */ }
