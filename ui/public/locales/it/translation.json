@@ -173,6 +173,8 @@
       "noDefaultAgent": "Nessuno (richiede /use)",
       "notifyCron": "Avvisami quando finisce un'attività pianificata",
       "notifyCronHint": "Quando un cron completa la sua attività, il bot ti invia il risultato su Telegram.",
+      "notifyCronFailures": "Avvisami quando un'attività pianificata fallisce",
+      "notifyCronFailuresHint": "Quando un cron fallisce, il bot ti invia l'errore su Telegram.",
       "pairingCode": "Codice di abbinamento",
       "noPairingCode": "non impostato",
       "generate": "Genera",

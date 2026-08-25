@@ -79,6 +79,13 @@ export const AgentResultGeneratedV1 = z.object({
   preview: z.string().max(2000).optional(),
 });
 
+export const TaskFailedV1 = z.object({
+  taskId: z.string().uuid(),
+  agentId: z.string().min(1).optional(), // may be unknown if the task threw early
+  error: z.string().max(2000),
+  durationMs: z.number().int().nonnegative(),
+});
+
 export const SystemCronUpdatedV1 = z.object({});
 
 // -----------------------------
@@ -89,6 +96,7 @@ export const registry = {
   "task.created": { 1: TaskCreatedV1 },
   "agent.task_assigned": { 1: AgentTaskAssignedV1 },
   "agent.result_generated": { 1: AgentResultGeneratedV1 },
+  "task.failed": { 1: TaskFailedV1 },
   "system.cron_updated": { 1: SystemCronUpdatedV1 },
 } as const;
 

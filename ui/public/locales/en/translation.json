@@ -173,6 +173,8 @@
       "noDefaultAgent": "None (require /use)",
       "notifyCron": "Notify me when a scheduled task finishes",
       "notifyCronHint": "When a cron completes its task, the bot sends you the result on Telegram.",
+      "notifyCronFailures": "Notify me when a scheduled task fails",
+      "notifyCronFailuresHint": "When a cron errors out, the bot sends you the failure on Telegram.",
       "pairingCode": "Pairing code",
       "noPairingCode": "not set",
       "generate": "Generate",

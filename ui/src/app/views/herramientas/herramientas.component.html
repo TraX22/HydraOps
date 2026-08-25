@@ -73,6 +73,15 @@
               {{ (t.notifications?.cron !== false) ? 'ON' : 'OFF' }}
             </button>
           </div>
+          <div class="notify-row">
+            <div class="notify-text">
+              <span class="tool-label">{{ 'herramientas.telegram.notifyCronFailures' | translate }}</span>
+              <p class="tool-hint">{{ 'herramientas.telegram.notifyCronFailuresHint' | translate }}</p>
+            </div>
+            <button class="toggle-btn" [class.on]="t.notifications?.cronFailures !== false" (click)="toggleNotifyCronFailures()">
+              {{ (t.notifications?.cronFailures !== false) ? 'ON' : 'OFF' }}
+            </button>
+          </div>
         </div>
 
         <!-- Pairing code -->

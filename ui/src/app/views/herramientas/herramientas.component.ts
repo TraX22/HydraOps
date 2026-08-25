@@ -120,8 +120,18 @@ export class HerramientasComponent implements OnInit {
     const t = this.telegram();
     if (!t) return;
     const cron = !(t.notifications?.cron !== false);
-    this.patch({ notifications: { cron } });
+    const cronFailures = t.notifications?.cronFailures !== false;
+    this.patch({ notifications: { cron, cronFailures } });
     this.api.saveTelegramIntegration({ notifications: { cron } }).subscribe(() => this.flashCfgSaved());
+  }
+
+  toggleNotifyCronFailures(): void {
+    const t = this.telegram();
+    if (!t) return;
+    const cron = t.notifications?.cron !== false;
+    const cronFailures = !(t.notifications?.cronFailures !== false);
+    this.patch({ notifications: { cron, cronFailures } });
+    this.api.saveTelegramIntegration({ notifications: { cronFailures } }).subscribe(() => this.flashCfgSaved());
   }
 
   generatePairingCode(): void {
