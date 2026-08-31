@@ -13,6 +13,12 @@ export interface Agent {
   llmModel?: string;
 }
 
+// One Shot mini-app: a drawn flow diagram sent to the backend for compilation.
+export interface PromptGraph {
+  nodes: { id: string; text: string }[];
+  edges: { source: string; target: string }[];
+}
+
 export interface ChatAttachment {
   name: string;
   mime: string;
@@ -326,6 +332,12 @@ export class ApiService {
 
   createTask(prompt: string, channel: string): Observable<Task> {
     return this.http.post<Task>(`${this.base}/tasks`, { prompt, channel });
+  }
+
+  // One Shot: compile a flow diagram (nodes + directed edges) into a single
+  // self-contained prompt, using the configured LLM (synchronous).
+  compilePrompt(graph: PromptGraph, agentId?: string): Observable<{ prompt: string }> {
+    return this.http.post<{ prompt: string }>(`${this.base}/prompt/compile`, { graph, agentId });
   }
 
   getTask(id: string): Observable<Task> {
