@@ -64,6 +64,15 @@
   cursor: pointer;
   white-space: nowrap;
 }
+/* A modal-opening nav item is a <button>: strip native button chrome so it
+   matches the <a> nav items exactly. */
+button.nav-item {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+}
 .nav-item:hover {
   background: var(--sidebar-hover);
   color: var(--text-sidebar);
@@ -75,6 +84,14 @@
 
 .nav-icon { font-size: 18px; flex-shrink: 0; }
 .nav-label { overflow: hidden; text-overflow: ellipsis; }
+/* Small "opens elsewhere" hint, pushed to the far right of the item. */
+.nav-external {
+  margin-left: auto;
+  font-size: 13px;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+.nav-item:hover .nav-external { opacity: 0.9; }
 
 /* Mismo padding horizontal (8px) que .sidebar-nav para que los divisores del
    pie midan exactamente igual que los de la navegación, en ambos anchos. La
