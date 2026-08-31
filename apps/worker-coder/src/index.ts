@@ -27,6 +27,14 @@ const logStream = createWriteStream(logFile, { flags: 'a' });
 const originalLog = console.log;
 const originalError = console.error;
 
+// A broken stdout/stderr pipe (EPIPE) — e.g. the supervisor closing our output —
+// must never surface as an uncaughtException. If it did, the handler below would
+// log via console.error, whose own write would EPIPE again and recurse forever,
+// filling the disk with the same error (this once wrote a 194 GB log). Swallow
+// stream errors so a dead pipe stays harmless.
+process.stdout.on('error', () => {});
+process.stderr.on('error', () => {});
+
 let isLogging = false;
 console.log = (...args: any[]) => {
   if (isLogging) {
@@ -38,9 +46,10 @@ console.log = (...args: any[]) => {
     const msg = `[${new Date().toISOString()}] ${args.join(' ')}\n`;
     logStream.write(msg);
   } catch (e) {
-    originalError("Failed to write to log stream:", e);
+    try { originalError("Failed to write to log stream:", e); } catch {}
   } finally {
-    originalLog(...args);
+    // Guard the passthrough: a throwing console write must not escape and loop.
+    try { originalLog(...args); } catch {}
     isLogging = false;
   }
 };
@@ -56,17 +65,20 @@ console.error = (...args: any[]) => {
     const msg = `[${new Date().toISOString()}] ERROR: ${args.join(' ')}\n`;
     logStream.write(msg);
   } catch (e) {
-    originalError("Failed to write to log stream (error):", e);
+    try { originalError("Failed to write to log stream (error):", e); } catch {}
   } finally {
-    originalError(...args);
+    // Guard the passthrough: a throwing console write must not escape and loop.
+    try { originalError(...args); } catch {}
     isLoggingError = false;
   }
 };
 // ---------------------------
-process.on('uncaughtException', (err) => {
+process.on('uncaughtException', (err: any) => {
+  if (err?.code === 'EPIPE') return; // dead output pipe — ignore, never re-log
   console.error(`[worker-coder] CRITICAL UNCAUGHT EXCEPTION: ${err.message}\n${err.stack}`);
 });
 process.on('unhandledRejection', (reason: any) => {
+  if (reason?.code === 'EPIPE') return;
   console.error(`[worker-coder] CRITICAL UNHANDLED REJECTION: ${reason?.message || reason}\n${reason?.stack || ''}`);
 });
 
