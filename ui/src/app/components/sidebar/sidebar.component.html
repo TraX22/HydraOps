@@ -25,13 +25,25 @@
 
     <div class="nav-section">
       @for (item of toolItems; track item.path) {
-        <a class="nav-item" [routerLink]="item.path" [class.active]="isActive(item.path)"
-           [title]="item.labelKey | translate">
-          <app-icon class="nav-icon" [name]="item.icon" />
-          @if (!minimized()) {
-            <span class="nav-label">{{ item.labelKey | translate }}</span>
-          }
-        </a>
+        @if (item.action === 'modal') {
+          <button type="button" class="nav-item" (click)="openComplementos()"
+                  [title]="item.labelKey | translate">
+            <app-icon class="nav-icon" [name]="item.icon" />
+            @if (!minimized()) {
+              <span class="nav-label">{{ item.labelKey | translate }}</span>
+              <!-- Hints this item opens a separate surface (a modal), not a route. -->
+              <app-icon class="nav-external" name="external-link" />
+            }
+          </button>
+        } @else {
+          <a class="nav-item" [routerLink]="item.path" [class.active]="isActive(item.path)"
+             [title]="item.labelKey | translate">
+            <app-icon class="nav-icon" [name]="item.icon" />
+            @if (!minimized()) {
+              <span class="nav-label">{{ item.labelKey | translate }}</span>
+            }
+          </a>
+        }
       }
     </div>
 

@@ -1,0 +1,410 @@
+.one-shot {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Toolbar */
+.os-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  /* Extra right padding leaves room for the modal's ✕ (top-right) so the
+     Clear button never sits under it. */
+  padding: 10px 50px 10px 14px;
+  border-bottom: 1px solid var(--border-color);
+  flex: 0 0 auto;
+}
+.os-name {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+/* Tiny red "beta" tag riding just above the baseline of the title. */
+.os-beta {
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: var(--status-error);
+  transform: translateY(-4px);
+}
+.os-toolbar-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+/* Buttons */
+.os-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.os-btn:hover:not(:disabled) { background: var(--bg-hover); }
+.os-btn:disabled { opacity: 0.5; cursor: default; }
+.os-btn.ghost { background: transparent; }
+.os-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.os-btn.primary:hover:not(:disabled) { filter: brightness(1.08); background: var(--accent); }
+.os-btn.danger { border-color: var(--status-error); color: var(--status-error); }
+.os-btn.danger:hover:not(:disabled) { background: var(--status-error); border-color: var(--status-error); color: #fff; }
+
+/* Body: canvas + side panel */
+.os-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.os-canvas-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--bg-app);
+  overflow: hidden;
+}
+.os-canvas-wrap f-flow {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* Theme the library-drawn connections + arrows (custom props inherit into
+     the flow internals). Thin, muted grey lines like an ER editor. */
+  --ff-connection-color: var(--text-muted);
+  --ff-connection-width: 1.5px;
+  --ff-marker-color: var(--text-muted);
+  --ff-connection-hover-color: var(--accent);
+  /* A selected connection (click) turns accent so it's clear what will be deleted. */
+  --ff-connection-selected-color: var(--accent);
+  /* Hide the blue endpoint drag-handle circles the theme draws on connections
+     while idle; they reappear (neutral grey) on hover/selection so the user can
+     grab an endpoint to re-route — see the ::ng-deep rule below. */
+  --ff-connection-drag-handle-stroke: transparent;
+  --ff-connection-drag-handle-fill: transparent;
+}
+/* Reveal the endpoint grips only when a connection is hovered or selected, in a
+   neutral grey (not the theme's accent blue). The connection elements are drawn
+   by the library, so scoped selectors can't reach them — use ::ng-deep. */
+.os-canvas-wrap ::ng-deep .f-connection:hover .f-connection-drag-handle,
+.os-canvas-wrap ::ng-deep .f-connection.f-selected .f-connection-drag-handle {
+  stroke: var(--text-muted);
+  fill: var(--bg-surface);
+}
+/* Plain, smooth canvas — no grid/dot pattern (we never add <f-background>). */
+.os-canvas-wrap f-canvas {
+  background: transparent;
+}
+
+/* Minimap, bottom-right. */
+.os-canvas-wrap f-minimap {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 190px;
+  height: 130px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  z-index: 5;
+}
+
+/* Zoom bar, bottom-center. */
+.os-zoombar {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  z-index: 5;
+}
+.os-zoombar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 16px;
+  cursor: pointer;
+}
+.os-zoombar button:hover { background: var(--bg-hover); }
+.os-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 40px;
+  color: var(--text-muted);
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Node card — clean ER-editor look. The fNode host stays overflow-visible so
+   the side connector dots can protrude; an inner wrapper carries the border,
+   shadow and rounded clipping. */
+.os-node {
+  position: relative;
+  width: 210px;
+  /* Strip the Foblex theme's default .f-node box (padding/bg/border/shadow);
+     our own card lives in .os-node-inner. Scoped selectors out-specify the
+     theme, so these resets win. */
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.os-node-inner {
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+/* Header: icon + editable title + delete. Grey strip spanning the full width
+   (the inner wrapper clips it to the rounded top corners). Whole strip moves. */
+.os-node-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 8px 7px 10px;
+  background: var(--bg-hover);
+  border-bottom: 1px solid var(--border-color);
+  cursor: grab;
+}
+.os-node:active .os-node-head { cursor: grabbing; }
+.os-node-ico {
+  color: var(--accent);
+  font-size: 14px;
+  flex: 0 0 auto;
+}
+.os-node-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  cursor: text;
+}
+.os-node-title::placeholder { color: var(--text-muted); font-weight: 500; }
+.os-node-del {
+  flex: 0 0 auto;
+  display: inline-flex;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+}
+.os-node-del:hover { color: var(--status-error); background: var(--bg-surface); }
+/* Body: editable plain text. */
+.os-node-body {
+  padding: 8px 10px 10px;
+}
+.os-node-text {
+  width: 100%;
+  resize: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  outline: none;
+  cursor: text;
+}
+.os-node-text::placeholder { color: var(--text-muted); }
+/* One connection dot per side — hollow/neutral, hidden until the node (or the
+   dot) is hovered. Turns accent-filled only on direct hover. */
+.os-conn {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  border: 2px solid var(--text-muted);
+  cursor: crosshair;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.os-node:hover .os-conn { opacity: 0.6; }
+.os-conn:hover {
+  opacity: 1;
+  transform: scale(1.3);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+/* A connected side shows no dot — the line ends cleanly, no coloured disc. */
+.os-node .os-conn.f-connector-connected,
+.os-node .os-conn.f-node-output-connected,
+.os-node .os-conn.f-node-input-connected { opacity: 0 !important; }
+.os-conn-t { top: -6px; left: 50%; margin-left: -5.5px; }
+.os-conn-r { right: -6px; top: 50%; margin-top: -5.5px; }
+.os-conn-b { bottom: -6px; left: 50%; margin-left: -5.5px; }
+.os-conn-l { left: -6px; top: 50%; margin-top: -5.5px; }
+
+/* Side panel */
+.os-side {
+  flex: 0 0 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-left: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  overflow-y: auto;
+}
+.os-field { display: flex; flex-direction: column; gap: 5px; }
+.os-field label { font-size: 12px; color: var(--text-muted); }
+.os-field select {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+.os-compile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.os-compile:hover:not(:disabled) { filter: brightness(1.08); }
+.os-compile:disabled { opacity: 0.6; cursor: default; }
+.os-error {
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--status-error);
+  font-size: 13px;
+}
+.os-output {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+.os-output-head { font-size: 12px; color: var(--text-muted); }
+.os-output-text {
+  margin: 0;
+  padding: 11px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  /* Theme-adaptive panel: --bg-code is dark in BOTH themes, so pairing it with
+     --text-primary (dark in light theme) rendered black-on-black. Use the input
+     surface, which flips with the theme alongside --text-primary. */
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 12.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 340px;
+  overflow-y: auto;
+}
+.os-output-actions { display: flex; gap: 8px; }
+.os-output-actions .os-btn { flex: 1; justify-content: center; }
+
+/* Saved-diagram history */
+.os-sep {
+  border: 0;
+  border-top: 1px solid var(--border-color);
+  margin: 4px 0 2px;
+}
+.os-history { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.os-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.os-new { padding: 4px 8px; font-size: 12px; }
+.os-history-list { display: flex; flex-direction: column; gap: 4px; }
+.os-hist-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 6px 6px 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.os-hist-item:hover { background: var(--bg-hover); }
+.os-hist-item.active { background: var(--bg-hover); border-color: var(--accent); }
+.os-hist-ico { color: var(--text-muted); font-size: 14px; flex: 0 0 auto; }
+.os-hist-item.active .os-hist-ico { color: var(--accent); }
+.os-hist-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+  cursor: text;
+  border-radius: 3px;
+  padding: 1px 3px;
+}
+.os-hist-name:focus { background: var(--bg-input); }
+.os-hist-name::placeholder { color: var(--text-muted); }
+.os-hist-del {
+  flex: 0 0 auto;
+  display: inline-flex;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+.os-hist-item:hover .os-hist-del { opacity: 1; }
+.os-hist-del:hover { color: var(--status-error); background: var(--bg-surface); }
+.os-hist-empty { font-size: 12.5px; color: var(--text-muted); padding: 6px 2px; }

@@ -1,0 +1,157 @@
+<div class="one-shot">
+  <header class="os-toolbar">
+    <button class="os-btn ghost" (click)="back()">
+      <app-icon name="chevron-left" /> {{ 'oneShot.back' | translate }}
+    </button>
+    <div class="os-name">One Shot<span class="os-beta">beta</span></div>
+    <div class="os-toolbar-actions">
+      @if (selectedConns().length) {
+        <button class="os-btn danger" (click)="deleteSelectedConns()">
+          <app-icon name="trash" /> {{ 'oneShot.deleteConn' | translate }}
+        </button>
+      }
+      <button class="os-btn" (click)="addNode()">
+        <app-icon name="puzzle" /> {{ 'oneShot.addNode' | translate }}
+      </button>
+      <button class="os-btn ghost" (click)="clear()" [disabled]="!nodes().length">
+        <app-icon name="trash" /> {{ 'oneShot.clear' | translate }}
+      </button>
+    </div>
+  </header>
+
+  <div class="os-body">
+    <div class="os-canvas-wrap">
+      @if (!nodes().length) {
+        <div class="os-empty">{{ 'oneShot.emptyCanvas' | translate }}</div>
+      }
+      <f-flow fDraggable (fCreateConnection)="onConnect($event)"
+              (fReassignConnection)="onReassign($event)"
+              (fSelectionChange)="onSelectionChange($event)">
+        <f-canvas fZoom [fZoomMinimum]="0.2" [fZoomMaximum]="3">
+          <!-- Enables the drag-to-connect gesture and shows the preview line. -->
+          <f-connection-for-create fType="segment"></f-connection-for-create>
+
+          @for (conn of connections(); track conn.id) {
+            <!-- calculate sides: the line leaves each endpoint toward the other node.
+                 fReassignableStart lets either endpoint be dragged to re-route.
+                 fConnectionId MUST carry our own id — otherwise Foblex auto-generates
+                 one and the reassign/selection events can't be mapped back to our
+                 model (reassign would duplicate, delete would no-op). -->
+            <f-connection [fConnectionId]="conn.id"
+                          [fSourceId]="conn.source" [fTargetId]="conn.target"
+                          fType="segment" fSourceSide="calculate" fTargetSide="calculate"
+                          [fReassignableStart]="true">
+              <f-connection-marker-arrow type="END"></f-connection-marker-arrow>
+            </f-connection>
+          }
+          @for (node of nodes(); track node.id) {
+            <!-- fConnectOnNode: a link can be dropped anywhere on the node too. -->
+            <div fNode fDragHandle [fNodePosition]="node.position"
+                 (fNodePositionChange)="node.position = $event; save()"
+                 [fConnectOnNode]="true" class="os-node">
+              <!-- Inner wrapper clips header/body to the rounded corners so the
+                   header colour bleeds edge-to-edge; the connector dots live
+                   OUTSIDE it (below) so they are never clipped. -->
+              <div class="os-node-inner">
+                <!-- Header: icon + editable title (drag anywhere here to move). -->
+                <div class="os-node-head">
+                  <app-icon name="table" class="os-node-ico" />
+                  <input class="os-node-title" [(ngModel)]="node.title" (ngModelChange)="save()" fDragBlocker
+                         [placeholder]="'oneShot.titlePlaceholder' | translate" />
+                  <button class="os-node-del" (click)="removeNode(node.id)" fDragBlocker
+                          [title]="'common.delete' | translate">
+                    <app-icon name="x" />
+                  </button>
+                </div>
+                <!-- Body: editable plain text (fDragBlocker so typing never drags). -->
+                <div class="os-node-body">
+                  <textarea class="os-node-text" [(ngModel)]="node.text" (ngModelChange)="save()" fDragBlocker rows="2"
+                            [placeholder]="'oneShot.nodePlaceholder' | translate"></textarea>
+                </div>
+              </div>
+              <!-- One connector per side: drag from/to ANY side. Kept separate
+                   from the editable content so it never swallows clicks. -->
+              <div class="os-conn os-conn-t" fConnector fConnectorType="source-target"
+                   fConnectorConnectableSide="top" [fConnectorMultiple]="true" [fConnectorId]="node.id + ':t'"></div>
+              <div class="os-conn os-conn-r" fConnector fConnectorType="source-target"
+                   fConnectorConnectableSide="right" [fConnectorMultiple]="true" [fConnectorId]="node.id + ':r'"></div>
+              <div class="os-conn os-conn-b" fConnector fConnectorType="source-target"
+                   fConnectorConnectableSide="bottom" [fConnectorMultiple]="true" [fConnectorId]="node.id + ':b'"></div>
+              <div class="os-conn os-conn-l" fConnector fConnectorType="source-target"
+                   fConnectorConnectableSide="left" [fConnectorMultiple]="true" [fConnectorId]="node.id + ':l'"></div>
+            </div>
+          }
+        </f-canvas>
+        <f-minimap></f-minimap>
+      </f-flow>
+
+      <div class="os-zoombar">
+        <button (click)="zoomIn()" [title]="'oneShot.zoomIn' | translate"><app-icon name="zoom-in" /></button>
+        <button (click)="zoomOut()" [title]="'oneShot.zoomOut' | translate"><app-icon name="zoom-out" /></button>
+        <button (click)="fit()" [title]="'oneShot.fit' | translate"><app-icon name="maximize" /></button>
+      </div>
+    </div>
+
+    <aside class="os-side">
+      <div class="os-field">
+        <label>{{ 'oneShot.agent' | translate }}</label>
+        <select [ngModel]="selectedAgent()" (ngModelChange)="selectedAgent.set($event); save()">
+          @for (a of agents(); track a.id) {
+            <option [value]="a.id">{{ a.name }}</option>
+          }
+        </select>
+      </div>
+
+      <button class="os-compile" (click)="compile()" [disabled]="compiling()">
+        <app-icon name="zap" /> {{ (compiling() ? 'oneShot.compiling' : 'oneShot.compile') | translate }}
+      </button>
+
+      @if (error()) {
+        <div class="os-error">{{ error() }}</div>
+      }
+
+      @if (compiledPrompt()) {
+        <div class="os-output">
+          <div class="os-output-head">{{ 'oneShot.outputTitle' | translate }}</div>
+          <pre class="os-output-text">{{ compiledPrompt() }}</pre>
+          <div class="os-output-actions">
+            <button class="os-btn" (click)="copy()">
+              <app-icon name="clipboard" /> {{ (copied() ? 'oneShot.copied' : 'oneShot.copy') | translate }}
+            </button>
+            <button class="os-btn primary" (click)="sendToChat()">
+              <app-icon name="send" /> {{ 'oneShot.sendToChat' | translate }}
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Separator + saved-diagram history. -->
+      <hr class="os-sep" />
+      <div class="os-history">
+        <div class="os-history-head">
+          <span>{{ 'oneShot.history' | translate }}</span>
+          <button class="os-btn ghost os-new" (click)="newDiagram()">
+            <app-icon name="plus" /> {{ 'oneShot.newDiagram' | translate }}
+          </button>
+        </div>
+        <div class="os-history-list">
+          @for (d of diagrams(); track d.id) {
+            <div class="os-hist-item" [class.active]="d.id === activeId()" (click)="loadDiagram(d.id)">
+              <app-icon name="table" class="os-hist-ico" />
+              <input class="os-hist-name" [ngModel]="d.name"
+                     (ngModelChange)="renameDiagram(d.id, $event)"
+                     (click)="$event.stopPropagation()"
+                     [placeholder]="'oneShot.namePlaceholder' | translate" />
+              <button class="os-hist-del" (click)="deleteDiagram(d.id); $event.stopPropagation()"
+                      [title]="'common.delete' | translate">
+                <app-icon name="trash" />
+              </button>
+            </div>
+          } @empty {
+            <div class="os-hist-empty">{{ 'oneShot.noDiagrams' | translate }}</div>
+          }
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>

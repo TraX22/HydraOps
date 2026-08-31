@@ -1,6 +1,36 @@
 {
+  "oneShot": {
+    "tagline": "Transformez un diagramme de flux en un prompt one-shot",
+    "back": "Retour",
+    "addNode": "Ajouter un nœud",
+    "clear": "Effacer",
+    "deleteConn": "Supprimer le lien",
+    "titlePlaceholder": "Titre",
+    "history": "Historique",
+    "newDiagram": "Nouveau",
+    "diagram": "Diagramme",
+    "namePlaceholder": "Nom",
+    "noDiagrams": "Aucun diagramme enregistré",
+    "nodePlaceholder": "Décrivez cette étape…",
+    "emptyCanvas": "Ajoutez des nœuds et reliez-les pour décrire la tâche, puis cliquez sur Compiler.",
+    "agent": "Agent",
+    "compile": "Compiler",
+    "compiling": "Compilation…",
+    "outputTitle": "Prompt généré",
+    "copy": "Copier",
+    "copied": "Copié !",
+    "sendToChat": "Envoyer au chat",
+    "error": "Impossible de compiler le prompt",
+    "zoomIn": "Zoom avant",
+    "zoomOut": "Zoom arrière",
+    "fit": "Ajuster à l'écran"
+  },
+  "complementos": {
+    "subtitle": "Mini-apps dans HydraOps"
+  },
   "nav": {
     "chat": "Chat",
+    "complementos": "Extensions",
     "agents": "Agents",
     "system": "Système",
     "tasks": "Tâches",

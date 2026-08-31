@@ -1282,6 +1282,8 @@ import {
   listAvailableKimiModels,
   listAvailableGLMModels,
   listAvailableMiniMaxModels,
+  generateText,
+  resolveLLMConfig,
 } from "@hydraops/llm";
 
 api.get("/config/models", async (req, res) => {
@@ -1452,6 +1454,86 @@ api.get("/config/models", async (req, res) => {
   } catch (err) {
     console.error("[api] GET /config/models failed", err);
     res.status(500).json({ error: "Failed to fetch models" });
+  }
+});
+
+// Compile a user-drawn flow diagram (nodes + directed edges) into a single,
+// self-contained "one-shot" prompt, using the configured LLM. Synchronous:
+// unlike /tasks (async worker pipeline) this returns the generated text inline.
+// Real keys are injected by the key-proxy — we only build the same getGlobalConfig
+// the workers use (placeholder key + provider config); resolveLLMConfig + generateText
+// come from @hydraops/llm.
+api.post("/prompt/compile", async (req, res) => {
+  try {
+    const graph = req.body?.graph;
+    const nodes: { id?: string; text?: string }[] = Array.isArray(graph?.nodes) ? graph.nodes : [];
+    const edges: { source?: string; target?: string }[] = Array.isArray(graph?.edges) ? graph.edges : [];
+    const agentId: string | undefined = req.body?.agentId;
+
+    const filled = nodes.filter((n) => (n?.text || "").trim());
+    if (filled.length === 0) {
+      return res.status(400).json({ error: "The diagram has no nodes with text." });
+    }
+
+    // Same model/config resolution the workers use (worker-general getGlobalConfig).
+    const globalConfigs = await (db as any).select().from(systemConfigs);
+    const localLlm = readLocalLlmEnv();
+    const getGlobalConfig = (key: string, defaultValue: string) => {
+      if (key in localLlm) return localLlm[key] || defaultValue;
+      const found = globalConfigs.find((c: any) => c.key === key);
+      return found ? found.value : process.env[key] || defaultValue;
+    };
+
+    let selectedModel = "";
+    if (agentId) {
+      const cfgRows = await (db as any).select().from(agentConfigs).where(eq(agentConfigs.agentId, agentId)).limit(1);
+      selectedModel = cfgRows[0]?.model || "";
+    }
+    if (!selectedModel) selectedModel = getGlobalConfig("DEFAULT_MODEL", "") || process.env.DEFAULT_MODEL || "";
+    if (!selectedModel) {
+      return res.status(400).json({ error: "No default model configured. Pick one in Settings." });
+    }
+
+    let llmConfig = resolveLLMConfig(selectedModel, getGlobalConfig);
+    // An image/video engine can't synthesize text — fall back to the global default.
+    if (llmConfig.provider === "leonardo") {
+      llmConfig = resolveLLMConfig(getGlobalConfig("DEFAULT_MODEL", "") || "", getGlobalConfig);
+    }
+
+    // Serialize the diagram into a readable brief the model can reason over.
+    const nodeText = (id?: string) => (nodes.find((n) => n.id === id)?.text || "").trim() || "(untitled)";
+    const nodeLines = filled.map((n, i) => `${i + 1}. ${(n.text || "").trim()}`).join("\n");
+    const edgeLines = edges
+      .filter((e) => e.source && e.target)
+      .map((e) => `- ${nodeText(e.source)} → ${nodeText(e.target)}`)
+      .join("\n");
+    const serialized =
+      `TASK DIAGRAM\n\nSTEPS / PIECES:\n${nodeLines}\n\n` +
+      (edgeLines ? `FLOW (connections, source → target):\n${edgeLines}\n` : `FLOW: (no explicit connections)\n`);
+
+    const systemPrompt =
+      "You are an expert prompt engineer. The user designed a task as a flow diagram: nodes are pieces/steps of the task, " +
+      "and directed edges are the flow, order, and dependencies between them. Turn this diagram into ONE clear, self-contained " +
+      "\"one-shot\" prompt that an AI agent can execute in a single turn. Honor the intent, the order implied by the connections, " +
+      "and the relationships. Be explicit and unambiguous; fill small reasonable gaps but do not invent unrelated requirements. " +
+      "Output ONLY the final prompt text — no preamble, no explanation, no code fences. Write it in the same language as the diagram content.";
+
+    // Guard against a stuck provider hanging the HTTP request.
+    const timeout = new Promise<{ text: string; success: boolean; error?: string }>((_, reject) =>
+      setTimeout(() => reject(new Error("Timeout compiling prompt (120s)")), 120_000),
+    );
+    const result = (await Promise.race([
+      generateText(llmConfig, [{ role: "user", content: serialized }], systemPrompt),
+      timeout,
+    ])) as { text: string; success: boolean; error?: string };
+
+    if (!result.success) {
+      return res.status(502).json({ error: result.error || "The model could not compile the prompt." });
+    }
+    res.json({ prompt: (result.text || "").trim() });
+  } catch (err: any) {
+    console.error("[api] POST /prompt/compile failed", err);
+    res.status(500).json({ error: err?.message || "Failed to compile prompt" });
   }
 });
 
