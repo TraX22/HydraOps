@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit, viewChild, HostListener } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, viewChild, HostListener } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -70,6 +70,17 @@ export class OneShotComponent implements OnInit {
   // on the canvas.
   readonly diagrams = signal<SavedDiagram[]>([]);
   readonly activeId = signal<string>('');
+  // History shown most-recently-edited first (the stored order is untouched).
+  // On an updatedAt tie — e.g. a brand-new diagram created in the same
+  // millisecond the previous one was flushed — the active diagram floats up.
+  readonly orderedDiagrams = computed(() => {
+    const active = this.activeId();
+    return [...this.diagrams()].sort(
+      (a, b) => b.updatedAt - a.updatedAt || (a.id === active ? -1 : b.id === active ? 1 : 0),
+    );
+  });
+  // Id of the diagram whose delete is awaiting inline confirmation ('' = none).
+  readonly pendingDelete = signal<string>('');
 
   readonly compiling = signal(false);
   readonly compiledPrompt = signal('');
@@ -212,6 +223,7 @@ export class OneShotComponent implements OnInit {
 
   // ---- History actions (right panel) ----
   newDiagram(): void {
+    this.pendingDelete.set('');
     this.save(); // flush the current one first
     const d: SavedDiagram = { id: this.uid(), name: this.nextName(), nodes: [], connections: [], updatedAt: Date.now() };
     this.diagrams.update((list) => [...list, d]);
@@ -220,6 +232,7 @@ export class OneShotComponent implements OnInit {
 
   loadDiagram(id: string): void {
     if (id === this.activeId()) return;
+    this.pendingDelete.set('');
     this.save(); // flush current before switching
     const d = this.diagrams().find((x) => x.id === id);
     if (d) this.setActive(d, true);
@@ -230,7 +243,18 @@ export class OneShotComponent implements OnInit {
     this.persist();
   }
 
+  // Deleting a diagram is destructive, so the trash button first arms an inline
+  // confirm (a check/cancel pair replaces it) before deleteDiagram actually runs.
+  askDeleteDiagram(id: string): void {
+    this.pendingDelete.set(id);
+  }
+
+  cancelDeleteDiagram(): void {
+    this.pendingDelete.set('');
+  }
+
   deleteDiagram(id: string): void {
+    this.pendingDelete.set('');
     const list = this.diagrams().filter((d) => d.id !== id);
     this.diagrams.set(list);
     if (this.activeId() === id) {
