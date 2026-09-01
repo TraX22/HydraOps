@@ -10,7 +10,7 @@ HydraOps is a multi-agent AI system with a chat interface. You create agents —
 - **Add-ons.** Native add-ons, your own add-ons and MCP servers: what the agents use to *act*. See [Add-ons & MCP](./08-addons.md).
 - **Tools.** Connectors to external services, like Telegram to run your agents from your phone. See [Tools (integrations)](./09-tools.md).
 - **Scheduled tasks.** Crons: "every morning at 8, summarize the news from…". See [Scheduled tasks](./10-scheduled-tasks.md).
-- **Plugins.** Mini-apps inside the interface; today **One Shot**, which compiles a flow diagram into a one-shot prompt. See [Plugins & One Shot](./07-one-shot.md).
+- **Plugins.** Mini-apps inside the interface; today **One Shot**, which compiles a flow diagram into a one-shot prompt. See [Plugins](./07-plugins.md).
 
 ## How a task flows
 

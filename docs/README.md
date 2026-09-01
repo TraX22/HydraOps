@@ -10,7 +10,7 @@ Este manual también se lee **dentro de la aplicación**, en la vista **Docs** (
 | [Claves de API y modelos](es/04-api-keys.md) | [API keys & models](en/04-api-keys.md) |
 | [Agentes](es/05-agents.md) | [Agents](en/05-agents.md) |
 | [El chat](es/06-chat.md) | [Chat](en/06-chat.md) |
-| [Complementos y One Shot](es/07-one-shot.md) | [Plugins & One Shot](en/07-one-shot.md) |
+| [Complementos](es/07-plugins.md) | [Plugins](en/07-plugins.md) |
 | [Add-ons y MCP](es/08-addons.md) | [Add-ons & MCP](en/08-addons.md) |
 | [Herramientas (integraciones)](es/09-tools.md) | [Tools (integrations)](en/09-tools.md) |
 | [Tareas programadas](es/10-scheduled-tasks.md) | [Scheduled tasks](en/10-scheduled-tasks.md) |
