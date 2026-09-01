@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy, signal, viewChild, ElementRef, afterNextRender } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal, viewChild, ElementRef, afterNextRender, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -33,6 +33,27 @@ export class ChatComponent implements OnInit, OnDestroy {
   // Floating "scroll to bottom" button: shown once the user has scrolled up
   // far enough from the latest message.
   showScrollDown = signal(false);
+
+  // Last tab the auto-scroll effect saw, to tell "opened a chat" apart from
+  // "a new message arrived in the current one".
+  private lastScrolledTab = '';
+
+  constructor() {
+    // Opening or switching to a chat jumps to the latest message (not the first).
+    // New messages in the current chat only pull the view down while the user is
+    // already near the bottom, so scrolling up to read older history isn't undone.
+    effect(() => {
+      const tab = this.chat.activeTab();
+      // Read the map so the effect also re-runs when this chat's history loads.
+      const count = (this.chat.messagesByChannel()[tab] ?? []).length;
+      const opened = tab !== this.lastScrolledTab;
+      this.lastScrolledTab = tab;
+      if (!opened && count === 0) return;
+      if (opened || this.isNearBottom()) {
+        this.scrollToBottom(opened ? 'auto' : 'smooth');
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.chat.fetchHistory(this.chat.activeTab());
@@ -195,10 +216,17 @@ export class ChatComponent implements OnInit, OnDestroy {
     setTimeout(() => this.copiedMsgId.set(null), 2000);
   }
 
-  scrollToBottom(): void {
+  scrollToBottom(behavior: ScrollBehavior = 'smooth'): void {
     setTimeout(() => {
-      this.messagesEnd()?.nativeElement.scrollIntoView({ behavior: 'smooth' });
+      this.messagesEnd()?.nativeElement.scrollIntoView({ behavior, block: 'end' });
     }, 100);
+  }
+
+  // Whether the message list is scrolled close to the latest message.
+  private isNearBottom(): boolean {
+    const el = this.messagesArea()?.nativeElement;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 240;
   }
 
   // Toggle the floating button based on how far the user is from the bottom.
