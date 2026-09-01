@@ -9,7 +9,7 @@ import { loadEnv, envFile, dataRoot, agentsDir, logsDir, usersDir, resultsDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage } from "@hydraops/db";
+import { createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, buildCronDedupContext } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType } from "@hydraops/nats";
 import { eq, and, desc } from "drizzle-orm";
@@ -398,12 +398,16 @@ ${agentPersonalityContext}
       await buildUserMessage(userPrompt, dataRoot)
     ];
 
+    // For a cron-fired task, append what previous runs of this same cron already
+    // delivered so the model reports only what is new (no duplicate news).
+    const cronDedup = await buildCronDedupContext(db, taskId);
+
     console.log(`[worker-coder] [LLM] Calling generateText with ${llmConfig.provider}:${llmConfig.model}...`);
     const { text, usage, success, error } = await withWorkerTimeout(
       llmGenerateText(
         llmConfig,
         finalMessages,
-        systemPrompt,
+        systemPrompt + cronDedup,
         aiTools,
         rawTools
       ),
