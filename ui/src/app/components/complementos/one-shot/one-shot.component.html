@@ -135,17 +135,29 @@
           </button>
         </div>
         <div class="os-history-list">
-          @for (d of diagrams(); track d.id) {
+          @for (d of orderedDiagrams(); track d.id) {
             <div class="os-hist-item" [class.active]="d.id === activeId()" (click)="loadDiagram(d.id)">
               <app-icon name="table" class="os-hist-ico" />
               <input class="os-hist-name" [ngModel]="d.name"
                      (ngModelChange)="renameDiagram(d.id, $event)"
                      (click)="$event.stopPropagation()"
                      [placeholder]="'oneShot.namePlaceholder' | translate" />
-              <button class="os-hist-del" (click)="deleteDiagram(d.id); $event.stopPropagation()"
-                      [title]="'common.delete' | translate">
-                <app-icon name="trash" />
-              </button>
+              @if (pendingDelete() === d.id) {
+                <!-- Armed: confirm or cancel the delete. -->
+                <button class="os-hist-del confirm" (click)="deleteDiagram(d.id); $event.stopPropagation()"
+                        [title]="'common.delete' | translate">
+                  <app-icon name="check" />
+                </button>
+                <button class="os-hist-del" (click)="cancelDeleteDiagram(); $event.stopPropagation()"
+                        [title]="'common.cancel' | translate">
+                  <app-icon name="x" />
+                </button>
+              } @else {
+                <button class="os-hist-del" (click)="askDeleteDiagram(d.id); $event.stopPropagation()"
+                        [title]="'common.delete' | translate">
+                  <app-icon name="trash" />
+                </button>
+              }
             </div>
           } @empty {
             <div class="os-hist-empty">{{ 'oneShot.noDiagrams' | translate }}</div>
