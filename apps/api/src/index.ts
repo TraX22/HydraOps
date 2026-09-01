@@ -2138,6 +2138,57 @@ api.post("/system/integrations/telegram", async (req, res) => {
   }
 });
 
+// Push a plain-text message to every paired Telegram chat. Backs the
+// send_to_telegram tool so an agent can deliver content to the user's Telegram
+// ON DEMAND (distinct from the telegram-bot's automatic cron push). The bot
+// token is read from the key store here — same source the bot itself uses —
+// and recipients are the paired allowlist; long text is chunked to Telegram's
+// 4096-char limit. Loopback-only in practice (called by the worker's addon).
+async function pushTelegram(text: string): Promise<{ ok: boolean; sent: number; reason?: string }> {
+  const cfg = await readTelegramConfig();
+  const store = await loadKeyStore();
+  const token = (store["TELEGRAM_BOT_TOKEN"] || "").trim();
+  if (cfg.enabled !== true) return { ok: false, sent: 0, reason: "disabled" };
+  if (!isRealKeyValue(token)) return { ok: false, sent: 0, reason: "no_token" };
+  const chats: number[] = Array.isArray(cfg.allowlist) ? cfg.allowlist : [];
+  if (chats.length === 0) return { ok: false, sent: 0, reason: "no_chats" };
+
+  const chunks: string[] = [];
+  for (let i = 0; i < text.length; i += 4000) chunks.push(text.slice(i, i + 4000));
+
+  let sent = 0;
+  for (const chatId of chats) {
+    try {
+      for (const chunk of chunks) {
+        const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId, text: chunk, disable_web_page_preview: true }),
+          signal: AbortSignal.timeout(15_000),
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      }
+      sent++;
+    } catch (e: any) {
+      console.error(`[api] telegram send to ${chatId} failed:`, e?.message || e);
+    }
+  }
+  return { ok: sent > 0, sent, reason: sent > 0 ? undefined : "send_failed" };
+}
+
+api.post("/telegram/send", async (req, res) => {
+  try {
+    const text = String(req.body?.text ?? "").trim();
+    const title = String(req.body?.title ?? "").trim();
+    if (!text) return res.status(400).json({ ok: false, error: "text is required" });
+    const result = await pushTelegram(title ? `${title}\n\n${text}` : text);
+    res.json(result);
+  } catch (err: any) {
+    console.error("[api] POST /telegram/send failed", err);
+    res.status(500).json({ ok: false, error: "internal_error" });
+  }
+});
+
 // GitHub integration (Herramientas). The PAT is a secret saved to the key store
 // via POST /config (githubToken); the github tools reach the API through the
 // key-proxy so the token is never visible to workers. "enabled" is not a separate
