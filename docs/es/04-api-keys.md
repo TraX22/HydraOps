@@ -6,7 +6,7 @@ En **Configuración → Claves API** hay un campo por proveedor: OpenAI, Anthrop
 
 ![La vista Configuración, con las claves siempre enmascaradas](../img/es/config.png)
 
-Las claves **no se guardan en el proyecto, ni en la base de datos, ni en ningún `.env`**: van a un almacén propio fuera de la aplicación (`%APPDATA%\hydraops\keys.json` en Windows) y un proceso local —el key-proxy— las inyecta solo en el momento de llamar al proveedor. Por eso la vista Configuración te las enseña enmascaradas: es lo esperado. Más en [Seguridad](./12-security.md).
+Las claves **no se guardan en el proyecto, ni en la base de datos, ni en ningún `.env`**: van a un almacén propio fuera de la aplicación (`%APPDATA%\hydraops\keys.json` en Windows) y un proceso local —el key-proxy— las inyecta solo en el momento de llamar al proveedor. Por eso la vista Configuración te las enseña enmascaradas: es lo esperado. Más en [Seguridad](./13-security.md).
 
 ## Elegir modelo
 

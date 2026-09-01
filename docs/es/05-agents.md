@@ -35,7 +35,7 @@ Cada agente es una carpeta `agents/<id>/` con seis archivos Markdown. Son texto 
 | `<id>.soul.md` | Quién es: personalidad, tono, forma de responder. |
 | `<id>.skill.md` | Qué sabe hacer: sus especialidades y cómo debe abordarlas. |
 | `<id>.agent.md` | Su ficha: rol, descripción, emoji. |
-| `<id>.tools.md` | Qué herramientas puede usar y cuáles no (ver [Add-ons y MCP](./07-addons.md)). |
+| `<id>.tools.md` | Qué herramientas puede usar y cuáles no (ver [Add-ons y MCP](./08-addons.md)). |
 | `<id>.memory.md` | Memoria persistente: lo que debe recordar entre conversaciones. |
 | `<id>.heartbeat.md` | Su latido: instrucciones que se aplican en cada ciclo. |
 

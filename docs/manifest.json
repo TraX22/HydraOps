@@ -6,12 +6,13 @@
     { "slug": "api-keys", "file": "04-api-keys.md", "title": { "es": "Claves de API y modelos", "en": "API keys & models" } },
     { "slug": "agents", "file": "05-agents.md", "title": { "es": "Agentes", "en": "Agents" } },
     { "slug": "chat", "file": "06-chat.md", "title": { "es": "El chat", "en": "Chat" } },
-    { "slug": "addons", "file": "07-addons.md", "title": { "es": "Add-ons y MCP", "en": "Add-ons & MCP" } },
-    { "slug": "tools", "file": "08-tools.md", "title": { "es": "Herramientas (integraciones)", "en": "Tools (integrations)" } },
-    { "slug": "scheduled-tasks", "file": "09-scheduled-tasks.md", "title": { "es": "Tareas programadas", "en": "Scheduled tasks" } },
-    { "slug": "stats-system", "file": "10-stats-system.md", "title": { "es": "Estadísticas y Sistema", "en": "Statistics & System" } },
-    { "slug": "server-mode", "file": "11-server-mode.md", "title": { "es": "Modo servidor", "en": "Server mode" } },
-    { "slug": "security", "file": "12-security.md", "title": { "es": "Seguridad", "en": "Security" } },
-    { "slug": "troubleshooting", "file": "13-troubleshooting.md", "title": { "es": "Problemas frecuentes", "en": "Troubleshooting" } }
+    { "slug": "one-shot", "file": "07-one-shot.md", "title": { "es": "Complementos y One Shot", "en": "Plugins & One Shot" } },
+    { "slug": "addons", "file": "08-addons.md", "title": { "es": "Add-ons y MCP", "en": "Add-ons & MCP" } },
+    { "slug": "tools", "file": "09-tools.md", "title": { "es": "Herramientas (integraciones)", "en": "Tools (integrations)" } },
+    { "slug": "scheduled-tasks", "file": "10-scheduled-tasks.md", "title": { "es": "Tareas programadas", "en": "Scheduled tasks" } },
+    { "slug": "stats-system", "file": "11-stats-system.md", "title": { "es": "Estadísticas y Sistema", "en": "Statistics & System" } },
+    { "slug": "server-mode", "file": "12-server-mode.md", "title": { "es": "Modo servidor", "en": "Server mode" } },
+    { "slug": "security", "file": "13-security.md", "title": { "es": "Seguridad", "en": "Security" } },
+    { "slug": "troubleshooting", "file": "14-troubleshooting.md", "title": { "es": "Problemas frecuentes", "en": "Troubleshooting" } }
   ]
 }
