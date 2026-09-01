@@ -239,7 +239,11 @@ await reloadCrons();
 
 async function createTaskFromCron(cron: any) {
   const taskId = randomUUID();
-  const channel = cron.assignedAgent || "main";
+  // No "smart routing" for crons: run on the assigned agent, or fall back to the
+  // first agent in the list (never the diluted shared "main" channel). The channel
+  // IS the agent id, so results still land in that agent's chat and pickAgent
+  // routes straight to it.
+  const channel = cron.assignedAgent || (await listAgentIds())[0] || "main";
   const occurredAt = new Date().toISOString();
 
   const envelope = buildEnvelope({
@@ -266,6 +270,7 @@ async function createTaskFromCron(cron: any) {
         prompt: cron.prompt,
         channel,
         status: "pending",
+        cronId: cron.id,
         createdAt: new Date(),
         updatedAt: new Date(),
       })

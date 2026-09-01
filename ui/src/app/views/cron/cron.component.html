@@ -17,7 +17,6 @@
         <div class="field">
           <label>{{ 'cron.agent' | translate }}</label>
           <select [(ngModel)]="assignedAgent">
-            <option value="">{{ 'cron.smartRouting' | translate }}</option>
             @for (agent of agents(); track agent.id) {
               <option [value]="agent.id">{{ agent.name }}</option>
             }
@@ -57,7 +56,7 @@
         <p class="cron-prompt">{{ cron.prompt }}</p>
         <div class="cron-meta">
           <span>{{ cron.cronExpression }}</span>
-          <span>{{ cron.assignedAgent || ('cron.smartRouting' | translate) }}</span>
+          <span>{{ agentName(cron.assignedAgent) }}</span>
         </div>
         <div class="cron-actions">
           <button (click)="toggle(cron.id)"><app-icon [name]="cron.status === 'active' ? 'pause' : 'play'" /></button>
@@ -81,8 +80,7 @@
         <div class="field">
           <label>{{ 'cron.agent' | translate }}</label>
           <select [ngModel]="editingCron().assignedAgent ?? ''"
-                  (ngModelChange)="editingCron.update(c => ({...c, assignedAgent: $event || null}))">
-            <option value="">{{ 'cron.smartRouting' | translate }}</option>
+                  (ngModelChange)="editingCron.update(c => ({...c, assignedAgent: $event}))">
             @for (agent of agents(); track agent.id) {
               <option [value]="agent.id">{{ agent.name }}</option>
             }
