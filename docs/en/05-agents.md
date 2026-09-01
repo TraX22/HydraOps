@@ -35,7 +35,7 @@ Each agent is a folder `agents/<id>/` with six Markdown files. They are free-for
 | `<id>.soul.md` | Who it is: personality, tone, way of answering. |
 | `<id>.skill.md` | What it knows how to do: its specialties and how to approach them. |
 | `<id>.agent.md` | Its profile card: role, description, emoji. |
-| `<id>.tools.md` | Which tools it may and may not use (see [Add-ons & MCP](./07-addons.md)). |
+| `<id>.tools.md` | Which tools it may and may not use (see [Add-ons & MCP](./08-addons.md)). |
 | `<id>.memory.md` | Persistent memory: what it should remember across conversations. |
 | `<id>.heartbeat.md` | Its heartbeat: instructions applied on every cycle. |
 
