@@ -11,7 +11,7 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage } from "@hydraops/db";
+import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, buildCronDedupContext } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType } from "@hydraops/nats";
 import { eq, and, desc } from "drizzle-orm";
@@ -282,9 +282,13 @@ ${personality}
       ];
     }).filter((msg: any) => msg.content);
 
+    // For a cron-fired task, tell the model what previous runs of this same cron
+    // already delivered so it reports only what is new (no duplicate news).
+    const cronDedup = await buildCronDedupContext(db, taskId);
+
     console.log(`[${consumerName}] Processing task ${taskId} for agent ${agentId} (${llmConfig.provider}:${llmConfig.model})...`);
     const { text, usage, success, error } = await withTimeout(
-      llmGenerateText(llmConfig, [...history, await buildUserMessage(userPrompt, rootDir)], systemPrompt, aiTools, rawTools),
+      llmGenerateText(llmConfig, [...history, await buildUserMessage(userPrompt, rootDir)], systemPrompt + cronDedup, aiTools, rawTools),
       llmConfig.provider === "local" ? 300_000 : 120_000,
       `LLM call`
     );

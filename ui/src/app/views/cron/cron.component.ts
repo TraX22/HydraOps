@@ -48,14 +48,26 @@ export class CronComponent implements OnInit {
   fetch(): void {
     this.loading.set(true);
     this.api.getCrons().subscribe(c => { this.crons.set(c); this.loading.set(false); });
-    this.api.getAgents().subscribe(a => this.agents.set(a));
+    this.api.getAgents().subscribe(a => {
+      this.agents.set(a);
+      // A cron always runs on a concrete agent (no smart routing): default the
+      // form to the first one in the list.
+      if (!this.assignedAgent && a.length) this.assignedAgent = a[0].id;
+    });
+  }
+
+  // Map an agent id to its display name for the cron cards.
+  agentName(id?: string | null): string {
+    if (!id) return this.agents()[0]?.name ?? '—';
+    return this.agents().find(a => a.id === id)?.name ?? id;
   }
 
   create(): void {
     if (!this.name || !this.taskPrompt || !this.cronExpression) return;
+    const agent = this.assignedAgent || this.agents()[0]?.id || '';
     this.api.createCron({
       name: this.name, prompt: this.taskPrompt,
-      cronExpression: this.cronExpression, assignedAgent: this.assignedAgent,
+      cronExpression: this.cronExpression, assignedAgent: agent,
     }).subscribe(() => { this.resetForm(); this.fetch(); });
   }
 
@@ -71,7 +83,9 @@ export class CronComponent implements OnInit {
   }
 
   openEdit(cron: CronJob): void {
-    this.editingCron.set({ ...cron });
+    // Legacy crons may have no agent (old "smart routing"); normalize to the
+    // first agent so the select always shows a concrete choice.
+    this.editingCron.set({ ...cron, assignedAgent: cron.assignedAgent ?? this.agents()[0]?.id ?? null });
     this.showEditModal.set(true);
   }
 
@@ -83,7 +97,7 @@ export class CronComponent implements OnInit {
   }
 
   private resetForm(): void {
-    this.name = ''; this.taskPrompt = ''; this.assignedAgent = ''; this.cronExpression = '';
+    this.name = ''; this.taskPrompt = ''; this.assignedAgent = this.agents()[0]?.id ?? ''; this.cronExpression = '';
     this.showForm.set(false);
   }
 }

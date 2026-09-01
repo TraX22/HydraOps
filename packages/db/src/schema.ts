@@ -12,6 +12,9 @@ export const tasks = sqliteTable("tasks", {
   channel: text("channel").notNull().default("main"),
   status: text("status").notNull(),
   assignedAgent: text("assigned_agent"),
+  // Set when this task was fired by a cron job; lets a run dedup against the
+  // previous runs of the SAME cron regardless of channel (see buildCronDedupContext).
+  cronId: text("cron_id"),
   resultRef: text("result_ref"),
   resultMeta: text("result_meta", { mode: "json" }),
   workflowChain: text("workflow_chain", { mode: "json" }),
