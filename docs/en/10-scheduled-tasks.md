@@ -32,4 +32,4 @@ Each task in the list shows its state (**active** / **paused**) and can be pause
 
 - Start with a frequent schedule (every minute) to check the prompt does what you want, then switch it to the real one.
 - The result arrives in the chat signed by the agent: many frequent tasks will fill the channel — and every run consumes tokens from your provider.
-- Remember tasks only run while HydraOps is on. To have them run always, use [server mode](./11-server-mode.md) on a 24/7 machine.
+- Remember tasks only run while HydraOps is on. To have them run always, use [server mode](./12-server-mode.md) on a 24/7 machine.

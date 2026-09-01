@@ -32,4 +32,4 @@ Cada tarea de la lista muestra su estado (**activa** / **pausada**) y se puede p
 
 - Empieza con una programación frecuente (cada minuto) para probar que el prompt hace lo que quieres, y cámbiala después a la definitiva.
 - El resultado llega al chat firmado por el agente: si programas muchas tareas frecuentes, el canal se llena — y cada ejecución consume tokens de tu proveedor.
-- Recuerda que las tareas corren solo mientras HydraOps está encendido. Para que corran siempre, el [modo servidor](./11-server-mode.md) en una máquina 24/7.
+- Recuerda que las tareas corren solo mientras HydraOps está encendido. Para que corran siempre, el [modo servidor](./12-server-mode.md) en una máquina 24/7.

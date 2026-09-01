@@ -1,6 +1,6 @@
 # Server mode
 
-Server mode means keeping HydraOps on 24/7 on a machine with no screen — a mini PC at home, an old laptop — and using it from the browser of any device on your network. It is also what makes [scheduled tasks](./09-scheduled-tasks.md) run at all times.
+Server mode means keeping HydraOps on 24/7 on a machine with no screen — a mini PC at home, an old laptop — and using it from the browser of any device on your network. It is also what makes [scheduled tasks](./10-scheduled-tasks.md) run at all times.
 
 ## Starting the stack
 

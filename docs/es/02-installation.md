@@ -47,7 +47,7 @@ Y para arrancar (compila paquetes + interfaz por ti, así que tras un `git pull`
 pnpm serve
 ```
 
-Eso levanta la pila entera y deja la aplicación en `http://127.0.0.1:3000`. La salida del comando te dirá las URLs exactas. Para dejarla corriendo 24/7 o abrirla a tu red local, sigue en [Modo servidor](./11-server-mode.md).
+Eso levanta la pila entera y deja la aplicación en `http://127.0.0.1:3000`. La salida del comando te dirá las URLs exactas. Para dejarla corriendo 24/7 o abrirla a tu red local, sigue en [Modo servidor](./12-server-mode.md).
 
 En Windows también puedes usar la ventana de escritorio desde el código con `pnpm desktop`.
 

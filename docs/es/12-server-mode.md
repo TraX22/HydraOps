@@ -1,6 +1,6 @@
 # Modo servidor
 
-El modo servidor es tener HydraOps encendido 24/7 en una máquina sin pantalla —un mini PC en casa, un viejo portátil— y usarlo desde el navegador de cualquier equipo de tu red. También es lo que hace que las [tareas programadas](./09-scheduled-tasks.md) corran siempre.
+El modo servidor es tener HydraOps encendido 24/7 en una máquina sin pantalla —un mini PC en casa, un viejo portátil— y usarlo desde el navegador de cualquier equipo de tu red. También es lo que hace que las [tareas programadas](./10-scheduled-tasks.md) corran siempre.
 
 ## Arrancar la pila
 

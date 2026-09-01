@@ -1,6 +1,6 @@
 # Tools (integrations)
 
-The **Tools** section in the sidebar connects HydraOps to external services. Don't confuse it with [Add-ons](./07-addons.md): an add-on is a tool the *agents use* (search the web, read a page); a tool in this section is a **connector** that lets you *operate HydraOps from the outside*.
+The **Tools** section in the sidebar connects HydraOps to external services. Don't confuse it with [Add-ons](./08-addons.md): an add-on is a tool the *agents use* (search the web, read a page); a tool in this section is a **connector** that lets you *operate HydraOps from the outside*.
 
 The first — and for now the only — one is **Telegram**: talk to your agents from your phone. GitHub, Discord, Signal and Reddit appear as "coming soon".
 
@@ -22,7 +22,7 @@ BotFather also gives you the link to your bot (`t.me/YourBot`). Keep it: that's 
 
 Go to **Tools → Telegram** and:
 
-1. **Paste the token** in the field and press **Save**. The badge turns to "Token set". The token goes to an encrypted store outside the project — never to the repository, the database or any `.env` (see [Security](./12-security.md)).
+1. **Paste the token** in the field and press **Save**. The badge turns to "Token set". The token goes to an encrypted store outside the project — never to the repository, the database or any `.env` (see [Security](./13-security.md)).
 2. **Pick a default agent** (optional): with one set, plain messages go to that agent without having to name it.
 3. **Generate a pairing code** with the button. It's a short number that authorizes whoever uses it.
 4. **Enable** the toggle (ON). The bot starts listening within seconds, no restart needed.
@@ -56,4 +56,4 @@ Since the bot is reachable by anyone who knows its username, access is controlle
 
 ### Where the bot runs
 
-The bot is just another service in the stack: it starts with the desktop app and with [server mode](./11-server-mode.md). For it to answer around the clock — from your phone, away from home — you'll want HydraOps running 24/7 on a server machine. Like every service, it shows up in the **System** view and writes its log to `storage/logs/telegram-bot.log`.
+The bot is just another service in the stack: it starts with the desktop app and with [server mode](./12-server-mode.md). For it to answer around the clock — from your phone, away from home — you'll want HydraOps running 24/7 on a server machine. Like every service, it shows up in the **System** view and writes its log to `storage/logs/telegram-bot.log`.
