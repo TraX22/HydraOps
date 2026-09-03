@@ -266,8 +266,11 @@ ${personality}
     // after the LLM finishes so we can report what each agent actually uses.
     const toolUsageLog: { toolName: string; source: string; status: string }[] = [];
     const usageSink = (toolName: string, source: string, status: 'ok' | 'blocked' | 'error') => { toolUsageLog.push({ toolName, source, status }); };
-    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink);
-    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink);
+    // Bind the calling agent's identity so identity-aware tools (e.g.
+    // `remember`) act on the right agent without trusting model input.
+    const toolContext = { agentId };
+    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext);
+    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext);
 
     const historyRows = await (db as any).select()
       .from(tasks)
