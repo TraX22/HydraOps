@@ -12,11 +12,18 @@ export interface ToolKeyRequirement {
   helpUrl?: string;
 }
 
+// Per-task context a worker binds to the tools it hands the model. The model
+// never fills these values — they identify WHO is running, so a tool like
+// `remember` can act on the calling agent without trusting model input.
+export interface ToolContext {
+  agentId?: string;
+}
+
 export interface HydraTool {
   name: string;
   description: string;
   schema: z.ZodTypeAny;
-  execute: (args: any) => Promise<any>;
+  execute: (args: any, context?: ToolContext) => Promise<any>;
   source?: 'native' | 'my_addons';
   requiresKey?: ToolKeyRequirement;
 }

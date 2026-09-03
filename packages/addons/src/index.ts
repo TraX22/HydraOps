@@ -7,6 +7,7 @@ import { fetchUrlTool } from './native/fetch_url/index.js';
 import { youtubeTranscriptTool } from './native/youtube_transcript/index.js';
 import { githubTools } from './native/github/index.js';
 import { sendToTelegramTool } from './native/send_to_telegram/index.js';
+import { rememberTool } from './native/remember/index.js';
 export * from './types.js';
 export { ToolRegistry };
 export { guardTool, checkToolArgs, redactSecrets, assertPublicUrl } from './guard.js';
@@ -21,6 +22,7 @@ export async function createRegistry(): Promise<ToolRegistry> {
   registry.registerNative({ ...fetchUrlTool, source: 'native' });
   registry.registerNative({ ...youtubeTranscriptTool, source: 'native' });
   registry.registerNative({ ...sendToTelegramTool, source: 'native' });
+  registry.registerNative({ ...rememberTool, source: 'native' });
   for (const t of githubTools) registry.registerNative({ ...t, source: 'native' });
 
   const dir = process.env.MY_ADDONS_DIR ?? myAddonsDir;

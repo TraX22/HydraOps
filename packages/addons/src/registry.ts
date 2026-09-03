@@ -1,5 +1,5 @@
 import { tool } from 'ai';
-import { HydraTool, ToolKeyRequirement } from './types.js';
+import { HydraTool, ToolContext, ToolKeyRequirement } from './types.js';
 import { McpClientManager, McpServerStatus } from './mcp.js';
 import { guardTool } from './guard.js';
 
@@ -94,10 +94,17 @@ export class ToolRegistry {
 
   // Obtains the raw HydraTools (useful for local fallback logic). An optional
   // usage sink reports every invocation (tool + source + status) for tracking.
-  getRawTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink): HydraTool[] {
+  // `context` (e.g. the calling agent's id) is bound INSIDE the guard/tracking
+  // wrappers, so it reaches the tool untouched and callers never pass it per call.
+  getRawTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink, context?: ToolContext): HydraTool[] {
     const activeTools: HydraTool[] = [];
 
-    const finalize = (t: HydraTool, source: string) => sink ? instrumentTool(guardTool(t), source, sink) : guardTool(t);
+    const bind = (t: HydraTool): HydraTool =>
+      context ? { ...t, execute: (args: any) => t.execute(args, context) } : t;
+    const finalize = (t: HydraTool, source: string) => {
+      const bound = bind(t);
+      return sink ? instrumentTool(guardTool(bound), source, sink) : guardTool(bound);
+    };
 
     for (const name of allowedNames) {
       const nt = this.nativeTools.get(name);
@@ -119,8 +126,8 @@ export class ToolRegistry {
   }
 
   // Devuelve el objeto formateado para Vercel AI SDK
-  getAiSdkTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink) {
-    const rawTools = this.getRawTools(allowedNames, globalNativeState, sink);
+  getAiSdkTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink, context?: ToolContext) {
+    const rawTools = this.getRawTools(allowedNames, globalNativeState, sink, context);
     if (rawTools.length === 0) return undefined;
     
     const aiTools: Record<string, any> = {};
