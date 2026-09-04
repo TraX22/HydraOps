@@ -3,6 +3,14 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ApiService, Agent, ModelOption, AgentToolsReport } from '../../services/api.service';
+
+// One selectable entry of the tools tag editor. `name` is what gets written to
+// tools.md (the gate matches it exactly or as a `name_*` prefix).
+interface ToolOption {
+  name: string;
+  description: string;
+  group: 'addons' | 'integrations' | 'mcp';
+}
 import { groupModels, modelLabel } from '../../shared/model-groups';
 import { AgentsService } from '../../services/agents.service';
 import { ChatService } from '../../services/chat.service';
@@ -207,8 +215,19 @@ export class AgentsComponent implements OnInit {
     this.fileError.set(false);
     this.fileSaved.set(false);
     this.fileLoading.set(true);
+    const isTools = this.fileType(filename) === 'tools';
+    if (isTools) {
+      this.toolsMode.set('tags');
+      this.toolsFilter.set('');
+      this.toolsDropdownOpen.set(false);
+      this.loadToolOptions();
+    }
     this.api.getAgentFile(agent.id, filename).subscribe({
-      next: r => { this.fileLoading.set(false); this.fileContent.set(r.content); },
+      next: r => {
+        this.fileLoading.set(false);
+        this.fileContent.set(r.content);
+        if (isTools) this.toolTags.set(this.parseToolTags(r.content));
+      },
       error: () => { this.fileLoading.set(false); this.fileError.set(true); },
     });
   }
@@ -217,6 +236,10 @@ export class AgentsComponent implements OnInit {
     const agent = this.selectedAgent();
     const filename = this.editingFile();
     if (!agent || !filename || this.fileLoading()) return;
+    // In tag mode the chips are the source of truth: regenerate the markdown.
+    if (this.fileType(filename) === 'tools' && this.toolsMode() === 'tags') {
+      this.fileContent.set(this.generateToolsMd());
+    }
     this.fileSaving.set(true);
     this.fileError.set(false);
     this.api.saveAgentFile(agent.id, filename, this.fileContent()).subscribe({
@@ -231,6 +254,124 @@ export class AgentsComponent implements OnInit {
 
   closeFile(): void {
     this.editingFile.set(null);
+  }
+
+  // ── Tools tag editor ──
+  // tools.md is edited as removable tags picked from a grouped dropdown
+  // (Add-ons / Herramientas / MCP) instead of hand-written bullets, which fail
+  // silently on any typo. Raw text mode remains available as a fallback.
+  toolsMode = signal<'tags' | 'raw'>('tags');
+  toolTags = signal<string[]>([]);
+  toolsFilter = signal('');
+  toolsDropdownOpen = signal(false);
+  private addonOptions = signal<ToolOption[]>([]);
+  private mcpOptions = signal<ToolOption[]>([]);
+
+  private static readonly TOOL_GROUP_LABELS: Record<ToolOption['group'], string> = {
+    addons: 'nav.addons', integrations: 'nav.herramientas', mcp: 'agents.toolsEditor.mcp',
+  };
+  toolGroupLabel = (g: ToolOption['group']) => AgentsComponent.TOOL_GROUP_LABELS[g];
+
+  private loadToolOptions(): void {
+    this.api.getNativeAddons().subscribe(r => {
+      const opts: ToolOption[] = r.addons.map(a => ({
+        name: a.name,
+        description: a.description,
+        // send_to_telegram belongs with the external connectors, like GitHub
+        group: a.name === 'send_to_telegram' ? 'integrations' as const : 'addons' as const,
+      }));
+      // `github` is a prefix grant: one tag enables every github_* tool
+      opts.push({ name: 'github', description: 'GitHub (github_*)', group: 'integrations' });
+      this.addonOptions.set(opts);
+    });
+    this.api.getMcpStatus().subscribe(r => {
+      this.mcpOptions.set(r.servers.map(s => ({
+        name: s.name,
+        description: `${s.state}${s.toolCount ? ` · ${s.toolCount} tools` : ''}`,
+        group: 'mcp' as const,
+      })));
+    });
+  }
+
+  // Same normalization as the worker gate (registry.resolveAllowedToolNames)
+  private normTool(s: string): string {
+    return s.trim().replace(/\s+/g, '_').toLowerCase();
+  }
+
+  // A tag the gate would not match to anything — surfaced in red so typos stop
+  // failing silently (the original tools.md pain).
+  isKnownTag(tag: string): boolean {
+    const n = this.normTool(tag);
+    return [...this.addonOptions(), ...this.mcpOptions()].some(o => this.normTool(o.name) === n);
+  }
+
+  private isSelected(name: string): boolean {
+    const n = this.normTool(name);
+    return this.toolTags().some(t => this.normTool(t) === n);
+  }
+
+  // Dropdown contents: unselected options matching the filter, grouped and
+  // ordered Add-ons → Herramientas → MCP.
+  filteredToolGroups = computed(() => {
+    const filter = this.normTool(this.toolsFilter());
+    const tags = new Set(this.toolTags().map(t => this.normTool(t)));
+    const all = [...this.addonOptions(), ...this.mcpOptions()];
+    const groups: { group: ToolOption['group']; options: ToolOption[] }[] = [];
+    for (const group of ['addons', 'integrations', 'mcp'] as const) {
+      const options = all.filter(o => o.group === group
+        && !tags.has(this.normTool(o.name))
+        && (!filter || this.normTool(o.name).includes(filter)));
+      if (options.length) groups.push({ group, options });
+    }
+    return groups;
+  });
+
+  addToolTag(name: string): void {
+    if (this.isSelected(name)) return;
+    this.toolTags.update(t => [...t, name]);
+    this.toolsFilter.set('');
+  }
+
+  removeToolTag(tag: string): void {
+    this.toolTags.update(t => t.filter(x => x !== tag));
+  }
+
+  // Backspace on an empty filter removes the last tag (standard tag-input UX)
+  onToolsFilterKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Backspace' && !this.toolsFilter()) {
+      this.toolTags.update(t => t.slice(0, -1));
+    } else if (event.key === 'Escape') {
+      this.toolsDropdownOpen.set(false);
+      event.stopPropagation();
+    }
+  }
+
+  toggleToolsMode(): void {
+    if (this.toolsMode() === 'tags') {
+      // Hand the raw editor the exact markdown the tags would save
+      this.fileContent.set(this.generateToolsMd());
+      this.toolsMode.set('raw');
+    } else {
+      this.toolTags.set(this.parseToolTags(this.fileContent()));
+      this.toolsMode.set('tags');
+    }
+  }
+
+  // Same parse rule as the workers: only `- name` bullet lines grant tools.
+  private parseToolTags(content: string): string[] {
+    return content.split('\n')
+      .map(l => l.trim())
+      .filter(l => l.startsWith('-'))
+      .map(l => l.substring(1).trim())
+      .filter(Boolean);
+  }
+
+  private generateToolsMd(): string {
+    const agent = this.selectedAgent();
+    const header = `# ${agent?.name ?? 'Agent'} — Tools`;
+    const note = 'Tools this agent may use. Managed from the Agents view; one tool name\n(or an MCP server name) per bullet. Nothing listed means no tools.';
+    const bullets = this.toolTags().map(t => `- ${t}`).join('\n');
+    return `${header}\n\n${note}\n\n## Enabled tools\n${bullets}\n`;
   }
 
   ngOnInit(): void {

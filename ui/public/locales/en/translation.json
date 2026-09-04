@@ -84,6 +84,15 @@
       "blocked": "Blocked by the security guard",
       "grantedUnused": "Granted, unused",
       "days": "{{count}} days"
+    },
+    "toolsEditor": {
+      "mcp": "MCP servers",
+      "placeholder": "Search and pick tools…",
+      "unknown": "Matches no tool — check the name",
+      "empty": "No tools: this agent will not be able to use any",
+      "noResults": "No results",
+      "editRaw": "Edit as text",
+      "editTags": "Edit with selector"
     }
   },
   "system": {

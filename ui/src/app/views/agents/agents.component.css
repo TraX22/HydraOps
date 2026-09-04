@@ -212,3 +212,57 @@
   padding: 2px 7px; border-radius: 999px;
   background: var(--bg-surface-alt); border: 1px dashed var(--border-color);
 }
+
+/* ── Tools tag editor ── */
+.tools-editor { position: relative; display: flex; flex-direction: column; gap: 8px; min-height: 220px; }
+.tag-box {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  padding: 8px; min-height: 44px; cursor: text;
+  background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+}
+.tag-box:focus-within { border-color: var(--accent); }
+.tool-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px 3px 4px; font-size: 0.82rem; font-weight: 500;
+  background: var(--accent); color: var(--text-inverse); border-radius: var(--radius-sm);
+}
+.tool-tag.tag-unknown { background: var(--status-error); }
+.tag-x {
+  border: none; background: rgba(255, 255, 255, .25); color: inherit; cursor: pointer;
+  width: 16px; height: 16px; line-height: 1; border-radius: 50%; font-size: 0.8rem; padding: 0;
+}
+.tag-x:hover { background: rgba(0, 0, 0, .25); }
+.tag-input {
+  flex: 1; min-width: 120px; border: none; outline: none; background: transparent;
+  color: var(--text-primary); font-size: 0.85rem; padding: 4px 2px;
+}
+.tag-dropdown {
+  max-height: 240px; overflow-y: auto;
+  background: var(--bg-surface); border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-md);
+}
+.tag-group-label {
+  padding: 6px 10px 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--text-muted);
+  border-bottom: 1px solid var(--border-light); position: sticky; top: 0; background: var(--bg-surface);
+}
+.tag-option {
+  display: flex; align-items: baseline; gap: 8px; width: 100%; text-align: left;
+  padding: 7px 10px; border: none; background: transparent; cursor: pointer; color: var(--text-primary);
+}
+.tag-option:hover { background: var(--bg-hover); }
+.tag-option-name { font-size: 0.85rem; font-weight: 500; white-space: nowrap; }
+.tag-option-desc {
+  font-size: 0.75rem; color: var(--text-muted); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.tag-empty { padding: 10px; font-size: 0.8rem; color: var(--text-muted); }
+.tag-hint {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.8rem; color: var(--status-working);
+}
+.tools-mode-toggle {
+  align-self: flex-start; margin-top: 6px; border: none; background: transparent;
+  color: var(--text-secondary); font-size: 0.78rem; cursor: pointer; text-decoration: underline; padding: 0;
+}
+.tools-mode-toggle:hover { color: var(--accent); }
