@@ -216,10 +216,52 @@
             <h3><app-icon [name]="fileEmoji(filename)" /> {{ filename }}</h3>
             @if (fileLoading()) {
               <p class="file-loading">…</p>
+            } @else if (fileType(filename) === 'tools' && toolsMode() === 'tags') {
+              <!-- Tag editor: chips with × + grouped dropdown, instead of raw bullets -->
+              <div class="tools-editor">
+                <div class="tag-box" (click)="toolsDropdownOpen.set(true)">
+                  @for (tag of toolTags(); track tag) {
+                    <span class="tool-tag" [class.tag-unknown]="!isKnownTag(tag)"
+                          [title]="isKnownTag(tag) ? tag : ('agents.toolsEditor.unknown' | translate)">
+                      <button class="tag-x" (click)="removeToolTag(tag); $event.stopPropagation()">×</button>
+                      {{ tag }}
+                    </span>
+                  }
+                  <input class="tag-input" spellcheck="false"
+                         [placeholder]="toolTags().length === 0 ? ('agents.toolsEditor.placeholder' | translate) : ''"
+                         [ngModel]="toolsFilter()" (ngModelChange)="toolsFilter.set($event)"
+                         (focus)="toolsDropdownOpen.set(true)"
+                         (keydown)="onToolsFilterKeydown($event)" />
+                </div>
+                @if (toolsDropdownOpen()) {
+                  <div class="tag-dropdown">
+                    @for (g of filteredToolGroups(); track g.group) {
+                      <div class="tag-group-label">{{ toolGroupLabel(g.group) | translate }}</div>
+                      @for (opt of g.options; track opt.name) {
+                        <button class="tag-option" (click)="addToolTag(opt.name)">
+                          <span class="tag-option-name">{{ opt.name }}</span>
+                          <span class="tag-option-desc">{{ opt.description }}</span>
+                        </button>
+                      }
+                    }
+                    @if (filteredToolGroups().length === 0) {
+                      <p class="tag-empty">{{ 'agents.toolsEditor.noResults' | translate }}</p>
+                    }
+                  </div>
+                }
+                @if (toolTags().length === 0) {
+                  <p class="tag-hint"><app-icon name="alert" /> {{ 'agents.toolsEditor.empty' | translate }}</p>
+                }
+              </div>
             } @else {
               <textarea class="file-textarea" spellcheck="false"
                         [ngModel]="fileContent()"
                         (ngModelChange)="fileContent.set($event)"></textarea>
+            }
+            @if (fileType(filename) === 'tools' && !fileLoading()) {
+              <button class="tools-mode-toggle" (click)="toggleToolsMode()">
+                {{ (toolsMode() === 'tags' ? 'agents.toolsEditor.editRaw' : 'agents.toolsEditor.editTags') | translate }}
+              </button>
             }
             @if (fileError()) {
               <p class="file-error"><app-icon name="alert" /> {{ 'agents.fileError' | translate }}</p>
