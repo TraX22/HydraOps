@@ -84,6 +84,15 @@
       "blocked": "Bloqueadas pelo guarda de segurança",
       "grantedUnused": "Concedidas, sem uso",
       "days": "{{count}} dias"
+    },
+    "toolsEditor": {
+      "mcp": "Servidores MCP",
+      "placeholder": "Buscar e escolher ferramentas…",
+      "unknown": "Não corresponde a nenhuma ferramenta — verifique o nome",
+      "empty": "Sem ferramentas: este agente não poderá usar nenhuma",
+      "noResults": "Sem resultados",
+      "editRaw": "Editar como texto",
+      "editTags": "Editar com seletor"
     }
   },
   "system": {
