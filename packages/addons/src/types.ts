@@ -12,11 +12,24 @@ export interface ToolKeyRequirement {
   helpUrl?: string;
 }
 
+// One past-task match handed back by the worker-bound episodic search (see the
+// `recall` native tool). Mirrors RecallHit in @hydraops/db without importing it,
+// so this package stays independent of the database.
+export interface PastTaskHit {
+  taskId: string;
+  date: string; // YYYY-MM-DD
+  prompt: string;
+  excerpt: string;
+}
+
 // Per-task context a worker binds to the tools it hands the model. The model
 // never fills these values — they identify WHO is running, so a tool like
 // `remember` can act on the calling agent without trusting model input.
 export interface ToolContext {
   agentId?: string;
+  // Full-text search over THIS agent's completed tasks. The worker binds the
+  // agent identity into the closure, so the model only ever supplies keywords.
+  searchPastTasks?: (query: string, limit?: number) => PastTaskHit[] | Promise<PastTaskHit[]>;
 }
 
 export interface HydraTool {

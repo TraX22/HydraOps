@@ -17,6 +17,7 @@ export const workerStatus = schema.workerStatus as any;
 export const toolUsage = schema.toolUsage as any;
 
 export * from "./client.js";
+export * from "./recall.js";
 
 /**
  * Persist a batch of tool invocations for one agent/task. Called by the workers
