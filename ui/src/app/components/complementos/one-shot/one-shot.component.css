@@ -94,11 +94,19 @@
   --ff-connection-drag-handle-stroke: transparent;
   --ff-connection-drag-handle-fill: transparent;
 }
-/* Reveal the endpoint grips only when a connection is hovered or selected, in a
-   neutral grey (not the theme's accent blue). The connection elements are drawn
-   by the library, so scoped selectors can't reach them — use ::ng-deep. */
-.os-canvas-wrap ::ng-deep .f-connection:hover .f-connection-drag-handle,
+/* Endpoint grips: interactive ONLY while their connection is selected. While
+   idle they are invisible AND inert (pointer-events none) — otherwise the
+   transparent handle sitting on a connector dot swallows the drag, so trying
+   to draw a SECOND connection from that dot re-routed the first one instead
+   ("only one connection per point"). New model: drag from a dot always creates
+   a connection; click a line first, then grab its endpoint to re-route it.
+   The connection elements are drawn by the library, so scoped selectors can't
+   reach them — use ::ng-deep. */
+.os-canvas-wrap ::ng-deep .f-connection .f-connection-drag-handle {
+  pointer-events: none;
+}
 .os-canvas-wrap ::ng-deep .f-connection.f-selected .f-connection-drag-handle {
+  pointer-events: all;
   stroke: var(--text-muted);
   fill: var(--bg-surface);
 }
@@ -313,10 +321,10 @@
   background: var(--accent);
   border-color: var(--accent);
 }
-/* A connected side shows no dot — the line ends cleanly, no coloured disc. */
-.os-node .os-conn.f-connector-connected,
-.os-node .os-conn.f-node-output-connected,
-.os-node .os-conn.f-node-input-connected { opacity: 0 !important; }
+/* Connected sides keep showing their dot on node hover, like the free ones:
+   it's the grab point for ADDING another connection from the same side. (They
+   used to be force-hidden for a cleaner line end, which also hid the only
+   affordance for a second connection.) */
 .os-conn-t { top: -6px; left: 50%; margin-left: -5.5px; }
 .os-conn-r { right: -6px; top: 50%; margin-top: -5.5px; }
 .os-conn-b { bottom: -6px; left: 50%; margin-left: -5.5px; }
