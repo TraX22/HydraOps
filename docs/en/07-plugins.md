@@ -13,8 +13,9 @@ The diagram captures the **logic** of what you want (where the input comes from 
 ### Drawing the diagram
 
 - **Add node** creates a box with a **title** and a **body**, both editable. Write the piece each one stands for.
-- **Connect** two nodes: drag from the edge of one to the other. Each node has a connection point per side, and the arrow picks which side to leave from.
-- **Re-route** an arrow: drag one of its endpoints onto another node.
+- **Icon and color**: click the node's icon to pick another, and tap the node then a color from the **palette** in the right panel (vivid on top, pastel below) to paint its title bar. The same color again clears it; with no node touched, the chosen color applies to the nodes you create from then on.
+- **Connect** two nodes: drag from the edge of one to the other. Each node has a connection point per side, the arrow picks which side to leave from, and as many arrows as you need can leave the same point.
+- **Re-route** an arrow: click it to select it, then drag one of its endpoints onto another node.
 - **Delete** an arrow: click it to select it and press **Delete** (or the delete button that appears).
 - Drag nodes to arrange them; the controls at the bottom handle **zoom** and **fit to screen**, and there's a minimap.
 

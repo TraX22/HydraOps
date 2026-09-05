@@ -13,8 +13,9 @@ El diagrama representa la **lógica** de lo que quieres (de dónde sale la infor
 ### Dibujar el diagrama
 
 - **Añadir nodo** crea una caja con un **título** y un **cuerpo** de texto, los dos editables. Escribe en cada una la pieza que representa.
-- **Conectar** dos nodos: arrastra desde el borde de uno hasta el otro. Cada nodo tiene un punto de conexión por lado y la flecha elige sola por dónde salir.
-- **Re-rutear** una flecha: arrastra uno de sus extremos hasta otro nodo.
+- **Icono y color**: haz clic en el icono del nodo para elegir otro, y toca el nodo y luego un color de la **paleta** del panel derecho (vivos arriba, pasteles abajo) para pintar su barra de título. El mismo color otra vez la despinta; sin ningún nodo tocado, el color elegido se aplica a los nodos que crees a partir de ahí.
+- **Conectar** dos nodos: arrastra desde el borde de uno hasta el otro. Cada nodo tiene un punto de conexión por lado, la flecha elige sola por dónde salir, y de un mismo punto pueden salir tantas flechas como necesites.
+- **Re-rutear** una flecha: haz clic sobre ella para seleccionarla y arrastra uno de sus extremos hasta otro nodo.
 - **Borrar** una flecha: haz clic sobre ella para seleccionarla y pulsa **Supr** (o el botón de borrar que aparece).
 - Arrastra los nodos para acomodarlos; abajo tienes los controles de **zoom** y **encajar a pantalla**, y un minimapa.
 

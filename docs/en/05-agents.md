@@ -16,6 +16,8 @@ In the **Agents** view, click **New agent** and choose:
   - **video** — video generation.
 - **Model** — the LLM it will use; if you don't pick one, the default model from Settings.
 
+A new agent is born with the basics already granted: `web_search`, `fetch_url`, `remember` and `recall`. Everything else stays off until you grant it from its `tools.md`.
+
 ## The agent's profile
 
 Selecting an agent in the list opens its profile:
@@ -36,12 +38,14 @@ Each agent is a folder `agents/<id>/` with six Markdown files. They are free-for
 | `<id>.skill.md` | What it knows how to do: its specialties and how to approach them. |
 | `<id>.agent.md` | Its profile card: role, description, emoji. |
 | `<id>.tools.md` | Which tools it may and may not use (see [Add-ons & MCP](./08-addons.md)). |
-| `<id>.memory.md` | Persistent memory: what it should remember across conversations. |
+| `<id>.memory.md` | Persistent memory: what it should remember across conversations. You write it, and the agent itself extends it with `remember`. |
 | `<id>.heartbeat.md` | Its heartbeat: instructions applied on every cycle. |
 
 Changes apply to the next tasks, no restart needed.
 
-**Per-agent tools (`<id>.tools.md`).** An agent can use a tool — native, add-on or MCP server — only if its `tools.md` **names** it, on a bullet line. If it lists none, the agent has no tools. Use the exact name (`- web_search`) or a group prefix (`- github` enables every `github_*` tool; an MCP server name enables its tools). The rest of the file is free text for the agent; only the tool-name bullets grant access. This holds for every worker type.
+**Per-agent tools (`<id>.tools.md`).** An agent can use a tool — native, add-on or MCP server — only if its `tools.md` **names** it. Editing the file in the Agents view opens a **tag selector**: every granted tool is a tag with its **×** to remove it, and the dropdown offers what's available grouped into **Add-ons, Tools and MCP**. A **red** tag warns that the name matches no current tool (and therefore grants nothing). If you prefer plain text, **Edit as text** shows the real file: one bullet per tool, with the exact name (`- web_search`) or a group prefix (`- github` enables every `github_*` tool; an MCP server name enables its tools). If it lists none, the agent has no tools. This holds for every worker type.
+
+**Memory that writes itself.** With `remember` and `recall` (granted out of the box to new agents), the agent can **save** durable notes to its `memory.md` when you ask it to ("remember that…") and **search** its past conversations beyond the recent history ("what did I ask you last month about…?"). Each agent only writes and searches its own.
 
 Beyond these files, **each worker type brings its trade out of the box**: the image one knows color theory and composition, the video one framing and cinematography, the code one architecture and patterns, and the general one how to deal with people. That knowledge ships with the application and every agent of the type inherits it — your six files define *who* your agent is and its concrete specialization; the worker brings the profession.
 

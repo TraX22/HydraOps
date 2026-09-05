@@ -6,7 +6,16 @@ Las herramientas son lo que separa a un agente que *contesta* de uno que *hace*.
 
 ## Add-ons nativos
 
-Vienen con la aplicación: hoy son `web_search` (buscar en la web) y `fetch_url` (descargar una página). Cada tarjeta explica qué hace el suyo.
+Vienen con la aplicación. Hoy son:
+
+- `web_search` — buscar en la web (DuckDuckGo, sin clave).
+- `brave_search` — búsqueda con la API de Brave; la clave se pega en su tarjeta y viaja por el key-proxy.
+- `fetch_url` — descargar y leer una página.
+- `youtube_transcript` — transcripción de un vídeo de YouTube, sin clave.
+- `remember` — el agente guarda notas duraderas en su propia memoria (ver [Agentes](./05-agents.md)).
+- `recall` — el agente busca en sus conversaciones pasadas, más allá del historial reciente.
+
+Cada tarjeta explica qué hace el suyo, y las integraciones con servicios externos (Telegram, GitHub) viven en [Herramientas](./09-tools.md).
 
 Todos pasan por un **guard de seguridad** que bloquea rutas de credenciales, comandos catastróficos y peticiones a redes internas, y redacta secretos de los resultados. Más en [Seguridad](./13-security.md).
 
@@ -36,4 +45,6 @@ Cada servidor tiene su interruptor, y la vista muestra su estado real según lo 
 
 ## Qué herramientas ve cada agente
 
-Por defecto, un agente ve las herramientas de su tipo de worker. Para afinarlo, edita el archivo `tools.md` del agente (vista Agentes → Archivos de configuración): ahí se declara qué add-ons y qué servidores MCP puede usar ese agente en concreto. Así tu agente de investigación puede tener buscador y tu agente de código no.
+Ninguna, hasta que se la concedas: una herramienta —nativa, add-on propio o servidor MCP— solo llega a un agente si su `tools.md` la nombra. Se gestiona con el selector de etiquetas de la vista Agentes (ver [Agentes](./05-agents.md)); los agentes nuevos vienen con `web_search`, `fetch_url`, `remember` y `recall` ya concedidas. Así tu agente de investigación puede tener buscador y tu agente de código no.
+
+Además, cada add-on nativo tiene un interruptor global en esta vista: apagarlo aquí lo apaga para **todos** los agentes, diga lo que diga su `tools.md`.
