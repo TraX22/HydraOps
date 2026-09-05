@@ -11,7 +11,7 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, buildCronDedupContext } from "@hydraops/db";
+import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, buildCronDedupContext, searchAgentTasks } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType } from "@hydraops/nats";
 import { eq, and, desc } from "drizzle-orm";
@@ -37,7 +37,7 @@ for (const level of ["log", "error"] as const) {
   };
 }
 
-const { db } = createDb(env.DATABASE_URL);
+const { db, client: sqliteClient } = createDb(env.DATABASE_URL);
 const nc = await connectNats(env.NATS_URL);
 await ensureEventsStream(nc);
 const js = await getJs(nc);
@@ -266,9 +266,12 @@ ${personality}
     // after the LLM finishes so we can report what each agent actually uses.
     const toolUsageLog: { toolName: string; source: string; status: string }[] = [];
     const usageSink = (toolName: string, source: string, status: 'ok' | 'blocked' | 'error') => { toolUsageLog.push({ toolName, source, status }); };
-    // Bind the calling agent's identity so identity-aware tools (e.g.
-    // `remember`) act on the right agent without trusting model input.
-    const toolContext = { agentId };
+    // Bind the calling agent's identity so identity-aware tools (`remember`,
+    // `recall`) act on the right agent without trusting model input.
+    const toolContext = {
+      agentId,
+      searchPastTasks: (query: string, limit?: number) => searchAgentTasks(sqliteClient, agentId, query, limit),
+    };
     const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext);
     const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext);
 
