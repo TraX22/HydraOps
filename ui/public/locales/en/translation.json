@@ -23,7 +23,9 @@
     "error": "Couldn't compile the prompt",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
-    "fit": "Fit to screen"
+    "fit": "Fit to screen",
+    "changeIcon": "Change icon",
+    "colorHint": "Select a node and click a color to paint its header; with no node selected, it sets the color for new nodes"
   },
   "complementos": {
     "subtitle": "Mini-apps inside HydraOps"

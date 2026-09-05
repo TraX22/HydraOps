@@ -23,7 +23,9 @@
     "error": "Impossibile compilare il prompt",
     "zoomIn": "Ingrandisci",
     "zoomOut": "Rimpicciolisci",
-    "fit": "Adatta allo schermo"
+    "fit": "Adatta allo schermo",
+    "changeIcon": "Cambia icona",
+    "colorHint": "Seleziona un nodo e clicca un colore per colorarne la barra; senza nodo selezionato, imposta il colore dei nuovi nodi"
   },
   "complementos": {
     "subtitle": "Mini-app dentro HydraOps"

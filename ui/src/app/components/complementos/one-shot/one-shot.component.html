@@ -20,7 +20,7 @@
   </header>
 
   <div class="os-body">
-    <div class="os-canvas-wrap">
+    <div class="os-canvas-wrap" (pointerdown)="onCanvasPointerDown($event)">
       @if (!nodes().length) {
         <div class="os-empty">{{ 'oneShot.emptyCanvas' | translate }}</div>
       }
@@ -46,19 +46,28 @@
           }
           @for (node of nodes(); track node.id) {
             <!-- fConnectOnNode: a link can be dropped anywhere on the node too. -->
-            <div fNode fDragHandle [fNodePosition]="node.position"
+            <div fNode fDragHandle [fNodeId]="node.id" [fNodePosition]="node.position"
                  (fNodePositionChange)="node.position = $event; save()"
-                 [fConnectOnNode]="true" class="os-node">
+                 (pointerdown)="markActive(node.id)"
+                 [fConnectOnNode]="true" class="os-node" [class.os-active]="activeNode() === node.id">
               <!-- Inner wrapper clips header/body to the rounded corners so the
                    header colour bleeds edge-to-edge; the connector dots live
                    OUTSIDE it (below) so they are never clipped. -->
               <div class="os-node-inner">
-                <!-- Header: icon + editable title (drag anywhere here to move). -->
-                <div class="os-node-head">
-                  <app-icon name="table" class="os-node-ico" />
+                <!-- Header: icon (click to change it) + editable title (drag
+                     anywhere here to move). A palette colour tints the strip;
+                     text/icon flip to whichever contrast reads on it. -->
+                <div class="os-node-head" [style.background]="node.color || null">
+                  <button class="os-node-ico" fDragBlocker [style.color]="headText(node.color)"
+                          (click)="toggleIconPicker(node.id, $event)"
+                          [title]="'oneShot.changeIcon' | translate">
+                    <app-icon [name]="node.icon || 'table'" />
+                  </button>
                   <input class="os-node-title" [(ngModel)]="node.title" (ngModelChange)="save()" fDragBlocker
+                         [style.color]="headText(node.color)"
                          [placeholder]="'oneShot.titlePlaceholder' | translate" />
                   <button class="os-node-del" (click)="removeNode(node.id)" fDragBlocker
+                          [style.color]="headText(node.color)"
                           [title]="'common.delete' | translate">
                     <app-icon name="x" />
                   </button>
@@ -69,6 +78,19 @@
                             [placeholder]="'oneShot.nodePlaceholder' | translate"></textarea>
                 </div>
               </div>
+              @if (iconPickerFor() === node.id) {
+                <!-- Icon picker popover. Lives OUTSIDE the inner wrapper (which
+                     clips overflow) so it can float over the node body; any
+                     outside click closes it. -->
+                <div class="os-icon-pop" fDragBlocker (click)="$event.stopPropagation()">
+                  @for (ic of nodeIcons; track ic) {
+                    <button class="os-icon-opt" [class.active]="ic === (node.icon || 'table')"
+                            (click)="setNodeIcon(node.id, ic, $event)">
+                      <app-icon [name]="ic" />
+                    </button>
+                  }
+                </div>
+              }
               <!-- One connector per side: drag from/to ANY side. Kept separate
                    from the editable content so it never swallows clicks. -->
               <div class="os-conn os-conn-t" fConnector fConnectorType="source-target"
@@ -105,6 +127,25 @@
       <button class="os-compile" (click)="compile()" [disabled]="compiling()">
         <app-icon name="zap" /> {{ (compiling() ? 'oneShot.compiling' : 'oneShot.compile') | translate }}
       </button>
+
+      <!-- Node colour palette: paints the header of the selected node(s); with
+           nothing selected it sets the colour for new nodes. Vivid row on top,
+           pastel row below. -->
+      <hr class="os-sep" />
+      <div class="os-palette" [title]="'oneShot.colorHint' | translate">
+        <div class="os-palette-row">
+          @for (c of vividColors; track c) {
+            <button class="os-swatch" [style.background]="c" [class.active]="isActiveColor(c)"
+                    (click)="applyColor(c)"></button>
+          }
+        </div>
+        <div class="os-palette-row">
+          @for (c of pastelColors; track c) {
+            <button class="os-swatch" [style.background]="c" [class.active]="isActiveColor(c)"
+                    (click)="applyColor(c)"></button>
+          }
+        </div>
+      </div>
 
       @if (error()) {
         <div class="os-error">{{ error() }}</div>
