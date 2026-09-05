@@ -6,7 +6,16 @@ Tools are what separate an agent that *answers* from one that *does*. HydraOps h
 
 ## Native add-ons
 
-They ship with the application: today they are `web_search` (searching the web) and `fetch_url` (downloading a page). Each card explains what its add-on does.
+They ship with the application. Today they are:
+
+- `web_search` — search the web (DuckDuckGo, no key needed).
+- `brave_search` — search with the Brave API; the key is pasted on its card and travels through the key-proxy.
+- `fetch_url` — download and read a page.
+- `youtube_transcript` — transcript of a YouTube video, no key needed.
+- `remember` — the agent saves durable notes to its own memory (see [Agents](./05-agents.md)).
+- `recall` — the agent searches its past conversations, beyond the recent history.
+
+Each card explains what its add-on does, and the integrations with external services (Telegram, GitHub) live in [Tools](./09-tools.md).
 
 All of them go through a **security guard** that blocks credential paths, catastrophic commands and requests to internal networks, and redacts secrets from results. More in [Security](./13-security.md).
 
@@ -36,4 +45,6 @@ Every server has its own switch, and the view shows its real status as reported 
 
 ## Which tools each agent sees
 
-By default, an agent sees the tools of its worker type. To fine-tune it, edit the agent's `tools.md` file (Agents view → Configuration files): there you declare which add-ons and which MCP servers that specific agent may use. That way your research agent can have a web search tool while your coding agent doesn't.
+None, until you grant them: a tool — native, custom add-on or MCP server — reaches an agent only if its `tools.md` names it. It's managed with the tag selector in the Agents view (see [Agents](./05-agents.md)); new agents come with `web_search`, `fetch_url`, `remember` and `recall` already granted. That way your research agent can have a web search tool while your coding agent doesn't.
+
+On top of that, every native add-on has a global switch in this view: turning it off here turns it off for **every** agent, whatever its `tools.md` says.
