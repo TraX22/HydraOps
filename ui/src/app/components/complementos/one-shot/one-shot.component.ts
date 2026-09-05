@@ -17,12 +17,15 @@ import { ComplementosService } from '../../../services/complementos.service';
 
 // A node the user drew: an editable title plus free-text body describing a
 // piece/step of the task, plus its canvas position (a two-way Foblex model, so
-// drags persist).
+// drags persist). Icon and header colour are cosmetic, chosen by the user;
+// undefined means the defaults (table icon, theme-grey header).
 interface FlowNode {
   id: string;
   title: string;
   text: string;
   position: { x: number; y: number };
+  icon?: string;
+  color?: string;
 }
 
 interface FlowConn {
@@ -63,6 +66,32 @@ export class OneShotComponent implements OnInit {
   readonly connections = signal<FlowConn[]>([]);
   // Ids of connections the user has currently selected on the canvas (for delete).
   readonly selectedConns = signal<string[]>([]);
+  // Ids of the selected nodes — the palette paints these.
+  readonly selectedNodes = signal<string[]>([]);
+  // Last node the user touched. Foblex selection misses clicks landing on the
+  // node's inputs (fDragBlocker swallows them), so any pointerdown on a node
+  // marks it active — that's what the palette paints when nothing is selected.
+  readonly activeNode = signal<string>('');
+  // Node id whose icon picker popover is open ('' = none).
+  readonly iconPickerFor = signal<string>('');
+  // Palette colour applied to nodes created from now on (when nothing is selected).
+  readonly defaultColor = signal<string>('');
+
+  // Icons the user can pick for a node (all already in IconComponent).
+  readonly nodeIcons = [
+    'table', 'file', 'chat', 'mail', 'send', 'clipboard',
+    'image', 'video', 'code', 'github', 'zap', 'puzzle',
+    'memory', 'storage', 'monitor', 'bell',
+  ];
+  // Two palette rows of 12: vivid on top, their pastel versions below.
+  readonly vividColors = [
+    '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#14b8a6',
+    '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#78716c',
+  ];
+  readonly pastelColors = [
+    '#fca5a5', '#fdba74', '#fcd34d', '#bef264', '#86efac', '#5eead4',
+    '#67e8f9', '#93c5fd', '#a5b4fc', '#d8b4fe', '#f9a8d4', '#d6d3d1',
+  ];
   readonly agents = signal<Agent[]>([]);
   readonly selectedAgent = signal<string>('');
 
@@ -136,7 +165,7 @@ export class OneShotComponent implements OnInit {
     try {
       localStorage.setItem(
         OneShotComponent.STORE_KEY,
-        JSON.stringify({ activeId: this.activeId(), selectedAgent: this.selectedAgent(), diagrams: this.diagrams() }),
+        JSON.stringify({ activeId: this.activeId(), selectedAgent: this.selectedAgent(), defaultColor: this.defaultColor(), diagrams: this.diagrams() }),
       );
     } catch {
       /* storage unavailable or full — nothing we can do */
@@ -151,6 +180,7 @@ export class OneShotComponent implements OnInit {
         const list: SavedDiagram[] = Array.isArray(store?.diagrams) ? store.diagrams : [];
         this.diagrams.set(list);
         if (typeof store?.selectedAgent === 'string') this.selectedAgent.set(store.selectedAgent);
+        if (typeof store?.defaultColor === 'string') this.defaultColor.set(store.defaultColor);
         const active = list.find((d) => d.id === store?.activeId) ?? list[0];
         if (active) return this.setActive(active, false);
         return this.ensureActive();
@@ -188,6 +218,9 @@ export class OneShotComponent implements OnInit {
     this.connections.set([...(d.connections ?? [])]);
     this.compiledPrompt.set('');
     this.error.set('');
+    this.selectedNodes.set([]);
+    this.activeNode.set('');
+    this.iconPickerFor.set('');
     let max = -1;
     for (const n of this.nodes()) {
       const m = /^n(\d+)$/.exec(n.id);
@@ -269,9 +302,90 @@ export class OneShotComponent implements OnInit {
     // Stagger new nodes so they don't stack on the exact same spot.
     this.nodes.update((a) => [
       ...a,
-      { id: `n${i}`, title: '', text: '', position: { x: 80 + (i % 4) * 230, y: 70 + Math.floor(i / 4) * 170 } },
+      {
+        id: `n${i}`, title: '', text: '',
+        position: { x: 80 + (i % 4) * 230, y: 70 + Math.floor(i / 4) * 170 },
+        color: this.defaultColor() || undefined,
+      },
     ]);
     this.save();
+  }
+
+  // ---- Node appearance (icon + header colour) ----
+  toggleIconPicker(id: string, ev: Event): void {
+    ev.stopPropagation();
+    this.iconPickerFor.set(this.iconPickerFor() === id ? '' : id);
+  }
+
+  setNodeIcon(id: string, icon: string, ev: Event): void {
+    ev.stopPropagation();
+    this.nodes.update((a) => a.map((n) => (n.id === id ? { ...n, icon } : n)));
+    this.iconPickerFor.set('');
+    this.save();
+  }
+
+  // Any click outside the picker closes it (the trigger stops propagation).
+  @HostListener('document:click')
+  closeIconPicker(): void {
+    if (this.iconPickerFor()) this.iconPickerFor.set('');
+  }
+
+  // Nodes the palette would paint right now: the Foblex selection or, failing
+  // that, the last node touched.
+  private paintTargets(): string[] {
+    const sel = this.selectedNodes();
+    if (sel.length) return sel;
+    const active = this.activeNode();
+    return active && this.nodes().some((n) => n.id === active) ? [active] : [];
+  }
+
+  markActive(id: string): void {
+    this.activeNode.set(id);
+  }
+
+  // Pointerdown on empty canvas (not on a node) drops the active mark, so the
+  // next colour pick goes back to setting the default for new nodes.
+  onCanvasPointerDown(ev: Event): void {
+    const el = ev.target as HTMLElement | null;
+    if (el && !el.closest('.os-node')) this.activeNode.set('');
+  }
+
+  // Swatch highlight: the colour all target nodes share or, with no target,
+  // the default for new nodes.
+  isActiveColor(color: string): boolean {
+    const targets = this.paintTargets();
+    if (!targets.length) return this.defaultColor() === color;
+    const nodes = this.nodes().filter((n) => targets.includes(n.id));
+    return nodes.length > 0 && nodes.every((n) => n.color === color);
+  }
+
+  // Paint the target node(s) with a palette colour; clicking the colour they
+  // all already have clears it back to the default header. With no target,
+  // the pick becomes the colour for nodes created from now on.
+  applyColor(color: string): void {
+    const targets = this.paintTargets();
+    if (!targets.length) {
+      this.defaultColor.set(this.defaultColor() === color ? '' : color);
+      this.persist();
+      return;
+    }
+    const nodes = this.nodes().filter((n) => targets.includes(n.id));
+    const clearing = nodes.length > 0 && nodes.every((n) => n.color === color);
+    this.nodes.update((a) =>
+      a.map((n) => (targets.includes(n.id) ? { ...n, color: clearing ? undefined : color } : n)),
+    );
+    this.save();
+  }
+
+  // Readable text/icon colour over a custom header: dark on light backgrounds
+  // (all the pastels), white on the vivid ones. Perceived-luminance cut.
+  headText(color?: string): string | null {
+    if (!color) return null;
+    const m = /^#([0-9a-f]{6})$/i.exec(color);
+    if (!m) return null;
+    const v = parseInt(m[1], 16);
+    const lum = 0.299 * ((v >> 16) & 255) + 0.587 * ((v >> 8) & 255) + 0.114 * (v & 255);
+    return lum > 150 ? '#1f2937' : '#ffffff';
   }
 
   // Each node exposes one connector per side; connector ids are `${nodeId}:${side}`
@@ -281,6 +395,8 @@ export class OneShotComponent implements OnInit {
   }
 
   removeNode(id: string): void {
+    if (this.activeNode() === id) this.activeNode.set('');
+    if (this.iconPickerFor() === id) this.iconPickerFor.set('');
     this.nodes.update((a) => a.filter((n) => n.id !== id));
     this.connections.update((a) => a.filter((c) => this.nodeOf(c.source) !== id && this.nodeOf(c.target) !== id));
     this.save();
@@ -321,9 +437,11 @@ export class OneShotComponent implements OnInit {
     this.save();
   }
 
-  // Track which connections are selected so they can be deleted.
+  // Track which connections are selected (for delete) and which nodes are
+  // selected (the colour palette paints them).
   onSelectionChange(e: FSelectionChangeEvent): void {
     this.selectedConns.set(e.connectionIds ?? []);
+    this.selectedNodes.set(e.nodeIds ?? []);
   }
 
   deleteSelectedConns(): void {
@@ -350,6 +468,9 @@ export class OneShotComponent implements OnInit {
     this.nodes.set([]);
     this.connections.set([]);
     this.selectedConns.set([]);
+    this.selectedNodes.set([]);
+    this.activeNode.set('');
+    this.iconPickerFor.set('');
     this.compiledPrompt.set('');
     this.error.set('');
     this.counter = 0;

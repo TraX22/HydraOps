@@ -23,7 +23,9 @@
     "error": "Impossible de compiler le prompt",
     "zoomIn": "Zoom avant",
     "zoomOut": "Zoom arrière",
-    "fit": "Ajuster à l'écran"
+    "fit": "Ajuster à l'écran",
+    "changeIcon": "Changer l'icône",
+    "colorHint": "Sélectionnez un nœud et cliquez sur une couleur pour peindre sa barre ; sans nœud sélectionné, elle définit la couleur des nouveaux nœuds"
   },
   "complementos": {
     "subtitle": "Mini-apps dans HydraOps"
