@@ -23,7 +23,9 @@
     "error": "Não foi possível compilar o prompt",
     "zoomIn": "Ampliar",
     "zoomOut": "Reduzir",
-    "fit": "Ajustar à tela"
+    "fit": "Ajustar à tela",
+    "changeIcon": "Mudar ícone",
+    "colorHint": "Selecione um nó e clique em uma cor para pintar sua barra; sem nó selecionado, define a cor dos novos nós"
   },
   "complementos": {
     "subtitle": "Mini-apps dentro do HydraOps"

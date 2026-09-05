@@ -199,11 +199,57 @@
   cursor: grab;
 }
 .os-node:active .os-node-head { cursor: grabbing; }
+/* The icon is a button now: click it to pick another one. Default look keeps
+   the accent blue; a custom header colour overrides it inline for contrast. */
 .os-node-ico {
+  display: inline-flex;
+  border: 0;
+  background: none;
+  padding: 2px;
+  border-radius: var(--radius-sm);
   color: var(--accent);
   font-size: 14px;
   flex: 0 0 auto;
+  cursor: pointer;
 }
+.os-node-ico:hover { background: rgba(0, 0, 0, 0.12); }
+/* Node selected on the canvas (Foblex .f-selected) or last touched
+   (.os-active): accent ring, so it's clear what the palette will paint. */
+.os-node.f-selected .os-node-inner,
+.os-node.os-active .os-node-inner {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), 0 4px 14px rgba(0, 0, 0, 0.1);
+}
+/* Icon picker popover, floating under the header (outside the clipped inner). */
+.os-icon-pop {
+  position: absolute;
+  top: 32px;
+  left: 4px;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  padding: 5px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+}
+.os-icon-opt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+}
+.os-icon-opt:hover { background: var(--bg-hover); }
+.os-icon-opt.active { background: var(--accent); color: #fff; }
 .os-node-title {
   flex: 1 1 auto;
   min-width: 0;
@@ -313,6 +359,31 @@
 }
 .os-compile:hover:not(:disabled) { filter: brightness(1.08); }
 .os-compile:disabled { opacity: 0.6; cursor: default; }
+/* Node colour palette: two rows of 12 (vivid / pastel). */
+.os-palette {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.os-palette-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+.os-swatch {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.os-swatch:hover { transform: scale(1.18); }
+.os-swatch.active {
+  box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--accent);
+}
 .os-error {
   padding: 9px 11px;
   border-radius: var(--radius-sm);
