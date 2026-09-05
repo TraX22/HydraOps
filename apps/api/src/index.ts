@@ -809,12 +809,13 @@ api.post("/agents", async (req, res) => {
     const baseFiles = ["soul", "skill", "agent", "heartbeat", "memory", "tools"];
     for (const type of baseFiles) {
       const fileName = `${id}.${type}.md`;
-      // The tools file is seeded with web_search so a brand-new agent can always
-      // search/verify information out of the box. It is a starting default, not a
-      // lock: the user may remove it (or add more) from the agent editor. Mirrors
-      // the format the workers parse (one tool name per bullet under a heading).
+      // The tools file is seeded with the basics every agent benefits from:
+      // web_search + fetch_url to look things up, remember + recall so its
+      // memory works out of the box. A starting default, not a lock: the user
+      // may remove or add tools from the agent editor. Mirrors the format the
+      // workers parse (one tool name per bullet under a heading).
       const template = type === "tools"
-        ? `# ${name} — Tools\n\nTools this agent may use. List one tool name (or an MCP server name) per bullet:\nadd a line to grant it, remove a line to revoke it. Nothing listed means no tools.\n\n## Enabled tools\n- web_search\n`
+        ? `# ${name} — Tools\n\nTools this agent may use. List one tool name (or an MCP server name) per bullet:\nadd a line to grant it, remove a line to revoke it. Nothing listed means no tools.\n\n## Enabled tools\n- web_search\n- fetch_url\n- remember\n- recall\n`
         : `# ${name} — ${type.toUpperCase()}\n\nEste es el archivo ${type} del agente ${name}.\nConfiguración inicial generada por HydraOps UI.`;
       await writeFile(path.join(agentPath, fileName), template, "utf-8");
     }
