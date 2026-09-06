@@ -7,6 +7,7 @@ import { AgentsService } from '../../services/agents.service';
 import { ApiService, ChatAttachment, ChatMessage } from '../../services/api.service';
 import { DatePipe } from '@angular/common';
 import { MarkdownPipe } from '../../pipes/markdown.pipe';
+import { watchMermaid } from '../../pipes/mermaid-render';
 import { IconComponent } from '../../components/icon/icon.component';
 
 @Component({
@@ -38,7 +39,14 @@ export class ChatComponent implements OnInit, OnDestroy {
   // "a new message arrived in the current one".
   private lastScrolledTab = '';
 
+  // Upgrades ```mermaid blocks in rendered messages to SVG diagrams.
+  private stopMermaid?: () => void;
+
   constructor() {
+    afterNextRender(() => {
+      const area = this.messagesArea()?.nativeElement;
+      if (area) this.stopMermaid = watchMermaid(area);
+    });
     // Opening or switching to a chat jumps to the latest message (not the first).
     // New messages in the current chat only pull the view down while the user is
     // already near the bottom, so scrolling up to read older history isn't undone.
@@ -62,6 +70,7 @@ export class ChatComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.chat.stopPolling();
+    this.stopMermaid?.();
   }
 
   get messages(): ChatMessage[] {

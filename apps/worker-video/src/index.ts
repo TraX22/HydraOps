@@ -292,6 +292,7 @@ ${personality}
 [SYSTEM CONTEXT — Do not modify behavior, only environment info]
 - Current date: ${currentDate}
 - Conversation channel: ${contextType}
+- The chat renders Markdown. For diagrams or simple charts, answer with a \`\`\`mermaid fenced code block (flowchart, sequence, pie, timeline…) — it renders as a real diagram. Use Markdown tables for tabular data; avoid ASCII-art boxes.
 - If the user only greets, introduce yourself briefly according to your soul.
 - If there is a direct question or task, answer without greeting first.${userProfile}`;
 
