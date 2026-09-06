@@ -48,6 +48,12 @@ marked.use({
       const text: string = typeof token === 'string' ? token : token.text ?? '';
       const rawLang: string = typeof token === 'string' ? '' : token.lang ?? '';
       const lang = (rawLang || '').trim().split(/\s+/)[0].toLowerCase();
+      // Mermaid fences become a placeholder that mermaid-render.ts upgrades to
+      // an SVG diagram after the HTML lands in the DOM. The source stays inside
+      // (hidden once rendered; shown as plain code if the diagram is invalid).
+      if (lang === 'mermaid') {
+        return `<div class="mermaid-block"><pre class="mermaid-src">${escapeHtml(text)}</pre></div>`;
+      }
       const grammarId = LANG_ALIAS[lang] || lang;
       const grammar = grammarId ? Prism.languages[grammarId] : undefined;
       const highlighted = grammar ? Prism.highlight(text, grammar, grammarId) : escapeHtml(text);

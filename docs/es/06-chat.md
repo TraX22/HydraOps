@@ -13,6 +13,10 @@ El clip **📎** adjunta archivos al mensaje:
 - **Imágenes** (PNG, JPG, WebP…) — si el modelo del agente tiene visión, las ve de verdad; útil para "¿qué pone en esta captura?" o "descríbeme esta foto".
 - **Documentos** (texto, Markdown, código, JSON…) — su contenido se le pasa al agente junto al mensaje.
 
+## Diagramas en las respuestas
+
+El chat renderiza Markdown, y desde la v0.1.21 también **diagramas Mermaid**: si un agente responde con un bloque de código ` ```mermaid `, aparece como diagrama de verdad (flujos, secuencias, tortas, líneas de tiempo…), adaptado al tema claro u oscuro. Los agentes ya saben que lo tienen disponible; también puedes pedirlo explícitamente ("hazme un diagrama de flujo de..."). Si el diagrama viene mal escrito, se muestra el código tal cual en lugar de romperse.
+
 ## Imágenes y vídeo generados
 
 Los resultados de los agentes de imagen y vídeo aparecen en línea en el chat. Clic en una imagen para verla a tamaño completo, y cada resultado tiene su botón de **descargar**.
