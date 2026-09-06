@@ -10,6 +10,7 @@ import 'prismjs/components/prism-yaml';
 import 'prismjs/components/prism-powershell';
 import { ApiService, DocsPage } from '../../services/api.service';
 import { MarkdownPipe } from '../../pipes/markdown.pipe';
+import { watchMermaid } from '../../pipes/mermaid-render';
 import { environment } from '../../../environments/environment';
 
 // Los .md del manual usan enlaces relativos para que también rendericen en
@@ -43,6 +44,8 @@ export class DocsComponent implements OnInit {
   private docsLangs = new Set<string>();
 
   ngOnInit(): void {
+    // Manual pages may also carry ```mermaid diagrams.
+    this.destroyRef.onDestroy(watchMermaid(this.host.nativeElement));
     this.api.getDocsManifest().subscribe({
       next: (m) => {
         this.pages.set(m.pages);

@@ -188,3 +188,25 @@ body {
 .msg-bubble .token.url { color: #56b6c2; }
 .msg-bubble .token.regex,
 .msg-bubble .token.variable { color: #e5c07b; }
+
+/* ```mermaid blocks (chat + docs): the source shows as plain code until
+   mermaid-render.ts swaps in the SVG; on a parse error it stays visible. */
+.mermaid-block {
+  margin: 8px 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-code);
+  max-width: 100%;
+  overflow-x: auto;
+}
+.mermaid-block .mermaid-src {
+  margin: 0; padding: 12px 14px; overflow-x: auto; white-space: pre;
+  font-family: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px; line-height: 1.5; color: #dcdfe4;
+}
+.mermaid-block[data-state='done'] { background: transparent; }
+.mermaid-block[data-state='done'] .mermaid-src { display: none; }
+.mermaid-block .mermaid-svg {
+  display: flex; justify-content: center; padding: 10px;
+}
+.mermaid-block .mermaid-svg svg { max-width: 100%; height: auto; }
