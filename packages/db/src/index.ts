@@ -1,5 +1,5 @@
 import * as sqliteSchema from "./schema.js";
-import { and, desc, eq, lt, ne } from "drizzle-orm";
+import { and, desc, eq, gte, lt, ne } from "drizzle-orm";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -90,6 +90,42 @@ export async function buildCronDedupContext(
     `If nothing is new, say so briefly instead of repeating.\n\n` +
     blocks.join("\n\n")
   );
+}
+
+/**
+ * Load the channel's recent completed tasks for the workers' conversation
+ * history, oldest last. Two guards keep stale context from derailing a run:
+ *
+ * - A cron-fired task gets NO chat history at all. Its prompt is self-contained
+ *   and its prior-run context comes from buildCronDedupContext; feeding it the
+ *   channel's chat can make a model re-execute an old imperative message
+ *   ("remember that...") instead of the scheduled instruction.
+ * - Interactive tasks only see the last 24 hours (same window the chat UI
+ *   shows), so a days-old request no longer resurfaces as if it were live.
+ */
+export async function loadRecentChannelHistory(
+  db: any,
+  channel: string,
+  taskId: string,
+  opts: { hours?: number; limit?: number } = {},
+): Promise<any[]> {
+  const hours = opts.hours ?? 24;
+  const limit = opts.limit ?? 10;
+  const [current] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, taskId)).limit(1);
+  if (current?.cronId) return [];
+
+  const cutoff = new Date(Date.now() - hours * 3_600_000);
+  return db
+    .select()
+    .from(schema.tasks)
+    .where(and(
+      eq(schema.tasks.channel, channel),
+      eq(schema.tasks.status, "completed"),
+      gte(schema.tasks.createdAt, cutoff),
+      ne(schema.tasks.id, taskId),
+    ))
+    .orderBy(desc(schema.tasks.createdAt))
+    .limit(limit);
 }
 
 /**

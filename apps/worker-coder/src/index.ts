@@ -9,7 +9,7 @@ import { loadEnv, envFile, dataRoot, agentsDir, logsDir, usersDir, resultsDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, buildCronDedupContext, searchAgentTasks } from "@hydraops/db";
+import { createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, buildCronDedupContext, loadRecentChannelHistory, searchAgentTasks } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType } from "@hydraops/nats";
 import { eq, and, desc } from "drizzle-orm";
@@ -385,12 +385,9 @@ ${agentPersonalityContext}
     const rawTools = globalRegistry.getRawTools(allowedTools, globalNativeState, usageSink, toolContext);
 
     // Fetch conversation history (last 10 completed tasks in this channel)
-    const historyRows = await (db as any).select()
-      .from(tasks)
-      .where(and(eq(tasks.channel, channel), eq(tasks.status, 'completed')))
-      .orderBy(desc(tasks.createdAt))
-      .limit(10);
-    
+    // Last 24h of the channel; empty for cron-fired tasks (see loadRecentChannelHistory).
+    const historyRows = await loadRecentChannelHistory(db, channel, taskId);
+
     const history = historyRows.reverse().map((t: any) => {
       const assistantText = t.resultMeta?.text || t.resultMeta?.preview || t.resultMeta?.raw || '';
       return [
