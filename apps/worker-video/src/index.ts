@@ -13,7 +13,7 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, searchAgentTasks } from "@hydraops/db";
+import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, loadRecentChannelHistory, searchAgentTasks } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType } from "@hydraops/nats";
 import { and, desc, eq } from "drizzle-orm";
@@ -332,11 +332,8 @@ ${personality}
       const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext);
       const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext);
 
-      const historyRows = await (db as any).select()
-        .from(tasks)
-        .where(and(eq(tasks.channel, channel), eq(tasks.status, "completed")))
-        .orderBy(desc(tasks.createdAt))
-        .limit(10);
+      // Last 24h of the channel; empty for cron-fired tasks (see loadRecentChannelHistory).
+      const historyRows = await loadRecentChannelHistory(db, channel, taskId);
       const history = historyRows.reverse().flatMap((t: any) => {
         const assistantText = t.resultMeta?.text || t.resultMeta?.preview || "";
         return [
