@@ -29,7 +29,7 @@
               (fSelectionChange)="onSelectionChange($event)">
         <f-canvas fZoom [fZoomMinimum]="0.2" [fZoomMaximum]="3">
           <!-- Enables the drag-to-connect gesture and shows the preview line. -->
-          <f-connection-for-create fType="segment"></f-connection-for-create>
+          <f-connection-for-create fType="bezier"></f-connection-for-create>
 
           @for (conn of connections(); track conn.id) {
             <!-- calculate sides: the line leaves each endpoint toward the other node.
@@ -37,9 +37,13 @@
                  fConnectionId MUST carry our own id — otherwise Foblex auto-generates
                  one and the reassign/selection events can't be mapped back to our
                  model (reassign would duplicate, delete would no-op). -->
+            <!-- Bezier (not segment): right-angle segments from the same side
+                 share a corridor and overlap each other and nearby nodes;
+                 curves diverge as soon as they leave the connector. -->
             <f-connection [fConnectionId]="conn.id"
                           [fSourceId]="conn.source" [fTargetId]="conn.target"
-                          fType="segment" fSourceSide="calculate" fTargetSide="calculate"
+                          fType="bezier" [fOffset]="24"
+                          fSourceSide="calculate" fTargetSide="calculate"
                           [fReassignableStart]="true">
               <f-connection-marker-arrow type="END"></f-connection-marker-arrow>
             </f-connection>
