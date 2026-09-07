@@ -13,9 +13,20 @@
       <button class="os-btn" (click)="addNode()">
         <app-icon name="puzzle" /> {{ 'oneShot.addNode' | translate }}
       </button>
-      <button class="os-btn ghost" (click)="clear()" [disabled]="!nodes().length">
-        <app-icon name="trash" /> {{ 'oneShot.clear' | translate }}
-      </button>
+      <!-- Clearing wipes the whole canvas, so the button first arms an inline
+           confirm (same pattern as deleting a saved diagram in the history). -->
+      @if (pendingClear()) {
+        <button class="os-btn danger" (click)="clear()">
+          <app-icon name="check" /> {{ 'oneShot.confirmClear' | translate }}
+        </button>
+        <button class="os-btn ghost" (click)="cancelClear()" [title]="'common.cancel' | translate">
+          <app-icon name="x" />
+        </button>
+      } @else {
+        <button class="os-btn ghost" (click)="askClear()" [disabled]="!nodes().length">
+          <app-icon name="trash" /> {{ 'oneShot.clear' | translate }}
+        </button>
+      }
     </div>
   </header>
 

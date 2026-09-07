@@ -4,6 +4,7 @@
     "back": "Retour",
     "addNode": "Ajouter un nœud",
     "clear": "Effacer",
+    "confirmClear": "Tout effacer ?",
     "deleteConn": "Supprimer le lien",
     "titlePlaceholder": "Titre",
     "history": "Historique",

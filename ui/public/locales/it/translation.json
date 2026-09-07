@@ -4,6 +4,7 @@
     "back": "Indietro",
     "addNode": "Aggiungi nodo",
     "clear": "Pulisci",
+    "confirmClear": "Cancellare tutto?",
     "deleteConn": "Elimina connessione",
     "titlePlaceholder": "Titolo",
     "history": "Cronologia",

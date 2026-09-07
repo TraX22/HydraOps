@@ -4,6 +4,7 @@
     "back": "Volver",
     "addNode": "Añadir nodo",
     "clear": "Limpiar",
+    "confirmClear": "¿Borrar todo?",
     "deleteConn": "Borrar conexión",
     "titlePlaceholder": "Título",
     "history": "Historial",

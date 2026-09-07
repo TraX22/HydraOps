@@ -110,6 +110,8 @@ export class OneShotComponent implements OnInit {
   });
   // Id of the diagram whose delete is awaiting inline confirmation ('' = none).
   readonly pendingDelete = signal<string>('');
+  // Clear wipes the whole canvas, so it too waits for an inline confirmation.
+  readonly pendingClear = signal(false);
 
   readonly compiling = signal(false);
   readonly compiledPrompt = signal('');
@@ -221,6 +223,7 @@ export class OneShotComponent implements OnInit {
     this.selectedNodes.set([]);
     this.activeNode.set('');
     this.iconPickerFor.set('');
+    this.pendingClear.set(false);
     let max = -1;
     for (const n of this.nodes()) {
       const m = /^n(\d+)$/.exec(n.id);
@@ -477,7 +480,16 @@ export class OneShotComponent implements OnInit {
     this.deleteSelectedConns();
   }
 
+  askClear(): void {
+    this.pendingClear.set(true);
+  }
+
+  cancelClear(): void {
+    this.pendingClear.set(false);
+  }
+
   clear(): void {
+    this.pendingClear.set(false);
     this.nodes.set([]);
     this.connections.set([]);
     this.selectedConns.set([]);

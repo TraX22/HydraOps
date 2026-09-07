@@ -4,6 +4,7 @@
     "back": "Back",
     "addNode": "Add node",
     "clear": "Clear",
+    "confirmClear": "Delete everything?",
     "deleteConn": "Delete link",
     "titlePlaceholder": "Title",
     "history": "History",
