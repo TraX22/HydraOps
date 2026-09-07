@@ -32,7 +32,8 @@
           <f-connection-for-create fType="bezier"></f-connection-for-create>
 
           @for (conn of connections(); track conn.id) {
-            <!-- calculate sides: the line leaves each endpoint toward the other node.
+            <!-- Sides come from the connector's physical side (sideOf), so the
+                 curve always leaves/enters perpendicular to its dot.
                  fReassignableStart lets either endpoint be dragged to re-route.
                  fConnectionId MUST carry our own id — otherwise Foblex auto-generates
                  one and the reassign/selection events can't be mapped back to our
@@ -43,7 +44,7 @@
             <f-connection [fConnectionId]="conn.id"
                           [fSourceId]="conn.source" [fTargetId]="conn.target"
                           fType="bezier" [fOffset]="24"
-                          fSourceSide="calculate" fTargetSide="calculate"
+                          [fSourceSide]="sideOf(conn.source)" [fTargetSide]="sideOf(conn.target)"
                           [fReassignableStart]="true">
               <f-connection-marker-arrow type="END"></f-connection-marker-arrow>
             </f-connection>

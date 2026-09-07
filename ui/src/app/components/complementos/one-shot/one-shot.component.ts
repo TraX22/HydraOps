@@ -394,6 +394,19 @@ export class OneShotComponent implements OnInit {
     return connectorId.split(':')[0];
   }
 
+  // The drawn side of an endpoint comes from the connector's physical side, not
+  // from "calculate": Foblex's calculated side follows the nodes' relative
+  // positions and can contradict where the dot actually sits, which makes the
+  // curve enter "from behind" and sweep across the node itself.
+  sideOf(connectorId: string): 'top' | 'right' | 'bottom' | 'left' {
+    switch (connectorId.split(':')[1]) {
+      case 't': return 'top';
+      case 'b': return 'bottom';
+      case 'l': return 'left';
+      default: return 'right';
+    }
+  }
+
   removeNode(id: string): void {
     if (this.activeNode() === id) this.activeNode.set('');
     if (this.iconPickerFor() === id) this.iconPickerFor.set('');
