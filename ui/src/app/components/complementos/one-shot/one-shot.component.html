@@ -13,9 +13,23 @@
       <button class="os-btn" (click)="addNode()">
         <app-icon name="puzzle" /> {{ 'oneShot.addNode' | translate }}
       </button>
-      <button class="os-btn ghost" (click)="clear()" [disabled]="!nodes().length">
-        <app-icon name="trash" /> {{ 'oneShot.clear' | translate }}
+      <button class="os-btn" (click)="addGroup()">
+        <app-icon name="frame" /> {{ 'oneShot.addGroup' | translate }}
       </button>
+      <!-- Clearing wipes the whole canvas, so the button first arms an inline
+           confirm (same pattern as deleting a saved diagram in the history). -->
+      @if (pendingClear()) {
+        <button class="os-btn danger" (click)="clear()">
+          <app-icon name="check" /> {{ 'oneShot.confirmClear' | translate }}
+        </button>
+        <button class="os-btn ghost" (click)="cancelClear()" [title]="'common.cancel' | translate">
+          <app-icon name="x" />
+        </button>
+      } @else {
+        <button class="os-btn ghost" (click)="askClear()" [disabled]="!nodes().length">
+          <app-icon name="trash" /> {{ 'oneShot.clear' | translate }}
+        </button>
+      }
     </div>
   </header>
 
@@ -27,27 +41,66 @@
       <f-flow fDraggable (fCreateConnection)="onConnect($event)"
               (fReassignConnection)="onReassign($event)"
               (fSelectionChange)="onSelectionChange($event)">
-        <f-canvas fZoom [fZoomMinimum]="0.2" [fZoomMaximum]="3">
+        <f-canvas fZoom [fZoomMinimum]="0.2" [fZoomMaximum]="3"
+                  (fCanvasChange)="canvasScale = $event.scale">
           <!-- Enables the drag-to-connect gesture and shows the preview line. -->
-          <f-connection-for-create fType="segment"></f-connection-for-create>
+          <f-connection-for-create fType="bezier"></f-connection-for-create>
 
           @for (conn of connections(); track conn.id) {
-            <!-- calculate sides: the line leaves each endpoint toward the other node.
+            <!-- Sides come from the connector's physical side (sideOf), so the
+                 curve always leaves/enters perpendicular to its dot.
                  fReassignableStart lets either endpoint be dragged to re-route.
                  fConnectionId MUST carry our own id — otherwise Foblex auto-generates
                  one and the reassign/selection events can't be mapped back to our
                  model (reassign would duplicate, delete would no-op). -->
+            <!-- Bezier (not segment): right-angle segments from the same side
+                 share a corridor and overlap each other and nearby nodes;
+                 curves diverge as soon as they leave the connector. -->
             <f-connection [fConnectionId]="conn.id"
                           [fSourceId]="conn.source" [fTargetId]="conn.target"
-                          fType="segment" fSourceSide="calculate" fTargetSide="calculate"
+                          fType="bezier" [fOffset]="24"
+                          [fSourceSide]="sideOf(conn.source)" [fTargetSide]="sideOf(conn.target)"
                           [fReassignableStart]="true">
               <f-connection-marker-arrow type="END"></f-connection-marker-arrow>
             </f-connection>
           }
+          @for (g of groups(); track g.id) {
+            <!-- Group frame. Membership is geometric (drop a node inside to join,
+                 drag it out to leave), so nodes are NOT Foblex children — that
+                 relationship clamps them inside the frame forever. The header
+                 drag is ours too (onGroupHeadDown + pointer capture): it moves
+                 the frame plus every member node live. Foblex renders groups in
+                 their own layer under the nodes. -->
+            <div fGroup [fGroupId]="g.id" [fGroupPosition]="g.position"
+                 [fGroupDraggingDisabled]="true"
+                 [fGroupSize]="g.size"
+                 (pointerdown)="markActiveGroup(g.id)"
+                 class="os-group" [class.os-active]="activeGroup() === g.id"
+                 [style.borderColor]="g.color || null" [style.background]="frameBg(g.color)">
+              <div class="os-group-head" [style.background]="g.color || null"
+                   (pointerdown)="onGroupHeadDown(g, $event)"
+                   (pointermove)="onGroupHeadMove($event)"
+                   (pointerup)="onGroupHeadUp()" (pointercancel)="onGroupHeadUp()">
+                <app-icon name="frame" class="os-group-ico" [style.color]="headText(g.color)" />
+                <input class="os-group-title" [(ngModel)]="g.title" (ngModelChange)="save()"
+                       [style.color]="headText(g.color)"
+                       [placeholder]="'oneShot.groupPlaceholder' | translate" />
+                <button class="os-group-del" (click)="removeGroup(g.id)"
+                        [style.color]="headText(g.color)"
+                        [title]="'oneShot.ungroup' | translate">
+                  <app-icon name="x" />
+                </button>
+              </div>
+              <div class="os-group-resize"
+                   (pointerdown)="onGroupResizeDown(g, $event)"
+                   (pointermove)="onGroupResizeMove($event)"
+                   (pointerup)="onGroupResizeUp()" (pointercancel)="onGroupResizeUp()"></div>
+            </div>
+          }
           @for (node of nodes(); track node.id) {
             <!-- fConnectOnNode: a link can be dropped anywhere on the node too. -->
             <div fNode fDragHandle [fNodeId]="node.id" [fNodePosition]="node.position"
-                 (fNodePositionChange)="node.position = $event; save()"
+                 (fNodePositionChange)="onNodeMoved(node, $event)"
                  (pointerdown)="markActive(node.id)"
                  [fConnectOnNode]="true" class="os-node" [class.os-active]="activeNode() === node.id">
               <!-- Inner wrapper clips header/body to the rounded corners so the
