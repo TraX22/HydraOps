@@ -26,12 +26,25 @@ interface FlowNode {
   position: { x: number; y: number };
   icon?: string;
   color?: string;
+  // Group frame this node belongs to (moves with it). Assigned by geometry:
+  // dropping the node inside a frame joins it, dragging it out leaves.
+  groupId?: string;
 }
 
 interface FlowConn {
   id: string;
   source: string;
   target: string;
+}
+
+// A group frame (Substance-style): a titled rectangle nodes can be dropped
+// into; dragging its header moves the frame and every member node with it.
+interface FlowGroup {
+  id: string;
+  title: string;
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  color?: string;
 }
 
 // A named, saved diagram in the right-panel history. The active one mirrors the
@@ -41,6 +54,7 @@ interface SavedDiagram {
   name: string;
   nodes: FlowNode[];
   connections: FlowConn[];
+  groups?: FlowGroup[];
   updatedAt: number;
 }
 
@@ -64,6 +78,10 @@ export class OneShotComponent implements OnInit {
 
   readonly nodes = signal<FlowNode[]>([]);
   readonly connections = signal<FlowConn[]>([]);
+  readonly groups = signal<FlowGroup[]>([]);
+  // Last group frame the user touched — the palette paints it when no node is
+  // active (mirrors activeNode; the two are mutually exclusive).
+  readonly activeGroup = signal<string>('');
   // Ids of connections the user has currently selected on the canvas (for delete).
   readonly selectedConns = signal<string[]>([]);
   // Ids of the selected nodes — the palette paints these.
@@ -156,7 +174,9 @@ export class OneShotComponent implements OnInit {
     if (id) {
       this.diagrams.update((list) =>
         list.map((d) =>
-          d.id === id ? { ...d, nodes: this.nodes(), connections: this.connections(), updatedAt: Date.now() } : d,
+          d.id === id
+            ? { ...d, nodes: this.nodes(), connections: this.connections(), groups: this.groups(), updatedAt: Date.now() }
+            : d,
         ),
       );
     }
@@ -218,10 +238,12 @@ export class OneShotComponent implements OnInit {
     this.activeId.set(d.id);
     this.nodes.set([...(d.nodes ?? [])]);
     this.connections.set([...(d.connections ?? [])]);
+    this.groups.set([...(d.groups ?? [])]);
     this.compiledPrompt.set('');
     this.error.set('');
     this.selectedNodes.set([]);
     this.activeNode.set('');
+    this.activeGroup.set('');
     this.iconPickerFor.set('');
     this.pendingClear.set(false);
     let max = -1;
@@ -314,6 +336,144 @@ export class OneShotComponent implements OnInit {
     this.save();
   }
 
+  // ---- Group frames ----
+  // Current canvas zoom, kept in sync via (fCanvasChange): pointer deltas must
+  // be divided by it to land in canvas coordinates.
+  canvasScale = 1;
+
+  // In-flight header drag: the frame plus the start positions of its member
+  // nodes, so every pointermove re-derives from the origin (no drift).
+  private groupDrag: {
+    g: FlowGroup;
+    startX: number;
+    startY: number;
+    origin: { x: number; y: number };
+    members: { n: FlowNode; x0: number; y0: number }[];
+  } | null = null;
+
+  addGroup(): void {
+    const g: FlowGroup = {
+      id: 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      title: '',
+      // Staggered like nodes so consecutive frames don't stack.
+      position: { x: 60 + (this.groups().length % 3) * 60, y: 50 + (this.groups().length % 3) * 50 },
+      size: { width: 340, height: 260 },
+      color: this.defaultColor() || undefined,
+    };
+    this.groups.update((a) => [...a, g]);
+    this.activeGroup.set(g.id);
+    this.activeNode.set('');
+    this.save();
+  }
+
+  // Deleting a frame only ungroups: its nodes stay on the canvas.
+  removeGroup(id: string): void {
+    if (this.activeGroup() === id) this.activeGroup.set('');
+    this.nodes.update((a) => a.map((n) => (n.groupId === id ? { ...n, groupId: undefined } : n)));
+    this.groups.update((a) => a.filter((g) => g.id !== id));
+    this.save();
+  }
+
+  markActiveGroup(id: string): void {
+    this.activeGroup.set(id);
+    this.activeNode.set('');
+  }
+
+  // Header drag (our own, not Foblex's): moves the frame and every member node
+  // together, live. Pointer capture keeps the gesture even when the cursor
+  // outruns the header for a frame or two.
+  onGroupHeadDown(g: FlowGroup, ev: PointerEvent): void {
+    if (ev.button !== 0) return;
+    // Typing in the title or clicking ✕ must not start a drag.
+    if ((ev.target as HTMLElement).closest('input, button')) return;
+    this.markActiveGroup(g.id);
+    this.groupDrag = {
+      g,
+      startX: ev.clientX,
+      startY: ev.clientY,
+      origin: { ...g.position },
+      members: this.nodes()
+        .filter((n) => n.groupId === g.id)
+        .map((n) => ({ n, x0: n.position.x, y0: n.position.y })),
+    };
+    (ev.currentTarget as HTMLElement).setPointerCapture(ev.pointerId);
+    // Keep Foblex from turning this into a canvas pan / selection gesture.
+    ev.preventDefault();
+    ev.stopPropagation();
+  }
+
+  onGroupHeadMove(ev: PointerEvent): void {
+    const d = this.groupDrag;
+    if (!d) return;
+    const dx = (ev.clientX - d.startX) / this.canvasScale;
+    const dy = (ev.clientY - d.startY) / this.canvasScale;
+    d.g.position = { x: d.origin.x + dx, y: d.origin.y + dy };
+    for (const m of d.members) m.n.position = { x: m.x0 + dx, y: m.y0 + dy };
+  }
+
+  onGroupHeadUp(): void {
+    if (!this.groupDrag) return;
+    this.groupDrag = null;
+    // The frame may have slid over (or away from) loose nodes: re-derive who
+    // belongs where from the final geometry.
+    this.recomputeMembership();
+    this.save();
+  }
+
+  // Frame resize, also ours (Foblex's fResizeHandle is dead once the group's
+  // own dragging is disabled). Bottom-right corner only.
+  private groupResize: { g: FlowGroup; startX: number; startY: number; w0: number; h0: number } | null = null;
+
+  onGroupResizeDown(g: FlowGroup, ev: PointerEvent): void {
+    if (ev.button !== 0) return;
+    this.markActiveGroup(g.id);
+    this.groupResize = { g, startX: ev.clientX, startY: ev.clientY, w0: g.size.width, h0: g.size.height };
+    (ev.currentTarget as HTMLElement).setPointerCapture(ev.pointerId);
+    ev.preventDefault();
+    ev.stopPropagation();
+  }
+
+  onGroupResizeMove(ev: PointerEvent): void {
+    const r = this.groupResize;
+    if (!r) return;
+    const dx = (ev.clientX - r.startX) / this.canvasScale;
+    const dy = (ev.clientY - r.startY) / this.canvasScale;
+    r.g.size = { width: Math.max(180, r.w0 + dx), height: Math.max(120, r.h0 + dy) };
+  }
+
+  onGroupResizeUp(): void {
+    if (!this.groupResize) return;
+    this.groupResize = null;
+    this.recomputeMembership();
+    this.save();
+  }
+
+  // Frame a canvas point belongs to. The membership probe sits just inside the
+  // node's top-left corner, so "in" matches what the eye sees on a drop.
+  private groupAt(px: number, py: number): FlowGroup | undefined {
+    return this.groups().find(
+      (g) =>
+        px >= g.position.x && px <= g.position.x + g.size.width &&
+        py >= g.position.y && py <= g.position.y + g.size.height,
+    );
+  }
+
+  private recomputeMembership(): void {
+    for (const n of this.nodes()) {
+      const g = this.groupAt(n.position.x + 20, n.position.y + 20);
+      if (n.groupId !== g?.id) n.groupId = g?.id;
+    }
+  }
+
+  // A node was dragged: keep its position and recompute which frame it sits
+  // in — inside joins, outside leaves.
+  onNodeMoved(node: FlowNode, pos: { x: number; y: number }): void {
+    node.position = pos;
+    const g = this.groupAt(pos.x + 20, pos.y + 20);
+    if (node.groupId !== g?.id) node.groupId = g?.id;
+    this.save();
+  }
+
   // ---- Node appearance (icon + header colour) ----
   toggleIconPicker(id: string, ev: Event): void {
     ev.stopPropagation();
@@ -344,30 +504,45 @@ export class OneShotComponent implements OnInit {
 
   markActive(id: string): void {
     this.activeNode.set(id);
+    this.activeGroup.set('');
   }
 
-  // Pointerdown on empty canvas (not on a node) drops the active mark, so the
-  // next colour pick goes back to setting the default for new nodes.
+  // Pointerdown on empty canvas (not on a node or group frame) drops the active
+  // marks, so the next colour pick goes back to setting the default for new nodes.
   onCanvasPointerDown(ev: Event): void {
     const el = ev.target as HTMLElement | null;
-    if (el && !el.closest('.os-node')) this.activeNode.set('');
+    if (el && !el.closest('.os-node') && !el.closest('.os-group')) {
+      this.activeNode.set('');
+      this.activeGroup.set('');
+    }
   }
 
-  // Swatch highlight: the colour all target nodes share or, with no target,
-  // the default for new nodes.
+  // Swatch highlight: the colour all target nodes share, the active group's
+  // colour, or — with no target — the default for new nodes.
   isActiveColor(color: string): boolean {
     const targets = this.paintTargets();
-    if (!targets.length) return this.defaultColor() === color;
+    if (!targets.length) {
+      const g = this.groups().find((g) => g.id === this.activeGroup());
+      if (g) return g.color === color;
+      return this.defaultColor() === color;
+    }
     const nodes = this.nodes().filter((n) => targets.includes(n.id));
     return nodes.length > 0 && nodes.every((n) => n.color === color);
   }
 
-  // Paint the target node(s) with a palette colour; clicking the colour they
-  // all already have clears it back to the default header. With no target,
-  // the pick becomes the colour for nodes created from now on.
+  // Paint the target node(s) — or the active group frame — with a palette
+  // colour; clicking the colour they already have clears it back to the
+  // default. With no target at all, the pick becomes the colour for nodes
+  // created from now on.
   applyColor(color: string): void {
     const targets = this.paintTargets();
     if (!targets.length) {
+      const g = this.groups().find((g) => g.id === this.activeGroup());
+      if (g) {
+        g.color = g.color === color ? undefined : color;
+        this.save();
+        return;
+      }
       this.defaultColor.set(this.defaultColor() === color ? '' : color);
       this.persist();
       return;
@@ -492,9 +667,11 @@ export class OneShotComponent implements OnInit {
     this.pendingClear.set(false);
     this.nodes.set([]);
     this.connections.set([]);
+    this.groups.set([]);
     this.selectedConns.set([]);
     this.selectedNodes.set([]);
     this.activeNode.set('');
+    this.activeGroup.set('');
     this.iconPickerFor.set('');
     this.compiledPrompt.set('');
     this.error.set('');
