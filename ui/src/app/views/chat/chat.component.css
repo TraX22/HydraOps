@@ -215,6 +215,15 @@
   transition: background 0.15s ease;
 }
 .msg-action-btn:hover { background: var(--bg-hover); }
+/* LLM + token cost next to the copy icon; visible on the same hover. */
+.msg-llm {
+  align-self: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: nowrap;
+  cursor: default;
+}
 
 /* Edit */
 .msg-edit { display: flex; flex-direction: column; gap: 8px; }

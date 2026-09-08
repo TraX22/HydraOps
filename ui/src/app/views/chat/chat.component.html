@@ -103,6 +103,12 @@
                 <button class="msg-action-btn" (click)="copyMsg(msg)">
                   <app-icon [name]="copiedMsgId() === msg.id ? 'check' : 'clipboard'" />
                 </button>
+                <!-- Which LLM answered and what it cost (hover for the in/out split). -->
+                @if (msg.role === 'assistant' && modelUsed(msg)) {
+                  <span class="msg-llm" [title]="tokensTooltip(msg)">
+                    {{ modelUsed(msg) }}@if (tokensUsed(msg)) {&nbsp;·&nbsp;{{ tokensLabel(msg) }} tokens}
+                  </span>
+                }
               </div>
             }
           </div>
