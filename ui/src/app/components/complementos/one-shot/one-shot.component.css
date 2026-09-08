@@ -496,6 +496,11 @@
 /* Group frames: a translucent titled rectangle behind the nodes. Its border
    (and header) take the palette colour inline; the body stays a soft tint. */
 .os-group {
+  /* Strip the Foblex theme's default .f-group box (padding/bg/shadow) so the
+     header strip reaches edge to edge, like the .os-node reset does. */
+  padding: 0;
+  overflow: hidden;
+  box-shadow: none;
   border: 1.5px dashed var(--border-color);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--accent) 5%, transparent);
