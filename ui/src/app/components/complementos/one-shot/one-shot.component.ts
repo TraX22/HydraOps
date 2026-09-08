@@ -448,6 +448,13 @@ export class OneShotComponent implements OnInit {
     this.save();
   }
 
+  // Body tint of a coloured frame: the header's colour washed way down, so the
+  // whole group reads as one tinted region (reference: Substance frames) while
+  // nodes and lines stay legible on top. Uncoloured frames keep the CSS default.
+  frameBg(color?: string): string | null {
+    return color ? `color-mix(in srgb, ${color} 12%, transparent)` : null;
+  }
+
   // Frame a canvas point belongs to. The membership probe sits just inside the
   // node's top-left corner, so "in" matches what the eye sees on a drop.
   private groupAt(px: number, py: number): FlowGroup | undefined {

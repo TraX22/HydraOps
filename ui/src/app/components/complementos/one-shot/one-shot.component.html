@@ -76,7 +76,7 @@
                  [fGroupSize]="g.size"
                  (pointerdown)="markActiveGroup(g.id)"
                  class="os-group" [class.os-active]="activeGroup() === g.id"
-                 [style.borderColor]="g.color || null">
+                 [style.borderColor]="g.color || null" [style.background]="frameBg(g.color)">
               <div class="os-group-head" [style.background]="g.color || null"
                    (pointerdown)="onGroupHeadDown(g, $event)"
                    (pointermove)="onGroupHeadMove($event)"
