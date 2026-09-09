@@ -38,6 +38,7 @@ async function recall(query: string, ctx?: ToolContext): Promise<string> {
 
 export const recallTool: HydraTool = {
   name: "recall",
+  title: "Recall",
   description:
     "Search your own past conversations with the user by keywords. Use it when they refer to something from a while ago that is not in your recent history (\"what did I ask you about X last month?\", \"like we discussed before\", \"the plan we made\"). Returns the best-matching past exchanges with their dates. It only searches YOUR OWN completed tasks.",
   schema: z.object({

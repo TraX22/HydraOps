@@ -107,6 +107,7 @@ async function searchBrave(query: string, countryOverride?: string): Promise<str
 
 export const braveSearchTool: HydraTool = {
   name: "brave_search",
+  title: "Brave Search",
   description:
     "Search the web using the Brave Search API. Reliable web results when you need recent or verifiable information. Results are biased to the server's region automatically; pass `country` to target another region.",
   schema: z.object({

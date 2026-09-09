@@ -37,6 +37,7 @@ async function searchWeb(query: string) {
 
 export const webSearchTool: HydraTool = {
   name: "web_search",
+  title: "Web Search",
   description:
     "Search for updated information on the internet when you do not have the answer or need recent data.",
   schema: z.object({
