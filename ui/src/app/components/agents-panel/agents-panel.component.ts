@@ -43,10 +43,13 @@ export class AgentsPanelComponent {
     this.agentDoubleClicked.emit(agent);
   }
 
+  // offline (worker down) is RED — 'idle' (alive, nothing pending) keeps the
+  // neutral grey. Painting both grey made a healthy idle agent look dead.
   statusColor(status: string): string {
     switch (status) {
       case 'online': return 'var(--status-online)';
       case 'working': return 'var(--status-working)';
+      case 'offline': return 'var(--status-error)';
       default: return 'var(--status-offline)';
     }
   }
