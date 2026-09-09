@@ -140,7 +140,25 @@ async function scrapeWeb(url: string) {
       response = await fetchText(url + "/", 20000);
     }
 
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    if (!response.ok) {
+      // Anti-bot walls / rate limits (Cloudflare & friends). The page is
+      // blocked, but the site's RSS feed almost never is — feeds are meant to
+      // be consumed by readers. The blocked body rarely declares
+      // <link rel="alternate">, so this mostly rides on the common-path
+      // candidates (/feed, /rss.xml, …).
+      if ([401, 403, 429, 503].includes(response.status)) {
+        console.log(`[Tool: FetchURL] Got ${response.status} (bot protection?). Trying feeds...`);
+        const $blocked = cheerio.load(response.body || "");
+        const feedMd = await tryFeeds(feedCandidates($blocked, url));
+        if (feedMd) {
+          return (
+            `⚠️ La página respondió ${response.status} (protección anti-bot o límite de peticiones). ` +
+            `En su lugar se leyó el feed RSS del sitio:\n\n${feedMd}`
+          ).slice(0, MAX_OUTPUT);
+        }
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
 
     // La URL ya es un feed RSS/Atom → devolverlo formateado, no como HTML.
     if (looksLikeFeed(response.body, response.contentType)) {
