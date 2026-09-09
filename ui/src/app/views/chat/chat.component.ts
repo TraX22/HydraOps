@@ -225,6 +225,43 @@ export class ChatComponent implements OnInit, OnDestroy {
     setTimeout(() => this.copiedMsgId.set(null), 2000);
   }
 
+  // ── LLM footer: which model answered and what it cost ──
+  // Workers store resultMeta.modelUsed and resultMeta.usage (AI SDK shape) with
+  // every completed task; image/video tasks carry the model but no usage.
+  modelUsed(msg: ChatMessage): string {
+    return ((msg.resultMeta as Record<string, unknown> | undefined)?.['modelUsed'] as string) || '';
+  }
+
+  private usageOf(msg: ChatMessage): Record<string, number> | undefined {
+    return (msg.resultMeta as Record<string, unknown> | undefined)?.['usage'] as
+      | Record<string, number>
+      | undefined;
+  }
+
+  tokensUsed(msg: ChatMessage): number {
+    return this.usageOf(msg)?.['totalTokens'] ?? 0;
+  }
+
+  // Compact display: 850 → "850", 12345 → "12.3k".
+  tokensLabel(msg: ChatMessage): string {
+    const n = this.tokensUsed(msg);
+    return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+  }
+
+  // Exact input/output split on hover (AI SDK v5+ names with the legacy
+  // prompt/completion fallback). Language-neutral arrows.
+  tokensTooltip(msg: ChatMessage): string {
+    const u = this.usageOf(msg);
+    if (!u) return '';
+    const input = u['inputTokens'] ?? u['promptTokens'];
+    const output = u['outputTokens'] ?? u['completionTokens'];
+    const parts: string[] = [];
+    if (input != null) parts.push(`↑ ${input}`);
+    if (output != null) parts.push(`↓ ${output}`);
+    parts.push(`Σ ${this.tokensUsed(msg)}`);
+    return parts.join(' · ');
+  }
+
   scrollToBottom(behavior: ScrollBehavior = 'smooth'): void {
     setTimeout(() => {
       this.messagesEnd()?.nativeElement.scrollIntoView({ behavior, block: 'end' });
