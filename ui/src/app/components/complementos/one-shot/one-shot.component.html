@@ -42,7 +42,7 @@
               (fReassignConnection)="onReassign($event)"
               (fSelectionChange)="onSelectionChange($event)">
         <f-canvas fZoom [fZoomMinimum]="0.2" [fZoomMaximum]="3"
-                  (fCanvasChange)="canvasScale = $event.scale">
+                  (fCanvasChange)="canvasScale = $event.scale; canvasPos = $event.position">
           <!-- Enables the drag-to-connect gesture and shows the preview line. -->
           <f-connection-for-create fType="bezier"></f-connection-for-create>
 

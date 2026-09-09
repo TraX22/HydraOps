@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit, viewChild, HostListener } from '@angular/core';
+import { Component, ElementRef, inject, signal, computed, OnInit, viewChild, HostListener } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -75,6 +75,7 @@ export class OneShotComponent implements OnInit {
   private complementos = inject(ComplementosService);
   private router = inject(Router);
   private i18n = inject(TranslateService);
+  private host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   readonly nodes = signal<FlowNode[]>([]);
   readonly connections = signal<FlowConn[]>([]);
@@ -322,14 +323,29 @@ export class OneShotComponent implements OnInit {
     this.persist();
   }
 
+  // Centre of the visible viewport in CANVAS coordinates. New nodes/groups must
+  // spawn here, not at fixed canvas coords: after panning or zooming, a fixed
+  // point is usually off-screen and "Add node" looks like it did nothing.
+  private viewportCenter(): { x: number; y: number } {
+    const flow = this.host.nativeElement.querySelector('f-flow');
+    const w = flow?.clientWidth ?? 800;
+    const h = flow?.clientHeight ?? 600;
+    return {
+      x: (w / 2 - this.canvasPos.x) / this.canvasScale,
+      y: (h / 2 - this.canvasPos.y) / this.canvasScale,
+    };
+  }
+
   addNode(): void {
     const i = this.counter++;
-    // Stagger new nodes so they don't stack on the exact same spot.
+    const c = this.viewportCenter();
+    // Centre the node in view, with a small stagger so consecutive ones don't
+    // stack on the exact same spot.
     this.nodes.update((a) => [
       ...a,
       {
         id: `n${i}`, title: '', text: '',
-        position: { x: 80 + (i % 4) * 230, y: 70 + Math.floor(i / 4) * 170 },
+        position: { x: c.x - 105 + (i % 3) * 26, y: c.y - 55 + (i % 3) * 26 },
         color: this.defaultColor() || undefined,
       },
     ]);
@@ -337,9 +353,10 @@ export class OneShotComponent implements OnInit {
   }
 
   // ---- Group frames ----
-  // Current canvas zoom, kept in sync via (fCanvasChange): pointer deltas must
-  // be divided by it to land in canvas coordinates.
+  // Current canvas zoom and pan, kept in sync via (fCanvasChange): pointer
+  // deltas divide by the scale, and spawning in view needs both.
   canvasScale = 1;
+  canvasPos = { x: 0, y: 0 };
 
   // In-flight header drag: the frame plus the start positions of its member
   // nodes, so every pointermove re-derives from the origin (no drift).
@@ -352,11 +369,13 @@ export class OneShotComponent implements OnInit {
   } | null = null;
 
   addGroup(): void {
+    const c = this.viewportCenter();
+    const stagger = (this.groups().length % 3) * 40;
     const g: FlowGroup = {
       id: 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       title: '',
-      // Staggered like nodes so consecutive frames don't stack.
-      position: { x: 60 + (this.groups().length % 3) * 60, y: 50 + (this.groups().length % 3) * 50 },
+      // Centred in view, staggered so consecutive frames don't stack.
+      position: { x: c.x - 170 + stagger, y: c.y - 130 + stagger },
       size: { width: 340, height: 260 },
       color: this.defaultColor() || undefined,
     };
