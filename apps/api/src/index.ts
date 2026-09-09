@@ -1140,6 +1140,7 @@ const envMapping: Record<string, string> = {
   glmKey: "GLM_API_KEY",
   minimaxKey: "MINIMAX_API_KEY",
   braveKey: "BRAVE_API_KEY",
+  perplexityKey: "PERPLEXITY_API_KEY",
   telegramBotToken: "TELEGRAM_BOT_TOKEN",
   githubToken: "GITHUB_TOKEN",
   localLlmUrl: "LOCAL_LLM_URL",
@@ -1166,7 +1167,7 @@ const PROVIDER_KEY_NAMES = [
   "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GROQ_API_KEY",
   "XAI_API_KEY", "LEONARDO_API_KEY", "OPENROUTER_API_KEY", "MISTRAL_API_KEY",
   "DEEPSEEK_API_KEY", "QWEN_API_KEY", "KIMI_API_KEY", "GLM_API_KEY", "MINIMAX_API_KEY",
-  "BRAVE_API_KEY",
+  "BRAVE_API_KEY", "PERPLEXITY_API_KEY",
   // Not an LLM provider key, but a secret credential all the same: stored in the
   // key store (never DB/.env), masked in GET /config, read by the telegram-bot.
   "TELEGRAM_BOT_TOKEN",

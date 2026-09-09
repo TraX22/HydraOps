@@ -3,6 +3,7 @@ import { ToolRegistry } from './registry.js';
 import { loadDirectoryAddons } from './loader.js';
 import { webSearchTool } from './native/web_search/index.js';
 import { braveSearchTool } from './native/brave_search/index.js';
+import { perplexitySearchTool } from './native/perplexity/index.js';
 import { fetchUrlTool } from './native/fetch_url/index.js';
 import { youtubeTranscriptTool } from './native/youtube_transcript/index.js';
 import { githubTools } from './native/github/index.js';
@@ -20,6 +21,7 @@ export async function createRegistry(): Promise<ToolRegistry> {
   const registry = new ToolRegistry();
   registry.registerNative({ ...webSearchTool, source: 'native' });
   registry.registerNative({ ...braveSearchTool, source: 'native' });
+  registry.registerNative({ ...perplexitySearchTool, source: 'native' });
   registry.registerNative({ ...fetchUrlTool, source: 'native' });
   registry.registerNative({ ...youtubeTranscriptTool, source: 'native' });
   registry.registerNative({ ...sendToTelegramTool, source: 'native' });

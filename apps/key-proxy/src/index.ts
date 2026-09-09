@@ -36,6 +36,8 @@ const PROVIDERS: Record<string, { host: string; keyName: string; auth: AuthStyle
   minimax:    { host: "https://api.minimax.io",                    keyName: "MINIMAX_API_KEY",    auth: "bearer" },
   // Brave Search API — brave_search tool. Auth via X-Subscription-Token header.
   brave:      { host: "https://api.search.brave.com",              keyName: "BRAVE_API_KEY",      auth: "x-subscription-token" },
+  // Perplexity Sonar API — perplexity_search tool.
+  perplexity: { host: "https://api.perplexity.ai",                 keyName: "PERPLEXITY_API_KEY", auth: "bearer" },
   // GitHub REST API — github tool. Bearer works for classic and fine-grained PATs.
   github:     { host: "https://api.github.com",                    keyName: "GITHUB_TOKEN",       auth: "bearer" },
 };
