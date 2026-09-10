@@ -407,7 +407,7 @@ ${agentPersonalityContext}
     const cronDedup = await buildCronDedupContext(db, taskId);
 
     console.log(`[worker-coder] [LLM] Calling generateText with ${llmConfig.provider}:${llmConfig.model}...`);
-    const { text, usage, success, error } = await withWorkerTimeout(
+    const { text, usage, success, error, errorCode } = await withWorkerTimeout(
       llmGenerateText(
         llmConfig,
         finalMessages,
@@ -470,7 +470,7 @@ ${agentPersonalityContext}
     await (db as any).update(tasks)
       .set({ 
         status: "completed",
-        resultMeta: { text, usage, success, error, modelUsed: llmConfig.model },
+        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model },
         updatedAt: new Date()
       })
       .where(eq(tasks.id, taskId));

@@ -1,4 +1,9 @@
 {
+  "llm": {
+    "errors": {
+      "malformed_model_response": "⚠️ The model returned a malformed response (internal tool syntax). Try again or rephrase your request."
+    }
+  },
   "oneShot": {
     "tagline": "Turn a flow diagram into a one-shot prompt",
     "back": "Back",

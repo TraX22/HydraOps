@@ -291,7 +291,7 @@ ${personality}
     const cronDedup = await buildCronDedupContext(db, taskId);
 
     console.log(`[${consumerName}] Processing task ${taskId} for agent ${agentId} (${llmConfig.provider}:${llmConfig.model})...`);
-    const { text, usage, success, error } = await withTimeout(
+    const { text, usage, success, error, errorCode } = await withTimeout(
       llmGenerateText(llmConfig, [...history, await buildUserMessage(userPrompt, rootDir)], systemPrompt + cronDedup, aiTools, rawTools),
       llmConfig.provider === "local" ? 300_000 : 120_000,
       `LLM call`
@@ -333,7 +333,7 @@ ${personality}
     await (db as any).update(tasks)
       .set({
         status: "completed",
-        resultMeta: { text, usage, success, error, modelUsed: llmConfig.model },
+        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model },
         updatedAt: new Date(),
       })
       .where(eq(tasks.id, taskId));

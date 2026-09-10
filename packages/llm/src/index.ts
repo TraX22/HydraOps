@@ -768,9 +768,13 @@ export async function generateText(config: LLMConfig, messages: CoreMessage[], s
 
     // Leaked tool-call markup as the final answer → one retry WITHOUT tools
     // (so the model must answer in prose from what it already gathered); if it
-    // leaks again, a clear failure message beats raw markup in the chat.
+    // leaks again, a clear failure beats raw markup in the chat. The English
+    // text is the fallback (e.g. Telegram); the UI translates via errorCode
+    // (llm.errors.* in the locale files).
+    let errorCode: string | undefined;
     if (finalText && isToolMarkupLeak(finalText)) {
       console.warn(`[LLM] Final answer from ${config.model} is leaked tool-call markup. Retrying for a real answer...`);
+      let recovered: string | undefined;
       try {
         const retry = await vercelGenerateText({
           model,
@@ -789,12 +793,13 @@ export async function generateText(config: LLMConfig, messages: CoreMessage[], s
           maxRetries: 1,
         });
         const retryText = stripReasoning(retry.text);
-        finalText =
-          retryText && !isToolMarkupLeak(retryText)
-            ? retryText
-            : '⚠️ El modelo devolvió una respuesta malformada (sintaxis interna de herramientas) y el reintento no la corrigió. Volvé a intentarlo o reformulá el pedido.';
-      } catch {
-        finalText = '⚠️ El modelo devolvió una respuesta malformada (sintaxis interna de herramientas). Volvé a intentarlo o reformulá el pedido.';
+        if (retryText && !isToolMarkupLeak(retryText)) recovered = retryText;
+      } catch { /* fall through to the error code */ }
+      if (recovered) {
+        finalText = recovered;
+      } else {
+        finalText = '⚠️ The model returned a malformed response (internal tool-call syntax). Please try again or rephrase your request.';
+        errorCode = 'malformed_model_response';
       }
     }
 
@@ -802,7 +807,10 @@ export async function generateText(config: LLMConfig, messages: CoreMessage[], s
       text: finalText,
       usage: response.usage,
       success: true,
-      modelUsed: config.model
+      modelUsed: config.model,
+      // undefined is dropped by JSON.stringify, so a clean run adds nothing
+      // to the stored resultMeta.
+      errorCode,
     };
   } catch (error: any) {
     const lastError = error.message;

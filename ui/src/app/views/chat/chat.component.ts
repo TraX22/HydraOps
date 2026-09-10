@@ -1,7 +1,7 @@
 import { Component, inject, OnInit, OnDestroy, signal, viewChild, ElementRef, afterNextRender, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ChatService, ChatTab } from '../../services/chat.service';
 import { AgentsService } from '../../services/agents.service';
 import { ApiService, ChatAttachment, ChatMessage } from '../../services/api.service';
@@ -22,6 +22,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   agents = inject(AgentsService);
   private api = inject(ApiService);
   private router = inject(Router);
+  private translate = inject(TranslateService);
 
   inputValue = signal('');
   editingMsgId = signal<string | null>(null);
@@ -165,6 +166,15 @@ export class ChatComponent implements OnInit, OnDestroy {
   private static readonly ATTACH_RE = /\n*\[ATTACHMENTS\]\n([\s\S]*)$/;
 
   displayContent(msg: ChatMessage): string {
+    // Backend system errors carry a code in resultMeta; show them in the
+    // user's language (llm.errors.* in the locale files). The English text in
+    // `content` stays as the fallback for unknown codes and for Telegram.
+    const code = (msg.resultMeta as Record<string, unknown> | undefined)?.['errorCode'];
+    if (typeof code === 'string' && code) {
+      const key = `llm.errors.${code}`;
+      const translated = this.translate.instant(key);
+      if (translated !== key) return translated;
+    }
     return (msg.content || '').replace(ChatComponent.ATTACH_RE, '').trim();
   }
 
