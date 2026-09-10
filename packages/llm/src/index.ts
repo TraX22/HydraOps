@@ -550,6 +550,29 @@ function stripReasoning(text: string): string {
   return out.trim();
 }
 
+// On long agentic loops some models occasionally WRITE their tool invocations
+// as plain text — DeepSeek's DSML (`<｜｜DSML｜｜ invoke …>`), Qwen/Hermes
+// `<tool_call>`, DeepSeek-R1's `<|tool▁calls▁begin|>` — instead of emitting
+// them through the structured channel. Nothing executes, the SDK sees no tool
+// calls, and the raw markup would land in the chat as the "final answer"
+// (seen live: Lucía's Hacker News cron, 10-09). A reply that merely QUOTES
+// such syntax inside real prose is fine — a leak is when the message IS the
+// markup: it starts with a marker, or almost nothing remains once the tags
+// are stripped.
+const TOOL_MARKUP_LEAK = /<[｜|]{1,2}\s*DSML|<\|?tool[▁_]?calls?(?:[▁_](?:begin|end))?\|?>|<tool_call>/i;
+
+function isToolMarkupLeak(text: string): boolean {
+  const trimmed = text.trim();
+  const m = TOOL_MARKUP_LEAK.exec(trimmed);
+  if (!m) return false;
+  if (m.index === 0) return true; // the "answer" opens with tool markup
+  const withoutMarkup = trimmed
+    .replace(/<\/?[｜|][\s\S]*?>/g, '')
+    .replace(/<\/?[A-Za-z_|｜▁ ]+>/g, '')
+    .trim();
+  return withoutMarkup.length < 60;
+}
+
 export async function generateText(config: LLMConfig, messages: CoreMessage[], systemPrompt?: string, aiTools?: Record<string, any>, rawTools?: any[]) {
   try {
     const hasTools = aiTools && Object.keys(aiTools).length > 0;
@@ -736,6 +759,38 @@ export async function generateText(config: LLMConfig, messages: CoreMessage[], s
          finalText = "⚠️ The model requested tools but ran out of steps to continue or failed internally.";
       } else {
          finalText = "The model did not return any response. Please try to rephrase your request.";
+      }
+    }
+
+    // Leaked tool-call markup as the final answer → one retry WITHOUT tools
+    // (so the model must answer in prose from what it already gathered); if it
+    // leaks again, a clear failure message beats raw markup in the chat.
+    if (finalText && isToolMarkupLeak(finalText)) {
+      console.warn(`[LLM] Final answer from ${config.model} is leaked tool-call markup. Retrying for a real answer...`);
+      try {
+        const retry = await vercelGenerateText({
+          model,
+          system: finalSystemPrompt,
+          messages: [
+            ...messages,
+            { role: 'assistant', content: finalText },
+            {
+              role: 'user',
+              content:
+                'Your previous message was raw tool-call markup, not an answer — nothing was executed. ' +
+                'Write your final answer now as plain text for the user, based on the information you already gathered. ' +
+                'Do NOT emit any tool-call syntax.',
+            },
+          ],
+          maxRetries: 1,
+        });
+        const retryText = stripReasoning(retry.text);
+        finalText =
+          retryText && !isToolMarkupLeak(retryText)
+            ? retryText
+            : '⚠️ El modelo devolvió una respuesta malformada (sintaxis interna de herramientas) y el reintento no la corrigió. Volvé a intentarlo o reformulá el pedido.';
+      } catch {
+        finalText = '⚠️ El modelo devolvió una respuesta malformada (sintaxis interna de herramientas). Volvé a intentarlo o reformulá el pedido.';
       }
     }
 
