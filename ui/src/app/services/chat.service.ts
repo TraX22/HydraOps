@@ -28,6 +28,16 @@ export class ChatService {
     this.activeTab.set(tabId);
     this.fetchHistory(tabId);
     this.startPolling(tabId);
+    this.markRead(tabId);
+  }
+
+  // Viewing an agent's chat marks ALL its completed tasks as read (cron and
+  // Telegram results included — they're born unread and are what keeps the
+  // agent's dot green). The endpoint clears by agent, beyond the 24h window
+  // the chat displays. 'main' has no single owning agent, so it's skipped.
+  private markRead(channel: string): void {
+    if (channel === 'main') return;
+    this.api.markAgentRead(channel).subscribe({ error: () => { /* best-effort */ } });
   }
 
   openAgentTab(agentId: string, agentName: string, avatarUrl?: string): void {
@@ -108,7 +118,10 @@ export class ChatService {
         switchMap(() => this.api.getTasks(channel).pipe(catchError(() => of([])))),
       )
       .subscribe(messages => {
+        // A new reply arrived while the user is looking at this chat → it's read.
+        const prev = this.messagesByChannel()[channel]?.length ?? 0;
         this.messagesByChannel.update(m => ({ ...m, [channel]: messages }));
+        if (messages.length > prev) this.markRead(channel);
       });
   }
 
