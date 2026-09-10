@@ -1,0 +1,18 @@
+name: Refresh website changelog
+
+# When a release is published, tell Cloudflare to rebuild hydraops-web so its
+# /changelog (Novedades) page picks up the new release. The web build fetches
+# the releases at build time; this just triggers that build.
+on:
+  release:
+    types: [published]
+  workflow_dispatch: {}
+
+jobs:
+  trigger-rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Cloudflare Workers build
+        run: curl -fsS -X POST "$CF_DEPLOY_HOOK"
+        env:
+          CF_DEPLOY_HOOK: ${{ secrets.CF_DEPLOY_HOOK }}

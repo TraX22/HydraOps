@@ -11,7 +11,7 @@
           <div class="addon-row">
             <div class="addon-info">
               <span class="addon-name">
-                {{ addon.name }}
+                {{ addon.title || addon.name }}
                 @if (addon.source === 'my_addons') {
                   <span class="addon-badge">{{ 'addons.custom' | translate }}</span>
                 }

@@ -122,7 +122,8 @@
 .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .legend-dot.online { background: var(--status-online); }
 .legend-dot.working { background: var(--status-working); }
-.legend-dot.offline { background: var(--status-offline); }
+.legend-dot.idle { background: var(--status-offline); }
+.legend-dot.offline { background: var(--status-error); }
 
 /* Estado vacío: primer arranque, todavía sin ningún agente creado. */
 .agents-empty {

@@ -545,10 +545,12 @@ export class AgentsComponent implements OnInit {
     });
   }
 
+  // Mirrors the agents panel: offline (worker down) in red, idle in grey.
   statusColor(status: string): string {
     switch (status) {
       case 'online': return 'var(--status-online)';
       case 'working': return 'var(--status-working)';
+      case 'offline': return 'var(--status-error)';
       default: return 'var(--status-offline)';
     }
   }

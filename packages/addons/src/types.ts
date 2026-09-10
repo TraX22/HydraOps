@@ -34,6 +34,9 @@ export interface ToolContext {
 
 export interface HydraTool {
   name: string;
+  // Display name for the UI (e.g. "Web Search"); `name` stays the technical id
+  // the gate, tools.md and the model use. Falls back to `name` when absent.
+  title?: string;
   description: string;
   schema: z.ZodTypeAny;
   execute: (args: any, context?: ToolContext) => Promise<any>;
