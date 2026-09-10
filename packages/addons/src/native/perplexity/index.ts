@@ -72,6 +72,9 @@ async function askPerplexity(query: string, recency?: string): Promise<string> {
 
 export const perplexitySearchTool: HydraTool = {
   name: "perplexity_search",
+  // Just "Perplexity" — the brand is description enough (per the user), unlike
+  // Brave where "Search" disambiguates from the browser.
+  title: "Perplexity",
   description:
     "Ask Perplexity (Sonar): AI-powered web search that returns a synthesized, up-to-date answer with source citations. Best when you need current information reasoned into one answer; use web_search or brave_search when you want a raw list of links instead.",
   schema: z.object({
