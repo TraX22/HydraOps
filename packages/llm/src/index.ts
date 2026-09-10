@@ -566,11 +566,16 @@ function isToolMarkupLeak(text: string): boolean {
   const m = TOOL_MARKUP_LEAK.exec(trimmed);
   if (!m) return false;
   if (m.index === 0) return true; // the "answer" opens with tool markup
-  const withoutMarkup = trimmed
-    .replace(/<\/?[｜|][\s\S]*?>/g, '')
-    .replace(/<\/?[A-Za-z_|｜▁ ]+>/g, '')
-    .trim();
-  return withoutMarkup.length < 60;
+  // Otherwise, count how much content lives OUTSIDE <...> tag-like regions.
+  // This is a size heuristic, not sanitization — the string is never rendered.
+  let visible = 0;
+  let depth = 0;
+  for (const ch of trimmed) {
+    if (ch === '<') depth++;
+    else if (ch === '>') depth = Math.max(0, depth - 1);
+    else if (depth === 0 && !/\s/.test(ch)) visible++;
+  }
+  return visible < 60;
 }
 
 export async function generateText(config: LLMConfig, messages: CoreMessage[], systemPrompt?: string, aiTools?: Record<string, any>, rawTools?: any[]) {
