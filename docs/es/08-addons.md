@@ -10,6 +10,7 @@ Vienen con la aplicación. Hoy son:
 
 - `web_search` — buscar en la web (DuckDuckGo, sin clave).
 - `brave_search` — búsqueda con la API de Brave; la clave se pega en su tarjeta y viaja por el key-proxy.
+- `perplexity_search` — pregunta a Perplexity (Sonar): busca en la web y devuelve una respuesta razonada con sus fuentes citadas; la clave se pega en su tarjeta y viaja por el key-proxy.
 - `fetch_url` — descargar y leer una página.
 - `youtube_transcript` — transcripción de un vídeo de YouTube, sin clave.
 - `remember` — el agente guarda notas duraderas en su propia memoria (ver [Agentes](./05-agents.md)).
