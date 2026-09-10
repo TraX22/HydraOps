@@ -83,9 +83,10 @@ export class ToolRegistry {
   }
 
   // Metadata for the UI (no schema/execute)
-  listNative(): { name: string; description: string; source: string; requiresKey?: ToolKeyRequirement }[] {
+  listNative(): { name: string; title?: string; description: string; source: string; requiresKey?: ToolKeyRequirement }[] {
     return [...this.nativeTools.values()].map(t => ({
       name: t.name,
+      ...(t.title ? { title: t.title } : {}),
       description: t.description,
       source: t.source ?? 'native',
       ...(t.requiresKey ? { requiresKey: t.requiresKey } : {}),

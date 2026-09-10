@@ -179,6 +179,7 @@ async function getTranscript(input: string, lang?: string): Promise<string> {
 
 export const youtubeTranscriptTool: HydraTool = {
   name: "youtube_transcript",
+  title: "YouTube Transcript",
   description:
     "Fetch the transcript (captions/subtitles) of a YouTube video from its URL or id — uploaded subtitles or YouTube's auto-generated ones. Use it to summarise, quote, or answer questions about a video. Optionally pass a 2-letter language code to pick a caption track.",
   schema: z.object({

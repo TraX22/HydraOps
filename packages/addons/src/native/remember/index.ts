@@ -51,6 +51,7 @@ async function remember(text: string, ctx?: ToolContext): Promise<string> {
 
 export const rememberTool: HydraTool = {
   name: "remember",
+  title: "Remember",
   description:
     "Save a short note to your own permanent memory, applied to every future conversation. Use it when the user asks you to remember something (\"remember that...\", \"acordate que...\") or when you learn a stable preference or fact worth keeping (their name, how they like answers, an ongoing project). Do NOT store one-off task details or things already in the conversation. One short, self-contained fact per call.",
   schema: z.object({

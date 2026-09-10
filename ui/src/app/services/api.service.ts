@@ -93,6 +93,9 @@ export interface ToolKeyRequirement {
 
 export interface NativeAddon {
   name: string;
+  // Display name (e.g. "Web Search"); `name` remains the technical id used in
+  // tools.md and by the gate. Cards fall back to `name` when absent.
+  title?: string;
   description: string;
   enabled: boolean;
   source?: 'native' | 'my_addons';

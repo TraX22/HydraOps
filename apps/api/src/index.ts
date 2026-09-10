@@ -2037,6 +2037,7 @@ api.get("/system/addons", async (_req, res) => {
     res.json({
       addons: addonsRegistry.listNative().filter(a => !isIntegrationTool(a.name)).map(a => ({
         name: a.name,
+        ...(a.title ? { title: a.title } : {}),
         description: ADDON_DESCRIPTION_OVERRIDES[a.name] ?? a.description,
         source: a.source,
         enabled: state[a.name] !== false,
