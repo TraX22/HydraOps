@@ -74,10 +74,9 @@ export function resolveLLMConfig(model: string, getGlobalConfig: (key: string, d
   // 1. Priority: Local models (.gguf, word 'local', os architectures, param sizes, or partial match to LOCAL_LLM_MODEL)
   if (m.endsWith('.gguf') || m.includes('local') || isOSArchitecture || isParamSize || isPartialLocalMatch) {
     const apiKey = getGlobalConfig('LOCAL_LLM_KEY', 'no-key');
-    // Sin valor por defecto a propósito: inventar el puerto de LM Studio
-    // (1234) hacía que un .env sin configurar fallara con un ECONNREFUSED a
-    // una dirección que el usuario nunca escribió. Vacío = no configurado, y
-    // generateText lo dice con esas palabras.
+    // No default on purpose: inventing LM Studio's port (1234) made an
+    // unconfigured .env fail with ECONNREFUSED against an address the user
+    // never wrote. Empty = not configured, and generateText says exactly that.
     let rawURL = getGlobalConfig('LOCAL_LLM_URL', '').trim();
     let baseURL = rawURL;
     if (rawURL && !rawURL.endsWith('/v1') && !rawURL.endsWith('/v1/')) {
@@ -529,22 +528,22 @@ export async function buildUserMessage(prompt: string, rootDir: string): Promise
   return { role: 'user', content: [{ type: 'text', text: fullText }, ...imageParts] } as CoreMessage;
 }
 
-// Algunos modelos de razonamiento (MiniMax M2/M3, etc.) NO devuelven el
-// "pensamiento" en un campo aparte (reasoning_content, como DeepSeek/Kimi), sino
-// inline dentro del content envuelto en <think>...</think> —a menudo en inglés—.
-// El SDK lo deja tal cual en response.text, así que el usuario ve el razonamiento
-// antes de la respuesta real. Lo quitamos para mostrar solo la contestación.
+// Some reasoning models (MiniMax M2/M3, etc.) do NOT return their "thinking"
+// in a separate field (reasoning_content, like DeepSeek/Kimi) but inline in
+// the content wrapped in <think>...</think> — often in English. The SDK leaves
+// it as-is in response.text, so the user would see the reasoning before the
+// actual answer. Strip it and keep only the reply.
 function stripReasoning(text: string): string {
   if (!text) return text;
-  // Bloques completos <think>…</think> / <thinking>…</thinking>
+  // Complete <think>…</think> / <thinking>…</thinking> blocks
   let out = text.replace(/<think(?:ing)?>[\s\S]*?<\/think(?:ing)?>/gi, '');
-  // Etiqueta de cierre suelta (el razonamiento empezó antes del content): quédate con lo de después.
+  // Stray closing tag (the reasoning started before the content): keep what follows.
   const close = out.toLowerCase().lastIndexOf('</think');
   if (close !== -1) {
     const gt = out.indexOf('>', close);
     if (gt !== -1) out = out.slice(gt + 1);
   }
-  // Apertura sin cierre (razonamiento truncado por max_tokens): descarta desde ahí.
+  // Opening tag without a close (reasoning truncated by max_tokens): drop from there.
   const open = out.toLowerCase().indexOf('<think');
   if (open !== -1) out = out.slice(0, open);
   return out.trim();
@@ -583,9 +582,9 @@ export async function generateText(config: LLMConfig, messages: CoreMessage[], s
     const hasTools = aiTools && Object.keys(aiTools).length > 0;
     console.log(`[LLM] Attempting with model: ${config.model} (${config.provider}) | Tools: ${hasTools}`);
 
-    // Un local sin URL acabaría llamando a api.openai.com con la clave "no-key"
-    // (ver getModel). Mejor decir qué falta que reintentar tres veces contra
-    // un sitio equivocado.
+    // A local provider without a URL would end up calling api.openai.com with
+    // the "no-key" placeholder (see getModel). Better to say what's missing
+    // than to retry three times against the wrong site.
     if (config.provider === 'local' && !config.baseURL) {
       throw new Error(
         'no hay servidor LLM local configurado. Define LOCAL_LLM_URL en el .env ' +
