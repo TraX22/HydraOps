@@ -950,6 +950,11 @@ export async function generateImage(config: LLMConfig, prompt: string, width: nu
   }
 }
 
+// Video engines queue jobs server-side: Veo quotes up to 6 minutes at peak
+// and Leonardo Motion has been seen taking longer than that, so wait ~8 min.
+const VIDEO_POLL_INTERVAL_MS = 5000;
+const VIDEO_POLL_ATTEMPTS = 96;
+
 /**
  * Master function to generate videos through multiple providers
  */
@@ -957,7 +962,49 @@ export async function generateVideo(config: LLMConfig, prompt: string, width: nu
   try {
      console.log(`[LLM Video] Attempting with model: ${config.model} (${config.provider})`);
      if (config.provider === 'google') {
-        throw new Error("El modelo Google Veo 2 requiere operaciones asíncronas (LRO) que no están soportadas en esta versión. Por favor, utiliza Leonardo AI para generar videos.");
+        // Veo is a long-running operation: start the job, poll the operation
+        // until it is done, then hand back the download URI. Veo only knows
+        // 16:9 and 9:16, so the requested size just picks the orientation.
+        const apiBase = 'https://generativelanguage.googleapis.com/v1beta';
+        const aspectRatio = height > width ? '9:16' : '16:9';
+        console.log(`[Google Video] Starting ${config.model} (${aspectRatio})...`);
+        const startRes = await fetch(proxied(`${apiBase}/models/${config.model}:predictLongRunning`), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.apiKey },
+          body: JSON.stringify({
+             instances: [{ prompt }],
+             parameters: { aspectRatio }
+          })
+        });
+        if (!startRes.ok) throw new Error(`Google Veo API Error: ${await startRes.text()}`);
+        const op = await startRes.json();
+        const opName: string | undefined = op?.name;
+        if (!opName) throw new Error(`Failed to start Google Veo generation: ${JSON.stringify(op)}`);
+
+        console.log(`[Google Video] Polling operation ${opName}...`);
+        for (let i = 0; i < VIDEO_POLL_ATTEMPTS; i++) {
+           await new Promise(r => setTimeout(r, VIDEO_POLL_INTERVAL_MS));
+           const statusRes = await fetch(proxied(`${apiBase}/${opName}`), {
+             headers: { 'x-goog-api-key': config.apiKey }
+           });
+           if (!statusRes.ok) continue;
+           const status = await statusRes.json();
+           if (!status?.done) continue;
+           if (status.error) throw new Error(`Google Veo generation failed: ${status.error.message || JSON.stringify(status.error)}`);
+           const videoResponse = status.response?.generateVideoResponse ?? status.response;
+           const uri: string | undefined = videoResponse?.generatedSamples?.[0]?.video?.uri
+             ?? videoResponse?.generatedVideos?.[0]?.video?.uri;
+           if (!uri) {
+              const filtered = videoResponse?.raiMediaFilteredReasons?.join('; ');
+              throw new Error(filtered
+                ? `Google Veo rejected the prompt: ${filtered}`
+                : `Google Veo returned no video: ${JSON.stringify(status.response)}`);
+           }
+           // The file endpoint needs the API key, so the caller downloads it
+           // through the key-proxy — the key never leaves the proxy.
+           return { success: true, base64: null, url: proxied(uri) };
+        }
+        throw new Error("Google Veo generation timed out");
      }
 
      if (config.provider === 'leonardo') {
@@ -996,8 +1043,8 @@ export async function generateVideo(config: LLMConfig, prompt: string, width: nu
         if (!motionGenId) throw new Error(`Failed to start Leonardo motion generation: ${JSON.stringify(motionData)}`);
 
         console.log(`[Leonardo Video] Polling motion generation ${motionGenId}...`);
-        for (let i = 0; i < 60; i++) { // wait up to ~3 min
-           await new Promise(r => setTimeout(r, 3000));
+        for (let i = 0; i < VIDEO_POLL_ATTEMPTS; i++) {
+           await new Promise(r => setTimeout(r, VIDEO_POLL_INTERVAL_MS));
            const statusRes = await fetch(proxied(`${config.baseURL}/generations/${motionGenId}`), {
              headers: { 'Authorization': `Bearer ${config.apiKey}` }
            });

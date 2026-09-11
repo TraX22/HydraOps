@@ -495,7 +495,9 @@ export class AgentsComponent implements OnInit {
       case 'graphic':
         return all.filter(m => m.isImage || m.type === 'image');
       case 'video':
-        return all.filter(m => m.isVideo || m.type === 'video');
+        // isVideo is set by the API only for engines generateVideo can drive
+        // (Google Veo, Leonardo); type === 'video' alone is a name heuristic.
+        return all.filter(m => m.isVideo);
       case 'coder':
         return all.filter(m => m.type === 'coder' || m.type === 'chat' || (!m.type && !m.isImage && !m.isVideo));
       default:

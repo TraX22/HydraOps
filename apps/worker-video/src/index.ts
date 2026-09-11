@@ -107,13 +107,17 @@ function wantsVideo(prompt: string): boolean {
   return VIDEO_PATTERNS.some((re) => re.test(prompt));
 }
 
-// agentConfigs.resolution (aspect) → concrete video dimensions (Leonardo 480p tier)
+// agentConfigs.resolution (aspect) → concrete video dimensions. Leonardo's
+// RESOLUTION_480 tier only accepts 832x480, 480x832, 512x768 and 576x720
+// (anything else is rejected), so aspects without an exact match map to the
+// closest valid one. Veo only reads the orientation (16:9 / 9:16) from this.
 const VIDEO_SIZES: Record<string, [number, number]> = {
-  "1:1": [480, 480],
+  "1:1": [832, 480],
   "16:9": [832, 480],
   "9:16": [480, 832],
-  "4:3": [640, 480],
-  "3:4": [480, 640],
+  "4:3": [832, 480],
+  "3:4": [576, 720],
+  "2:3": [512, 768],
 };
 
 function videoSize(resolution?: string | null): [number, number] {
