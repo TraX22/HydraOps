@@ -19,10 +19,13 @@ export class AgentsService {
     this.fetch();
     interval(15000)
       .pipe(
-        switchMap(() => this.api.getAgents().pipe(catchError(() => of([])))),
+        // A failed poll (API restarting after an update, network blip) must
+        // not wipe the list: keep what we have and try again next tick.
+        switchMap(() => this.api.getAgents().pipe(catchError(() => of(null)))),
         takeUntilDestroyed(this.destroyRef)
       )
       .subscribe(agents => {
+        if (!agents) return;
         this.agents.set(agents);
         this.loaded.set(true);
       });
@@ -36,9 +39,12 @@ export class AgentsService {
         this.loading.set(false);
         this.loaded.set(true);
       },
+      // Not `loaded`: an error is "we don't know yet", not "there are no
+      // agents" — otherwise the create-your-first-agent screen flashes while
+      // the API is still booting. Retry shortly.
       error: () => {
         this.loading.set(false);
-        this.loaded.set(true);
+        setTimeout(() => this.fetch(), 3000);
       },
     });
   }
