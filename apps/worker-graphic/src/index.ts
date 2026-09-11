@@ -154,7 +154,12 @@ async function drawToStorage(
   if (!img.success || !img.base64) {
     return { sourceUrl: null, engine: imgConfig.model, error: img.error || "unknown error" };
   }
-  const format = (agentCfg.graphicFormat || "png").replace(/[^a-z]/gi, "") || "png";
+  // Engines don't always honour the requested format (Leonardo/Flux return
+  // JPEG): name the file by what the bytes actually are, so the static
+  // server sends the right content-type.
+  const b64 = img.base64;
+  const sniffed = b64.startsWith("/9j/") ? "jpg" : b64.startsWith("iVBOR") ? "png" : b64.startsWith("UklGR") ? "webp" : null;
+  const format = sniffed ?? ((agentCfg.graphicFormat || "png").replace(/[^a-z]/gi, "") || "png");
   const dir = path.join(storageDir, "results", taskId);
   await mkdir(dir, { recursive: true });
   const fileName = `image.${format}`;

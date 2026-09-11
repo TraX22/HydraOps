@@ -482,7 +482,10 @@ export class ApiService {
   }
 
   // ── Storage URL ──
+  // Generated images/videos and attachments are served by the API's /storage
+  // static mount at the ORIGIN root, not under /api — /api/storage/... falls
+  // through to the SPA index (200 text/html) and the <img> silently breaks.
   storageUrl(path: string): string {
-    return `${this.base}/storage/${path}`;
+    return `${this.base.replace(/\/api$/, '')}/storage/${path}`;
   }
 }
