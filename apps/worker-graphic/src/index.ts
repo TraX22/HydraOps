@@ -18,6 +18,8 @@ import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType } f
 import { and, desc, eq } from "drizzle-orm";
 import { generateText as llmGenerateText, generateImage, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
 import { createRegistry } from "@hydraops/addons";
+import { tool } from "ai";
+import { z } from "zod";
 import { AckPolicy } from "nats";
 
 const WORKER_TYPE = "graphic";
@@ -115,6 +117,49 @@ const IMAGE_SIZES: Record<string, [number, number]> = {
 
 function imageSize(resolution?: string | null): [number, number] {
   return IMAGE_SIZES[resolution ?? ""] ?? [1024, 1024];
+}
+
+const IMAGE_MODEL_HINT = /imagen|leonardo|flux|dall|stable|sdxl|photon|phoenix|lucid/i;
+const BARE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// The image engine this agent draws with. "auto" used to fall back to the
+// agent's CHAT model, which sent a text model (gemini-*-flash) to the image
+// endpoint and failed; auto now means the default image model unless the
+// agent's own model is clearly an image one. A bare UUID is a Leonardo model
+// id (the Agents view stores it without the "leonardo:" prefix) — without
+// the prefix resolveLLMConfig would route it to Google.
+function resolveImageEngine(agentCfg: any): string {
+  let engine: string =
+    agentCfg.graphicEngine && agentCfg.graphicEngine !== "auto"
+      ? agentCfg.graphicEngine
+      : agentCfg.model && IMAGE_MODEL_HINT.test(agentCfg.model)
+        ? agentCfg.model
+        : process.env.DEFAULT_IMAGE_MODEL || "imagen-3.0-generate-002";
+  if (BARE_UUID.test(engine)) engine = `leonardo:${engine}`;
+  return engine;
+}
+
+// Generate with the agent's engine and store the file where the chat serves
+// it from (storage/results/<task>/image.<fmt>).
+async function drawToStorage(
+  taskId: string,
+  agentCfg: any,
+  getGlobalConfig: (key: string, defaultValue: string) => string,
+  prompt: string,
+): Promise<{ relPath?: string; sourceUrl: string | null; engine: string; error?: string }> {
+  const imgConfig = resolveLLMConfig(resolveImageEngine(agentCfg), getGlobalConfig);
+  const [imgWidth, imgHeight] = imageSize(agentCfg.resolution);
+  console.log(`[${consumerName}] 🎨 Drawing task ${taskId} with ${imgConfig.provider}:${imgConfig.model} (${imgWidth}x${imgHeight})...`);
+  const img = await generateImage(imgConfig, prompt, imgWidth, imgHeight);
+  if (!img.success || !img.base64) {
+    return { sourceUrl: null, engine: imgConfig.model, error: img.error || "unknown error" };
+  }
+  const format = (agentCfg.graphicFormat || "png").replace(/[^a-z]/gi, "") || "png";
+  const dir = path.join(storageDir, "results", taskId);
+  await mkdir(dir, { recursive: true });
+  const fileName = `image.${format}`;
+  await writeFile(path.join(dir, fileName), Buffer.from(img.base64, "base64"));
+  return { relPath: `results/${taskId}/${fileName}`, sourceUrl: img.url ?? null, engine: imgConfig.model };
 }
 
 async function loadPersonality(agentId: string): Promise<{ context: string; files: string[] }> {
@@ -227,52 +272,27 @@ for await (const m of sub) {
     let resultMeta: Record<string, unknown>;
     let previewText: string;
 
-    if (wantsDrawing(userPrompt)) {
-      // --- DRAW PATH ---
-      const engine = agentCfg.graphicEngine && agentCfg.graphicEngine !== "auto"
-        ? agentCfg.graphicEngine
-        : agentCfg.model || process.env.DEFAULT_IMAGE_MODEL || "imagen-3.0-generate-002";
-      const imgConfig = resolveLLMConfig(engine, getGlobalConfig);
-      const [imgWidth, imgHeight] = imageSize(agentCfg.resolution);
-      console.log(`[${consumerName}] 🎨 Drawing task ${taskId} with ${imgConfig.provider}:${imgConfig.model} (${imgWidth}x${imgHeight})...`);
-
-      const img = await generateImage(imgConfig, userPrompt, imgWidth, imgHeight);
-      if (img.success && img.base64) {
-        const format = (agentCfg.graphicFormat || "png").replace(/[^a-z]/gi, "") || "png";
-        const dir = path.join(storageDir, "results", taskId);
-        await mkdir(dir, { recursive: true });
-        const fileName = `image.${format}`;
-        await writeFile(path.join(dir, fileName), Buffer.from(img.base64, "base64"));
-        const relPath = `results/${taskId}/${fileName}`;
-        previewText = "🖼️ Imagen generada.";
-        resultMeta = {
-          text: previewText,
-          success: true,
-          imagePath: relPath,
-          imageUrl: relPath,
-          sourceUrl: img.url ?? null,
-          modelUsed: imgConfig.model,
-        };
-      } else {
-        previewText = `⚠️ Error generando imagen: ${img.error}`;
-        resultMeta = { text: "", success: false, error: img.error, modelUsed: imgConfig.model };
-      }
-    } else {
-      // --- CHAT PATH (personality-driven text reply) ---
-      const textModel = agentCfg.model || process.env.DEFAULT_MODEL || "";
-      if (!textModel) {
-        console.error("[worker-graphic] ERROR: no hay modelo de texto. Elige uno en Configuración → Modelo por defecto, o asígnaselo al agente.");
-      }
-      let llmConfig = resolveLLMConfig(textModel, getGlobalConfig);
-      if (llmConfig.provider === "leonardo") {
-        llmConfig = resolveLLMConfig(process.env.DEFAULT_MODEL || "", getGlobalConfig);
-      }
-      const { context: personality, files: personalityFiles } = await loadPersonality(agentId);
-      const craft = await loadCraft();
-      const userProfile = await loadUserProfile();
-      const currentDate = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-      const contextType = channel === "main" ? "the main chat" : "a private conversation";
-      const systemPrompt = `You are ${agentId}. Your identity is defined EXCLUSIVELY by the attached files. You are a graphic/visual agent: if the user asks you to draw something, tell them how to phrase it (e.g. "dibuja una imagen de...").
+    // One path for everything: the agent's LLM decides when to draw by calling
+    // the generate_image tool and writes the engine prompt itself (that IS the
+    // personality's craft: style, palette, transparent background…). Before,
+    // a keyword regex sent "draw" requests straight to the engine with the raw
+    // user text and everything else got a text-only reply telling the user to
+    // rephrase. The regex now only reinforces explicit asks (see below).
+    const explicitDraw = wantsDrawing(userPrompt);
+    const textModel = agentCfg.model || process.env.DEFAULT_MODEL || "";
+    if (!textModel) {
+      console.error("[worker-graphic] ERROR: no text model configured. Pick one in Config → Default model, or assign one to the agent.");
+    }
+    let llmConfig = resolveLLMConfig(textModel, getGlobalConfig);
+    if (llmConfig.provider === "leonardo") {
+      llmConfig = resolveLLMConfig(process.env.DEFAULT_MODEL || "", getGlobalConfig);
+    }
+    const { context: personality, files: personalityFiles } = await loadPersonality(agentId);
+    const craft = await loadCraft();
+    const userProfile = await loadUserProfile();
+    const currentDate = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+    const contextType = channel === "main" ? "the main chat" : "a private conversation";
+    const systemPrompt = `You are ${agentId}. Your identity is defined EXCLUSIVELY by the attached files. You are a graphic/visual agent with a generate_image tool: whenever the user wants an image, sprite, asset, drawing, icon, logo, background or any visual — in ANY wording — say in 1-3 lines what you will draw, then CALL generate_image with a polished English prompt. After it returns, reply with a short note on the result and suggested Next Steps. Never ask the user to rephrase or to use a "magic phrase".
 ${craft}
 ${personality}
 
@@ -282,71 +302,125 @@ ${personality}
 - Conversation channel: ${contextType}
 - The chat renders Markdown. For diagrams or simple charts, answer with a \`\`\`mermaid fenced code block (flowchart, sequence, pie, timeline…) — it renders as a real diagram. Use Markdown tables for tabular data; avoid ASCII-art boxes.
 - If the user only greets, introduce yourself briefly according to your soul.
-- If there is a direct question or task, answer without greeting first.${userProfile}`;
+- If there is a direct question or task, answer without greeting first.${explicitDraw ? "\n- The user explicitly asked for an image: you MUST call generate_image in this turn." : ""}${userProfile}`;
 
-      // Same tool set as worker-general: natives/my_addons + MCP tools
-      const nativeState = JSON.parse(getGlobalConfig("native_addons_state", "{}"));
-      const mcpServersConfigStr = getGlobalConfig("mcp_servers_config", '{"mcpServers":{}}');
-      if (mcpServersConfigStr !== lastMcpConfigStr) {
-        console.log(`[${consumerName}] MCP config changed — reconnecting servers...`);
-        try {
-          await globalRegistry.mcpManager.closeAll();
-          await withTimeout(globalRegistry.initializeMcp(JSON.parse(mcpServersConfigStr)), 15_000, "MCP init");
-        } catch (mcpErr: any) {
-          console.error(`[${consumerName}] MCP init failed: ${mcpErr.message}`);
-        }
-        lastMcpConfigStr = mcpServersConfigStr;
+    // Same tool set as worker-general: natives/my_addons + MCP tools
+    const nativeState = JSON.parse(getGlobalConfig("native_addons_state", "{}"));
+    const mcpServersConfigStr = getGlobalConfig("mcp_servers_config", '{"mcpServers":{}}');
+    if (mcpServersConfigStr !== lastMcpConfigStr) {
+      console.log(`[${consumerName}] MCP config changed — reconnecting servers...`);
+      try {
+        await globalRegistry.mcpManager.closeAll();
+        await withTimeout(globalRegistry.initializeMcp(JSON.parse(mcpServersConfigStr)), 15_000, "MCP init");
+      } catch (mcpErr: any) {
+        console.error(`[${consumerName}] MCP init failed: ${mcpErr.message}`);
       }
+      lastMcpConfigStr = mcpServersConfigStr;
+    }
 
-      // MCP tools pass if the chat UI enabled the server (enabledMcpServers) or,
-      // failing that, if the agent's tools.md mentions the server/tool.
-      const enabledMcpServers = (data.enabledMcpServers as string[]) || [];
-      const agentRequestedTools = (personalityFiles[3] || "")
-        .split("\n").map((l: string) => l.trim())
-        .filter((l: string) => l.startsWith("-"))
-        .map((l: string) => l.substring(1).trim());
-      // Strict per-agent gating: a tool (native or MCP) runs only if this agent's
-      // tools.md names it. Identical rule across all workers (see registry).
-      const allowedTools = globalRegistry.resolveAllowedToolNames(agentRequestedTools, enabledMcpServers);
-      // Usage tracking: the sink collects every tool call this turn; flushed to
-      // DB after the LLM finishes so we can report what each agent actually uses.
-      const toolUsageLog: { toolName: string; source: string; status: string }[] = [];
-      const usageSink = (toolName: string, source: string, status: 'ok' | 'blocked' | 'error') => { toolUsageLog.push({ toolName, source, status }); };
-      // Bind the calling agent's identity so identity-aware tools (`remember`,
-      // `recall`) act on the right agent without trusting model input.
-      const toolContext = {
-        agentId,
-        searchPastTasks: (query: string, limit?: number) => searchAgentTasks(sqliteClient, agentId, query, limit),
-      };
-      const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext);
-      const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext);
+    // MCP tools pass if the chat UI enabled the server (enabledMcpServers) or,
+    // failing that, if the agent's tools.md mentions the server/tool.
+    const enabledMcpServers = (data.enabledMcpServers as string[]) || [];
+    const agentRequestedTools = (personalityFiles[3] || "")
+      .split("\n").map((l: string) => l.trim())
+      .filter((l: string) => l.startsWith("-"))
+      .map((l: string) => l.substring(1).trim());
+    // Strict per-agent gating: a tool (native or MCP) runs only if this agent's
+    // tools.md names it. Identical rule across all workers (see registry).
+    const allowedTools = globalRegistry.resolveAllowedToolNames(agentRequestedTools, enabledMcpServers);
+    // Usage tracking: the sink collects every tool call this turn; flushed to
+    // DB after the LLM finishes so we can report what each agent actually uses.
+    const toolUsageLog: { toolName: string; source: string; status: string }[] = [];
+    const usageSink = (toolName: string, source: string, status: 'ok' | 'blocked' | 'error') => { toolUsageLog.push({ toolName, source, status }); };
+    // Bind the calling agent's identity so identity-aware tools (`remember`,
+    // `recall`) act on the right agent without trusting model input.
+    const toolContext = {
+      agentId,
+      searchPastTasks: (query: string, limit?: number) => searchAgentTasks(sqliteClient, agentId, query, limit),
+    };
+    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext);
+    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext);
 
-      // Last 24h of the channel; empty for cron-fired tasks (see loadRecentChannelHistory).
-      const historyRows = await loadRecentChannelHistory(db, channel, taskId);
-      const history = historyRows.reverse().flatMap((t: any) => {
-        const assistantText = t.resultMeta?.text || t.resultMeta?.preview || "";
-        return [
-          { role: "user", content: t.prompt },
-          { role: "assistant", content: assistantText },
-        ];
-      }).filter((msg: any) => msg.content);
 
-      console.log(`[${consumerName}] 💬 Chat task ${taskId} with ${llmConfig.provider}:${llmConfig.model}...`);
-      const { text, usage, success, error, errorCode } = await llmGenerateText(
-        llmConfig,
-        [...history, await buildUserMessage(userPrompt, rootDir)],
-        systemPrompt,
-        aiTools,
-        rawTools
-      );
-      previewText = text || error || "No response.";
-      resultMeta = { text, usage, success, error, errorCode, modelUsed: llmConfig.model };
-
-      // Persist tool usage for this task (best-effort; never break processing).
-      if (toolUsageLog.length) {
-        try { await recordToolUsage(db, agentId, taskId, toolUsageLog); }
-        catch (e: any) { console.warn(`[${consumerName}] tool usage tracking failed: ${e?.message ?? e}`); }
+    // The drawing tool. It stores the file where the chat serves it from and
+    // remembers what it produced so the result can carry the image; tracked in
+    // tool_usage like any other tool.
+    const drawn: { image: { relPath: string; sourceUrl: string | null; engine: string } | null; error: string | null } = { image: null, error: null };
+    const draw = async (prompt: string): Promise<string> => {
+      const r = await drawToStorage(taskId!, agentCfg, getGlobalConfig, prompt);
+      if (r.relPath) {
+        drawn.image = { relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
+        usageSink("generate_image", "native", "ok");
+        return "Image generated and already shown to the user. Reply with a short description of what you drew and suggested Next Steps; do not paste links.";
       }
+      drawn.error = r.error ?? "unknown error";
+      usageSink("generate_image", "native", "error");
+      return `Image generation failed (${drawn.error}). Tell the user briefly and suggest retrying or changing the engine.`;
+    };
+    const generateImageDescription =
+      "Generate an image with this agent's configured image engine and show it to the user in the chat. Call it whenever the user wants an image, sprite, asset, drawing, icon, logo, background or any visual.";
+    const generateImageSchema = z.object({
+      prompt: z.string().describe("Self-contained English image prompt: subject, style, palette, composition, background, lighting. Add 'transparent background' for sprites and UI assets."),
+    });
+    const toolsForModel = {
+      ...(aiTools ?? {}),
+      generate_image: tool({
+        description: generateImageDescription,
+        inputSchema: generateImageSchema,
+        execute: ({ prompt }: { prompt: string }) => draw(prompt),
+      }),
+    };
+    const rawToolsForModel = [
+      ...rawTools,
+      { name: "generate_image", description: generateImageDescription, schema: generateImageSchema, execute: (args: any) => draw(String(args?.prompt ?? "")) },
+    ];
+
+    // Last 24h of the channel; empty for cron-fired tasks (see loadRecentChannelHistory).
+    const historyRows = await loadRecentChannelHistory(db, channel, taskId);
+    const history = historyRows.reverse().flatMap((t: any) => {
+      const assistantText = t.resultMeta?.text || t.resultMeta?.preview || "";
+      return [
+        { role: "user", content: t.prompt },
+        { role: "assistant", content: assistantText },
+      ];
+    }).filter((msg: any) => msg.content);
+
+
+    console.log(`[${consumerName}] 💬 Task ${taskId} with ${llmConfig.provider}:${llmConfig.model}${explicitDraw ? " (explicit image request)" : ""}...`);
+    const { text, usage, success, error, errorCode } = await llmGenerateText(
+      llmConfig,
+      [...history, await buildUserMessage(userPrompt, rootDir)],
+      systemPrompt,
+      toolsForModel,
+      rawToolsForModel
+    );
+
+    // Explicit request but the model never drew (weak/local models): fall back
+    // to the engine with the raw prompt, as the old draw path did.
+    if (explicitDraw && !drawn.image && !drawn.error) {
+      const r = await drawToStorage(taskId!, agentCfg, getGlobalConfig, userPrompt);
+      if (r.relPath) drawn.image = { relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
+      else drawn.error = r.error ?? "unknown error";
+    }
+
+    resultMeta = { text, usage, success, error, errorCode, modelUsed: llmConfig.model };
+    if (drawn.image) {
+      Object.assign(resultMeta, {
+        imagePath: drawn.image.relPath,
+        imageUrl: drawn.image.relPath,
+        sourceUrl: drawn.image.sourceUrl,
+        imageModel: drawn.image.engine,
+      });
+      if (!text) resultMeta.text = "🖼️ Imagen generada.";
+    } else if (drawn.error && !text) {
+      Object.assign(resultMeta, { success: false, error: drawn.error });
+    }
+    previewText = String(resultMeta.text || resultMeta.error || "No response.");
+
+    // Persist tool usage for this task (best-effort; never break processing).
+    if (toolUsageLog.length) {
+      try { await recordToolUsage(db, agentId, taskId, toolUsageLog); }
+      catch (e: any) { console.warn(`[${consumerName}] tool usage tracking failed: ${e?.message ?? e}`); }
     }
 
     const dir = path.join(storageDir, "results", taskId);
