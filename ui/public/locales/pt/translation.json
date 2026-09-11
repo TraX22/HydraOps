@@ -1,7 +1,8 @@
 {
   "llm": {
     "errors": {
-      "malformed_model_response": "⚠️ O modelo retornou uma resposta malformada (sintaxe interna de ferramentas). Tente novamente ou reformule o pedido."
+      "malformed_model_response": "⚠️ O modelo retornou uma resposta malformada (sintaxe interna de ferramentas). Tente novamente ou reformule o pedido.",
+      "task_timed_out": "⚠️ A tarefa expirou: o worker nunca a concluiu (pode ter reiniciado no meio). Envie-a novamente."
     }
   },
   "oneShot": {

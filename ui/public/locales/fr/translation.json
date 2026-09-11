@@ -1,7 +1,8 @@
 {
   "llm": {
     "errors": {
-      "malformed_model_response": "⚠️ Le modèle a renvoyé une réponse malformée (syntaxe interne des outils). Réessayez ou reformulez votre demande."
+      "malformed_model_response": "⚠️ Le modèle a renvoyé une réponse malformée (syntaxe interne des outils). Réessayez ou reformulez votre demande.",
+      "task_timed_out": "⚠️ La tâche a expiré : son worker ne l'a jamais terminée (il a peut-être redémarré en cours de route). Renvoyez-la."
     }
   },
   "oneShot": {
