@@ -332,7 +332,7 @@ ${personality}
       }).filter((msg: any) => msg.content);
 
       console.log(`[${consumerName}] 💬 Chat task ${taskId} with ${llmConfig.provider}:${llmConfig.model}...`);
-      const { text, usage, success, error } = await llmGenerateText(
+      const { text, usage, success, error, errorCode } = await llmGenerateText(
         llmConfig,
         [...history, await buildUserMessage(userPrompt, rootDir)],
         systemPrompt,
@@ -340,7 +340,7 @@ ${personality}
         rawTools
       );
       previewText = text || error || "No response.";
-      resultMeta = { text, usage, success, error, modelUsed: llmConfig.model };
+      resultMeta = { text, usage, success, error, errorCode, modelUsed: llmConfig.model };
 
       // Persist tool usage for this task (best-effort; never break processing).
       if (toolUsageLog.length) {

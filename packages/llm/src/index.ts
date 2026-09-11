@@ -74,10 +74,9 @@ export function resolveLLMConfig(model: string, getGlobalConfig: (key: string, d
   // 1. Priority: Local models (.gguf, word 'local', os architectures, param sizes, or partial match to LOCAL_LLM_MODEL)
   if (m.endsWith('.gguf') || m.includes('local') || isOSArchitecture || isParamSize || isPartialLocalMatch) {
     const apiKey = getGlobalConfig('LOCAL_LLM_KEY', 'no-key');
-    // Sin valor por defecto a propósito: inventar el puerto de LM Studio
-    // (1234) hacía que un .env sin configurar fallara con un ECONNREFUSED a
-    // una dirección que el usuario nunca escribió. Vacío = no configurado, y
-    // generateText lo dice con esas palabras.
+    // No default on purpose: inventing LM Studio's port (1234) made an
+    // unconfigured .env fail with ECONNREFUSED against an address the user
+    // never wrote. Empty = not configured, and generateText says exactly that.
     let rawURL = getGlobalConfig('LOCAL_LLM_URL', '').trim();
     let baseURL = rawURL;
     if (rawURL && !rawURL.endsWith('/v1') && !rawURL.endsWith('/v1/')) {
@@ -529,25 +528,53 @@ export async function buildUserMessage(prompt: string, rootDir: string): Promise
   return { role: 'user', content: [{ type: 'text', text: fullText }, ...imageParts] } as CoreMessage;
 }
 
-// Algunos modelos de razonamiento (MiniMax M2/M3, etc.) NO devuelven el
-// "pensamiento" en un campo aparte (reasoning_content, como DeepSeek/Kimi), sino
-// inline dentro del content envuelto en <think>...</think> —a menudo en inglés—.
-// El SDK lo deja tal cual en response.text, así que el usuario ve el razonamiento
-// antes de la respuesta real. Lo quitamos para mostrar solo la contestación.
+// Some reasoning models (MiniMax M2/M3, etc.) do NOT return their "thinking"
+// in a separate field (reasoning_content, like DeepSeek/Kimi) but inline in
+// the content wrapped in <think>...</think> — often in English. The SDK leaves
+// it as-is in response.text, so the user would see the reasoning before the
+// actual answer. Strip it and keep only the reply.
 function stripReasoning(text: string): string {
   if (!text) return text;
-  // Bloques completos <think>…</think> / <thinking>…</thinking>
+  // Complete <think>…</think> / <thinking>…</thinking> blocks
   let out = text.replace(/<think(?:ing)?>[\s\S]*?<\/think(?:ing)?>/gi, '');
-  // Etiqueta de cierre suelta (el razonamiento empezó antes del content): quédate con lo de después.
+  // Stray closing tag (the reasoning started before the content): keep what follows.
   const close = out.toLowerCase().lastIndexOf('</think');
   if (close !== -1) {
     const gt = out.indexOf('>', close);
     if (gt !== -1) out = out.slice(gt + 1);
   }
-  // Apertura sin cierre (razonamiento truncado por max_tokens): descarta desde ahí.
+  // Opening tag without a close (reasoning truncated by max_tokens): drop from there.
   const open = out.toLowerCase().indexOf('<think');
   if (open !== -1) out = out.slice(0, open);
   return out.trim();
+}
+
+// On long agentic loops some models occasionally WRITE their tool invocations
+// as plain text — DeepSeek's DSML (`<｜｜DSML｜｜ invoke …>`), Qwen/Hermes
+// `<tool_call>`, DeepSeek-R1's `<|tool▁calls▁begin|>` — instead of emitting
+// them through the structured channel. Nothing executes, the SDK sees no tool
+// calls, and the raw markup would land in the chat as the "final answer"
+// (seen live: Lucía's Hacker News cron, 10-09). A reply that merely QUOTES
+// such syntax inside real prose is fine — a leak is when the message IS the
+// markup: it starts with a marker, or almost nothing remains once the tags
+// are stripped.
+const TOOL_MARKUP_LEAK = /<[｜|]{1,2}\s*DSML|<\|?tool[▁_]?calls?(?:[▁_](?:begin|end))?\|?>|<tool_call>/i;
+
+function isToolMarkupLeak(text: string): boolean {
+  const trimmed = text.trim();
+  const m = TOOL_MARKUP_LEAK.exec(trimmed);
+  if (!m) return false;
+  if (m.index === 0) return true; // the "answer" opens with tool markup
+  // Otherwise, count how much content lives OUTSIDE <...> tag-like regions.
+  // This is a size heuristic, not sanitization — the string is never rendered.
+  let visible = 0;
+  let depth = 0;
+  for (const ch of trimmed) {
+    if (ch === '<') depth++;
+    else if (ch === '>') depth = Math.max(0, depth - 1);
+    else if (depth === 0 && !/\s/.test(ch)) visible++;
+  }
+  return visible < 60;
 }
 
 export async function generateText(config: LLMConfig, messages: CoreMessage[], systemPrompt?: string, aiTools?: Record<string, any>, rawTools?: any[]) {
@@ -555,9 +582,9 @@ export async function generateText(config: LLMConfig, messages: CoreMessage[], s
     const hasTools = aiTools && Object.keys(aiTools).length > 0;
     console.log(`[LLM] Attempting with model: ${config.model} (${config.provider}) | Tools: ${hasTools}`);
 
-    // Un local sin URL acabaría llamando a api.openai.com con la clave "no-key"
-    // (ver getModel). Mejor decir qué falta que reintentar tres veces contra
-    // un sitio equivocado.
+    // A local provider without a URL would end up calling api.openai.com with
+    // the "no-key" placeholder (see getModel). Better to say what's missing
+    // than to retry three times against the wrong site.
     if (config.provider === 'local' && !config.baseURL) {
       throw new Error(
         'no hay servidor LLM local configurado. Define LOCAL_LLM_URL en el .env ' +
@@ -739,11 +766,51 @@ export async function generateText(config: LLMConfig, messages: CoreMessage[], s
       }
     }
 
+    // Leaked tool-call markup as the final answer → one retry WITHOUT tools
+    // (so the model must answer in prose from what it already gathered); if it
+    // leaks again, a clear failure beats raw markup in the chat. The English
+    // text is the fallback (e.g. Telegram); the UI translates via errorCode
+    // (llm.errors.* in the locale files).
+    let errorCode: string | undefined;
+    if (finalText && isToolMarkupLeak(finalText)) {
+      console.warn(`[LLM] Final answer from ${config.model} is leaked tool-call markup. Retrying for a real answer...`);
+      let recovered: string | undefined;
+      try {
+        const retry = await vercelGenerateText({
+          model,
+          system: finalSystemPrompt,
+          messages: [
+            ...messages,
+            { role: 'assistant', content: finalText },
+            {
+              role: 'user',
+              content:
+                'Your previous message was raw tool-call markup, not an answer — nothing was executed. ' +
+                'Write your final answer now as plain text for the user, based on the information you already gathered. ' +
+                'Do NOT emit any tool-call syntax.',
+            },
+          ],
+          maxRetries: 1,
+        });
+        const retryText = stripReasoning(retry.text);
+        if (retryText && !isToolMarkupLeak(retryText)) recovered = retryText;
+      } catch { /* fall through to the error code */ }
+      if (recovered) {
+        finalText = recovered;
+      } else {
+        finalText = '⚠️ The model returned a malformed response (internal tool-call syntax). Please try again or rephrase your request.';
+        errorCode = 'malformed_model_response';
+      }
+    }
+
     return {
       text: finalText,
       usage: response.usage,
       success: true,
-      modelUsed: config.model
+      modelUsed: config.model,
+      // undefined is dropped by JSON.stringify, so a clean run adds nothing
+      // to the stored resultMeta.
+      errorCode,
     };
   } catch (error: any) {
     const lastError = error.message;

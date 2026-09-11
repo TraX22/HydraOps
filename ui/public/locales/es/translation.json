@@ -1,4 +1,9 @@
 {
+  "llm": {
+    "errors": {
+      "malformed_model_response": "⚠️ El modelo devolvió una respuesta malformada (sintaxis interna de herramientas). Volvé a intentarlo o reformulá el pedido."
+    }
+  },
   "oneShot": {
     "tagline": "Convierte un diagrama de flujo en un prompt one-shot",
     "back": "Volver",
