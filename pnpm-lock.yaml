@@ -377,6 +377,9 @@ importers:
       '@hydraops/nats':
         specifier: workspace:*
         version: link:../../packages/nats
+      ai:
+        specifier: latest
+        version: 7.0.97(zod@3.25.76)
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -386,6 +389,9 @@ importers:
       nats:
         specifier: ^2.29.0
         version: 2.29.3
+      zod:
+        specifier: ^3.25.0
+        version: 3.25.76
     devDependencies:
       tsup:
         specifier: ^8.5.0
