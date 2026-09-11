@@ -1,7 +1,8 @@
 {
   "llm": {
     "errors": {
-      "malformed_model_response": "⚠️ Il modello ha restituito una risposta malformata (sintassi interna degli strumenti). Riprova o riformula la richiesta."
+      "malformed_model_response": "⚠️ Il modello ha restituito una risposta malformata (sintassi interna degli strumenti). Riprova o riformula la richiesta.",
+      "task_timed_out": "⚠️ Il task è scaduto: il worker non l'ha mai completato (potrebbe essersi riavviato a metà). Invialo di nuovo."
     }
   },
   "oneShot": {

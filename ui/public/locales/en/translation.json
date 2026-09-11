@@ -1,7 +1,8 @@
 {
   "llm": {
     "errors": {
-      "malformed_model_response": "⚠️ The model returned a malformed response (internal tool syntax). Try again or rephrase your request."
+      "malformed_model_response": "⚠️ The model returned a malformed response (internal tool syntax). Try again or rephrase your request.",
+      "task_timed_out": "⚠️ The task timed out: its worker never finished it (it may have restarted mid-task). Please send it again."
     }
   },
   "oneShot": {

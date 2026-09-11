@@ -29,7 +29,7 @@ loadDotenv({ path: envFile });
 import { createRegistry } from "@hydraops/addons";
 import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage } from "@hydraops/db";
 import { buildEnvelope } from "@hydraops/events";
-import { eq, and, gte, asc, like } from "drizzle-orm";
+import { eq, and, gte, lt, asc, like } from "drizzle-orm";
 import os from "node:os";
 
 /**
@@ -2636,6 +2636,38 @@ async function pruneToolUsage(): Promise<void> {
 }
 void pruneToolUsage();
 setInterval(() => void pruneToolUsage(), 24 * 60 * 60 * 1000).unref();
+
+// Zombie tasks: a task handed to a worker that then died (or lost the NATS
+// message mid-flight) stays 'assigned' forever — its agent shows "working" for
+// days and nothing ever completes it (seen live: an 8-day-old assigned task).
+// Fail anything assigned for longer than the TTL so the chat shows a clear
+// timeout (errorCode → localized in the UI) and the agent's dot clears. 30 min
+// covers the longest legitimate runs (video generation, long agentic loops).
+const STALE_TASK_TTL_MIN = 30;
+async function failStaleTasks(): Promise<void> {
+  try {
+    const cutoff = new Date(Date.now() - STALE_TASK_TTL_MIN * 60_000);
+    const stale = await (db as any).select({ id: tasks.id }).from(tasks)
+      .where(and(eq(tasks.status, "assigned"), lt(tasks.updatedAt, cutoff)));
+    for (const t of stale) {
+      await (db as any).update(tasks).set({
+        status: "failed",
+        resultMeta: {
+          text: "⚠️ The task timed out: its worker never finished it (it may have restarted mid-task). Please send it again.",
+          success: false,
+          error: "stale_task",
+          errorCode: "task_timed_out",
+        },
+        updatedAt: new Date(),
+      }).where(eq(tasks.id, t.id)).run();
+    }
+    if (stale.length) console.warn(`[api] stale task sweep: failed ${stale.length} task(s) assigned for over ${STALE_TASK_TTL_MIN} min`);
+  } catch (err) {
+    console.warn("[api] stale task sweep failed", err);
+  }
+}
+void failStaleTasks();
+setInterval(() => void failStaleTasks(), 5 * 60 * 1000).unref();
 
 process.on("SIGINT", async () => {
   await pool.end();
