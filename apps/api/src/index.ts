@@ -1318,10 +1318,15 @@ api.get("/config/models", async (req, res) => {
       }
 
       // A model may look like a video engine by name, but generateVideo
-      // (@hydraops/llm) can only drive Google Veo and Leonardo Motion today.
-      // isVideo is what the Agents view offers to video workers, so it stays
-      // false for the rest instead of promising an engine that will fail.
-      const drivableVideo = type === 'video' && (provider === 'leonardo' || (provider === 'google' && /veo/.test(lower)));
+      // (@hydraops/llm) can only drive Google Veo, xAI Grok Imagine video and
+      // Leonardo Motion today. isVideo is what the Agents view offers to video
+      // workers, so it stays false for the rest instead of promising an
+      // engine that will fail.
+      const drivableVideo = type === 'video' && (
+        provider === 'leonardo'
+        || (provider === 'google' && /veo/.test(lower))
+        || (provider === 'xai' && /grok-imagine-video/.test(lower))
+      );
 
       return {
         type,
@@ -1376,7 +1381,7 @@ api.get("/config/models", async (req, res) => {
 
     const xaiKey = getKey("XAI_API_KEY");
     if (xaiKey) providerJobs.push(listAvailableXAIModels(xaiKey).then(models => {
-      allModels.push(...models.map(m => ({ id: m, name: viaKey(`xAI: ${m}`), provider: 'xai', ...identify(m) })));
+      allModels.push(...models.map(m => ({ id: m, name: viaKey(`xAI: ${m}`), provider: 'xai', ...identify(m, 'xai') })));
     }).catch(() => {}));
 
     const anthropicKey = getKey("ANTHROPIC_API_KEY");

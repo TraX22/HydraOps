@@ -17,7 +17,7 @@ import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerSt
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType } from "@hydraops/nats";
 import { and, desc, eq } from "drizzle-orm";
-import { generateText as llmGenerateText, generateVideo, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
+import { generateText as llmGenerateText, generateVideo, resolveLLMConfig, buildUserMessage, GROK_VIDEO_ASPECTS } from "@hydraops/llm";
 import { createRegistry } from "@hydraops/addons";
 import { tool } from "ai";
 import { z } from "zod";
@@ -125,17 +125,17 @@ function videoSize(resolution?: string | null): [number, number] {
 }
 
 // The video engine this agent renders with. generateVideo (@hydraops/llm)
-// only speaks Google (Veo) and Leonardo today, so anything else picked in
-// the Agents view falls back to Leonardo Motion — loudly, so it shows in the
-// logs instead of silently ignoring the user's choice.
+// speaks Google (Veo), xAI (Grok Imagine) and Leonardo, so anything else
+// picked in the Agents view falls back to Leonardo Motion — loudly, so it
+// shows in the logs instead of silently ignoring the user's choice.
 function resolveVideoEngine(
   agentCfg: any,
   getGlobalConfig: (key: string, defaultValue: string) => string,
 ): ReturnType<typeof resolveLLMConfig> {
   const picked = agentCfg.graphicEngine && agentCfg.graphicEngine !== "auto" ? agentCfg.graphicEngine : "leonardo-ai";
   const cfg = resolveLLMConfig(picked, getGlobalConfig);
-  if (cfg.provider === "leonardo" || cfg.provider === "google") return cfg;
-  console.warn(`[${consumerName}] video engine "${picked}" is not supported by generateVideo (Google/Leonardo only) — falling back to Leonardo`);
+  if (cfg.provider === "leonardo" || cfg.provider === "google" || cfg.provider === "xai") return cfg;
+  console.warn(`[${consumerName}] video engine "${picked}" is not supported by generateVideo (Google/xAI/Leonardo only) — falling back to Leonardo`);
   return resolveLLMConfig("leonardo-ai", getGlobalConfig);
 }
 
@@ -150,12 +150,15 @@ async function renderToStorage(
 ): Promise<{ videoUrl?: string; relPath: string | null; sourceUrl: string | null; engine: string; error?: string }> {
   const videoConfig = resolveVideoEngine(agentCfg, getGlobalConfig);
   const [vidWidth, vidHeight] = videoSize(agentCfg.resolution);
-  const nativeAspects = videoConfig.provider === "google" ? ["16:9", "9:16"] : ["16:9", "9:16", "3:4", "2:3"];
-  if (agentCfg.resolution && agentCfg.resolution !== "auto" && !nativeAspects.includes(agentCfg.resolution)) {
-    console.warn(`[${consumerName}] aspect ${agentCfg.resolution} is not available on ${videoConfig.provider}; rendering ${vidWidth}x${vidHeight} instead`);
+  const nativeAspects = videoConfig.provider === "google" ? ["16:9", "9:16"]
+    : videoConfig.provider === "xai" ? GROK_VIDEO_ASPECTS
+    : ["16:9", "9:16", "3:4", "2:3"];
+  const aspect = agentCfg.resolution && agentCfg.resolution !== "auto" ? String(agentCfg.resolution) : null;
+  if (aspect && !nativeAspects.includes(aspect)) {
+    console.warn(`[${consumerName}] aspect ${aspect} is not available on ${videoConfig.provider}; rendering ${vidWidth}x${vidHeight} instead`);
   }
-  console.log(`[${consumerName}] 🎬 Video task ${taskId} with ${videoConfig.provider}:${videoConfig.model} (${vidWidth}x${vidHeight})...`);
-  const video = await generateVideo(videoConfig, prompt, vidWidth, vidHeight);
+  console.log(`[${consumerName}] 🎬 Video task ${taskId} with ${videoConfig.provider}:${videoConfig.model} (${aspect ?? "auto"}, ${vidWidth}x${vidHeight})...`);
+  const video = await generateVideo(videoConfig, prompt, vidWidth, vidHeight, aspect);
   if (!video.success || !video.url) {
     return { relPath: null, sourceUrl: null, engine: videoConfig.model, error: video.error || "unknown error" };
   }

@@ -94,7 +94,9 @@ export class AgentsComponent implements OnInit {
     if ((this.selectedAgent()?.workerType ?? 'coder') !== 'video') return AgentsComponent.ALL_RESOLUTIONS;
     const engine = this.engine();
     const provider = engine === 'auto' ? 'leonardo' : this.models().find(m => m.id === engine)?.provider;
-    return provider === 'google' ? AgentsComponent.VEO_RESOLUTIONS : AgentsComponent.LEONARDO_VIDEO_RESOLUTIONS;
+    if (provider === 'google') return AgentsComponent.VEO_RESOLUTIONS;
+    if (provider === 'xai') return AgentsComponent.ALL_RESOLUTIONS;
+    return AgentsComponent.LEONARDO_VIDEO_RESOLUTIONS;
   }
 
   get resolutionDisabled(): boolean {

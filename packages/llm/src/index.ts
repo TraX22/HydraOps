@@ -954,19 +954,59 @@ export async function generateImage(config: LLMConfig, prompt: string, width: nu
 // and Leonardo Motion has been seen taking longer than that, so wait ~8 min.
 const VIDEO_POLL_INTERVAL_MS = 5000;
 const VIDEO_POLL_ATTEMPTS = 96;
+/** Aspect ratios Grok Imagine video accepts (docs.x.ai, video generation). */
+export const GROK_VIDEO_ASPECTS = ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'];
 
 /**
  * Master function to generate videos through multiple providers
  */
-export async function generateVideo(config: LLMConfig, prompt: string, width: number = 832, height: number = 480) {
+export async function generateVideo(config: LLMConfig, prompt: string, width: number = 832, height: number = 480, aspect?: string | null) {
   try {
      console.log(`[LLM Video] Attempting with model: ${config.model} (${config.provider})`);
+     if (config.provider === 'xai') {
+        // Grok Imagine video: start the job, poll /videos/{id} until done. It
+        // takes every aspect the Agents view offers, so the agent's choice is
+        // passed through as-is; 480p and 5 s keep the per-second billing low.
+        const apiBase = 'https://api.x.ai/v1';
+        const aspectRatio = aspect && GROK_VIDEO_ASPECTS.includes(aspect) ? aspect : (height > width ? '9:16' : width === height ? '1:1' : '16:9');
+        console.log(`[Grok Video] Starting ${config.model} (${aspectRatio}, 480p, 5s)...`);
+        const startRes = await fetch(proxied(`${apiBase}/videos/generations`), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.apiKey}` },
+          body: JSON.stringify({ model: config.model, prompt, duration: 5, aspect_ratio: aspectRatio, resolution: '480p' })
+        });
+        if (!startRes.ok) throw new Error(`Grok Video API Error: ${await startRes.text()}`);
+        const job = await startRes.json();
+        const requestId: string | undefined = job?.request_id;
+        if (!requestId) throw new Error(`Failed to start Grok video generation: ${JSON.stringify(job)}`);
+
+        console.log(`[Grok Video] Polling request ${requestId}...`);
+        for (let i = 0; i < VIDEO_POLL_ATTEMPTS; i++) {
+           await new Promise(r => setTimeout(r, VIDEO_POLL_INTERVAL_MS));
+           const statusRes = await fetch(proxied(`${apiBase}/videos/${requestId}`), {
+             headers: { 'Authorization': `Bearer ${config.apiKey}` }
+           });
+           if (!statusRes.ok) continue;
+           const status = await statusRes.json();
+           if (status?.status === 'failed' || status?.status === 'expired') {
+              throw new Error(`Grok video generation ${status.status}${status.error ? `: ${JSON.stringify(status.error)}` : ''}`);
+           }
+           if (status?.status !== 'done') continue;
+           const url: string | undefined = status.video?.url;
+           if (!url) throw new Error(`Grok video returned no URL: ${JSON.stringify(status)}`);
+           // The URL is temporary and needs no key; the worker downloads it right away.
+           return { success: true, base64: null, url };
+        }
+        throw new Error("Grok video generation timed out");
+     }
+
      if (config.provider === 'google') {
         // Veo is a long-running operation: start the job, poll the operation
         // until it is done, then hand back the download URI. Veo only knows
-        // 16:9 and 9:16, so the requested size just picks the orientation.
+        // 16:9 and 9:16, so anything else falls back to the orientation of
+        // the requested size.
         const apiBase = 'https://generativelanguage.googleapis.com/v1beta';
-        const aspectRatio = height > width ? '9:16' : '16:9';
+        const aspectRatio = aspect === '9:16' || aspect === '16:9' ? aspect : (height > width ? '9:16' : '16:9');
         console.log(`[Google Video] Starting ${config.model} (${aspectRatio})...`);
         const startRes = await fetch(proxied(`${apiBase}/models/${config.model}:predictLongRunning`), {
           method: 'POST',
