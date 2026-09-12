@@ -106,6 +106,21 @@ function wantsDrawing(prompt: string): boolean {
   return DRAW_PATTERNS.some((re) => re.test(prompt));
 }
 
+// Some models narrate the tool call instead of making it ("run tool
+// {tool} with prompt is …"). The prompt they wrote is usually good, so it
+// is recovered from the narration; the caller falls back to the user's text.
+function leakedToolPrompt(text: string, tool: string): string | null {
+  const m = text.match(new RegExp(`\\b${tool}\\b[^\\n]*?\\bprompt\\b\\s*(?:is|=|:)?\\s*["“']?([^"”'\\n]{10,})`, "i"));
+  return m?.[1]?.trim() ?? null;
+}
+
+// Drop the narration from the reply: everything from the sentence that
+// names the tool onwards.
+function stripToolNarration(text: string, tool: string): string {
+  const cut = text.search(new RegExp(`[^.\\n]*\\b${tool}\\b`, "i"));
+  return cut > 0 ? text.slice(0, cut).trim() : "";
+}
+
 // agentConfigs.resolution (aspect) → concrete image dimensions
 const IMAGE_SIZES: Record<string, [number, number]> = {
   "1:1": [1024, 1024],
@@ -408,7 +423,19 @@ ${personality}
       else drawn.error = r.error ?? "unknown error";
     }
 
-    resultMeta = { text, usage, success, error, errorCode, modelUsed: llmConfig.model };
+    // The model narrated the call instead of making it (seen with grok-4.3:
+    // "run tool generate_image with prompt is …"): honour it anyway.
+    let finalText = text;
+    if (!drawn.image && !drawn.error && /\bgenerate_image\b/i.test(text || "")) {
+      const leaked = leakedToolPrompt(text, "generate_image");
+      console.warn(`[${consumerName}] model narrated a generate_image call instead of making it — rendering with ${leaked ? "its own prompt" : "the user's prompt"}`);
+      const r = await drawToStorage(taskId!, agentCfg, getGlobalConfig, leaked ?? userPrompt);
+      if (r.relPath) drawn.image = { relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
+      else drawn.error = r.error ?? "unknown error";
+      finalText = stripToolNarration(text, "generate_image");
+    }
+
+    resultMeta = { text: finalText, usage, success, error, errorCode, modelUsed: llmConfig.model };
     if (drawn.image) {
       Object.assign(resultMeta, {
         imagePath: drawn.image.relPath,
@@ -416,8 +443,8 @@ ${personality}
         sourceUrl: drawn.image.sourceUrl,
         imageModel: drawn.image.engine,
       });
-      if (!text) resultMeta.text = "🖼️ Imagen generada.";
-    } else if (drawn.error && !text) {
+      if (!finalText) resultMeta.text = "🖼️ Imagen generada.";
+    } else if (drawn.error && !finalText) {
       Object.assign(resultMeta, { success: false, error: drawn.error });
     }
     previewText = String(resultMeta.text || resultMeta.error || "No response.");

@@ -107,6 +107,21 @@ function wantsVideo(prompt: string): boolean {
   return VIDEO_PATTERNS.some((re) => re.test(prompt));
 }
 
+// Some models narrate the tool call instead of making it ("run tool
+// {tool} with prompt is …"). The prompt they wrote is usually good, so it
+// is recovered from the narration; the caller falls back to the user's text.
+function leakedToolPrompt(text: string, tool: string): string | null {
+  const m = text.match(new RegExp(`\\b${tool}\\b[^\\n]*?\\bprompt\\b\\s*(?:is|=|:)?\\s*["“']?([^"”'\\n]{10,})`, "i"));
+  return m?.[1]?.trim() ?? null;
+}
+
+// Drop the narration from the reply: everything from the sentence that
+// names the tool onwards.
+function stripToolNarration(text: string, tool: string): string {
+  const cut = text.search(new RegExp(`[^.\\n]*\\b${tool}\\b`, "i"));
+  return cut > 0 ? text.slice(0, cut).trim() : "";
+}
+
 // agentConfigs.resolution (aspect) → concrete video dimensions. Leonardo's
 // RESOLUTION_480 tier only accepts 832x480, 480x832, 512x768 and 576x720
 // (anything else is rejected), so aspects without an exact match map to the
@@ -418,7 +433,19 @@ ${personality}
       else rendered.error = r.error ?? "unknown error";
     }
 
-    resultMeta = { text, usage, success, error, errorCode, modelUsed: llmConfig.model };
+    // The model narrated the call instead of making it ("run tool
+    // generate_video with prompt is …"): honour it anyway.
+    let finalText = text;
+    if (!rendered.video && !rendered.error && /\bgenerate_video\b/i.test(text || "")) {
+      const leaked = leakedToolPrompt(text, "generate_video");
+      console.warn(`[${consumerName}] model narrated a generate_video call instead of making it — rendering with ${leaked ? "its own prompt" : "the user's prompt"}`);
+      const r = await renderToStorage(taskId!, agentCfg, getGlobalConfig, leaked ?? userPrompt);
+      if (r.videoUrl) rendered.video = { videoUrl: r.videoUrl, relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
+      else rendered.error = r.error ?? "unknown error";
+      finalText = stripToolNarration(text, "generate_video");
+    }
+
+    resultMeta = { text: finalText, usage, success, error, errorCode, modelUsed: llmConfig.model };
     if (rendered.video) {
       Object.assign(resultMeta, {
         videoPath: rendered.video.relPath,
@@ -426,8 +453,8 @@ ${personality}
         sourceUrl: rendered.video.sourceUrl,
         videoModel: rendered.video.engine,
       });
-      if (!text) resultMeta.text = "🎬 Video generado.";
-    } else if (rendered.error && !text) {
+      if (!finalText) resultMeta.text = "🎬 Video generado.";
+    } else if (rendered.error && !finalText) {
       Object.assign(resultMeta, { success: false, error: rendered.error });
     }
     previewText = String(resultMeta.text || resultMeta.error || "No response.");

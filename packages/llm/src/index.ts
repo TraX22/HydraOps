@@ -54,6 +54,20 @@ function proxied(url: string): string {
  */
 export function resolveLLMConfig(model: string, getGlobalConfig: (key: string, defaultValue: string) => string): LLMConfig {
   const m = model.toLowerCase();
+
+  // 0. Leonardo, before any heuristic: its model ids are bare UUIDs and the
+  // hex in them ("…9f1b…") used to pass for a "7b"-style parameter size,
+  // sending an image engine to the local LLM. "leonardo:" is the explicit
+  // prefix the workers add to a bare UUID.
+  if (m.includes('leonardo')) {
+    const cleanModel = model.replace(/^leonardo:/, '');
+    return {
+      provider: 'leonardo',
+      model: cleanModel,
+      apiKey: getGlobalConfig('LEONARDO_API_KEY', ''),
+      baseURL: 'https://cloud.leonardo.ai/api/rest/v1'
+    };
+  }
   
   // Check if LOCAL_LLM_MODEL is set and the given model is a partial match
   const localLLMModel = getGlobalConfig('LOCAL_LLM_MODEL', '');
@@ -69,7 +83,9 @@ export function resolveLLMConfig(model: string, getGlobalConfig: (key: string, d
   // (e.g. deepseek-r1:8b), the '.gguf' suffix, the word 'local', or a partial
   // match to LOCAL_LLM_MODEL.
   const isOSArchitecture = /gemma|phi|yi|falcon/.test(m);
-  const isParamSize = /\d+b/.test(m);
+  // A parameter size is a standalone token (7b, 30b, 1.5b), not any digit
+  // that happens to precede a 'b' inside a longer id.
+  const isParamSize = /(^|[^a-z0-9])\d+(\.\d+)?b(?![a-z0-9])/.test(m);
 
   // 1. Priority: Local models (.gguf, word 'local', os architectures, param sizes, or partial match to LOCAL_LLM_MODEL)
   if (m.endsWith('.gguf') || m.includes('local') || isOSArchitecture || isParamSize || isPartialLocalMatch) {
@@ -141,18 +157,6 @@ export function resolveLLMConfig(model: string, getGlobalConfig: (key: string, d
       model, 
       apiKey: getGlobalConfig('XAI_API_KEY', ''), 
       baseURL: 'https://api.x.ai/v1' 
-    };
-  }
-
-  // 7. Leonardo
-  if (m.includes('leonardo')) {
-    // Strip "leonardo:" prefix if present to get the actual model ID/UUID
-    const cleanModel = model.replace(/^leonardo:/, '');
-    return {
-      provider: 'leonardo',
-      model: cleanModel,
-      apiKey: getGlobalConfig('LEONARDO_API_KEY', ''),
-      baseURL: 'https://cloud.leonardo.ai/api/rest/v1'
     };
   }
 
