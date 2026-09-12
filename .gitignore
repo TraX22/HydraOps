@@ -54,3 +54,6 @@ Thumbs.db
 .claude/
 .vscode/
 .idea/
+
+# Playwright MCP snapshots/screenshots taken during local checks
+.playwright-mcp/
