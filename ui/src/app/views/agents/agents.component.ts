@@ -79,9 +79,23 @@ export class AgentsComponent implements OnInit {
   // coder/general → the agent's chat model). Persisted as agentConfigs.graphicEngine.
   engine = signal('auto');
 
-  // Resolución/aspecto for image & video generation; disabled for text workers
-  resolutions = ['auto', '1:1', '16:9', '9:16', '4:3', '3:4'];
+  // Aspect for image & video generation; disabled for text workers.
+  // Image engines take any of these; video engines are narrower (see
+  // resolutions below), so the list follows the selected engine.
+  private static readonly ALL_RESOLUTIONS = ['auto', '1:1', '16:9', '9:16', '4:3', '3:4'];
+  private static readonly VEO_RESOLUTIONS = ['auto', '16:9', '9:16'];
+  private static readonly LEONARDO_VIDEO_RESOLUTIONS = ['auto', '16:9', '9:16', '3:4'];
   resolution = signal('auto');
+
+  // Only the aspects the selected engine can actually render. Anything else
+  // would be mapped to the closest supported size by the worker without the
+  // user noticing (a "1:1" Veo request came back as 16:9).
+  get resolutions(): string[] {
+    if ((this.selectedAgent()?.workerType ?? 'coder') !== 'video') return AgentsComponent.ALL_RESOLUTIONS;
+    const engine = this.engine();
+    const provider = engine === 'auto' ? 'leonardo' : this.models().find(m => m.id === engine)?.provider;
+    return provider === 'google' ? AgentsComponent.VEO_RESOLUTIONS : AgentsComponent.LEONARDO_VIDEO_RESOLUTIONS;
+  }
 
   get resolutionDisabled(): boolean {
     const wt = this.selectedAgent()?.workerType ?? 'coder';
@@ -513,7 +527,10 @@ export class AgentsComponent implements OnInit {
 
   onEngineChange(engine: string): void {
     this.engine.set(engine);
-    this.saveConfig({ graphicEngine: engine });
+    // A saved aspect the new engine cannot render goes back to automatic
+    const resolution = this.resolutions.includes(this.resolution()) ? this.resolution() : 'auto';
+    this.resolution.set(resolution);
+    this.saveConfig({ graphicEngine: engine, resolution });
   }
 
   onResolutionChange(resolution: string): void {

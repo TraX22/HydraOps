@@ -150,6 +150,10 @@ async function renderToStorage(
 ): Promise<{ videoUrl?: string; relPath: string | null; sourceUrl: string | null; engine: string; error?: string }> {
   const videoConfig = resolveVideoEngine(agentCfg, getGlobalConfig);
   const [vidWidth, vidHeight] = videoSize(agentCfg.resolution);
+  const nativeAspects = videoConfig.provider === "google" ? ["16:9", "9:16"] : ["16:9", "9:16", "3:4", "2:3"];
+  if (agentCfg.resolution && agentCfg.resolution !== "auto" && !nativeAspects.includes(agentCfg.resolution)) {
+    console.warn(`[${consumerName}] aspect ${agentCfg.resolution} is not available on ${videoConfig.provider}; rendering ${vidWidth}x${vidHeight} instead`);
+  }
   console.log(`[${consumerName}] 🎬 Video task ${taskId} with ${videoConfig.provider}:${videoConfig.model} (${vidWidth}x${vidHeight})...`);
   const video = await generateVideo(videoConfig, prompt, vidWidth, vidHeight);
   if (!video.success || !video.url) {
