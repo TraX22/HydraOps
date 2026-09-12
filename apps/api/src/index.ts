@@ -1295,12 +1295,13 @@ api.get("/config/models", async (req, res) => {
     // Classify each model into a capability type. Some providers expose real
     // metadata (Gemini supportedGenerationMethods, OpenRouter modality); for the
     // rest the model name is the only signal, so this is heuristic by design.
-    const identify = (modelId: string) => {
+    const identify = (modelId: string, provider = '') => {
       const lower = modelId.toLowerCase();
       let type: 'chat' | 'coder' | 'image' | 'video' | 'audio' | 'embedding' = 'chat';
       let emoji = '🧠';
 
-      if (/veo|sora|video|film|movie|(^|[\/\-_.:])kling|wan2|motion|svd/.test(lower)) {
+      // wan2.x names both image (wan2.7-image) and video (wan2.6-t2v) models
+      if (/veo|sora|video|film|movie|(^|[\/\-_.:])kling|wan2(?![\w.-]*image)|motion|svd/.test(lower)) {
         type = 'video';
         emoji = '🎬';
       } else if (/imagen|image|dall-e|flux|imagine|stable-diffusion|sdxl|pixart|photon/.test(lower)) {
@@ -1317,14 +1318,25 @@ api.get("/config/models", async (req, res) => {
         emoji = '👩‍💻';
       }
 
+      // A model may look like a video engine by name, but generateVideo
+      // (@hydraops/llm) can only drive Google Veo, xAI Grok Imagine video and
+      // Leonardo Motion today. isVideo is what the Agents view offers to video
+      // workers, so it stays false for the rest instead of promising an
+      // engine that will fail.
+      const drivableVideo = type === 'video' && (
+        provider === 'leonardo'
+        || (provider === 'google' && /veo/.test(lower))
+        || (provider === 'xai' && /grok-imagine-video/.test(lower))
+      );
+
       return {
         type,
         emoji,
         canGenerateText: type === 'chat' || type === 'coder',
         canGenerateImage: type === 'image',
-        canGenerateVideo: type === 'video',
+        canGenerateVideo: drivableVideo,
         isImage: type === 'image',
-        isVideo: type === 'video',
+        isVideo: drivableVideo,
         isCoder: type === 'coder'
       };
     };
@@ -1358,7 +1370,7 @@ api.get("/config/models", async (req, res) => {
 
     const geminiKey = getKey("GEMINI_API_KEY");
     if (geminiKey) providerJobs.push(listAvailableGeminiModels(geminiKey).then(models => {
-      allModels.push(...models.map(m => ({ id: m, name: viaKey(`Gemini: ${m}`), provider: 'google', ...identify(m) })));
+      allModels.push(...models.map(m => ({ id: m, name: viaKey(`Gemini: ${m}`), provider: 'google', ...identify(m, 'google') })));
     }).catch(() => {}));
 
     const openaiKey = getKey("OPENAI_API_KEY");
@@ -1370,7 +1382,7 @@ api.get("/config/models", async (req, res) => {
 
     const xaiKey = getKey("XAI_API_KEY");
     if (xaiKey) providerJobs.push(listAvailableXAIModels(xaiKey).then(models => {
-      allModels.push(...models.map(m => ({ id: m, name: viaKey(`xAI: ${m}`), provider: 'xai', ...identify(m) })));
+      allModels.push(...models.map(m => ({ id: m, name: viaKey(`xAI: ${m}`), provider: 'xai', ...identify(m, 'xai') })));
     }).catch(() => {}));
 
     const anthropicKey = getKey("ANTHROPIC_API_KEY");
@@ -1436,9 +1448,9 @@ api.get("/config/models", async (req, res) => {
 
     await Promise.all(providerJobs);
 
-    // Local LLM si está configurado — leído SIEMPRE del .env. El id es estable
-    // ('local-model'): al cambiar de modelo local solo cambia la etiqueta, así
-    // defaultModel y los agentes que lo referencian nunca quedan huérfanos.
+    // Local LLM when configured — ALWAYS read from .env. The id is stable
+    // ('local-model'): switching the local model only changes the label, so
+    // defaultModel and the agents referencing it are never orphaned.
     const localEnv = await readLocalLlmFromEnvFile();
     const localLlmUrl = (localEnv.LOCAL_LLM_URL || "").trim();
     const localLlmModel = (localEnv.LOCAL_LLM_MODEL || "").trim();

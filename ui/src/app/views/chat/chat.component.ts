@@ -9,6 +9,7 @@ import { DatePipe } from '@angular/common';
 import { MarkdownPipe } from '../../pipes/markdown.pipe';
 import { watchMermaid } from '../../pipes/mermaid-render';
 import { IconComponent } from '../../components/icon/icon.component';
+import { modelLabel } from '../../shared/model-groups';
 
 @Component({
   selector: 'app-chat',
@@ -67,6 +68,12 @@ export class ChatComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.chat.fetchHistory(this.chat.activeTab());
     this.chat.startPolling(this.chat.activeTab());
+    // Engine ids (Leonardo uses bare UUIDs) become readable names once the
+    // shared model list arrives; until then the footer shows the id.
+    this.api.getModelsShared().subscribe({
+      next: models => this.modelNames.set(new Map(models.map(m => [m.id, modelLabel(m.name)]))),
+      error: () => {},
+    });
   }
 
   ngOnDestroy(): void {
@@ -240,6 +247,19 @@ export class ChatComponent implements OnInit, OnDestroy {
   // every completed task; image/video tasks carry the model but no usage.
   modelUsed(msg: ChatMessage): string {
     return ((msg.resultMeta as Record<string, unknown> | undefined)?.['modelUsed'] as string) || '';
+  }
+
+  // The image/video engine that rendered the result, when there is one
+  // (worker-graphic stores imageModel, worker-video videoModel). Shown next
+  // to the LLM so the user sees both halves of a generation.
+  private modelNames = signal<Map<string, string>>(new Map());
+
+  engineUsed(msg: ChatMessage): string {
+    const meta = msg.resultMeta as Record<string, unknown> | undefined;
+    const video = meta?.['videoModel'] as string | undefined;
+    const image = meta?.['imageModel'] as string | undefined;
+    const name = (id: string) => this.modelNames().get(id) ?? this.modelNames().get(`leonardo:${id}`) ?? id;
+    return video ? `🎬 ${name(video)}` : image ? `🎨 ${name(image)}` : '';
   }
 
   private usageOf(msg: ChatMessage): Record<string, number> | undefined {

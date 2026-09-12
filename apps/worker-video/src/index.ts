@@ -17,7 +17,7 @@ import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerSt
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType } from "@hydraops/nats";
 import { and, desc, eq } from "drizzle-orm";
-import { generateText as llmGenerateText, generateVideo, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
+import { generateText as llmGenerateText, generateVideo, resolveLLMConfig, buildUserMessage, GROK_VIDEO_ASPECTS, isGrokVideoEngine } from "@hydraops/llm";
 import { createRegistry } from "@hydraops/addons";
 import { tool } from "ai";
 import { z } from "zod";
@@ -107,13 +107,32 @@ function wantsVideo(prompt: string): boolean {
   return VIDEO_PATTERNS.some((re) => re.test(prompt));
 }
 
-// agentConfigs.resolution (aspect) → concrete video dimensions (Leonardo 480p tier)
+// Some models narrate the tool call instead of making it ("run tool
+// {tool} with prompt is …"). The prompt they wrote is usually good, so it
+// is recovered from the narration; the caller falls back to the user's text.
+function leakedToolPrompt(text: string, tool: string): string | null {
+  const m = text.match(new RegExp(`\\b${tool}\\b[^\\n]*?\\bprompt\\b\\s*(?:is|=|:)?\\s*["“']?([^"”'\\n]{10,})`, "i"));
+  return m?.[1]?.trim() ?? null;
+}
+
+// Drop the narration from the reply: everything from the sentence that
+// names the tool onwards.
+function stripToolNarration(text: string, tool: string): string {
+  const cut = text.search(new RegExp(`[^.\\n]*\\b${tool}\\b`, "i"));
+  return cut > 0 ? text.slice(0, cut).trim() : "";
+}
+
+// agentConfigs.resolution (aspect) → concrete video dimensions. Leonardo's
+// RESOLUTION_480 tier only accepts 832x480, 480x832, 512x768 and 576x720
+// (anything else is rejected), so aspects without an exact match map to the
+// closest valid one. Veo only reads the orientation (16:9 / 9:16) from this.
 const VIDEO_SIZES: Record<string, [number, number]> = {
-  "1:1": [480, 480],
+  "1:1": [832, 480],
   "16:9": [832, 480],
   "9:16": [480, 832],
-  "4:3": [640, 480],
-  "3:4": [480, 640],
+  "4:3": [832, 480],
+  "3:4": [576, 720],
+  "2:3": [512, 768],
 };
 
 function videoSize(resolution?: string | null): [number, number] {
@@ -121,17 +140,17 @@ function videoSize(resolution?: string | null): [number, number] {
 }
 
 // The video engine this agent renders with. generateVideo (@hydraops/llm)
-// only speaks Google (Veo) and Leonardo today, so anything else picked in
-// the Agents view falls back to Leonardo Motion — loudly, so it shows in the
-// logs instead of silently ignoring the user's choice.
+// speaks Google (Veo), xAI (Grok Imagine) and Leonardo, so anything else
+// picked in the Agents view falls back to Leonardo Motion — loudly, so it
+// shows in the logs instead of silently ignoring the user's choice.
 function resolveVideoEngine(
   agentCfg: any,
   getGlobalConfig: (key: string, defaultValue: string) => string,
 ): ReturnType<typeof resolveLLMConfig> {
   const picked = agentCfg.graphicEngine && agentCfg.graphicEngine !== "auto" ? agentCfg.graphicEngine : "leonardo-ai";
   const cfg = resolveLLMConfig(picked, getGlobalConfig);
-  if (cfg.provider === "leonardo" || cfg.provider === "google") return cfg;
-  console.warn(`[${consumerName}] video engine "${picked}" is not supported by generateVideo (Google/Leonardo only) — falling back to Leonardo`);
+  if (cfg.provider === "leonardo" || cfg.provider === "google" || isGrokVideoEngine(cfg)) return cfg;
+  console.warn(`[${consumerName}] video engine "${picked}" is not supported by generateVideo (Google/xAI/Leonardo only) — falling back to Leonardo`);
   return resolveLLMConfig("leonardo-ai", getGlobalConfig);
 }
 
@@ -146,8 +165,15 @@ async function renderToStorage(
 ): Promise<{ videoUrl?: string; relPath: string | null; sourceUrl: string | null; engine: string; error?: string }> {
   const videoConfig = resolveVideoEngine(agentCfg, getGlobalConfig);
   const [vidWidth, vidHeight] = videoSize(agentCfg.resolution);
-  console.log(`[${consumerName}] 🎬 Video task ${taskId} with ${videoConfig.provider}:${videoConfig.model} (${vidWidth}x${vidHeight})...`);
-  const video = await generateVideo(videoConfig, prompt, vidWidth, vidHeight);
+  const nativeAspects = isGrokVideoEngine(videoConfig) ? GROK_VIDEO_ASPECTS
+    : videoConfig.provider === "google" ? ["16:9", "9:16"]
+    : ["16:9", "9:16", "3:4", "2:3"];
+  const aspect = agentCfg.resolution && agentCfg.resolution !== "auto" ? String(agentCfg.resolution) : null;
+  if (aspect && !nativeAspects.includes(aspect)) {
+    console.warn(`[${consumerName}] aspect ${aspect} is not available on ${videoConfig.provider}; rendering ${vidWidth}x${vidHeight} instead`);
+  }
+  console.log(`[${consumerName}] 🎬 Video task ${taskId} with ${videoConfig.provider}:${videoConfig.model} (${aspect ?? "auto"}, ${vidWidth}x${vidHeight})...`);
+  const video = await generateVideo(videoConfig, prompt, vidWidth, vidHeight, aspect);
   if (!video.success || !video.url) {
     return { relPath: null, sourceUrl: null, engine: videoConfig.model, error: video.error || "unknown error" };
   }
@@ -407,7 +433,19 @@ ${personality}
       else rendered.error = r.error ?? "unknown error";
     }
 
-    resultMeta = { text, usage, success, error, errorCode, modelUsed: llmConfig.model };
+    // The model narrated the call instead of making it ("run tool
+    // generate_video with prompt is …"): honour it anyway.
+    let finalText = text;
+    if (!rendered.video && !rendered.error && /\bgenerate_video\b/i.test(text || "")) {
+      const leaked = leakedToolPrompt(text, "generate_video");
+      console.warn(`[${consumerName}] model narrated a generate_video call instead of making it — rendering with ${leaked ? "its own prompt" : "the user's prompt"}`);
+      const r = await renderToStorage(taskId!, agentCfg, getGlobalConfig, leaked ?? userPrompt);
+      if (r.videoUrl) rendered.video = { videoUrl: r.videoUrl, relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
+      else rendered.error = r.error ?? "unknown error";
+      finalText = stripToolNarration(text, "generate_video");
+    }
+
+    resultMeta = { text: finalText, usage, success, error, errorCode, modelUsed: llmConfig.model };
     if (rendered.video) {
       Object.assign(resultMeta, {
         videoPath: rendered.video.relPath,
@@ -415,8 +453,8 @@ ${personality}
         sourceUrl: rendered.video.sourceUrl,
         videoModel: rendered.video.engine,
       });
-      if (!text) resultMeta.text = "🎬 Video generado.";
-    } else if (rendered.error && !text) {
+      if (!finalText) resultMeta.text = "🎬 Video generado.";
+    } else if (rendered.error && !finalText) {
       Object.assign(resultMeta, { success: false, error: rendered.error });
     }
     previewText = String(resultMeta.text || resultMeta.error || "No response.");

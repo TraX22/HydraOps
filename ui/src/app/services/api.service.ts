@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, shareReplay } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 export interface Agent {
@@ -364,6 +364,15 @@ export class ApiService {
   getModels(): Observable<ModelOption[]> {
     const params = new HttpParams().set('t', Date.now().toString());
     return this.http.get<ModelOption[]>(`${this.base}/config/models`, { params });
+  }
+
+  // Model discovery asks every configured provider and takes seconds, so
+  // views that only need names (the chat footer) share one result per
+  // session. Views that change keys keep calling getModels() for a fresh list.
+  private modelsShared?: Observable<ModelOption[]>;
+  getModelsShared(): Observable<ModelOption[]> {
+    this.modelsShared ??= this.getModels().pipe(shareReplay(1));
+    return this.modelsShared;
   }
 
   saveConfig(config: Partial<AppConfig>): Observable<void> {

@@ -103,10 +103,11 @@
                 <button class="msg-action-btn" (click)="copyMsg(msg)">
                   <app-icon [name]="copiedMsgId() === msg.id ? 'check' : 'clipboard'" />
                 </button>
-                <!-- Which LLM answered and what it cost (hover for the in/out split). -->
-                @if (msg.role === 'assistant' && modelUsed(msg)) {
+                <!-- Which LLM answered, what it cost (hover for the in/out split)
+                     and, for generated media, which engine rendered it. -->
+                @if (msg.role === 'assistant' && (modelUsed(msg) || engineUsed(msg))) {
                   <span class="msg-llm" [title]="tokensTooltip(msg)">
-                    {{ modelUsed(msg) }}@if (tokensUsed(msg)) {&nbsp;·&nbsp;{{ tokensLabel(msg) }} tokens}
+                    {{ modelUsed(msg) }}@if (tokensUsed(msg)) {&nbsp;·&nbsp;{{ tokensLabel(msg) }} tokens}@if (engineUsed(msg)) {@if (modelUsed(msg)) {&nbsp;·&nbsp;}{{ engineUsed(msg) }}}
                   </span>
                 }
               </div>

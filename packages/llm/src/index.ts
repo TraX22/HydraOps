@@ -54,6 +54,20 @@ function proxied(url: string): string {
  */
 export function resolveLLMConfig(model: string, getGlobalConfig: (key: string, defaultValue: string) => string): LLMConfig {
   const m = model.toLowerCase();
+
+  // 0. Leonardo, before any heuristic: its model ids are bare UUIDs and the
+  // hex in them ("…9f1b…") used to pass for a "7b"-style parameter size,
+  // sending an image engine to the local LLM. "leonardo:" is the explicit
+  // prefix the workers add to a bare UUID.
+  if (m.includes('leonardo')) {
+    const cleanModel = model.replace(/^leonardo:/, '');
+    return {
+      provider: 'leonardo',
+      model: cleanModel,
+      apiKey: getGlobalConfig('LEONARDO_API_KEY', ''),
+      baseURL: 'https://cloud.leonardo.ai/api/rest/v1'
+    };
+  }
   
   // Check if LOCAL_LLM_MODEL is set and the given model is a partial match
   const localLLMModel = getGlobalConfig('LOCAL_LLM_MODEL', '');
@@ -69,7 +83,9 @@ export function resolveLLMConfig(model: string, getGlobalConfig: (key: string, d
   // (e.g. deepseek-r1:8b), the '.gguf' suffix, the word 'local', or a partial
   // match to LOCAL_LLM_MODEL.
   const isOSArchitecture = /gemma|phi|yi|falcon/.test(m);
-  const isParamSize = /\d+b/.test(m);
+  // A parameter size is a standalone token (7b, 30b, 1.5b), not any digit
+  // that happens to precede a 'b' inside a longer id.
+  const isParamSize = /(^|[^a-z0-9])\d+(\.\d+)?b(?![a-z0-9])/.test(m);
 
   // 1. Priority: Local models (.gguf, word 'local', os architectures, param sizes, or partial match to LOCAL_LLM_MODEL)
   if (m.endsWith('.gguf') || m.includes('local') || isOSArchitecture || isParamSize || isPartialLocalMatch) {
@@ -141,18 +157,6 @@ export function resolveLLMConfig(model: string, getGlobalConfig: (key: string, d
       model, 
       apiKey: getGlobalConfig('XAI_API_KEY', ''), 
       baseURL: 'https://api.x.ai/v1' 
-    };
-  }
-
-  // 7. Leonardo
-  if (m.includes('leonardo')) {
-    // Strip "leonardo:" prefix if present to get the actual model ID/UUID
-    const cleanModel = model.replace(/^leonardo:/, '');
-    return {
-      provider: 'leonardo',
-      model: cleanModel,
-      apiKey: getGlobalConfig('LEONARDO_API_KEY', ''),
-      baseURL: 'https://cloud.leonardo.ai/api/rest/v1'
     };
   }
 
@@ -950,14 +954,108 @@ export async function generateImage(config: LLMConfig, prompt: string, width: nu
   }
 }
 
+// Video engines queue jobs server-side: Veo quotes up to 6 minutes at peak
+// and Leonardo Motion has been seen taking longer than that, so wait ~8 min.
+const VIDEO_POLL_INTERVAL_MS = 5000;
+const VIDEO_POLL_ATTEMPTS = 96;
+/** Aspect ratios Grok Imagine video accepts (docs.x.ai, video generation). */
+export const GROK_VIDEO_ASPECTS = ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'];
+
+// resolveLLMConfig files every Grok model under the OpenAI-compatible
+// provider (chat goes through api.x.ai/v1 that way), so the video engine is
+// recognised by its model name rather than by provider.
+export function isGrokVideoEngine(config: LLMConfig): boolean {
+  return config.provider === 'xai' || /grok-imagine-video/i.test(config.model);
+}
+
 /**
  * Master function to generate videos through multiple providers
  */
-export async function generateVideo(config: LLMConfig, prompt: string, width: number = 832, height: number = 480) {
+export async function generateVideo(config: LLMConfig, prompt: string, width: number = 832, height: number = 480, aspect?: string | null) {
   try {
      console.log(`[LLM Video] Attempting with model: ${config.model} (${config.provider})`);
+     if (isGrokVideoEngine(config)) {
+        // Grok Imagine video: start the job, poll /videos/{id} until done. It
+        // takes every aspect the Agents view offers, so the agent's choice is
+        // passed through as-is; 480p and 5 s keep the per-second billing low.
+        const apiBase = 'https://api.x.ai/v1';
+        const aspectRatio = aspect && GROK_VIDEO_ASPECTS.includes(aspect) ? aspect : (height > width ? '9:16' : width === height ? '1:1' : '16:9');
+        console.log(`[Grok Video] Starting ${config.model} (${aspectRatio}, 480p, 5s)...`);
+        const startRes = await fetch(proxied(`${apiBase}/videos/generations`), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.apiKey}` },
+          body: JSON.stringify({ model: config.model, prompt, duration: 5, aspect_ratio: aspectRatio, resolution: '480p' })
+        });
+        if (!startRes.ok) throw new Error(`Grok Video API Error: ${await startRes.text()}`);
+        const job = await startRes.json();
+        const requestId: string | undefined = job?.request_id;
+        if (!requestId) throw new Error(`Failed to start Grok video generation: ${JSON.stringify(job)}`);
+
+        console.log(`[Grok Video] Polling request ${requestId}...`);
+        for (let i = 0; i < VIDEO_POLL_ATTEMPTS; i++) {
+           await new Promise(r => setTimeout(r, VIDEO_POLL_INTERVAL_MS));
+           const statusRes = await fetch(proxied(`${apiBase}/videos/${requestId}`), {
+             headers: { 'Authorization': `Bearer ${config.apiKey}` }
+           });
+           if (!statusRes.ok) continue;
+           const status = await statusRes.json();
+           if (status?.status === 'failed' || status?.status === 'expired') {
+              throw new Error(`Grok video generation ${status.status}${status.error ? `: ${JSON.stringify(status.error)}` : ''}`);
+           }
+           if (status?.status !== 'done') continue;
+           const url: string | undefined = status.video?.url;
+           if (!url) throw new Error(`Grok video returned no URL: ${JSON.stringify(status)}`);
+           // The URL is temporary and needs no key; the worker downloads it right away.
+           return { success: true, base64: null, url };
+        }
+        throw new Error("Grok video generation timed out");
+     }
+
      if (config.provider === 'google') {
-        throw new Error("El modelo Google Veo 2 requiere operaciones asíncronas (LRO) que no están soportadas en esta versión. Por favor, utiliza Leonardo AI para generar videos.");
+        // Veo is a long-running operation: start the job, poll the operation
+        // until it is done, then hand back the download URI. Veo only knows
+        // 16:9 and 9:16, so anything else falls back to the orientation of
+        // the requested size.
+        const apiBase = 'https://generativelanguage.googleapis.com/v1beta';
+        const aspectRatio = aspect === '9:16' || aspect === '16:9' ? aspect : (height > width ? '9:16' : '16:9');
+        console.log(`[Google Video] Starting ${config.model} (${aspectRatio})...`);
+        const startRes = await fetch(proxied(`${apiBase}/models/${config.model}:predictLongRunning`), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.apiKey },
+          body: JSON.stringify({
+             instances: [{ prompt }],
+             parameters: { aspectRatio }
+          })
+        });
+        if (!startRes.ok) throw new Error(`Google Veo API Error: ${await startRes.text()}`);
+        const op = await startRes.json();
+        const opName: string | undefined = op?.name;
+        if (!opName) throw new Error(`Failed to start Google Veo generation: ${JSON.stringify(op)}`);
+
+        console.log(`[Google Video] Polling operation ${opName}...`);
+        for (let i = 0; i < VIDEO_POLL_ATTEMPTS; i++) {
+           await new Promise(r => setTimeout(r, VIDEO_POLL_INTERVAL_MS));
+           const statusRes = await fetch(proxied(`${apiBase}/${opName}`), {
+             headers: { 'x-goog-api-key': config.apiKey }
+           });
+           if (!statusRes.ok) continue;
+           const status = await statusRes.json();
+           if (!status?.done) continue;
+           if (status.error) throw new Error(`Google Veo generation failed: ${status.error.message || JSON.stringify(status.error)}`);
+           const videoResponse = status.response?.generateVideoResponse ?? status.response;
+           const uri: string | undefined = videoResponse?.generatedSamples?.[0]?.video?.uri
+             ?? videoResponse?.generatedVideos?.[0]?.video?.uri;
+           if (!uri) {
+              const filtered = videoResponse?.raiMediaFilteredReasons?.join('; ');
+              throw new Error(filtered
+                ? `Google Veo rejected the prompt: ${filtered}`
+                : `Google Veo returned no video: ${JSON.stringify(status.response)}`);
+           }
+           // The file endpoint needs the API key, so the caller downloads it
+           // through the key-proxy — the key never leaves the proxy.
+           return { success: true, base64: null, url: proxied(uri) };
+        }
+        throw new Error("Google Veo generation timed out");
      }
 
      if (config.provider === 'leonardo') {
@@ -996,8 +1094,8 @@ export async function generateVideo(config: LLMConfig, prompt: string, width: nu
         if (!motionGenId) throw new Error(`Failed to start Leonardo motion generation: ${JSON.stringify(motionData)}`);
 
         console.log(`[Leonardo Video] Polling motion generation ${motionGenId}...`);
-        for (let i = 0; i < 60; i++) { // wait up to ~3 min
-           await new Promise(r => setTimeout(r, 3000));
+        for (let i = 0; i < VIDEO_POLL_ATTEMPTS; i++) {
+           await new Promise(r => setTimeout(r, VIDEO_POLL_INTERVAL_MS));
            const statusRes = await fetch(proxied(`${config.baseURL}/generations/${motionGenId}`), {
              headers: { 'Authorization': `Bearer ${config.apiKey}` }
            });
