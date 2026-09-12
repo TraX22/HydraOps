@@ -242,6 +242,16 @@ export class ChatComponent implements OnInit, OnDestroy {
     return ((msg.resultMeta as Record<string, unknown> | undefined)?.['modelUsed'] as string) || '';
   }
 
+  // The image/video engine that rendered the result, when there is one
+  // (worker-graphic stores imageModel, worker-video videoModel). Shown next
+  // to the LLM so the user sees both halves of a generation.
+  engineUsed(msg: ChatMessage): string {
+    const meta = msg.resultMeta as Record<string, unknown> | undefined;
+    const video = meta?.['videoModel'] as string | undefined;
+    const image = meta?.['imageModel'] as string | undefined;
+    return video ? `🎬 ${video}` : image ? `🎨 ${image}` : '';
+  }
+
   private usageOf(msg: ChatMessage): Record<string, number> | undefined {
     return (msg.resultMeta as Record<string, unknown> | undefined)?.['usage'] as
       | Record<string, number>
