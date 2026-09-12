@@ -1300,7 +1300,8 @@ api.get("/config/models", async (req, res) => {
       let type: 'chat' | 'coder' | 'image' | 'video' | 'audio' | 'embedding' = 'chat';
       let emoji = '🧠';
 
-      if (/veo|sora|video|film|movie|(^|[\/\-_.:])kling|wan2|motion|svd/.test(lower)) {
+      // wan2.x names both image (wan2.7-image) and video (wan2.6-t2v) models
+      if (/veo|sora|video|film|movie|(^|[\/\-_.:])kling|wan2(?![\w.-]*image)|motion|svd/.test(lower)) {
         type = 'video';
         emoji = '🎬';
       } else if (/imagen|image|dall-e|flux|imagine|stable-diffusion|sdxl|pixart|photon/.test(lower)) {
