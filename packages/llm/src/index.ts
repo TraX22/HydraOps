@@ -957,13 +957,20 @@ const VIDEO_POLL_ATTEMPTS = 96;
 /** Aspect ratios Grok Imagine video accepts (docs.x.ai, video generation). */
 export const GROK_VIDEO_ASPECTS = ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3'];
 
+// resolveLLMConfig files every Grok model under the OpenAI-compatible
+// provider (chat goes through api.x.ai/v1 that way), so the video engine is
+// recognised by its model name rather than by provider.
+export function isGrokVideoEngine(config: LLMConfig): boolean {
+  return config.provider === 'xai' || /grok-imagine-video/i.test(config.model);
+}
+
 /**
  * Master function to generate videos through multiple providers
  */
 export async function generateVideo(config: LLMConfig, prompt: string, width: number = 832, height: number = 480, aspect?: string | null) {
   try {
      console.log(`[LLM Video] Attempting with model: ${config.model} (${config.provider})`);
-     if (config.provider === 'xai') {
+     if (isGrokVideoEngine(config)) {
         // Grok Imagine video: start the job, poll /videos/{id} until done. It
         // takes every aspect the Agents view offers, so the agent's choice is
         // passed through as-is; 480p and 5 s keep the per-second billing low.

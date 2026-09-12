@@ -17,7 +17,7 @@ import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerSt
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType } from "@hydraops/nats";
 import { and, desc, eq } from "drizzle-orm";
-import { generateText as llmGenerateText, generateVideo, resolveLLMConfig, buildUserMessage, GROK_VIDEO_ASPECTS } from "@hydraops/llm";
+import { generateText as llmGenerateText, generateVideo, resolveLLMConfig, buildUserMessage, GROK_VIDEO_ASPECTS, isGrokVideoEngine } from "@hydraops/llm";
 import { createRegistry } from "@hydraops/addons";
 import { tool } from "ai";
 import { z } from "zod";
@@ -134,7 +134,7 @@ function resolveVideoEngine(
 ): ReturnType<typeof resolveLLMConfig> {
   const picked = agentCfg.graphicEngine && agentCfg.graphicEngine !== "auto" ? agentCfg.graphicEngine : "leonardo-ai";
   const cfg = resolveLLMConfig(picked, getGlobalConfig);
-  if (cfg.provider === "leonardo" || cfg.provider === "google" || cfg.provider === "xai") return cfg;
+  if (cfg.provider === "leonardo" || cfg.provider === "google" || isGrokVideoEngine(cfg)) return cfg;
   console.warn(`[${consumerName}] video engine "${picked}" is not supported by generateVideo (Google/xAI/Leonardo only) — falling back to Leonardo`);
   return resolveLLMConfig("leonardo-ai", getGlobalConfig);
 }
@@ -150,8 +150,8 @@ async function renderToStorage(
 ): Promise<{ videoUrl?: string; relPath: string | null; sourceUrl: string | null; engine: string; error?: string }> {
   const videoConfig = resolveVideoEngine(agentCfg, getGlobalConfig);
   const [vidWidth, vidHeight] = videoSize(agentCfg.resolution);
-  const nativeAspects = videoConfig.provider === "google" ? ["16:9", "9:16"]
-    : videoConfig.provider === "xai" ? GROK_VIDEO_ASPECTS
+  const nativeAspects = isGrokVideoEngine(videoConfig) ? GROK_VIDEO_ASPECTS
+    : videoConfig.provider === "google" ? ["16:9", "9:16"]
     : ["16:9", "9:16", "3:4", "2:3"];
   const aspect = agentCfg.resolution && agentCfg.resolution !== "auto" ? String(agentCfg.resolution) : null;
   if (aspect && !nativeAspects.includes(aspect)) {
