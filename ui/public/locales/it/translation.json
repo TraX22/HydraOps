@@ -64,7 +64,8 @@
     "attach": "Allega file (immagini o documenti)",
     "uploading": "Caricamento…",
     "editProfile": "Doppio clic: modifica il profilo di questo agente",
-    "scrollToBottom": "Vai all'ultimo messaggio"
+    "scrollToBottom": "Vai all'ultimo messaggio",
+    "attachTooBig": "massimo 20 MB"
   },
   "agents": {
     "title": "Agenti",
@@ -152,7 +153,30 @@
     "hourly": "Ogni ora",
     "noon": "Mezzogiorno",
     "midnight": "Mezzanotte",
-    "workHours": "Orario lavorativo (Lun-Ven)"
+    "workHours": "Orario lavorativo (Lun-Ven)",
+    "picker": {
+      "minutes": "Ogni N minuti",
+      "hourly": "Ogni ora",
+      "daily": "Ogni giorno",
+      "weekly": "Giorni della settimana",
+      "monthly": "Una volta al mese",
+      "custom": "Espressione cron",
+      "every": "ogni",
+      "atMinute": "al minuto",
+      "at": "alle",
+      "dayOfMonth": "il giorno",
+      "expression": "Espressione:",
+      "days": {
+        "mon": "Lun",
+        "tue": "Mar",
+        "wed": "Mer",
+        "thu": "Gio",
+        "fri": "Ven",
+        "sat": "Sab",
+        "sun": "Dom"
+      },
+      "minutesUnit": "minuti"
+    }
   },
   "stats": {
     "title": "Statistiche",

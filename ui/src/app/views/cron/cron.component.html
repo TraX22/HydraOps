@@ -28,15 +28,7 @@
         </div>
         <div class="field full-width">
           <label>{{ 'cron.schedule' | translate }}</label>
-          <div class="aliases">
-            @for (alias of aliases; track alias.value) {
-              <button class="alias-btn" [class.active]="cronExpression === alias.value"
-                      (click)="cronExpression = alias.value">
-                {{ alias.labelKey | translate }}
-              </button>
-            }
-          </div>
-          <input [(ngModel)]="cronExpression" placeholder="* * * * *" class="cron-input" />
+          <app-cron-schedule [value]="cronExpression" (valueChange)="cronExpression = $event" />
         </div>
       </div>
       <button class="create-btn" (click)="create()">{{ 'cron.create' | translate }}</button>
@@ -93,8 +85,8 @@
         </div>
         <div class="field">
           <label>{{ 'cron.schedule' | translate }}</label>
-          <input [value]="editingCron().cronExpression ?? ''"
-                 (input)="editingCron.update(c => ({...c, cronExpression: $any($event.target).value}))" />
+          <app-cron-schedule [value]="editingCron().cronExpression ?? ''"
+                             (valueChange)="editingCron.update(c => ({...c, cronExpression: $event}))" />
         </div>
         <div class="modal-actions">
           <button class="save-btn" (click)="saveEdit()">{{ 'common.save' | translate }}</button>

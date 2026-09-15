@@ -3,16 +3,12 @@ import { FormsModule } from '@angular/forms';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ApiService, CronJob, Agent } from '../../services/api.service';
 import { IconComponent } from '../../components/icon/icon.component';
-
-interface CronAlias {
-  labelKey: string;
-  value: string;
-}
+import { CronScheduleComponent } from '../../components/cron-schedule/cron-schedule.component';
 
 @Component({
   selector: 'app-cron',
   standalone: true,
-  imports: [FormsModule, TranslatePipe, IconComponent],
+  imports: [FormsModule, TranslatePipe, IconComponent, CronScheduleComponent],
   templateUrl: './cron.component.html',
   styleUrl: './cron.component.css',
 })
@@ -30,16 +26,6 @@ export class CronComponent implements OnInit {
   taskPrompt = '';
   assignedAgent = '';
   cronExpression = '';
-
-  aliases: CronAlias[] = [
-    { labelKey: 'cron.every1min', value: '* * * * *' },
-    { labelKey: 'cron.every5min', value: '*/5 * * * *' },
-    { labelKey: 'cron.every30min', value: '*/30 * * * *' },
-    { labelKey: 'cron.hourly', value: '0 * * * *' },
-    { labelKey: 'cron.noon', value: '0 12 * * *' },
-    { labelKey: 'cron.midnight', value: '0 0 * * *' },
-    { labelKey: 'cron.workHours', value: '0 9-17 * * 1-5' },
-  ];
 
   ngOnInit(): void {
     this.fetch();

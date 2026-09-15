@@ -151,7 +151,8 @@
     <textarea
       class="input-field"
       [placeholder]="'chat.placeholder' | translate"
-      [(ngModel)]="inputValue"
+      [ngModel]="inputValue()"
+      (ngModelChange)="onInput($event)"
       (keydown)="onKeydown($event)"
       rows="1"
     ></textarea>
