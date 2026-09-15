@@ -4,8 +4,7 @@ import { createDb, systemConfigs, workerStatus } from "@hydraops/db";
 import { eq } from "drizzle-orm";
 import { readFile } from "node:fs/promises";
 
-import { dispatch } from "./commands/registry.js";
-import type { AgentSummary, CommandContext } from "./commands/types.js";
+import type { CommandResult } from "@hydraops/commands";
 import { toTelegramHtml } from "./format.js";
 import { startNotifier } from "./notifications.js";
 
@@ -160,21 +159,6 @@ async function sendMessage(token: string, chatId: number, text: string): Promise
 }
 
 // --- HydraOps API bridge ---
-let agentCache: { at: number; agents: AgentSummary[] } = { at: 0, agents: [] };
-async function listAgents(): Promise<AgentSummary[]> {
-  if (Date.now() - agentCache.at < 30_000 && agentCache.agents.length) return agentCache.agents;
-  const res = await fetch(`${API_URL}/api/agents`, { headers: apiHeaders(), signal: AbortSignal.timeout(10_000) });
-  if (!res.ok) throw new Error(`GET /api/agents ${res.status}`);
-  const raw = (await res.json()) as any[];
-  const agents: AgentSummary[] = raw.map((a) => ({ id: a.id, name: a.name, emoji: a.emoji, status: a.status }));
-  agentCache = { at: Date.now(), agents };
-  return agents;
-}
-
-async function hasAgent(id: string): Promise<boolean> {
-  return (await listAgents()).some((a) => a.id === id.toLowerCase());
-}
-
 // Send a prompt to an agent (channel = agent id → deterministic routing in the
 // orchestrator) and poll the task until it completes.
 async function sendToAgent(chatId: number, token: string, agentId: string, prompt: string, senderId: string): Promise<string> {
@@ -190,7 +174,11 @@ async function sendToAgent(chatId: number, token: string, agentId: string, promp
   if (!createRes.ok) throw new Error(`POST /api/tasks ${createRes.status}`);
   const { taskId } = (await createRes.json()) as { taskId: string };
   console.log(`[telegram-bot] → ${agentId} (task ${taskId}) from ${senderId}`);
+  return waitForTask(chatId, token, agentId, taskId);
+}
 
+// Poll a task until it completes, keeping Telegram's "typing…" alive meanwhile.
+async function waitForTask(chatId: number, token: string, agentId: string, taskId: string): Promise<string> {
   const deadline = Date.now() + 120_000; // 2 min
   let nextTyping = 0;
   while (Date.now() < deadline) {
@@ -215,6 +203,20 @@ async function sendToAgent(chatId: number, token: string, agentId: string, promp
     } catch { /* transient — keep polling */ }
   }
   return "The agent is taking too long to answer. It may still be working — check the app.";
+}
+
+// Run a "/…" line through the shared command layer (@hydraops/commands),
+// executed by the API. The bot only applies the actions it understands.
+async function runCommand(line: string, senderId: string, chatKey: string, activeAgent: string | undefined): Promise<CommandResult> {
+  const res = await fetch(`${API_URL}/api/commands`, {
+    method: "POST",
+    headers: apiHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ line, transport: "telegram", senderId, conversationId: chatKey, activeAgent }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  const data = (await res.json().catch(() => ({}))) as CommandResult;
+  if (!res.ok) throw new Error(data?.text || `POST /api/commands ${res.status}`);
+  return data;
 }
 
 // --- Long-poll loop ---
@@ -257,34 +259,38 @@ async function handleUpdate(token: string, cfg: TelegramConfig, update: any): Pr
     return;
   }
 
-  // --- Authorized: run the transport-agnostic command layer ---
+  // --- Authorized: commands go through the shared layer, plain text to the active agent ---
   console.log(`[telegram-bot] msg from tg:${fromId}: ${text.slice(0, 80)}`);
   const senderId = `tg:${fromId}`;
   const chatKey = String(chatId);
-  const ctx: CommandContext = {
-    senderId,
-    conversationId: chatKey,
-    defaultAgent: cfg.defaultAgent || undefined,
-    session: {
-      get: () => cfg.sessions[chatKey],
-      set: async (agentId) => {
-        await updateConfig((c) => {
-          if (agentId) c.sessions[chatKey] = agentId;
-          else delete c.sessions[chatKey];
-        });
-        cfg.sessions[chatKey] = agentId as string;
-      },
-    },
-    api: {
-      listAgents,
-      hasAgent,
-      sendToAgent: (agentId, prompt) => sendToAgent(chatId, token, agentId, prompt, senderId),
-    },
+  const setSession = async (agentId: string | undefined) => {
+    await updateConfig((c) => {
+      if (agentId) c.sessions[chatKey] = agentId;
+      else delete c.sessions[chatKey];
+    });
+    if (agentId) cfg.sessions[chatKey] = agentId;
+    else delete cfg.sessions[chatKey];
   };
+  const activeAgent = cfg.sessions[chatKey] || cfg.defaultAgent || undefined;
 
   try {
-    const result = await dispatch(text, ctx);
-    if (result.text) await sendMessage(token, chatId, result.text);
+    if (text.trim().startsWith("/")) {
+      const result = await runCommand(text, senderId, chatKey, activeAgent);
+      if (result.action?.type === "open_tab") await setSession(result.action.agentId);
+      if (result.action?.type === "main") await setSession(undefined);
+      if (result.text) await sendMessage(token, chatId, result.text);
+      if (result.action?.type === "await_task") {
+        const reply = await waitForTask(chatId, token, result.action.agentId, result.action.taskId);
+        await sendMessage(token, chatId, reply);
+      }
+      return;
+    }
+    if (!activeAgent) {
+      await sendMessage(token, chatId, "Pick an agent first: /agents to see them, /use <agent> to talk to one.");
+      return;
+    }
+    const reply = await sendToAgent(chatId, token, activeAgent, text, senderId);
+    await sendMessage(token, chatId, reply);
   } catch (e: any) {
     console.error("[telegram-bot] handleUpdate failed", e);
     await sendMessage(token, chatId, `⚠️ Something went wrong: ${e?.message || e}`).catch(() => {});

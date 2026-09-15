@@ -376,3 +376,31 @@
   padding: 2px 6px; border-radius: var(--radius-sm); transition: background 0.15s ease;
 }
 .attach-btn:hover { background: var(--bg-hover); }
+
+/* ── Command layer: palette above the input, system notes in the thread ── */
+.cmd-palette {
+  position: absolute; left: 24px; right: 24px; bottom: calc(100% - 8px);
+  max-height: 280px; overflow-y: auto; z-index: 5;
+  background: var(--bg-surface); border: 1px solid var(--border-color);
+  border-radius: var(--radius-md); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 4px;
+}
+.cmd-item {
+  display: flex; align-items: baseline; gap: 12px; width: 100%; text-align: left;
+  padding: 7px 10px; border: none; border-radius: var(--radius-sm); background: transparent;
+  color: var(--text-primary); cursor: pointer; font-family: inherit;
+}
+.cmd-item.active { background: var(--bg-surface-alt); }
+.cmd-usage { font-family: 'JetBrains Mono', monospace; font-size: 12px; white-space: nowrap; }
+.cmd-desc { font-size: 12px; color: var(--text-secondary); }
+
+.msg-system {
+  margin: 4px 0 4px 52px; padding: 8px 12px; max-width: 80%;
+  border-left: 3px solid var(--border-color); background: var(--bg-surface-alt);
+  border-radius: var(--radius-sm); font-size: 12.5px; color: var(--text-secondary);
+}
+.msg-system.echo { background: transparent; border-left-color: var(--accent); padding: 2px 12px; }
+.msg-system.ok { border-left-color: var(--status-online, #22c55e); }
+.msg-system.error { border-left-color: var(--status-error, #ef4444); color: var(--text-primary); }
+.msg-system code { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent); }
+.msg-system pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: inherit; }

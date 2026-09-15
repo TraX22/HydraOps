@@ -26,10 +26,11 @@ import {
 
 loadDotenv({ path: envFile });
 
-import { createRegistry } from "@hydraops/addons";
-import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage } from "@hydraops/db";
+import { createRegistry, rememberTool } from "@hydraops/addons";
+import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
+import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, searchAgentTasks } from "@hydraops/db";
 import { buildEnvelope } from "@hydraops/events";
-import { eq, and, gte, lt, asc, like } from "drizzle-orm";
+import { eq, and, gte, lt, asc, desc, like } from "drizzle-orm";
 import os from "node:os";
 
 /**
@@ -58,7 +59,7 @@ for (const level of ["log", "error"] as const) {
   };
 }
 
-const { db, pool } = createDb(env.DATABASE_URL);
+const { db, pool, client: sqliteClient } = createDb(env.DATABASE_URL);
 
 const app = express();
 app.use(cors());
@@ -2616,6 +2617,95 @@ if (existsSync(path.join(uiDir, "index.html"))) {
 //
 // La variable NO se llama HOST a propósito: csh y tcsh la definen solas con el
 // nombre de la máquina, y eso abriría el puerto a la red sin que nadie lo pida.
+
+// ── Commands ────────────────────────────────────────────────────────────────
+// The "/verb" layer of HydraOps (@hydraops/commands): the app chat palette and
+// the Telegram bot send a line here, the API runs it against the system and
+// hands back text plus an optional action for the transport to apply. No LLM
+// is involved. Most of the CommandApi is served by calling our own routes over
+// loopback, so commands and views can never disagree.
+const commandApi: CommandApi = {
+  async listAgents() {
+    const r = await fetch(`${selfUrl()}/api/agents`, { signal: AbortSignal.timeout(10_000) });
+    if (!r.ok) throw new Error(`GET /api/agents ${r.status}`);
+    const raw = (await r.json()) as any[];
+    return raw.map((a) => ({ id: String(a.id), name: String(a.name ?? a.id), emoji: a.emoji ?? null, status: a.status, workerType: a.workerType, model: a.llmModel || undefined }));
+  },
+  async createTask(agentId, prompt, opts) {
+    const r = await fetch(`${selfUrl()}/api/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, channel: agentId, isRead: opts?.isRead !== false }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    const data: any = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data?.error || `POST /api/tasks ${r.status}`);
+    return { taskId: String(data.taskId) };
+  },
+  async listTasks(channel, limit) {
+    const rows = await (db as any).select().from(tasks).where(eq(tasks.channel, channel)).orderBy(desc(tasks.createdAt)).limit(limit);
+    const iso = (v: any) => (v instanceof Date ? v : new Date(v)).toISOString();
+    return rows.map((t: any) => ({ id: t.id, prompt: t.prompt, status: t.status, createdAt: iso(t.createdAt), updatedAt: iso(t.updatedAt), agent: t.assignedAgent ?? null }));
+  },
+  async systemStatus() {
+    const [workersRes, versionRes, healthRes] = await Promise.all([
+      fetch(`${selfUrl()}/api/workers`, { signal: AbortSignal.timeout(10_000) }).then((r) => (r.ok ? r.json() : [])).catch(() => []),
+      fetch(`${selfUrl()}/api/version`, { signal: AbortSignal.timeout(10_000) }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch(`${(process.env.KEY_PROXY_URL || "http://127.0.0.1:9099").replace(/\/$/, "")}/health`, { signal: AbortSignal.timeout(3_000) }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    ]);
+    return {
+      version: String((versionRes as any)?.current ?? process.env.HYDRA_APP_VERSION ?? "dev"),
+      latest: (versionRes as any)?.latest ?? null,
+      workers: (workersRes as any[]).map((w) => ({ id: String(w.id), status: String(w.status) })),
+      providers: Array.isArray((healthRes as any)?.configured) ? (healthRes as any).configured : [],
+    };
+  },
+  async remember(agentId, text) {
+    return String(await rememberTool.execute({ text }, { agentId }));
+  },
+  async recall(agentId, query) {
+    const hits = searchAgentTasks(sqliteClient, agentId, query, 5);
+    return hits.map((h) => ({ date: h.date, prompt: h.prompt, excerpt: h.excerpt }));
+  },
+  async readMemory(agentId) {
+    const safe = agentId.replace(/[^a-z0-9_-]/gi, "");
+    const file = path.join(agentsDir, safe, `${safe}.memory.md`);
+    return (await fileExists(file)) ? await readFile(file, "utf-8") : "";
+  },
+  async sendTelegram(text) {
+    return pushTelegram(text);
+  },
+};
+
+function selfUrl(): string {
+  return `http://127.0.0.1:${Number(process.env.PORT ?? 3000)}`;
+}
+
+api.get("/commands", (_req, res) => {
+  res.json(commandCatalog());
+});
+
+api.post("/commands", async (req, res) => {
+  try {
+    const line = String(req.body?.line ?? "").trim();
+    if (!line) return res.status(400).json({ error: "line is required" });
+    const transport = (["app", "telegram", "cli"] as const).find((t) => t === req.body?.transport) ?? "app";
+    const conversationId = String(req.body?.conversationId ?? "main");
+    const activeAgent = req.body?.activeAgent ? String(req.body.activeAgent) : conversationId !== "main" && transport === "app" ? conversationId : undefined;
+    const ctx: CommandContext = {
+      transport,
+      senderId: String(req.body?.senderId ?? transport),
+      conversationId,
+      activeAgent,
+      api: commandApi,
+    };
+    res.json(await dispatchCommand(line, ctx));
+  } catch (err: any) {
+    console.error("[api] POST /commands failed", err);
+    res.status(500).json({ text: `Command failed: ${err?.message || err}`, kind: "error" });
+  }
+});
+
 const port = Number(process.env.PORT ?? 3000);
 let host = process.env.HYDRA_HOST?.trim() || "127.0.0.1";
 const wantsNetwork = host !== "127.0.0.1" && host !== "localhost" && host !== "::1";

@@ -340,5 +340,23 @@
   "update": {
     "available": "Hay una versión nueva ({{version}}) disponible.",
     "view": "Ver la release"
+  },
+  "commands": {
+    "help": "Lista los comandos disponibles o explica uno",
+    "agents": "Agentes con su estado, worker y modelo",
+    "use": "Abre el chat de ese agente y lo deja activo",
+    "main": "Volver al chat principal",
+    "close": "Cerrar la pestaña actual",
+    "delegate": "Crea una tarea para otro agente desde donde estés",
+    "tasks": "Últimas tareas de este chat con su estado",
+    "status": "Salud del sistema: versión, servicios y proveedores con clave",
+    "keys": "Qué proveedores tienen clave configurada",
+    "remember": "Guarda una nota en la memoria permanente del agente activo",
+    "recall": "Busca en las conversaciones pasadas del agente activo",
+    "memory": "Muestra la memoria del agente activo",
+    "telegram": "Envía un texto a tu Telegram",
+    "oneshot": "Abre el lienzo One Shot",
+    "whoami": "Quién sos y cuál es el agente activo",
+    "agentMessage": "Mensaje a {{name}} sin cambiar de pestaña"
   }
 }
