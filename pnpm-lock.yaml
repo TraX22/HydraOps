@@ -50,6 +50,9 @@ importers:
       '@hydraops/addons':
         specifier: workspace:^
         version: link:../../packages/addons
+      '@hydraops/commands':
+        specifier: workspace:*
+        version: link:../../packages/commands
       '@hydraops/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -199,6 +202,9 @@ importers:
 
   apps/telegram-bot:
     dependencies:
+      '@hydraops/commands':
+        specifier: workspace:*
+        version: link:../../packages/commands
       '@hydraops/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -433,6 +439,15 @@ importers:
       tsx:
         specifier: ^4.20.0
         version: 4.22.4
+      typescript:
+        specifier: ^5.8.0
+        version: 5.9.3
+
+  packages/commands:
+    devDependencies:
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.26)(tsx@4.22.4)(typescript@5.9.3)
       typescript:
         specifier: ^5.8.0
         version: 5.9.3

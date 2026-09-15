@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@hydraops/addons": "workspace:^",
+    "@hydraops/commands": "workspace:*",
     "@hydraops/config": "workspace:*",
     "@hydraops/db": "workspace:*",
     "@hydraops/events": "workspace:*",

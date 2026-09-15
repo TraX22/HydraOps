@@ -51,8 +51,11 @@ export interface Task {
 
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant';
+  // 'system' = a local note from the command layer (never stored, never sent to an LLM)
+  role: 'user' | 'assistant' | 'system';
   content: string;
+  // system notes only: how to style them ('echo' = the command line itself)
+  kind?: 'echo' | 'info' | 'ok' | 'error';
   agentId?: string;
   agentName?: string;
   avatarUrl?: string;
@@ -60,6 +63,29 @@ export interface ChatMessage {
   taskId?: string;
   isTyping?: boolean;
   resultMeta?: Record<string, unknown>;
+}
+
+// ── Commands (the chat's "/verbs", executed by the API) ──
+export interface CommandSpec {
+  name: string;
+  aliases?: string[];
+  usage?: string;
+  description: string;
+  uiOnly?: boolean;
+}
+
+export type CommandAction =
+  | { type: 'open_tab'; agentId: string }
+  | { type: 'main' }
+  | { type: 'close_tab' }
+  | { type: 'open_oneshot' }
+  | { type: 'navigate'; path: string; query?: Record<string, string> }
+  | { type: 'await_task'; taskId: string; agentId: string };
+
+export interface CommandResult {
+  text: string;
+  kind?: 'info' | 'ok' | 'error';
+  action?: CommandAction;
 }
 
 export interface CronJob {
@@ -335,6 +361,14 @@ export class ApiService {
 
   createTask(prompt: string, channel: string): Observable<Task> {
     return this.http.post<Task>(`${this.base}/tasks`, { prompt, channel });
+  }
+
+  listCommands(): Observable<CommandSpec[]> {
+    return this.http.get<CommandSpec[]>(`${this.base}/commands`);
+  }
+
+  runCommand(line: string, conversationId: string): Observable<CommandResult> {
+    return this.http.post<CommandResult>(`${this.base}/commands`, { line, transport: 'app', senderId: 'app', conversationId });
   }
 
   // One Shot: compile a flow diagram (nodes + directed edges) into a single

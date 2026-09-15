@@ -316,5 +316,23 @@
   "update": {
     "available": "È disponibile una nuova versione ({{version}}).",
     "view": "Vedi la release"
+  },
+  "commands": {
+    "help": "Elenca i comandi disponibili o ne spiega uno",
+    "agents": "Agenti con stato, worker e modello",
+    "use": "Apre la chat di quell'agente e lo rende attivo",
+    "main": "Torna alla chat principale",
+    "close": "Chiude la scheda corrente",
+    "delegate": "Crea un'attività per un altro agente, da dove sei",
+    "tasks": "Ultime attività di questa chat con il loro stato",
+    "status": "Stato del sistema: versione, servizi e provider con chiave",
+    "keys": "Quali provider hanno una chiave configurata",
+    "remember": "Salva una nota nella memoria permanente dell'agente attivo",
+    "recall": "Cerca nelle conversazioni passate dell'agente attivo",
+    "memory": "Mostra la memoria dell'agente attivo",
+    "telegram": "Invia un testo al tuo Telegram",
+    "oneshot": "Apre la tela One Shot",
+    "whoami": "Chi sei e qual è l'agente attivo",
+    "agentMessage": "Messaggio a {{name}} senza cambiare scheda"
   }
 }

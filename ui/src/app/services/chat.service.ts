@@ -13,6 +13,9 @@ export class ChatService {
   private api = inject(ApiService);
 
   readonly messagesByChannel = signal<Record<string, ChatMessage[]>>({ main: [] });
+  // Command echoes and results, per chat. Local only: not stored, not sent to
+  // any agent; gone on reload.
+  readonly systemByChannel = signal<Record<string, ChatMessage[]>>({});
   readonly activeTab = signal<string>('main');
   readonly tabs = signal<ChatTab[]>(this.loadTabs());
   readonly sending = signal(false);
@@ -22,6 +25,11 @@ export class ChatService {
 
   get currentMessages(): ChatMessage[] {
     return this.messagesByChannel()[this.activeTab()] ?? [];
+  }
+
+  addSystemMessage(channel: string, content: string, kind: NonNullable<ChatMessage['kind']>): void {
+    const note: ChatMessage = { id: `sys-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, role: 'system', kind, content, timestamp: new Date().toISOString() };
+    this.systemByChannel.update(m => ({ ...m, [channel]: [...(m[channel] ?? []), note] }));
   }
 
   switchTab(tabId: string): void {

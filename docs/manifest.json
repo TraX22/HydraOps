@@ -13,6 +13,7 @@
     { "slug": "stats-system", "file": "11-stats-system.md", "title": { "es": "Estadísticas y Sistema", "en": "Statistics & System" } },
     { "slug": "server-mode", "file": "12-server-mode.md", "title": { "es": "Modo servidor", "en": "Server mode" } },
     { "slug": "security", "file": "13-security.md", "title": { "es": "Seguridad", "en": "Security" } },
-    { "slug": "troubleshooting", "file": "14-troubleshooting.md", "title": { "es": "Problemas frecuentes", "en": "Troubleshooting" } }
+    { "slug": "troubleshooting", "file": "14-troubleshooting.md", "title": { "es": "Problemas frecuentes", "en": "Troubleshooting" } },
+    { "slug": "commands", "file": "15-commands.md", "title": { "es": "Comandos", "en": "Commands" } }
   ]
 }

@@ -21,6 +21,16 @@
   <div class="messages-area" #messagesArea (scroll)="onMessagesScroll()" (click)="onMessagesClick($event)">
     <div class="messages">
       @for (msg of messages; track trackMsg($index, msg)) {
+        @if (msg.role === 'system') {
+          <!-- Command echo / result: local, never stored, never sent to an agent -->
+          <div class="msg-system" [class.echo]="msg.kind === 'echo'" [class.ok]="msg.kind === 'ok'" [class.error]="msg.kind === 'error'">
+            @if (msg.kind === 'echo') {
+              <code>{{ msg.content }}</code>
+            } @else {
+              <pre>{{ msg.content }}</pre>
+            }
+          </div>
+        } @else {
         <div class="msg-row" [class.user]="msg.role === 'user'" [class.bot]="msg.role === 'assistant'">
           <!-- Doble clic en el avatar → ficha del agente (camino inverso al 💬 de esa vista) -->
           <div class="msg-avatar" [class.clickable]="!!agentIdFor(msg)"
@@ -114,6 +124,7 @@
             }
           </div>
         </div>
+        }
       }
       <div #messagesEnd></div>
     </div>
@@ -148,7 +159,19 @@
         }
       </div>
     }
+    @if (paletteOpen() && paletteItems().length) {
+      <div class="cmd-palette" role="listbox">
+        @for (item of paletteItems(); track item.kind + item.name; let i = $index) {
+          <button type="button" class="cmd-item" [class.active]="i === paletteIndex()" role="option"
+                  (mousedown)="$event.preventDefault()" (click)="completePalette(item)" (mouseenter)="paletteIndex.set(i)">
+            <span class="cmd-usage">{{ item.usage }}</span>
+            <span class="cmd-desc">{{ item.descriptionKey | translate: { name: item.agentName } }}</span>
+          </button>
+        }
+      </div>
+    }
     <textarea
+      #inputField
       class="input-field"
       [placeholder]="'chat.placeholder' | translate"
       [(ngModel)]="inputValue"

@@ -316,5 +316,23 @@
   "update": {
     "available": "A new version ({{version}}) is available.",
     "view": "View release"
+  },
+  "commands": {
+    "help": "List the available commands, or explain one",
+    "agents": "Agents with their status, worker and model",
+    "use": "Open that agent's chat and make it the active one",
+    "main": "Back to the main chat",
+    "close": "Close the current tab",
+    "delegate": "Create a task for another agent, from wherever you are",
+    "tasks": "Latest tasks of this chat with their status",
+    "status": "System health: version, services and providers with a key",
+    "keys": "Which providers have an API key configured",
+    "remember": "Save a note to the active agent's permanent memory",
+    "recall": "Search the active agent's past conversations",
+    "memory": "Show the active agent's memory",
+    "telegram": "Send a text to your Telegram",
+    "oneshot": "Open the One Shot canvas",
+    "whoami": "Who you are and which agent is active",
+    "agentMessage": "Message {{name}} without switching tabs"
   }
 }

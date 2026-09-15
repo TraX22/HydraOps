@@ -11,6 +11,7 @@ import { sendToTelegramTool } from './native/send_to_telegram/index.js';
 import { rememberTool } from './native/remember/index.js';
 import { recallTool } from './native/recall/index.js';
 export * from './types.js';
+export { rememberTool };
 export { ToolRegistry };
 export { guardTool, checkToolArgs, redactSecrets, assertPublicUrl } from './guard.js';
 export type { McpServerState, McpServerStatus } from './mcp.js';

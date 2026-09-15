@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy, signal, viewChild, ElementRef, afterNextRender, effect } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal, computed, viewChild, ElementRef, afterNextRender, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -10,6 +10,7 @@ import { MarkdownPipe } from '../../pipes/markdown.pipe';
 import { watchMermaid } from '../../pipes/mermaid-render';
 import { IconComponent } from '../../components/icon/icon.component';
 import { modelLabel } from '../../shared/model-groups';
+import { CommandService, PaletteItem } from '../../services/command.service';
 
 @Component({
   selector: 'app-chat',
@@ -22,6 +23,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   chat = inject(ChatService);
   agents = inject(AgentsService);
   private api = inject(ApiService);
+  commands = inject(CommandService);
   private router = inject(Router);
   private translate = inject(TranslateService);
 
@@ -68,6 +70,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.chat.fetchHistory(this.chat.activeTab());
     this.chat.startPolling(this.chat.activeTab());
+    this.commands.load();
     // Engine ids (Leonardo uses bare UUIDs) become readable names once the
     // shared model list arrives; until then the footer shows the id.
     this.api.getModelsShared().subscribe({
@@ -81,12 +84,40 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.stopMermaid?.();
   }
 
+  // The chat's history plus the local command notes, in time order.
   get messages(): ChatMessage[] {
-    return this.chat.messagesByChannel()[this.chat.activeTab()] ?? [];
+    const tab = this.chat.activeTab();
+    const history = this.chat.messagesByChannel()[tab] ?? [];
+    const notes = this.chat.systemByChannel()[tab] ?? [];
+    if (!notes.length) return history;
+    return [...history, ...notes].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
   }
+
+  // ── Command palette ──
+  // Typing "/" opens it; it lists commands and agents matching the token after
+  // the slash until the first space. Enter runs the line (or completes the
+  // highlighted entry while the token is still being typed).
+  paletteIndex = signal(0);
+  paletteOpen = computed(() => /^\/[^\s]*$/.test(this.inputValue()));
+  paletteItems = computed<PaletteItem[]>(() => this.paletteOpen() ? this.commands.suggestions(this.inputValue().slice(1)) : []);
+
+  completePalette(item: PaletteItem): void {
+    this.inputValue.set(`/${item.name} `);
+    this.paletteIndex.set(0);
+    this.inputField()?.nativeElement.focus();
+  }
+
+  inputField = viewChild<ElementRef<HTMLTextAreaElement>>('inputField');
 
   send(): void {
     const val = this.inputValue().trim();
+    if (val.startsWith('/')) {
+      this.commands.run(val);
+      this.inputValue.set('');
+      this.paletteIndex.set(0);
+      this.scrollToBottom();
+      return;
+    }
     const atts = this.attachments();
     if ((!val && atts.length === 0) || this.uploadingCount() > 0) return;
     let prompt = val;
@@ -200,6 +231,22 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   onKeydown(e: KeyboardEvent): void {
+    if (this.paletteOpen() && this.paletteItems().length) {
+      const n = this.paletteItems().length;
+      if (e.key === 'ArrowDown') { e.preventDefault(); this.paletteIndex.set((this.paletteIndex() + 1) % n); return; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); this.paletteIndex.set((this.paletteIndex() - 1 + n) % n); return; }
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+        const item = this.paletteItems()[Math.min(this.paletteIndex(), n - 1)];
+        // An exact command name runs on Enter; anything else completes first.
+        const typed = this.inputValue().slice(1).toLowerCase();
+        if (e.key === 'Tab' || (item.kind === 'command' && item.name !== typed) || item.kind === 'agent') {
+          e.preventDefault();
+          this.completePalette(item);
+          return;
+        }
+      }
+    }
+    if (e.key === 'Escape' && this.paletteOpen()) { this.inputValue.set(''); return; }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       this.send();

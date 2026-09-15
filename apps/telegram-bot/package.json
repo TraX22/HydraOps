@@ -10,6 +10,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@hydraops/commands": "workspace:*",
     "@hydraops/config": "workspace:*",
     "@hydraops/db": "workspace:*",
     "@hydraops/events": "workspace:*",
