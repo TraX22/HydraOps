@@ -1,6 +1,6 @@
 import { Injectable, signal, inject } from '@angular/core';
-import { ApiService, ChatMessage, Task } from './api.service';
-import { Subscription, interval, switchMap, catchError, of, EMPTY } from 'rxjs';
+import { ApiService, ChatAttachment, ChatMessage, Task } from './api.service';
+import { Subscription, interval, switchMap, catchError, EMPTY } from 'rxjs';
 
 export interface ChatTab {
   id: string;
@@ -22,6 +22,31 @@ export class ChatService {
 
   private pollSub?: Subscription;
   private taskPollSubs = new Map<string, Subscription>();
+
+  // Unsent text and attachments, per chat. The chat view is destroyed when
+  // the user navigates elsewhere (Agents, Config…), so they live here; the
+  // text also survives a restart.
+  private drafts: Record<string, string> = this.loadDrafts();
+  private pendingAttachments = new Map<string, ChatAttachment[]>();
+
+  getDraft(channel: string): string {
+    return this.drafts[channel] ?? '';
+  }
+
+  setDraft(channel: string, text: string): void {
+    if (text) this.drafts[channel] = text;
+    else delete this.drafts[channel];
+    try { localStorage.setItem('hydra_chat_drafts', JSON.stringify(this.drafts)); } catch { /* storage unavailable */ }
+  }
+
+  getPendingAttachments(channel: string): ChatAttachment[] {
+    return this.pendingAttachments.get(channel) ?? [];
+  }
+
+  setPendingAttachments(channel: string, atts: ChatAttachment[]): void {
+    if (atts.length) this.pendingAttachments.set(channel, atts);
+    else this.pendingAttachments.delete(channel);
+  }
 
   get currentMessages(): ChatMessage[] {
     return this.messagesByChannel()[this.activeTab()] ?? [];
@@ -123,7 +148,9 @@ export class ChatService {
     this.pollSub?.unsubscribe();
     this.pollSub = interval(4000)
       .pipe(
-        switchMap(() => this.api.getTasks(channel).pipe(catchError(() => of([])))),
+        // A failed poll (API restarting, network blip) must not blank the
+        // chat: skip the tick and keep what is on screen.
+        switchMap(() => this.api.getTasks(channel).pipe(catchError(() => EMPTY))),
       )
       .subscribe(messages => {
         // A new reply arrived while the user is looking at this chat → it's read.
@@ -152,6 +179,14 @@ export class ChatService {
         }
       });
     this.taskPollSubs.set(taskId, sub);
+  }
+
+  private loadDrafts(): Record<string, string> {
+    try {
+      return JSON.parse(localStorage.getItem('hydra_chat_drafts') ?? '{}');
+    } catch {
+      return {};
+    }
   }
 
   private loadTabs(): ChatTab[] {

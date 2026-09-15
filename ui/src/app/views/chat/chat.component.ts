@@ -27,6 +27,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   private translate = inject(TranslateService);
 
+  // Mirrors the active chat's draft (ChatService keeps the real thing).
   inputValue = signal('');
   editingMsgId = signal<string | null>(null);
   editingText = signal('');
@@ -50,6 +51,12 @@ export class ChatComponent implements OnInit, OnDestroy {
     afterNextRender(() => {
       const area = this.messagesArea()?.nativeElement;
       if (area) this.stopMermaid = watchMermaid(area);
+    });
+    // Each chat keeps its own unsent text and attachments.
+    effect(() => {
+      const tab = this.chat.activeTab();
+      this.inputValue.set(this.chat.getDraft(tab));
+      this.attachments.set(this.chat.getPendingAttachments(tab));
     });
     // Opening or switching to a chat jumps to the latest message (not the first).
     // New messages in the current chat only pull the view down while the user is
@@ -102,18 +109,23 @@ export class ChatComponent implements OnInit, OnDestroy {
   paletteItems = computed<PaletteItem[]>(() => this.paletteOpen() ? this.commands.suggestions(this.inputValue().slice(1)) : []);
 
   completePalette(item: PaletteItem): void {
-    this.inputValue.set(`/${item.name} `);
+    this.onInput(`/${item.name} `);
     this.paletteIndex.set(0);
     this.inputField()?.nativeElement.focus();
   }
 
   inputField = viewChild<ElementRef<HTMLTextAreaElement>>('inputField');
 
+  onInput(text: string): void {
+    this.inputValue.set(text);
+    this.chat.setDraft(this.chat.activeTab(), text);
+  }
+
   send(): void {
     const val = this.inputValue().trim();
     if (val.startsWith('/')) {
       this.commands.run(val);
-      this.inputValue.set('');
+      this.onInput('');
       this.paletteIndex.set(0);
       this.scrollToBottom();
       return;
@@ -126,14 +138,14 @@ export class ChatComponent implements OnInit, OnDestroy {
       prompt = `${val}\n\n[ATTACHMENTS]\n${atts.map(a => `- ${a.path} (${a.mime})`).join('\n')}`.trim();
     }
     this.chat.sendMessage(prompt, this.chat.activeTab());
-    this.inputValue.set('');
-    this.attachments.set([]);
+    this.onInput('');
+    this.setAttachments([]);
     this.scrollToBottom();
   }
 
-  // ── Ficha del agente desde el chat ──
-  // La API manda agentId en cada mensaje de agente; el nombre y la pestaña
-  // activa quedan como red de seguridad para históricos antiguos.
+  // ── Agent profile from the chat ──
+  // The API sends agentId with every agent message; the name and the active
+  // tab remain as a safety net for old history.
   agentIdFor(msg: ChatMessage): string | null {
     if (msg.role !== 'assistant') return null;
     if (msg.agentId) return msg.agentId;
@@ -166,14 +178,14 @@ export class ChatComponent implements OnInit, OnDestroy {
     input.value = '';
     for (const file of files) {
       if (file.size > 20 * 1024 * 1024) {
-        this.attachError.set(`${file.name}: máx 20MB`);
+        this.attachError.set(`${file.name}: ${this.translate.instant('chat.attachTooBig')}`);
         continue;
       }
       this.uploadingCount.update(n => n + 1);
       this.api.uploadChatFile(file).subscribe({
         next: att => {
           this.uploadingCount.update(n => n - 1);
-          this.attachments.update(a => [...a, att]);
+          this.setAttachments([...this.attachments(), att]);
         },
         error: err => {
           this.uploadingCount.update(n => n - 1);
@@ -184,7 +196,12 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   removeAttachment(att: ChatAttachment): void {
-    this.attachments.update(a => a.filter(x => x !== att));
+    this.setAttachments(this.attachments().filter(x => x !== att));
+  }
+
+  private setAttachments(atts: ChatAttachment[]): void {
+    this.attachments.set(atts);
+    this.chat.setPendingAttachments(this.chat.activeTab(), atts);
   }
 
   isImage(mime: string): boolean {
@@ -246,7 +263,7 @@ export class ChatComponent implements OnInit, OnDestroy {
         }
       }
     }
-    if (e.key === 'Escape' && this.paletteOpen()) { this.inputValue.set(''); return; }
+    if (e.key === 'Escape' && this.paletteOpen()) { this.onInput(''); return; }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       this.send();

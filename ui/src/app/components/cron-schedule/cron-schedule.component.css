@@ -1,0 +1,27 @@
+.sched { display: flex; flex-direction: column; gap: 8px; }
+
+.sched-presets, .sched-days { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  padding: 4px 12px; border: 1px solid var(--border-color); background: var(--bg-surface);
+  color: var(--text-secondary); border-radius: var(--radius-full); cursor: pointer; font-size: 12px;
+  font-family: inherit;
+}
+.chip.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+.sched-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.sched-word { font-size: 13px; color: var(--text-secondary); }
+
+.sched-mode, .sched-num, .sched-time, .sched-expr {
+  padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+  background: var(--bg-input); color: var(--text-primary); font-size: 13px; font-family: inherit;
+}
+.sched-mode { min-width: 160px; }
+.sched-num { width: 72px; }
+.sched-time { width: auto; color-scheme: inherit; }
+.sched-expr { flex: 1 1 220px; font-family: 'JetBrains Mono', monospace; }
+
+.sched-hint { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+.sched-hint code {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 2px 8px;
+  background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+}

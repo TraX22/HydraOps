@@ -19,13 +19,6 @@
   font-family: inherit;
 }
 
-.aliases { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-.alias-btn {
-  padding: 4px 12px; border: 1px solid var(--border-color); background: var(--bg-surface);
-  color: var(--text-secondary); border-radius: var(--radius-full); cursor: pointer; font-size: 12px;
-}
-.alias-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
-.cron-input { margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
 .create-btn {
   padding: 8px 24px; background: var(--accent); color: white; border: none;
   border-radius: var(--radius-sm); cursor: pointer; font-size: 13px;

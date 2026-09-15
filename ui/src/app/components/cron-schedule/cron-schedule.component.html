@@ -1,0 +1,66 @@
+<div class="sched">
+  <div class="sched-presets">
+    @for (p of presets; track p.value) {
+      <button type="button" class="chip" [class.active]="expression() === p.value" (click)="applyPreset(p.value)">
+        {{ p.labelKey | translate }}
+      </button>
+    }
+  </div>
+
+  <div class="sched-row">
+    <select class="sched-mode" [ngModel]="mode()" (ngModelChange)="mode.set($event)">
+      @for (m of modes; track m) {
+        <option [value]="m">{{ 'cron.picker.' + m | translate }}</option>
+      }
+    </select>
+
+    @switch (mode()) {
+      @case ('minutes') {
+        <span class="sched-word">{{ 'cron.picker.every' | translate }}</span>
+        <input type="number" min="1" max="59" class="sched-num" [ngModel]="everyMinutes()"
+               (ngModelChange)="everyMinutes.set(clampMinutes($event, 1, 59, 5))" />
+        <span class="sched-word">{{ 'cron.picker.minutesUnit' | translate }}</span>
+      }
+      @case ('hourly') {
+        <span class="sched-word">{{ 'cron.picker.atMinute' | translate }}</span>
+        <input type="number" min="0" max="59" class="sched-num" [ngModel]="minute()"
+               (ngModelChange)="minute.set(clampMinutes($event, 0, 59, 0))" />
+      }
+      @case ('daily') {
+        <span class="sched-word">{{ 'cron.picker.at' | translate }}</span>
+        <input type="time" class="sched-time" [ngModel]="time()" (ngModelChange)="time.set($event || '09:00')" />
+      }
+      @case ('weekly') {
+        <span class="sched-word">{{ 'cron.picker.at' | translate }}</span>
+        <input type="time" class="sched-time" [ngModel]="time()" (ngModelChange)="time.set($event || '09:00')" />
+      }
+      @case ('monthly') {
+        <span class="sched-word">{{ 'cron.picker.dayOfMonth' | translate }}</span>
+        <input type="number" min="1" max="31" class="sched-num" [ngModel]="dayOfMonth()"
+               (ngModelChange)="dayOfMonth.set(clampMinutes($event, 1, 31, 1))" />
+        <span class="sched-word">{{ 'cron.picker.at' | translate }}</span>
+        <input type="time" class="sched-time" [ngModel]="time()" (ngModelChange)="time.set($event || '09:00')" />
+      }
+      @case ('custom') {
+        <input class="sched-expr" [ngModel]="custom()" (ngModelChange)="custom.set($event)" placeholder="* * * * *" spellcheck="false" />
+      }
+    }
+  </div>
+
+  @if (mode() === 'weekly') {
+    <div class="sched-days">
+      @for (d of weekDays; track d.n) {
+        <button type="button" class="chip" [class.active]="days().includes(d.n)" (click)="toggleDay(d.n)">
+          {{ 'cron.picker.days.' + d.key | translate }}
+        </button>
+      }
+    </div>
+  }
+
+  @if (mode() !== 'custom') {
+    <div class="sched-hint">
+      <span>{{ 'cron.picker.expression' | translate }}</span>
+      <code>{{ expression() }}</code>
+    </div>
+  }
+</div>
