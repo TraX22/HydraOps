@@ -1,9 +1,13 @@
-# HydraOps
+<p align="center">
+  <a href="https://hydraops.org"><img src="docs/img/readme-banner.png" alt="HydraOps — self-hosted multi-agent AI. Your agents, your models, your machine." width="100%"></a>
+</p>
 
-[![Latest release](https://img.shields.io/github/v/release/TraX22/HydraOps?label=release&color=4f46e5)](https://github.com/TraX22/HydraOps/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/TraX22/HydraOps/total?color=4f46e5)](https://github.com/TraX22/HydraOps/releases)
-[![License](https://img.shields.io/github/license/TraX22/HydraOps?color=4f46e5)](LICENSE)
-[![Website](https://img.shields.io/badge/web-hydraops.org-4f46e5)](https://hydraops.org)
+<p align="center">
+  <a href="https://github.com/TraX22/HydraOps/releases/latest"><img src="https://img.shields.io/github/v/release/TraX22/HydraOps?label=release&color=4f46e5" alt="Latest release"></a>
+  <a href="https://github.com/TraX22/HydraOps/releases"><img src="https://img.shields.io/github/downloads/TraX22/HydraOps/total?color=4f46e5" alt="Downloads"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/TraX22/HydraOps?color=4f46e5" alt="License"></a>
+  <a href="https://hydraops.org"><img src="https://img.shields.io/badge/web-hydraops.org-4f46e5" alt="Website"></a>
+</p>
 
 **English** | [Español](README_es.md)
 
