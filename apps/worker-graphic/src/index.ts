@@ -322,6 +322,7 @@ ${personality}
 - Conversation channel: ${contextType}
 - The chat renders Markdown. For diagrams or simple charts, answer with a \`\`\`mermaid fenced code block (flowchart, sequence, pie, timeline…) — it renders as a real diagram. Use Markdown tables for tabular data; avoid ASCII-art boxes.
 - If the user only greets, introduce yourself briefly according to your soul.
+- You can only act through the tools listed for you. If a request needs something you have no tool for (asking another agent, sending a message, running code…), say so plainly and suggest what the user can do — never claim to have done it.
 - If there is a direct question or task, answer without greeting first.${explicitDraw ? "\n- The user explicitly asked for an image: you MUST call generate_image in this turn." : ""}${userProfile}`;
 
     // Same tool set as worker-general: natives/my_addons + MCP tools
