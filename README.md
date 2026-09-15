@@ -1,16 +1,24 @@
 # HydraOps
 
+[![Latest release](https://img.shields.io/github/v/release/TraX22/HydraOps?label=release&color=4f46e5)](https://github.com/TraX22/HydraOps/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/TraX22/HydraOps/total?color=4f46e5)](https://github.com/TraX22/HydraOps/releases)
+[![License](https://img.shields.io/github/license/TraX22/HydraOps?color=4f46e5)](LICENSE)
+[![Website](https://img.shields.io/badge/web-hydraops.org-4f46e5)](https://hydraops.org)
+
 **English** | [Español](README_es.md)
 
 🌐 **[hydraops.org](https://hydraops.org)** · [Download the latest release](https://github.com/TraX22/HydraOps/releases/latest) · [X @HydraOpsApp](https://x.com/HydraOpsApp)
 
-Multi-agent AI task system with a chat interface. Several agents, each with its own
-personality, model and tools, work on tasks in parallel: they write code, answer
-questions, generate images and video.
+**Self-hosted multi-agent AI for your own machine.** A desktop app (Windows installer)
+or a headless server, with a chat where several AI agents — each with its own
+personality, model, tools and memory — work on tasks in parallel: research, code, images
+and video. Bring your API keys or run local LLMs; talk to your agents from the app, from
+Telegram, or with `/commands`.
 
 Works with API models (OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, DeepSeek, Qwen,
-Kimi, GLM, MiniMax, OpenRouter, Leonardo) and with local models through any
-OpenAI-compatible server — llama.cpp, LM Studio, vLLM, Ollama.
+Kimi, GLM, MiniMax, OpenRouter, Perplexity, Leonardo) and with local models through any
+OpenAI-compatible server — Ollama, llama.cpp, LM Studio, vLLM. Image and video engines:
+Leonardo, Google Imagen and Veo, xAI Grok Imagine.
 
 > **Status:** in real daily use on Windows (desktop installer) and in **server mode**
 > (headless) — reachable from another machine's browser on your local network with a
@@ -21,18 +29,33 @@ OpenAI-compatible server — llama.cpp, LM Studio, vLLM, Ollama.
 
 - **Agents with personality.** Each one is six Markdown files, editable from the
   interface itself: soul, skills, tools, memory, heartbeat and profile.
+- **Agents that remember.** A permanent memory per agent (`remember`) and full-text
+  search over its past conversations (`recall`) — files and SQLite, no vector database.
+- **Agents that delegate.** An agent can hand a task to another one (`delegate_task`),
+  and every agent is told to say so when it lacks a tool instead of pretending.
 - **Four worker types** — code, general, image and video — each with its own engine and
-  resolution, configurable per agent.
-- **Tools.** Native add-ons, your own add-ons in `my_addons/` (hot-loaded) and MCP
-  servers over HTTP.
+  aspect ratio, configurable per agent. Video through Google Veo, xAI Grok Imagine or
+  Leonardo Motion; images through Leonardo (Flux, Phoenix…), Google Imagen or Grok.
+- **Tools.** Native add-ons (web search, Brave, Perplexity, `fetch_url` with RSS
+  fallback, YouTube transcripts, GitHub, Telegram), your own add-ons in `my_addons/`
+  (hot-loaded) and MCP servers over HTTP. Each agent gets only the tools you grant it.
+- **Telegram bot.** Pair a chat with a code and talk to any agent from your phone;
+  scheduled tasks can push their results (and failures) to Telegram too.
+- **Commands.** Type `/` in the chat for a palette of verbs that cost no tokens —
+  `/agents`, `/use luna`, `/status`, `/delegate karen …`, `/remember`, `/recall` — with
+  Spanish aliases; the same commands work in Telegram.
+  See [Commands](docs/en/15-commands.md).
+- **One Shot.** Draw a task as a flow diagram of nodes and connections and have your
+  model compile it into a single, complete prompt.
 - **Credential firewall.** API keys are never in the repository, the database or the
   `.env`: they live outside the project and a local proxy injects them at the network
   boundary. Workers only ever see the `proxy` placeholder.
 - **Tool guard.** Every tool goes through a filter that blocks credential paths,
   catastrophic commands and requests to internal networks, and redacts secrets from
   results.
-- **Chat with attachments**, inline images and video, scheduled tasks (cron), statistics
-  and an interface in five languages (es, en, it, fr, pt-BR).
+- **Chat with attachments**, inline images and video, Mermaid diagrams, per-message LLM
+  and token cost, scheduled tasks with a schedule picker, statistics and an interface in
+  five languages (es, en, it, fr, pt-BR).
 
 ## Architecture
 
@@ -55,8 +78,9 @@ single process drains it, so a network failure never loses events. Consumers use
 | `apps/outbox-worker/` | publishes the outbox to NATS |
 | `apps/worker-*/` | the four executors |
 | `apps/key-proxy/` | credential firewall |
+| `apps/telegram-bot/` | the Telegram transport |
 | `apps/desktop/` | Electron shell and packaging |
-| `packages/` | config, db, llm, addons, events, nats |
+| `packages/` | config, db, llm, addons, commands, events, nats |
 | `ui/` | Angular interface |
 | `agents/` | the example agent; the ones you create appear here too |
 
@@ -105,7 +129,7 @@ no separate build step to remember.
 #### Server mode (headless)
 
 For keeping it on 24/7 on a machine with no screen — a mini PC at home, for example. A
-single command brings up NATS and all eight services, without Electron:
+single command brings up NATS and every service, without Electron:
 
 ```bash
 pnpm serve
