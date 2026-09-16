@@ -15,6 +15,7 @@ Vienen con la aplicación. Hoy son:
 - `youtube_transcript` — transcripción de un vídeo de YouTube, sin clave.
 - `remember` — el agente guarda notas duraderas en su propia memoria (ver [Agentes](./05-agents.md)).
 - `recall` — el agente busca en sus conversaciones pasadas, más allá del historial reciente.
+- `delegate_task` — el agente le pasa una tarea a otro agente por su nombre; la respuesta aparece en el chat del otro (ver [Agentes](./05-agents.md)).
 
 Cada tarjeta explica qué hace el suyo, y las integraciones con servicios externos (Telegram, GitHub) viven en [Herramientas](./09-tools.md).
 

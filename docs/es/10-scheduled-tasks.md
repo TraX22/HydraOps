@@ -11,7 +11,11 @@ Pulsa **Nueva Tarea**:
 - **Nombre** — para reconocerla en la lista.
 - **Agente Asignado** — quién la ejecuta; o **Enrutamiento Inteligente**, y el sistema elige el agente según la tarea.
 - **Prompt** — qué debe hacer, escrito como se lo pedirías por chat.
-- **Programación** — cuándo. Hay atajos (cada minuto, cada 5, cada 30, cada hora, mediodía, medianoche, horario laboral) o expresión cron directa:
+- **Programación** — cuándo. Elegís la frecuencia y el resto se arma solo: **cada N minutos**, **cada hora** (en tal minuto), **todos los días** a una hora, **días de la semana** (con los días marcados) a una hora, **una vez al mes** el día tal, o **expresión cron** para lo que no entre en esas opciones. Los atajos (cada 5 min, mediodía, horario laboral…) siguen ahí, y debajo se muestra la expresión resultante. Una tarea existente se abre ya traducida a estas opciones.
+
+También se crean desde el chat con `/cron <horario> <prompt>` (ver [Comandos](./15-commands.md)): abre este formulario precargado para que confirmes.
+
+La expresión cron, para el modo manual:
 
 ```
 ┌ minuto (0-59)

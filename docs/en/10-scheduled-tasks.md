@@ -11,7 +11,11 @@ Click **New Task**:
 - **Name** — to recognize it in the list.
 - **Assigned Agent** — who runs it; or **Smart Routing**, and the system picks the agent based on the task.
 - **Prompt** — what it should do, written the way you would ask in chat.
-- **Schedule** — when. There are shortcuts (every minute, every 5, every 30, hourly, noon, midnight, work hours) or a raw cron expression:
+- **Schedule** — when. Pick the frequency and the rest builds itself: **every N minutes**, **every hour** (at a given minute), **every day** at a time, **days of the week** (with the days ticked) at a time, **once a month** on a given day, or **cron expression** for anything those cannot express. The shortcuts (every 5 min, noon, work hours…) are still there, and the resulting expression shows underneath. An existing task opens already translated into these choices.
+
+They can also be created from the chat with `/cron <schedule> <prompt>` (see [Commands](./15-commands.md)): it opens this form pre-filled for you to confirm.
+
+The cron expression, for the manual mode:
 
 ```
 ┌ minute (0-59)
