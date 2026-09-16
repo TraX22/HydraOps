@@ -13,6 +13,7 @@
     "@hydraops/config": "workspace:*",
     "@hydraops/db": "workspace:*",
     "@hydraops/events": "workspace:*",
+    "@hydraops/llm": "workspace:^",
     "@hydraops/nats": "workspace:*",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.45.2",

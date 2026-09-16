@@ -6,7 +6,8 @@ import { config as loadDotenv } from "dotenv";
 import { randomUUID } from "node:crypto";
 import { readdir } from "node:fs/promises";
 
-import { loadEnv, envFile, agentsDir, logsDir } from "@hydraops/config";
+import { loadEnv, envFile, agentsDir, logsDir, readLocalLlmEnv } from "@hydraops/config";
+import { routeByContent } from "./router.js";
 
 loadDotenv({ path: envFile });
 
@@ -18,8 +19,7 @@ import {
   tasks,
   agentConfigs,
   cronJobs,
-  workerStatus,
-} from "@hydraops/db";
+  workerStatus, systemConfigs } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, subjectForType } from "@hydraops/nats";
 import { eq } from "drizzle-orm";
@@ -96,10 +96,28 @@ async function pickAgent(channel: string, prompt: string): Promise<{ agentId: st
     }
   }
 
-  // 3) Round-robin over configured agents (fall back to any agent dir)
   const pool = configs.length > 0 ? configs.map((c: any) => c.agentId).filter((id: string) => agentIds.includes(id)) : agentIds;
   const candidates = pool.length > 0 ? pool : agentIds;
   if (candidates.length === 0) throw new Error("No agents available for assignment");
+
+  // 3) Content routing (see router.ts): a fast model reads the message and the
+  // agents' roles and names the best fit. Any doubt, error or timeout falls
+  // through to the round-robin below, so a task is never blocked on it.
+  try {
+    const globalConfigs = await (db as any).select().from(systemConfigs);
+    const localLlm = readLocalLlmEnv();
+    const getGlobalConfig = (key: string, defaultValue: string) => {
+      if (key in localLlm) return localLlm[key] || defaultValue;
+      const found = globalConfigs.find((c: any) => c.key === key);
+      return found ? found.value : process.env[key] || defaultValue;
+    };
+    const routed = await routeByContent(prompt, candidates, workerTypeOf, getGlobalConfig);
+    if (routed) return { agentId: routed, workerType: workerTypeOf(routed) };
+  } catch (e: any) {
+    console.warn(`[orchestrator] router unavailable: ${e?.message ?? e}`);
+  }
+
+  // 4) Round-robin over configured agents (fall back to any agent dir)
   const agentId = candidates[roundRobinIdx++ % candidates.length];
   return { agentId, workerType: workerTypeOf(agentId) };
 }

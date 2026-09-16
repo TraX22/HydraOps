@@ -9,7 +9,7 @@ La vista **Tareas** son los crons: tareas que se ejecutan solas, a la hora que d
 Pulsa **Nueva Tarea**:
 
 - **Nombre** — para reconocerla en la lista.
-- **Agente Asignado** — quién la ejecuta; o **Enrutamiento Inteligente**, y el sistema elige el agente según la tarea.
+- **Agente Asignado** — quién la ejecuta. Una tarea programada siempre corre en un agente concreto.
 - **Prompt** — qué debe hacer, escrito como se lo pedirías por chat.
 - **Programación** — cuándo. Elegís la frecuencia y el resto se arma solo: **cada N minutos**, **cada hora** (en tal minuto), **todos los días** a una hora, **días de la semana** (con los días marcados) a una hora, **una vez al mes** el día tal, o **expresión cron** para lo que no entre en esas opciones. Los atajos (cada 5 min, mediodía, horario laboral…) siguen ahí, y debajo se muestra la expresión resultante. Una tarea existente se abre ya traducida a estas opciones.
 

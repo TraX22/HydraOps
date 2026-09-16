@@ -6,6 +6,8 @@ El **Chat Principal** es donde hablas con tus agentes y donde aparecen los resul
 
 Escribe y envía. El sistema asigna la tarea a un agente y su respuesta llega al canal firmada por él. No hace falta esperar: puedes enviar varias tareas seguidas y cada una llega cuando termina.
 
+En el **chat de un agente**, la tarea es para ese agente. En el **chat principal**, si no nombras a nadie (`@luna …`, o el nombre al principio), un modelo rápido lee el mensaje y elige al agente que mejor encaja según el **rol** que declara su `agent.md` y su tipo de worker: código a la programadora, imágenes a la ilustradora, video a la realizadora, y lo demás a quien tenga el rol más afín. Usa el modelo por defecto; puedes fijar otro más barato con `ROUTER_MODEL` en el `.env`. Si el modelo no responde, se reparte por turnos.
+
 ## Adjuntos
 
 El clip **📎** adjunta archivos al mensaje:

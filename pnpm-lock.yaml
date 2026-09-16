@@ -146,6 +146,9 @@ importers:
       '@hydraops/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@hydraops/llm':
+        specifier: workspace:^
+        version: link:../../packages/llm
       '@hydraops/nats':
         specifier: workspace:*
         version: link:../../packages/nats

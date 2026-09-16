@@ -9,7 +9,7 @@ The **Tasks** view holds the crons: tasks that run by themselves, at the time yo
 Click **New Task**:
 
 - **Name** — to recognize it in the list.
-- **Assigned Agent** — who runs it; or **Smart Routing**, and the system picks the agent based on the task.
+- **Assigned Agent** — who runs it. A scheduled task always runs on a specific agent.
 - **Prompt** — what it should do, written the way you would ask in chat.
 - **Schedule** — when. Pick the frequency and the rest builds itself: **every N minutes**, **every hour** (at a given minute), **every day** at a time, **days of the week** (with the days ticked) at a time, **once a month** on a given day, or **cron expression** for anything those cannot express. The shortcuts (every 5 min, noon, work hours…) are still there, and the resulting expression shows underneath. An existing task opens already translated into these choices.
 
