@@ -357,6 +357,21 @@
     "telegram": "Envía un texto a tu Telegram",
     "oneshot": "Abre el lienzo One Shot",
     "whoami": "Quién sos y cuál es el agente activo",
-    "agentMessage": "Mensaje a {{name}} sin cambiar de pestaña"
+    "agentMessage": "Mensaje a {{name}} sin cambiar de pestaña",
+    "model": "Muestra o cambia el LLM del agente activo",
+    "engine": "Muestra o cambia el motor de imagen/video del agente activo",
+    "aspect": "Aspecto de imagen/video del agente activo",
+    "tools": "Herramientas concedidas al agente activo",
+    "grant": "Concede una herramienta al agente activo",
+    "revoke": "Quita una herramienta al agente activo",
+    "profile": "Abre la ficha del agente activo",
+    "crons": "Lista las tareas programadas",
+    "cron": "Programa una tarea para el agente activo",
+    "pause": "Pausa una tarea programada",
+    "resume": "Reanuda una tarea programada",
+    "run": "Ejecuta una tarea programada ahora",
+    "retry": "Vuelve a enviar el último mensaje de este chat",
+    "lang": "Cambia el idioma de la interfaz",
+    "theme": "Cambia el tema de la interfaz"
   }
 }

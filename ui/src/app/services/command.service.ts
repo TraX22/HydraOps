@@ -4,6 +4,8 @@ import { ApiService, CommandResult, CommandSpec } from './api.service';
 import { ChatService } from './chat.service';
 import { AgentsService } from './agents.service';
 import { ComplementosService } from './complementos.service';
+import { ThemeService } from './theme.service';
+import { TranslateService } from '@ngx-translate/core';
 
 // The chat's "/commands": the catalog for the palette and the runner that
 // sends a line to POST /api/commands, echoes the result as a system message
@@ -15,6 +17,8 @@ export class CommandService {
   private agents = inject(AgentsService);
   private complementos = inject(ComplementosService);
   private router = inject(Router);
+  private theme = inject(ThemeService);
+  private translate = inject(TranslateService);
 
   readonly catalog = signal<CommandSpec[]>([]);
   readonly running = signal(false);
@@ -74,6 +78,16 @@ export class CommandService {
         break;
       case 'navigate':
         this.router.navigate([a.path], { queryParams: a.query });
+        break;
+      case 'open_cron_form':
+        this.router.navigate(['/tasks'], { queryParams: a.prefill });
+        break;
+      case 'set_lang':
+        this.translate.use(a.lang);
+        try { localStorage.setItem('hydra_lang', a.lang); } catch { /* storage unavailable */ }
+        break;
+      case 'set_theme':
+        this.theme.theme.set(a.theme as 'light' | 'dark');
         break;
       // await_task: the reply lands in that agent's chat; nothing to wait for here.
     }

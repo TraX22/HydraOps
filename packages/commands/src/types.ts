@@ -39,6 +39,31 @@ export interface MemoryHit {
   excerpt: string;
 }
 
+export interface ModelInfo {
+  id: string;
+  name: string;
+  provider: string;
+  type?: string;
+  isImage?: boolean;
+  isVideo?: boolean;
+}
+
+export interface AgentConfig {
+  model: string;
+  workerType?: string;
+  graphicEngine?: string;
+  resolution?: string;
+}
+
+export interface CronInfo {
+  id: string;
+  name: string;
+  prompt: string;
+  cronExpression: string;
+  assignedAgent: string | null;
+  status: "active" | "paused";
+}
+
 // What the transport should do after showing the text. Each transport
 // applies what it can and ignores the rest.
 export type CommandAction =
@@ -47,6 +72,10 @@ export type CommandAction =
   | { type: "close_tab" }
   | { type: "open_oneshot" }
   | { type: "navigate"; path: string; query?: Record<string, string> }
+  // The app opens the scheduled-task form pre-filled for the user to confirm.
+  | { type: "open_cron_form"; prefill: { name: string; prompt: string; cronExpression: string; assignedAgent: string } }
+  | { type: "set_lang"; lang: string }
+  | { type: "set_theme"; theme: string }
   // A task was created for an agent; a synchronous transport (Telegram)
   // waits for it and relays the reply.
   | { type: "await_task"; taskId: string; agentId: string };
@@ -83,6 +112,17 @@ export interface CommandApi {
   recall(agentId: string, query: string): Promise<MemoryHit[]>;
   readMemory(agentId: string): Promise<string>;
   sendTelegram(text: string): Promise<{ ok: boolean; sent?: number; reason?: string; error?: string }>;
+  // Phase 2
+  listModels(): Promise<ModelInfo[]>;
+  getAgentConfig(agentId: string): Promise<AgentConfig>;
+  saveAgentConfig(agentId: string, patch: Partial<AgentConfig>): Promise<void>;
+  agentTools(agentId: string): Promise<{ declared: string[]; granted: string[] }>;
+  /** Add or remove one bullet in the agent's tools.md; `error` when the name matches no tool. */
+  editAgentTools(agentId: string, change: { add?: string; remove?: string }): Promise<{ declared: string[]; error?: string }>;
+  listCrons(): Promise<CronInfo[]>;
+  createCron(cron: { name: string; prompt: string; cronExpression: string; assignedAgent: string }): Promise<{ id: string }>;
+  setCronStatus(id: string, status: "active" | "paused"): Promise<void>;
+  runCron(id: string): Promise<void>;
 }
 
 export interface CommandContext {

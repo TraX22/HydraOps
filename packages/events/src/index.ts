@@ -87,6 +87,8 @@ export const TaskFailedV1 = z.object({
 });
 
 export const SystemCronUpdatedV1 = z.object({});
+// Run one scheduled task now (the /run command); the orchestrator fires it.
+export const SystemCronRunV1 = z.object({ cronId: z.string().min(1) });
 
 // -----------------------------
 // Registry
@@ -98,6 +100,7 @@ export const registry = {
   "agent.result_generated": { 1: AgentResultGeneratedV1 },
   "task.failed": { 1: TaskFailedV1 },
   "system.cron_updated": { 1: SystemCronUpdatedV1 },
+  "system.cron_run": { 1: SystemCronRunV1 },
 } as const;
 
 export type EventType = keyof typeof registry;

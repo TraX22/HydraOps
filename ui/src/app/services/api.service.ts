@@ -80,6 +80,9 @@ export type CommandAction =
   | { type: 'close_tab' }
   | { type: 'open_oneshot' }
   | { type: 'navigate'; path: string; query?: Record<string, string> }
+  | { type: 'open_cron_form'; prefill: { name: string; prompt: string; cronExpression: string; assignedAgent: string } }
+  | { type: 'set_lang'; lang: string }
+  | { type: 'set_theme'; theme: string }
   | { type: 'await_task'; taskId: string; agentId: string };
 
 export interface CommandResult {

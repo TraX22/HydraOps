@@ -1,12 +1,8 @@
-import type { AgentSummary, Command, CommandContext, CommandResult, CommandSpec } from "./types.js";
+import type { Command, CommandContext, CommandResult, CommandSpec } from "./types.js";
+import { PHASE2_COMMANDS } from "./phase2.js";
 
-// Accent- and case-insensitive: "Lucía", "lucia" and "LUCIA" name the same agent.
-export const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
-
-export function findAgent(agents: AgentSummary[], nameOrId: string): AgentSummary | undefined {
-  const wanted = fold(nameOrId);
-  return agents.find((a) => fold(a.id) === wanted || fold(a.name) === wanted);
-}
+import { findAgent, fold } from "./util.js";
+export { findAgent, fold };
 
 const STATUS_ICON: Record<string, string> = { online: "🟢", working: "🟠", idle: "⚪", offline: "🔴" };
 
@@ -217,6 +213,9 @@ export const COMMANDS: Command[] = [
     handler: async (ctx) => info(`You: ${ctx.senderId} (${ctx.transport})\nActive agent: ${ctx.activeAgent ?? "(none)"}`),
   },
 ];
+
+// Phase 2 (configuration, scheduled tasks, UI switches) joins the same catalog.
+COMMANDS.push(...PHASE2_COMMANDS);
 
 /** The catalog a transport shows: everything but the handlers. */
 export function catalog(): CommandSpec[] {

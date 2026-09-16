@@ -39,6 +39,37 @@ Estos tres necesitan un chat de agente abierto: en el chat principal no hay "age
 | `/oneshot` | Abre el lienzo One Shot. |
 | `/whoami` (`/quien`) | Quién sos y cuál es el agente activo. |
 
+
+## Configuración rápida del agente activo
+
+| Comando | Qué hace |
+|---|---|
+| `/model [nombre]` (`/modelo`) | Sin argumento muestra el LLM del agente; con uno lo cambia (acepta nombre parcial). |
+| `/engine [nombre \| auto]` (`/motor`) | Motor de imagen o video del agente (solo workers graphic y video). |
+| `/aspect <16:9 \| 9:16 \| …>` (`/aspecto`) | Aspecto de imagen o video; solo los válidos para el motor elegido. |
+| `/tools` (`/herramientas`) | Herramientas concedidas al agente. |
+| `/grant <tool>` (`/conceder`) · `/revoke <tool>` (`/quitar`) | Agrega o quita la línea en el `tools.md` del agente. |
+| `/profile` (`/perfil`) | Abre la ficha del agente. |
+
+## Tareas programadas
+
+| Comando | Qué hace |
+|---|---|
+| `/crons` (`/programadas`) | Lista las tareas programadas con horario legible. |
+| `/cron <horario> <prompt>` (`/programar`) | Programa una tarea para el agente activo. En la app abre el formulario precargado para confirmar; en Telegram la crea directamente. |
+| `/pause <nombre>` (`/pausar`) · `/resume <nombre>` (`/reanudar`) | Pausa o reanuda una tarea por nombre. |
+| `/run <nombre>` (`/ejecutar`) | La ejecuta ahora, sin esperar al horario. |
+
+Horarios que entiende `/cron`: `5m`, `cada 30 min`, `hourly`, `cada hora :15`, `09:00`, `diario 21:30`, `mon-fri 09:00`, `lun-vie 09:00`, `lun,mie,vie 18:00`, `mensual 1 08:00`, `noon`, `midnight`, o una expresión cron de cinco campos.
+
+## Otros
+
+| Comando | Qué hace |
+|---|---|
+| `/retry` (`/reintentar`) | Vuelve a enviar el último mensaje de este chat. |
+| `/lang <es \| en \| it \| fr \| pt>` (`/idioma`) | Cambia el idioma de la interfaz. |
+| `/theme <light \| dark>` (`/tema`) | Cambia el tema. |
+
 ## Consejos
 
 - `/delegate` y `/<agente> …` crean la tarea como si la hubieras escrito en el chat de ese agente: el agente queda con el punto verde hasta que abras su chat.

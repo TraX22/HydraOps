@@ -39,14 +39,14 @@ Si el código coincide, tu cuenta queda autorizada y ya puedes hablar con los ag
 
 ### Comandos
 
-| Comando | Qué hace |
+El bot usa **los mismos comandos que el chat de la aplicación** (ver [Comandos](./15-commands.md)): `/agents`, `/use <agente>`, `/delegate`, `/tasks`, `/status`, `/remember`, `/recall`, `/crons`, `/cron`, `/pause`, `/resume`, `/run`, `/model`, `/tools`, `/grant`… con sus alias en español. Los que solo tienen sentido con la interfaz (`/oneshot`, `/close`, `/profile`, `/lang`, `/theme`) responden con un aviso.
+
+| Escribes | Qué pasa |
 |---|---|
-| `/agents` | Lista los agentes disponibles. |
-| `/<agente> <mensaje>` | Envía un mensaje puntual a ese agente (ej. `/elena resume esto`). |
-| `/use <agente> [mensaje]` | Fija el agente activo del chat; si añades un mensaje, lo cambia **y** lo envía. |
+| `/<agente> <mensaje>` | Envía un mensaje puntual a ese agente (ej. `/elena resume esto`) y el bot te devuelve la respuesta. |
+| `/use <agente>` | Fija el agente activo de este chat de Telegram. |
 | *texto normal* | Va al agente activo (o al agente por defecto). |
-| `/help` | Muestra la ayuda. |
-| `/whoami` | Muestra tu identificador y el agente activo. |
+| `/help` | Lista todos los comandos. |
 
 El código responde con marco monoespaciado, así que un "hola mundo" pedido a un agente de código se lee cómodo en el teléfono.
 
