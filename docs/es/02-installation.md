@@ -10,6 +10,14 @@ Tus datos van a `%APPDATA%\HydraOps` y tus claves de API a `%APPDATA%\hydraops\k
 
 Para actualizar, instala la versión nueva encima. Cierra antes la aplicación: el instalador no puede sobrescribir archivos en uso.
 
+### La bandeja del sistema y el arranque con Windows
+
+Cerrar la ventana con la **X no apaga HydraOps**: la ventana se oculta y queda un icono en la bandeja del sistema, junto al reloj, mientras los agentes, las tareas programadas y el bot de Telegram siguen trabajando. Un clic en el icono vuelve a abrir la ventana; **Salir**, en su menú, apaga todo de verdad.
+
+En **Config → Escritorio** podés cambiar ese comportamiento y activar **Iniciar con Windows** (y, si querés, **Empezar en la bandeja**, sin abrir la ventana): así el PC arranca y HydraOps ya está en marcha. Es lo que conviene en una máquina dedicada 24/7. Windows lo lista en Configuración → Aplicaciones → Inicio, donde también se puede apagar.
+
+Cada cierre queda anotado con su motivo en `%APPDATA%\HydraOps\shell\logs\shell.log` (la X, Salir, cierre de sesión…), por si algún día parece que "desapareció".
+
 ## Opción B — desde el código (Windows, Linux, macOS)
 
 Requisitos:

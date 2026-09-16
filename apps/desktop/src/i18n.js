@@ -28,6 +28,14 @@ const STRINGS = {
       fullscreen: "Full screen",
       about: "About",
     },
+    tray: {
+      open: "Open HydraOps",
+      closeToTray: "Closing the window keeps HydraOps running",
+      launchAtLogin: "Start with Windows",
+      startInTray: "Start in the tray (no window)",
+      quit: "Quit HydraOps",
+      stillRunning: "HydraOps keeps running in the tray. Agents, scheduled tasks and Telegram stay active; use Quit to stop it.",
+    },
     about: {
       title: "About HydraOps",
       versionLabel: "Version",
@@ -60,6 +68,14 @@ const STRINGS = {
       zoomOut: "Alejar",
       fullscreen: "Pantalla completa",
       about: "Acerca de",
+    },
+    tray: {
+      open: "Abrir HydraOps",
+      closeToTray: "Cerrar la ventana deja HydraOps corriendo",
+      launchAtLogin: "Iniciar con Windows",
+      startInTray: "Empezar en la bandeja (sin ventana)",
+      quit: "Salir de HydraOps",
+      stillRunning: "HydraOps sigue corriendo en la bandeja. Los agentes, las tareas programadas y Telegram siguen activos; usá Salir para apagarlo.",
     },
     about: {
       title: "Acerca de HydraOps",
@@ -94,6 +110,14 @@ const STRINGS = {
       fullscreen: "Plein écran",
       about: "À propos",
     },
+    tray: {
+      open: "Ouvrir HydraOps",
+      closeToTray: "Fermer la fenêtre laisse HydraOps actif",
+      launchAtLogin: "Démarrer avec Windows",
+      startInTray: "Démarrer dans la zone de notification (sans fenêtre)",
+      quit: "Quitter HydraOps",
+      stillRunning: "HydraOps continue de tourner dans la zone de notification. Agents, tâches planifiées et Telegram restent actifs ; utilisez Quitter pour l'arrêter.",
+    },
     about: {
       title: "À propos de HydraOps",
       versionLabel: "Version",
@@ -127,6 +151,14 @@ const STRINGS = {
       fullscreen: "Schermo intero",
       about: "Informazioni",
     },
+    tray: {
+      open: "Apri HydraOps",
+      closeToTray: "Chiudere la finestra lascia HydraOps in esecuzione",
+      launchAtLogin: "Avvia con Windows",
+      startInTray: "Avvia nella barra delle applicazioni (senza finestra)",
+      quit: "Esci da HydraOps",
+      stillRunning: "HydraOps continua a funzionare nella barra. Agenti, attività pianificate e Telegram restano attivi; usa Esci per fermarlo.",
+    },
     about: {
       title: "Informazioni su HydraOps",
       versionLabel: "Versione",
@@ -159,6 +191,14 @@ const STRINGS = {
       zoomOut: "Afastar",
       fullscreen: "Tela cheia",
       about: "Sobre",
+    },
+    tray: {
+      open: "Abrir o HydraOps",
+      closeToTray: "Fechar a janela mantém o HydraOps rodando",
+      launchAtLogin: "Iniciar com o Windows",
+      startInTray: "Iniciar na bandeja (sem janela)",
+      quit: "Sair do HydraOps",
+      stillRunning: "O HydraOps continua rodando na bandeja. Agentes, tarefas agendadas e Telegram seguem ativos; use Sair para encerrá-lo.",
     },
     about: {
       title: "Sobre o HydraOps",

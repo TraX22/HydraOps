@@ -128,7 +128,17 @@
     "modelUnavailable": "no disponible (selecciona otro)",
     "languages": "Lenguajes",
     "localLlm": "LLM Local",
-    "logLevel": "Nivel de Log"
+    "logLevel": "Nivel de Log",
+    "desktop": {
+      "title": "Escritorio",
+      "closeToTray": "Cerrar la ventana deja HydraOps corriendo",
+      "closeToTrayHint": "La ventana se oculta en la bandeja del sistema y los agentes, las tareas programadas y Telegram siguen activos. Para apagar todo: Salir en el icono de la bandeja.",
+      "launchAtLogin": "Iniciar con Windows",
+      "launchAtLoginHint": "HydraOps arranca solo al iniciar sesión.",
+      "startInTray": "Empezar en la bandeja",
+      "startInTrayHint": "Al arrancar con Windows no abre la ventana: queda en la bandeja hasta que la abras.",
+      "devOnly": "Disponible solo en la aplicación instalada."
+    }
   },
   "cron": {
     "title": "Tareas Programadas",
