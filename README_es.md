@@ -1,16 +1,29 @@
-# HydraOps
+<p align="center">
+  <a href="https://hydraops.org"><img src="docs/img/readme-banner.png" alt="HydraOps — self-hosted multi-agent AI. Your agents, your models, your machine." width="100%"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/TraX22/HydraOps/releases/latest"><img src="https://img.shields.io/github/v/release/TraX22/HydraOps?label=release&color=4f46e5" alt="Latest release"></a>
+  <a href="https://github.com/TraX22/HydraOps/releases"><img src="https://img.shields.io/github/downloads/TraX22/HydraOps/total?color=4f46e5" alt="Downloads"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/TraX22/HydraOps?color=4f46e5" alt="License"></a>
+  <a href="https://hydraops.org"><img src="https://img.shields.io/badge/web-hydraops.org-4f46e5" alt="Website"></a>
+</p>
 
 [English](README.md) | **Español**
 
 🌐 **[hydraops.org](https://hydraops.org)** · [Descarga la última versión](https://github.com/TraX22/HydraOps/releases/latest) · [X @HydraOpsApp](https://x.com/HydraOpsApp)
 
-Sistema multi-agente de IA con interfaz de chat. Varios agentes, cada uno con su
-personalidad, su modelo y sus herramientas, resuelven tareas en paralelo: escriben código,
-contestan preguntas, generan imágenes y vídeo.
+**IA multi-agente autoalojada, en tu propia máquina.** Una aplicación de escritorio
+(instalador para Windows) o un servidor sin pantalla, con un chat donde varios agentes de
+IA — cada uno con su personalidad, su modelo, sus herramientas y su memoria — resuelven
+tareas en paralelo: investigación, código, imágenes y vídeo. Con tus claves de API o con
+modelos locales; hablás con tus agentes desde la aplicación, desde Telegram o con
+`/comandos`.
 
 Funciona con modelos de API (OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, DeepSeek,
-Qwen, Kimi, GLM, MiniMax, OpenRouter, Leonardo) y con modelos locales por cualquier
-servidor compatible con OpenAI — llama.cpp, LM Studio, vLLM, Ollama.
+Qwen, Kimi, GLM, MiniMax, OpenRouter, Perplexity, Leonardo) y con modelos locales por
+cualquier servidor compatible con OpenAI — Ollama, llama.cpp, LM Studio, vLLM. Motores de
+imagen y vídeo: Leonardo, Google Imagen y Veo, xAI Grok Imagine.
 
 > **Estado:** en uso real sobre Windows (instalador de escritorio) y en **modo servidor**
 > (headless) — accesible desde el navegador de otro equipo en tu red local con un token, o
@@ -21,18 +34,37 @@ servidor compatible con OpenAI — llama.cpp, LM Studio, vLLM, Ollama.
 
 - **Agentes con personalidad.** Cada uno son seis archivos Markdown editables desde la
   propia interfaz: alma, habilidades, herramientas, memoria, latido y ficha.
+- **Agentes con memoria.** Una memoria permanente por agente (`remember`) y búsqueda de
+  texto completo en sus conversaciones pasadas (`recall`) — archivos y SQLite, sin base
+  de datos vectorial.
+- **Agentes que delegan.** Un agente puede pasarle una tarea a otro (`delegate_task`), y
+  todos tienen la instrucción de decirlo cuando les falta una herramienta en vez de
+  fingir.
 - **Cuatro tipos de worker** — código, general, imagen y vídeo — con su propio motor y
-  resolución configurables por agente.
-- **Herramientas.** Add-ons nativos, add-ons propios en `my_addons/` (se cargan en
-  caliente) y servidores MCP por HTTP.
+  aspecto configurables por agente. Vídeo con Google Veo, xAI Grok Imagine o Leonardo
+  Motion; imágenes con Leonardo (Flux, Phoenix…), Google Imagen o Grok.
+- **Herramientas.** Add-ons nativos (búsqueda web, Brave, Perplexity, `fetch_url` con
+  respaldo RSS, transcripciones de YouTube, GitHub, Telegram), add-ons propios en
+  `my_addons/` (se cargan en caliente) y servidores MCP por HTTP. Cada agente recibe solo
+  las herramientas que le concedés.
+- **Bot de Telegram.** Emparejás un chat con un código y hablás con cualquier agente
+  desde el teléfono; las tareas programadas también pueden mandar sus resultados (y sus
+  fallos) a Telegram.
+- **Comandos.** Escribís `/` en el chat y aparece una paleta de verbos que no gastan
+  tokens — `/agents`, `/use luna`, `/status`, `/delegate karen …`, `/remember`,
+  `/recall` — con alias en español; los mismos comandos funcionan en Telegram.
+  Ver [Comandos](docs/es/15-commands.md).
+- **One Shot.** Dibujás una tarea como un diagrama de flujo de nodos y conexiones y tu
+  modelo lo compila en un único prompt completo.
 - **Cortafuegos de credenciales.** Las claves de API nunca están en el repositorio, ni en
   la base de datos, ni en el `.env`: viven fuera del proyecto y un proxy local las inyecta
   en la frontera de red. Los workers solo ven el marcador `proxy`.
 - **Guard de herramientas.** Toda herramienta pasa por un filtro que bloquea rutas de
   credenciales, comandos catastróficos y peticiones a redes internas, y redacta secretos
   de los resultados.
-- **Chat con adjuntos**, imágenes y vídeo en línea, tareas programadas (cron),
-  estadísticas e interfaz en cinco idiomas (es, en, it, fr, pt-BR).
+- **Chat con adjuntos**, imágenes y vídeo en línea, diagramas Mermaid, LLM y costo en
+  tokens de cada mensaje, tareas programadas con selector de horario, estadísticas e
+  interfaz en cinco idiomas (es, en, it, fr, pt-BR).
 
 ## Arquitectura
 
@@ -55,8 +87,9 @@ usan `processed_events` para ser idempotentes.
 | `apps/outbox-worker/` | publica la outbox en NATS |
 | `apps/worker-*/` | los cuatro ejecutores |
 | `apps/key-proxy/` | cortafuegos de credenciales |
+| `apps/telegram-bot/` | el transporte de Telegram |
 | `apps/desktop/` | shell de Electron y empaquetado |
-| `packages/` | config, db, llm, addons, events, nats |
+| `packages/` | config, db, llm, addons, commands, events, nats |
 | `ui/` | interfaz de Angular |
 | `agents/` | el agente de ejemplo; aquí aparecen también los que crees tú |
 
@@ -105,7 +138,7 @@ queda listo al momento — sin un paso de compilación aparte que recordar.
 #### Modo servidor (headless)
 
 Para tenerlo encendido 24/7 en una máquina sin pantalla — un mini PC en casa, por
-ejemplo. Un solo comando levanta NATS y los ocho servicios, sin Electron:
+ejemplo. Un solo comando levanta NATS y todos los servicios, sin Electron:
 
 ```bash
 pnpm serve
