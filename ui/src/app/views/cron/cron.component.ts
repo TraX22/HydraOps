@@ -1,4 +1,5 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ApiService, CronJob, Agent } from '../../services/api.service';
@@ -15,6 +16,8 @@ import { CronScheduleComponent } from '../../components/cron-schedule/cron-sched
 export class CronComponent implements OnInit {
   private api = inject(ApiService);
   private translate = inject(TranslateService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
   crons = signal<CronJob[]>([]);
   agents = signal<Agent[]>([]);
   loading = signal(false);
@@ -29,6 +32,16 @@ export class CronComponent implements OnInit {
 
   ngOnInit(): void {
     this.fetch();
+    // The /cron command lands here with the form pre-filled for confirmation.
+    const q = this.route.snapshot.queryParamMap;
+    if (q.get('prompt') && q.get('cronExpression')) {
+      this.name = q.get('name') ?? '';
+      this.taskPrompt = q.get('prompt') ?? '';
+      this.cronExpression = q.get('cronExpression') ?? '';
+      if (q.get('assignedAgent')) this.assignedAgent = q.get('assignedAgent')!;
+      this.showForm.set(true);
+      this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
+    }
   }
 
   fetch(): void {

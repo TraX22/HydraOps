@@ -337,6 +337,37 @@ setInterval(() => cronSub.pull({ batch: 1, expires: 1000 }), 2000);
   }
 })();
 
+// --- SYSTEM.CRON_RUN CONSUMER (the /run command: fire a cron now) ---
+const cronRunSub = await js.pullSubscribe(subjectForType("system.cron_run"), {
+  stream: "EVENTS",
+  config: {
+    durable_name: "orchestrator_cron_run",
+    ack_policy: AckPolicy.Explicit,
+  },
+});
+cronRunSub.pull({ batch: 1, expires: 1000 });
+setInterval(() => cronRunSub.pull({ batch: 1, expires: 1000 }), 2000);
+
+(async () => {
+  for await (const m of cronRunSub) {
+    try {
+      const envelope = parseEnvelope(JSON.parse(new TextDecoder().decode(m.data)));
+      const cronId = String((envelope.data as any).cronId);
+      const rows = await (db as any).select().from(cronJobs).where(eq(cronJobs.id, cronId)).limit(1);
+      if (rows.length) {
+        await createTaskFromCron(rows[0]);
+        const live = activeCrons.find((c) => c.id === cronId);
+        if (live) live.lastRunAt = new Date();
+      } else {
+        console.warn(`[orchestrator] /run asked for unknown cron ${cronId}`);
+      }
+    } catch (e) {
+      console.error("[orchestrator] cron run failed", e);
+    }
+    m.ack();
+  }
+})();
+
 process.on("SIGINT", async () => {
   console.log("[orchestrator] Shutting down...");
   if (pool && "end" in pool) await (pool as any).end();

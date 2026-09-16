@@ -41,6 +41,37 @@ These three need an agent chat open: the main chat has no "active agent".
 
 Spanish aliases exist for most commands (`/agentes`, `/usar`, `/tareas`, `/estado`, `/recordar`…); `/help` lists them.
 
+
+## Quick configuration of the active agent
+
+| Command | What it does |
+|---|---|
+| `/model [name]` | Without an argument shows the agent's LLM; with one, changes it (partial names accepted). |
+| `/engine [name \| auto]` | The agent's image or video engine (graphic and video workers only). |
+| `/aspect <16:9 \| 9:16 \| …>` | Image or video aspect ratio; only the ones the chosen engine supports. |
+| `/tools` | Tools granted to the agent. |
+| `/grant <tool>` · `/revoke <tool>` | Add or remove the line in the agent's `tools.md`. |
+| `/profile` | Open the agent's profile. |
+
+## Scheduled tasks
+
+| Command | What it does |
+|---|---|
+| `/crons` | List the scheduled tasks with a readable schedule. |
+| `/cron <schedule> <prompt>` | Schedule a task for the active agent. In the app it opens the form pre-filled for confirmation; in Telegram it creates it directly. |
+| `/pause <name>` · `/resume <name>` | Pause or resume a task by name. |
+| `/run <name>` | Run it now, without waiting for its schedule. |
+
+Schedules `/cron` understands: `5m`, `every 30 min`, `hourly`, `hourly :15`, `09:00`, `daily 21:30`, `mon-fri 09:00`, `mon,wed,fri 18:00`, `monthly 1 08:00`, `noon`, `midnight`, or a five-field cron expression.
+
+## Other
+
+| Command | What it does |
+|---|---|
+| `/retry` | Send this chat's last message again. |
+| `/lang <es \| en \| it \| fr \| pt>` | Switch the interface language. |
+| `/theme <light \| dark>` | Switch the theme. |
+
 ## Tips
 
 - `/delegate` and `/<agent> …` create the task as if you had typed it in that agent's chat: the agent shows a green dot until you open its chat.

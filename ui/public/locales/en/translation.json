@@ -357,6 +357,21 @@
     "telegram": "Send a text to your Telegram",
     "oneshot": "Open the One Shot canvas",
     "whoami": "Who you are and which agent is active",
-    "agentMessage": "Message {{name}} without switching tabs"
+    "agentMessage": "Message {{name}} without switching tabs",
+    "model": "Show or change the active agent's LLM",
+    "engine": "Show or change the active agent's image/video engine",
+    "aspect": "Active agent's image/video aspect ratio",
+    "tools": "Tools granted to the active agent",
+    "grant": "Grant a tool to the active agent",
+    "revoke": "Revoke a tool from the active agent",
+    "profile": "Open the active agent's profile",
+    "crons": "List the scheduled tasks",
+    "cron": "Schedule a task for the active agent",
+    "pause": "Pause a scheduled task",
+    "resume": "Resume a scheduled task",
+    "run": "Run a scheduled task now",
+    "retry": "Send this chat's last message again",
+    "lang": "Switch the interface language",
+    "theme": "Switch the interface theme"
   }
 }

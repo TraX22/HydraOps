@@ -357,6 +357,21 @@
     "telegram": "Envia um texto para o seu Telegram",
     "oneshot": "Abre a tela One Shot",
     "whoami": "Quem você é e qual agente está ativo",
-    "agentMessage": "Mensagem para {{name}} sem trocar de aba"
+    "agentMessage": "Mensagem para {{name}} sem trocar de aba",
+    "model": "Mostra ou muda o LLM do agente ativo",
+    "engine": "Mostra ou muda o motor de imagem/vídeo do agente ativo",
+    "aspect": "Proporção de imagem/vídeo do agente ativo",
+    "tools": "Ferramentas concedidas ao agente ativo",
+    "grant": "Concede uma ferramenta ao agente ativo",
+    "revoke": "Retira uma ferramenta do agente ativo",
+    "profile": "Abre o perfil do agente ativo",
+    "crons": "Lista as tarefas agendadas",
+    "cron": "Agenda uma tarefa para o agente ativo",
+    "pause": "Pausa uma tarefa agendada",
+    "resume": "Retoma uma tarefa agendada",
+    "run": "Executa uma tarefa agendada agora",
+    "retry": "Reenvia a última mensagem deste chat",
+    "lang": "Muda o idioma da interface",
+    "theme": "Muda o tema da interface"
   }
 }

@@ -2675,7 +2675,111 @@ const commandApi: CommandApi = {
   async sendTelegram(text) {
     return pushTelegram(text);
   },
+  // Phase 2
+  async listModels() {
+    const r = await fetch(`${selfUrl()}/api/config/models`, { signal: AbortSignal.timeout(30_000) });
+    if (!r.ok) throw new Error(`GET /api/config/models ${r.status}`);
+    const raw = (await r.json()) as any[];
+    return raw.map((m) => ({ id: String(m.id), name: String(m.name ?? m.id), provider: String(m.provider ?? ""), type: m.type, isImage: !!m.isImage, isVideo: !!m.isVideo }));
+  },
+  async getAgentConfig(agentId) {
+    const r = await fetch(`${selfUrl()}/api/agents/${encodeURIComponent(agentId)}/config`, { signal: AbortSignal.timeout(10_000) });
+    const c: any = r.ok ? await r.json() : {};
+    return { model: String(c.model ?? ""), workerType: c.workerType ?? undefined, graphicEngine: c.graphicEngine ?? undefined, resolution: c.resolution ?? undefined };
+  },
+  async saveAgentConfig(agentId, patch) {
+    const current = await this.getAgentConfig(agentId);
+    const r = await fetch(`${selfUrl()}/api/agents/${encodeURIComponent(agentId)}/config`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...current, ...patch, model: patch.model ?? current.model ?? "" }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!r.ok) throw new Error(`POST /api/agents/${agentId}/config ${r.status}`);
+  },
+  async agentTools(agentId) {
+    const declared = await readAgentRequestedTools(agentId);
+    return { declared, granted: addonsRegistry.resolveAllowedToolNames(declared, []) };
+  },
+  async editAgentTools(agentId, change) {
+    const filePath = safeJoin(agentsDir, agentId, `${agentId}.tools.md`);
+    if (!filePath) return { declared: [], error: "Invalid agent id." };
+    const name = String(change.add ?? change.remove ?? "").trim().replace(/\s+/g, "_").toLowerCase();
+    const declared = await readAgentRequestedTools(agentId);
+    if (change.add) {
+      if (!addonsRegistry.resolveAllowedToolNames([name], []).length) {
+        return { declared, error: `No tool called "${name}". Native tools: ${addonsRegistry.getNativeToolNames().join(", ")}.` };
+      }
+      if (declared.some((d) => d.replace(/\s+/g, "_").toLowerCase() === name)) return { declared, error: `${name} is already granted.` };
+      const current = (await fileExists(filePath)) ? await readFile(filePath, "utf-8") : `# ${agentId} — TOOLS\n\n`;
+      await writeFile(filePath, `${current}${current.endsWith("\n") || !current ? "" : "\n"}- ${name}\n`, "utf-8");
+      return { declared: [...declared, name] };
+    }
+    if (!declared.some((d) => d.replace(/\s+/g, "_").toLowerCase() === name)) return { declared, error: `${name} is not in ${agentId}'s tools.md.` };
+    const current = (await fileExists(filePath)) ? await readFile(filePath, "utf-8") : "";
+    const kept = current.split(/\r?\n/).filter((l) => !(l.trim().startsWith("-") && l.trim().substring(1).trim().replace(/\s+/g, "_").toLowerCase() === name));
+    await writeFile(filePath, kept.join("\n"), "utf-8");
+    return { declared: declared.filter((d) => d.replace(/\s+/g, "_").toLowerCase() !== name) };
+  },
+  async listCrons() {
+    const rows = await (db as any).select().from(cronJobs).orderBy(asc(cronJobs.name));
+    return rows.map((c: any) => ({ id: c.id, name: c.name, prompt: c.prompt, cronExpression: c.cronExpression, assignedAgent: c.assignedAgent ?? null, status: c.status === "paused" ? "paused" : "active" }));
+  },
+  async createCron(cron) {
+    const r = await fetch(`${selfUrl()}/api/crons`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cron),
+      signal: AbortSignal.timeout(10_000),
+    });
+    const data: any = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data?.error || `POST /api/crons ${r.status}`);
+    return { id: String(data.id ?? data.cron?.id ?? "") };
+  },
+  async setCronStatus(id, status) {
+    const r = await fetch(`${selfUrl()}/api/crons/${encodeURIComponent(id)}/toggle`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!r.ok) throw new Error(`PATCH /api/crons/${id}/toggle ${r.status}`);
+  },
+  async runCron(id) {
+    const r = await fetch(`${selfUrl()}/api/crons/${encodeURIComponent(id)}/run`, { method: "POST", signal: AbortSignal.timeout(10_000) });
+    if (!r.ok) throw new Error(`POST /api/crons/${id}/run ${r.status}`);
+  },
 };
+
+// Fire a scheduled task now. The orchestrator owns cron execution, so this only
+// queues a system.cron_run event through the outbox, like every other event.
+api.post("/crons/:id/run", async (req, res) => {
+  try {
+    const rows = await (db as any).select().from(cronJobs).where(eq(cronJobs.id, req.params.id)).limit(1);
+    if (rows.length === 0) return res.status(404).json({ error: "Task not found" });
+    const eventId = randomUUID();
+    const ev = buildEnvelope({
+      id: eventId,
+      type: "system.cron_run",
+      version: 1,
+      occurredAt: new Date().toISOString(),
+      producer: env.SERVICE_NAME,
+      subject: { entity: "system", id: "cron" },
+      data: { cronId: rows[0].id },
+    });
+    await (db as any).transaction((tx: any) => {
+      tx.insert(eventsTable).values({
+        id: eventId, type: ev.type, version: ev.version, occurredAt: new Date(ev.occurredAt),
+        producer: ev.producer, subjectEntity: ev.subject.entity, subjectId: ev.subject.id, payload: ev,
+      }).run();
+      tx.insert(outboxTable).values({ eventId, status: "pending", nextAttemptAt: new Date() }).run();
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[api] POST /crons/:id/run failed", err);
+    res.status(500).json({ error: "Failed to run task" });
+  }
+});
 
 function selfUrl(): string {
   return `http://127.0.0.1:${Number(process.env.PORT ?? 3000)}`;
