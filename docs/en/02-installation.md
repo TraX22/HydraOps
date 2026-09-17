@@ -10,6 +10,14 @@ Your data goes to `%APPDATA%\HydraOps` and your API keys to `%APPDATA%\hydraops\
 
 To update, install the new version on top. Close the application first: the installer cannot overwrite files in use.
 
+### The system tray and starting with Windows
+
+Closing the window with the **X does not stop HydraOps**: the window hides and an icon stays in the system tray, next to the clock, while the agents, scheduled tasks and the Telegram bot keep working. A click on the icon brings the window back; **Quit**, in its menu, really stops everything.
+
+In **Config → Desktop** you can change that behaviour and turn on **Start with Windows** (and, if you like, **Start in the tray**, without opening the window): the PC boots and HydraOps is already running. That is what a dedicated 24/7 machine wants. Windows lists it under Settings → Apps → Startup, where it can be switched off too.
+
+Every shutdown is written with its reason to `%APPDATA%\HydraOps\shell\logs\shell.log` (the X, Quit, sign-out…), in case it ever looks like it "disappeared".
+
 ## Option B — from source (Windows, Linux, macOS)
 
 Requirements:

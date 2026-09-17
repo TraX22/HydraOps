@@ -52,6 +52,36 @@
       </div>
     </section>
 
+    <!-- Desktop shell (Electron only) -->
+    @if (desktopSettings(); as ds) {
+      <section class="config-section">
+        <h3>{{ 'config.desktop.title' | translate }}</h3>
+        <div class="desktop-options">
+          <label class="desktop-option">
+            <input type="checkbox" [checked]="ds.closeToTray" (change)="setDesktop({ closeToTray: $any($event.target).checked })" />
+            <span>
+              <strong>{{ 'config.desktop.closeToTray' | translate }}</strong>
+              <small>{{ 'config.desktop.closeToTrayHint' | translate }}</small>
+            </span>
+          </label>
+          <label class="desktop-option" [class.disabled]="!ds.canLaunchAtLogin">
+            <input type="checkbox" [checked]="ds.launchAtLogin" [disabled]="!ds.canLaunchAtLogin" (change)="setDesktop({ launchAtLogin: $any($event.target).checked })" />
+            <span>
+              <strong>{{ 'config.desktop.launchAtLogin' | translate }}</strong>
+              <small>{{ (ds.canLaunchAtLogin ? 'config.desktop.launchAtLoginHint' : 'config.desktop.devOnly') | translate }}</small>
+            </span>
+          </label>
+          <label class="desktop-option" [class.disabled]="!ds.launchAtLogin">
+            <input type="checkbox" [checked]="ds.startInTray" [disabled]="!ds.launchAtLogin" (change)="setDesktop({ startInTray: $any($event.target).checked })" />
+            <span>
+              <strong>{{ 'config.desktop.startInTray' | translate }}</strong>
+              <small>{{ 'config.desktop.startInTrayHint' | translate }}</small>
+            </span>
+          </label>
+        </div>
+      </section>
+    }
+
     <!-- Local LLM -->
     <section class="config-section">
       <h3>{{ 'config.localLlm' | translate }}</h3>

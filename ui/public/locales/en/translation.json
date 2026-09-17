@@ -128,7 +128,17 @@
     "modelUnavailable": "unavailable (pick another)",
     "languages": "Languages",
     "localLlm": "Local LLM",
-    "logLevel": "Log Level"
+    "logLevel": "Log Level",
+    "desktop": {
+      "title": "Desktop",
+      "closeToTray": "Closing the window keeps HydraOps running",
+      "closeToTrayHint": "The window hides to the system tray while agents, scheduled tasks and Telegram stay active. To stop everything: Quit from the tray icon.",
+      "launchAtLogin": "Start with Windows",
+      "launchAtLoginHint": "HydraOps starts on its own when you sign in.",
+      "startInTray": "Start in the tray",
+      "startInTrayHint": "When starting with Windows, no window opens: it waits in the tray until you open it.",
+      "devOnly": "Only available in the installed application."
+    }
   },
   "cron": {
     "title": "Scheduled Tasks",

@@ -128,7 +128,17 @@
     "modelUnavailable": "indisponible (choisissez-en un autre)",
     "languages": "Langues",
     "localLlm": "LLM Local",
-    "logLevel": "Niveau de Log"
+    "logLevel": "Niveau de Log",
+    "desktop": {
+      "title": "Bureau",
+      "closeToTray": "Fermer la fenêtre laisse HydraOps actif",
+      "closeToTrayHint": "La fenêtre se cache dans la zone de notification tandis que les agents, les tâches planifiées et Telegram restent actifs. Pour tout arrêter : Quitter depuis l'icône.",
+      "launchAtLogin": "Démarrer avec Windows",
+      "launchAtLoginHint": "HydraOps démarre tout seul à l'ouverture de session.",
+      "startInTray": "Démarrer dans la zone de notification",
+      "startInTrayHint": "Au démarrage avec Windows, aucune fenêtre ne s'ouvre : il attend dans la zone de notification.",
+      "devOnly": "Disponible uniquement dans l'application installée."
+    }
   },
   "cron": {
     "title": "Tâches Planifiées",

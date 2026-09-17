@@ -11,6 +11,12 @@ contextBridge.exposeInMainWorld("hydraDesktop", {
   info: () => ipcRenderer.invoke("app:info"),
   // Idioma de la UI → menú nativo y ventana Acerca de.
   setLang: (lang) => ipcRenderer.send("ui:lang", lang),
+  // Tray and login-item preferences (Config view). `set` takes a partial
+  // object of booleans and returns the full settings.
+  settings: {
+    get: () => ipcRenderer.invoke("shell:settings:get"),
+    set: (patch) => ipcRenderer.invoke("shell:settings:set", patch),
+  },
   services: {
     list: () => ipcRenderer.invoke("services:list"),
     logs: (id) => ipcRenderer.invoke("services:logs", id),

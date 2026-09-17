@@ -5,6 +5,13 @@ import { ApiService, AppConfig, ModelOption } from '../../services/api.service';
 import { groupModels, modelLabel } from '../../shared/model-groups';
 import { IconComponent } from '../../components/icon/icon.component';
 
+export interface DesktopSettings {
+  closeToTray: boolean;
+  launchAtLogin: boolean;
+  startInTray: boolean;
+  canLaunchAtLogin: boolean;
+}
+
 @Component({
   selector: 'app-config',
   standalone: true,
@@ -52,8 +59,18 @@ export class ConfigComponent implements OnInit {
   // Models grouped by company, both companies and their models sorted A→Z.
   groupedModels = computed(() => groupModels(this.models()));
 
+  // Desktop-only preferences (tray, start with the OS), served by the Electron
+  // preload. Absent in the browser / server mode, so the section hides.
+  desktop = (window as unknown as { hydraDesktop?: { settings?: { get(): Promise<DesktopSettings>; set(p: Partial<DesktopSettings>): Promise<DesktopSettings> } } }).hydraDesktop?.settings;
+  desktopSettings = signal<DesktopSettings | null>(null);
+
   ngOnInit(): void {
     this.fetchConfig();
+    this.desktop?.get().then(s => this.desktopSettings.set(s)).catch(() => {});
+  }
+
+  setDesktop(patch: Partial<DesktopSettings>): void {
+    this.desktop?.set(patch).then(s => this.desktopSettings.set(s)).catch(() => {});
   }
 
   fetchConfig(): void {

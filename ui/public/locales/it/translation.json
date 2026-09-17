@@ -128,7 +128,17 @@
     "modelUnavailable": "non disponibile (scegline un altro)",
     "languages": "Lingue",
     "localLlm": "LLM Locale",
-    "logLevel": "Livello di Log"
+    "logLevel": "Livello di Log",
+    "desktop": {
+      "title": "Desktop",
+      "closeToTray": "Chiudere la finestra lascia HydraOps in esecuzione",
+      "closeToTrayHint": "La finestra si nasconde nella barra delle applicazioni mentre agenti, attività pianificate e Telegram restano attivi. Per fermare tutto: Esci dall'icona nella barra.",
+      "launchAtLogin": "Avvia con Windows",
+      "launchAtLoginHint": "HydraOps si avvia da solo all'accesso.",
+      "startInTray": "Avvia nella barra",
+      "startInTrayHint": "All'avvio con Windows non apre la finestra: resta nella barra finché non la apri.",
+      "devOnly": "Disponibile solo nell'applicazione installata."
+    }
   },
   "cron": {
     "title": "Attività Programmate",

@@ -4,7 +4,7 @@
  * Ciclo de vida: splash → arrancar la pila (services.js) → servir la UI
  * compilada → mostrar la ventana. Al cerrar, para los procesos que lanzamos.
  */
-const { app, BrowserWindow, ipcMain, shell, dialog, Menu } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, dialog, Menu, Tray, nativeImage } = require("electron");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
@@ -116,6 +116,119 @@ let dataRoot = REPO_ROOT;
 let supervisor = null;
 let mainWindow = null;
 let splashWindow = null;
+let tray = null;
+
+// ─── Shell settings: tray, launch at login ───────────────────────────────────
+// Closing the window used to quit everything — API, NATS, workers, the Telegram
+// bot — which is exactly what a 24/7 setup must not do. By default the window
+// now hides to the system tray and the stack keeps running; Quit is explicit
+// (tray menu or app menu). Settings live in the shell's own user-data folder,
+// not in the app database: they belong to this machine, not to the data set.
+const SHELL_SETTINGS_FILE = () => path.join(app.getPath("userData"), "shell-settings.json");
+const DEFAULT_SHELL_SETTINGS = { closeToTray: true, launchAtLogin: false, startInTray: false };
+let shellSettings = { ...DEFAULT_SHELL_SETTINGS };
+
+function loadShellSettings() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(SHELL_SETTINGS_FILE(), "utf8"));
+    shellSettings = { ...DEFAULT_SHELL_SETTINGS, ...raw };
+  } catch { /* first run: defaults */ }
+  return shellSettings;
+}
+
+function saveShellSettings(patch) {
+  shellSettings = { ...shellSettings, ...patch };
+  try {
+    fs.mkdirSync(path.dirname(SHELL_SETTINGS_FILE()), { recursive: true });
+    fs.writeFileSync(SHELL_SETTINGS_FILE(), JSON.stringify(shellSettings, null, 2));
+  } catch (err) {
+    shellLog(`no se pudo guardar shell-settings.json: ${err.message}`);
+  }
+  applyLoginItem();
+  buildTrayMenu();
+  return shellSettings;
+}
+
+// Registers (or removes) HydraOps in the user's login items. Only for the
+// packaged app: in development the executable is Electron itself and
+// registering it would launch a bare Electron at login.
+const START_IN_TRAY_ARG = "--start-in-tray";
+function applyLoginItem() {
+  if (!app.isPackaged) {
+    shellLog(`inicio con el sistema: ignorado en desarrollo (launchAtLogin=${shellSettings.launchAtLogin})`);
+    return;
+  }
+  try {
+    app.setLoginItemSettings({
+      openAtLogin: !!shellSettings.launchAtLogin,
+      path: process.execPath,
+      args: shellSettings.launchAtLogin && shellSettings.startInTray ? [START_IN_TRAY_ARG] : [],
+    });
+    shellLog(`inicio con el sistema: ${shellSettings.launchAtLogin ? "activado" : "desactivado"}${shellSettings.startInTray ? " (en bandeja)" : ""}`);
+  } catch (err) {
+    shellLog(`inicio con el sistema: fallo al registrar: ${err.message}`);
+  }
+}
+
+// Why the app is quitting, for shell.log: every exit path sets it before
+// app.quit() so a "the app disappeared" report can be read back in seconds.
+let quitting = false;
+let quitReason = "";
+const startInTray = process.argv.includes(START_IN_TRAY_ARG);
+
+function quitApp(reason) {
+  quitReason = reason;
+  quitting = true;
+  app.quit();
+}
+
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (!mainWindow.isVisible()) mainWindow.show();
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.focus();
+}
+
+let trayNoticeShown = false;
+function createTray() {
+  if (tray) return;
+  const icon = nativeImage.createFromPath(APP_ICON);
+  tray = new Tray(process.platform === "darwin" ? icon.resize({ width: 18, height: 18 }) : icon);
+  tray.setToolTip("HydraOps");
+  tray.on("click", () => showMainWindow());
+  tray.on("double-click", () => showMainWindow());
+  buildTrayMenu();
+}
+
+function buildTrayMenu() {
+  if (!tray) return;
+  const t = shellI18n.t(currentLang).tray;
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: t.open, click: () => showMainWindow() },
+    { type: "separator" },
+    {
+      label: t.closeToTray,
+      type: "checkbox",
+      checked: !!shellSettings.closeToTray,
+      click: (item) => saveShellSettings({ closeToTray: item.checked }),
+    },
+    {
+      label: t.launchAtLogin,
+      type: "checkbox",
+      checked: !!shellSettings.launchAtLogin,
+      click: (item) => saveShellSettings({ launchAtLogin: item.checked }),
+    },
+    {
+      label: t.startInTray,
+      type: "checkbox",
+      checked: !!shellSettings.startInTray,
+      enabled: !!shellSettings.launchAtLogin,
+      click: (item) => saveShellSettings({ startInTray: item.checked }),
+    },
+    { type: "separator" },
+    { label: t.quit, click: () => quitApp("menú de la bandeja: Salir") },
+  ]));
+}
 
 shellLog(`arranque: packaged=${app.isPackaged} exe=${process.execPath}`);
 
@@ -126,10 +239,8 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 app.on("second-instance", () => {
-  if (mainWindow) {
-    if (mainWindow.isMinimized()) mainWindow.restore();
-    mainWindow.focus();
-  }
+  // A second launch (Start menu, login item) brings the running one back.
+  showMainWindow();
 });
 
 function createSplash() {
@@ -178,7 +289,32 @@ function createMainWindow(url) {
   mainWindow.once("ready-to-show", () => {
     if (splashWindow && !splashWindow.isDestroyed()) splashWindow.destroy();
     splashWindow = null;
+    if (startInTray) {
+      shellLog("arranque en la bandeja: ventana oculta");
+      return;
+    }
     mainWindow.show();
+  });
+
+  // The X hides the window to the tray unless the user turned that off (or
+  // is quitting for real). Windows fires session-end on logoff/shutdown.
+  mainWindow.on("close", (event) => {
+    if (quitting || !shellSettings.closeToTray) {
+      if (!quitting) shellLog("ventana cerrada con la X (bandeja desactivada): se cierra la aplicación");
+      return;
+    }
+    event.preventDefault();
+    mainWindow.hide();
+    shellLog("ventana ocultada a la bandeja (cierre con la X); la pila sigue corriendo");
+    if (!trayNoticeShown && tray && process.platform === "win32") {
+      trayNoticeShown = true;
+      const t = shellI18n.t(currentLang).tray;
+      try { tray.displayBalloon({ title: "HydraOps", content: t.stillRunning, iconType: "info" }); } catch { /* no balloon support */ }
+    }
+  });
+  mainWindow.on("session-end", () => {
+    quitReason = "cierre de sesión o apagado de Windows";
+    quitting = true;
   });
 
   // Los enlaces externos van al navegador del sistema, nunca a una ventana
@@ -289,7 +425,7 @@ function buildMenu() {
           click: () => shell.openPath(path.join(app.getPath("userData"), "logs")),
         },
         { type: "separator" },
-        { role: "quit", label: m.quit },
+        { label: m.quit, accelerator: "CmdOrCtrl+Q", click: () => quitApp("menú de la aplicación: Salir") },
       ],
     },
     {
@@ -332,6 +468,7 @@ function setShellLang(lang) {
   if (!lang || lang === currentLang || !shellI18n.LANGS.includes(lang)) return;
   currentLang = lang;
   buildMenu();
+  buildTrayMenu();
 }
 
 function registerIpc() {
@@ -341,6 +478,15 @@ function registerIpc() {
   ipcMain.handle("services:list", () => supervisor.snapshot());
   ipcMain.handle("services:logs", (_event, id) => supervisor.logsFor(id));
   ipcMain.handle("services:restart", (_event, id) => supervisor.restart(id));
+  // Tray / login-item preferences, edited from the Config view.
+  ipcMain.handle("shell:settings:get", () => ({ ...shellSettings, canLaunchAtLogin: app.isPackaged }));
+  ipcMain.handle("shell:settings:set", (_event, patch) => {
+    const clean = {};
+    for (const key of ["closeToTray", "launchAtLogin", "startInTray"]) {
+      if (typeof patch?.[key] === "boolean") clean[key] = patch[key];
+    }
+    return { ...saveShellSettings(clean), canLaunchAtLogin: app.isPackaged };
+  });
   ipcMain.handle("app:info", () => ({
     version: app.getVersion(),
     electron: process.versions.electron,
@@ -352,8 +498,9 @@ function registerIpc() {
 }
 
 async function boot() {
-  shellLog("app lista, mostrando splash");
-  createSplash();
+  loadShellSettings();
+  shellLog(`app lista${startInTray ? " (arranque en bandeja)" : ", mostrando splash"}; bandeja=${shellSettings.closeToTray} inicio=${shellSettings.launchAtLogin}`);
+  if (!startInTray) createSplash();
   buildMenu();
 
   dataRoot = resolveDataRoot();
@@ -388,10 +535,17 @@ async function boot() {
   });
   registerIpc();
 
-  try {
-    await supervisor.startAll(splashMessage);
-  } catch (err) {
-    dialog.showErrorBox("HydraOps", `No se pudo arrancar la pila:\n${err.message}`);
+  // HYDRA_SHELL_NO_SERVICES=1 skips the stack: for working on the shell itself
+  // (tray, menus, windows) against an already running HydraOps, without
+  // spawning a second set of workers on the same NATS.
+  if (process.env.HYDRA_SHELL_NO_SERVICES) {
+    shellLog("servicios omitidos (HYDRA_SHELL_NO_SERVICES)");
+  } else {
+    try {
+      await supervisor.startAll(splashMessage);
+    } catch (err) {
+      dialog.showErrorBox("HydraOps", `No se pudo arrancar la pila:\n${err.message}`);
+    }
   }
 
   // Autoactualización desde código (checkout de git): la API encola la petición
@@ -428,6 +582,7 @@ async function boot() {
   }
 
   createMainWindow(url);
+  createTray();
 
   // Comprueba actualizaciones en segundo plano (solo empaquetada); si hay una,
   // la descarga y ofrece reiniciar. No bloquea el arranque.
@@ -437,16 +592,25 @@ async function boot() {
 app.whenReady().then(boot);
 
 app.on("window-all-closed", () => {
+  // Only reached when the window really closed (tray off, or quitting).
+  if (!quitReason) quitReason = "última ventana cerrada";
+  quitting = true;
   app.quit();
 });
 
 let cleanedUp = false;
 app.on("before-quit", (event) => {
+  // Anything that calls app.quit() directly (the updater's quitAndInstall,
+  // the OS) lands here without a reason; say so instead of staying silent.
+  quitting = true;
   if (cleanedUp) return;
   event.preventDefault();
   cleanedUp = true;
+  shellLog(`cerrando la aplicación: ${quitReason || "app.quit() sin motivo declarado (actualización o sistema)"}`);
   (async () => {
     if (supervisor) await supervisor.stopAll();
+    if (tray) { tray.destroy(); tray = null; }
+    shellLog("pila detenida; fin");
     app.quit();
   })();
 });

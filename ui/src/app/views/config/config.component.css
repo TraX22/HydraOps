@@ -85,3 +85,12 @@
   font-weight: 500;
 }
 .save-btn:disabled { opacity: 0.5; }
+
+/* Desktop shell preferences (tray, start with the OS) */
+.desktop-options { display: flex; flex-direction: column; gap: 12px; }
+.desktop-option { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
+.desktop-option.disabled { opacity: 0.55; cursor: default; }
+.desktop-option input { margin-top: 3px; accent-color: var(--accent); }
+.desktop-option span { display: flex; flex-direction: column; gap: 2px; }
+.desktop-option strong { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+.desktop-option small { font-size: 12px; color: var(--text-secondary); }
