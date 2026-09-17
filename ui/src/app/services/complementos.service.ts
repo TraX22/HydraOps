@@ -2,7 +2,7 @@ import { Injectable, signal } from '@angular/core';
 
 // Which mini-app is active inside the Complementos overlay. 'hub' shows the
 // grid of mini-apps; the rest are individual tools. Add future tools here.
-export type ComplementoApp = 'hub' | 'one-shot';
+export type ComplementoApp = 'hub' | 'one-shot' | '3d';
 
 // Controls the Complementos overlay ("pop up"): a hub of in-app mini-apps.
 // Opened from the sidebar; hosted once in the app shell so it covers everything.

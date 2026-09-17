@@ -79,6 +79,7 @@ export type CommandAction =
   | { type: 'main' }
   | { type: 'close_tab' }
   | { type: 'open_oneshot' }
+  | { type: 'open_threed' }
   | { type: 'navigate'; path: string; query?: Record<string, string> }
   | { type: 'open_cron_form'; prefill: { name: string; prompt: string; cronExpression: string; assignedAgent: string } }
   | { type: 'set_lang'; lang: string }
@@ -89,6 +90,27 @@ export interface CommandResult {
   text: string;
   kind?: 'info' | 'ok' | 'error';
   action?: CommandAction;
+}
+
+// ── 3D plugin ──
+export interface ThreeDScene {
+  id: string;
+  name: string;
+  prompt: string;
+  code: string;
+  model: string;
+  history: { prompt: string; code: string; at: string; fixed?: number }[];
+  thumb?: string; // PNG data URL (write only)
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ThreeDSceneSummary {
+  id: string;
+  name: string;
+  model: string;
+  updatedAt: string;
+  thumb: boolean;
 }
 
 export interface CronJob {
@@ -525,6 +547,33 @@ export class ApiService {
     const form = new FormData();
     form.append('file', file);
     return this.http.post<ChatAttachment>(`${this.base}/upload`, form);
+  }
+
+  // ── 3D plugin ──
+  // The Three.js bundle is served with the UI (ui/public/vendor/three); the
+  // sandbox imports it from a blob, so the app fetches the text once.
+  fetchThreeBundle(): Observable<string> {
+    return this.http.get('/vendor/three/three.bundle.js', { responseType: 'text' });
+  }
+
+  generate3d(body: { prompt: string; model?: string; code?: string; error?: string; imagePath?: string }): Observable<{ code: string; model: string }> {
+    return this.http.post<{ code: string; model: string }>(`${this.base}/threed/generate`, body);
+  }
+
+  list3dScenes(): Observable<ThreeDSceneSummary[]> {
+    return this.http.get<ThreeDSceneSummary[]>(`${this.base}/threed/scenes`);
+  }
+
+  get3dScene(id: string): Observable<ThreeDScene> {
+    return this.http.get<ThreeDScene>(`${this.base}/threed/scenes/${id}`);
+  }
+
+  save3dScene(id: string, scene: ThreeDScene): Observable<{ success: boolean; updatedAt: string }> {
+    return this.http.put<{ success: boolean; updatedAt: string }>(`${this.base}/threed/scenes/${id}`, scene);
+  }
+
+  delete3dScene(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/threed/scenes/${id}`);
   }
 
   // ── Storage URL ──

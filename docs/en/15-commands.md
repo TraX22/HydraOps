@@ -37,6 +37,7 @@ These three need an agent chat open: the main chat has no "active agent".
 | `/keys` | Which providers have a key configured (never the values). |
 | `/telegram <text>` | Send that text to your Telegram. |
 | `/oneshot` | Open the One Shot canvas. |
+| `/3d` (`/threed`, `/objeto3d`) | Open the 3D plugin. |
 | `/whoami` | Who you are and which agent is active. |
 
 Spanish aliases exist for most commands (`/agentes`, `/usar`, `/tareas`, `/estado`, `/recordar`…); `/help` lists them.

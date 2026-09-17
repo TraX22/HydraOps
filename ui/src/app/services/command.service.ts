@@ -76,6 +76,9 @@ export class CommandService {
       case 'open_oneshot':
         this.complementos.openApp('one-shot');
         break;
+      case 'open_threed':
+        this.complementos.openApp('3d');
+        break;
       case 'navigate':
         this.router.navigate([a.path], { queryParams: a.query });
         break;

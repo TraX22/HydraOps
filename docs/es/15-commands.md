@@ -37,6 +37,7 @@ Estos tres necesitan un chat de agente abierto: en el chat principal no hay "age
 | `/keys` (`/claves`) | Qué proveedores tienen clave configurada (nunca los valores). |
 | `/telegram <texto>` | Manda ese texto a tu Telegram. |
 | `/oneshot` | Abre el lienzo One Shot. |
+| `/3d` (`/threed`, `/objeto3d`) | Abre el complemento 3D. |
 | `/whoami` (`/quien`) | Quién sos y cuál es el agente activo. |
 
 

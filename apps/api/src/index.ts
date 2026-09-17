@@ -21,8 +21,7 @@ import {
   docsDir,
   envFile,
   keyStoreFile,
-  readLocalLlmEnv,
-} from "@hydraops/config";
+  readLocalLlmEnv, scenesDir } from "@hydraops/config";
 
 loadDotenv({ path: envFile });
 
@@ -1287,6 +1286,7 @@ import {
   listAvailableMiniMaxModels,
   generateText,
   resolveLLMConfig,
+  buildUserMessage,
 } from "@hydraops/llm";
 
 api.get("/config/models", async (req, res) => {
@@ -1549,6 +1549,182 @@ api.post("/prompt/compile", async (req, res) => {
   } catch (err: any) {
     console.error("[api] POST /prompt/compile failed", err);
     res.status(500).json({ error: err?.message || "Failed to compile prompt" });
+  }
+});
+
+// ── 3D plugin ───────────────────────────────────────────────────────────────
+// The model writes the BODY of `function build(THREE, scene, helpers)`; the UI
+// runs it in an opaque-origin sandbox (ui/public/threed/sandbox.html). Same
+// synchronous LLM call as /prompt/compile, longer timeout (local models).
+
+const THREED_SYSTEM = `You write Three.js code for a 3D viewer. Reply with ONLY the body of this function, in one \`\`\`js fenced block, nothing else:
+
+function build(THREE, scene, helpers) { /* your code */ }
+
+Rules:
+- \`THREE\` is the full three.js namespace (r180+); \`scene\` is an empty THREE.Group — add your meshes to it with scene.add(...). Do not create a Scene, camera, renderer, lights or a render loop: the viewer has them.
+- Units are meters. Build the object centered at x=0,z=0 and standing on y=0 (nothing below the floor). Typical size 1–8 m.
+- Materials: THREE.MeshStandardMaterial with flat colors ({ color: 0x8b5a2b, roughness: 0.8 }). No textures, no image loading, no fonts.
+- Geometries you may use: BoxGeometry, CylinderGeometry, ConeGeometry, SphereGeometry, TorusGeometry, PlaneGeometry, ExtrudeGeometry, LatheGeometry, TubeGeometry, BufferGeometry from vertices. Group related parts with THREE.Group and position them relative to the group.
+- Reuse geometries/materials with variables; give parts sensible names (mesh.name = "roof").
+- No imports, no require, no fetch, no DOM (document/window), no async, no timers. Plain synchronous JavaScript.
+- helpers.center(obj) centers an object on the floor; helpers.addons.BufferGeometryUtils is available.
+- Keep the code under ~150 lines; comment the sections briefly in English.
+
+Example:
+\`\`\`js
+const wall = new THREE.MeshStandardMaterial({ color: 0xf1e7d0, roughness: 0.9 });
+const roof = new THREE.MeshStandardMaterial({ color: 0x9b3b2b, roughness: 0.8 });
+const house = new THREE.Group();
+const body = new THREE.Mesh(new THREE.BoxGeometry(4, 2.6, 3), wall);
+body.position.y = 1.3;
+house.add(body);
+const top = new THREE.Mesh(new THREE.ConeGeometry(2.9, 1.6, 4), roof);
+top.position.y = 2.6 + 0.8;
+top.rotation.y = Math.PI / 4;
+house.add(top);
+scene.add(house);
+\`\`\``;
+
+const THREED_FORBIDDEN = /\b(import\s|require\s*\(|fetch\s*\(|XMLHttpRequest|WebSocket|document\.|window\.|parent\.|top\.|localStorage|sessionStorage|eval\s*\(|new\s+Function|setTimeout|setInterval|requestAnimationFrame)/;
+
+// Strip fences and an accidental function wrapper: we only want the body.
+function threedExtractCode(text: string): string {
+  let code = text.trim();
+  const fence = code.match(/```(?:js|javascript|ts)?\s*\n([\s\S]*?)```/i);
+  if (fence) code = fence[1];
+  code = code.trim();
+  const wrapped = code.match(/^(?:export\s+)?function\s+build\s*\([^)]*\)\s*\{([\s\S]*)\}\s*$/);
+  if (wrapped) code = wrapped[1].trim();
+  return code;
+}
+
+async function threedModelConfig(model: string | undefined) {
+  const globalConfigs = await (db as any).select().from(systemConfigs);
+  const localLlm = readLocalLlmEnv();
+  const getGlobalConfig = (key: string, defaultValue: string) => {
+    if (key in localLlm) return localLlm[key] || defaultValue;
+    const found = globalConfigs.find((c: any) => c.key === key);
+    return found ? found.value : process.env[key] || defaultValue;
+  };
+  const selected = (model || "").trim() || getGlobalConfig("DEFAULT_MODEL", "") || process.env.DEFAULT_MODEL || "";
+  if (!selected) return null;
+  const cfg = resolveLLMConfig(selected, getGlobalConfig);
+  return cfg.provider === "leonardo" ? null : cfg;
+}
+
+api.post("/threed/generate", async (req, res) => {
+  try {
+    const prompt = String(req.body?.prompt ?? "").trim();
+    const previous = typeof req.body?.code === "string" ? req.body.code : "";
+    const runtimeError = typeof req.body?.error === "string" ? req.body.error.trim() : "";
+    const imagePath = typeof req.body?.imagePath === "string" ? req.body.imagePath.trim() : "";
+    if (!prompt) return res.status(400).json({ error: "prompt is required" });
+
+    const llmConfig = await threedModelConfig(req.body?.model);
+    if (!llmConfig) return res.status(400).json({ error: "No text model available. Pick one in Settings → Default model." });
+
+    let user = "";
+    if (previous && runtimeError) {
+      user = `The current code threw at runtime:\n${runtimeError}\n\nCurrent code:\n\`\`\`js\n${previous}\n\`\`\`\n\nFix it and return the FULL corrected body. The user's request was: ${prompt}`;
+    } else if (previous) {
+      user = `Current code:\n\`\`\`js\n${previous}\n\`\`\`\n\nChange requested: ${prompt}\n\nReturn the FULL updated body.`;
+    } else {
+      user = `Build this: ${prompt}`;
+    }
+    if (imagePath && /^storage\/uploads\/[\w.\-]+$/.test(imagePath)) {
+      user += `\n\nUse the attached image as a visual reference for shapes, proportions and colors.\n\n[ATTACHMENTS]\n- ${imagePath} (${imagePath.match(/\.(png|jpe?g|webp|gif)$/i) ? "image/" + imagePath.split(".").pop()!.toLowerCase().replace("jpg", "jpeg") : "image/png"})`;
+    }
+    const message = await buildUserMessage(user, appRoot);
+
+    const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout generating the scene (240s)")), 240_000));
+    const result = (await Promise.race([generateText(llmConfig, [message], THREED_SYSTEM), timeout])) as { text: string; success: boolean; error?: string };
+    if (!result.success) return res.status(502).json({ error: result.error || "The model could not write the scene." });
+
+    const code = threedExtractCode(result.text || "");
+    if (!code) return res.status(502).json({ error: "The model returned no code." });
+    const bad = code.match(THREED_FORBIDDEN);
+    if (bad) return res.status(400).json({ error: `The generated code uses a forbidden API (${bad[0].trim()}). Try again or rephrase.` });
+    res.json({ code, model: llmConfig.model });
+  } catch (err: any) {
+    console.error("[api] POST /threed/generate failed", err);
+    res.status(500).json({ error: err?.message || "Failed to generate the scene" });
+  }
+});
+
+const SCENE_ID_RE = /^[a-z0-9][a-z0-9\-]{5,40}$/;
+
+api.get("/threed/scenes", async (_req, res) => {
+  try {
+    await mkdir(scenesDir, { recursive: true });
+    const files = (await readdir(scenesDir)).filter((f) => f.endsWith(".json"));
+    const scenes = [];
+    for (const f of files) {
+      try {
+        const s = JSON.parse(await readFile(path.join(scenesDir, f), "utf-8"));
+        scenes.push({ id: s.id, name: s.name, model: s.model ?? "", updatedAt: s.updatedAt ?? "", thumb: await fileExists(path.join(scenesDir, `${s.id}.png`)) });
+      } catch { /* skip a broken file */ }
+    }
+    scenes.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+    res.json(scenes);
+  } catch (err) {
+    console.error("[api] GET /threed/scenes failed", err);
+    res.status(500).json({ error: "Failed to list scenes" });
+  }
+});
+
+api.get("/threed/scenes/:id", async (req, res) => {
+  const { id } = req.params;
+  if (!SCENE_ID_RE.test(id)) return res.status(400).json({ error: "Invalid scene id" });
+  try {
+    const raw = await readFile(path.join(scenesDir, `${id}.json`), "utf-8");
+    res.json(JSON.parse(raw));
+  } catch {
+    res.status(404).json({ error: "Scene not found" });
+  }
+});
+
+api.put("/threed/scenes/:id", async (req, res) => {
+  const { id } = req.params;
+  if (!SCENE_ID_RE.test(id)) return res.status(400).json({ error: "Invalid scene id" });
+  try {
+    const b = req.body ?? {};
+    const code = String(b.code ?? "");
+    if (!code.trim()) return res.status(400).json({ error: "code is required" });
+    await mkdir(scenesDir, { recursive: true });
+    const existing = await readFile(path.join(scenesDir, `${id}.json`), "utf-8").then((r) => JSON.parse(r)).catch(() => null);
+    const now = new Date().toISOString();
+    const scene = {
+      id,
+      name: String(b.name ?? "").slice(0, 120) || "3D",
+      prompt: String(b.prompt ?? "").slice(0, 4000),
+      code: code.slice(0, 200_000),
+      model: String(b.model ?? ""),
+      history: Array.isArray(b.history) ? b.history.slice(-50) : [],
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    };
+    await writeFile(path.join(scenesDir, `${id}.json`), JSON.stringify(scene, null, 2), "utf-8");
+    // Thumbnail: a PNG data URL captured by the sandbox.
+    const thumb = typeof b.thumb === "string" ? b.thumb.match(/^data:image\/png;base64,([A-Za-z0-9+/=]+)$/) : null;
+    if (thumb) await writeFile(path.join(scenesDir, `${id}.png`), Buffer.from(thumb[1], "base64"));
+    res.json({ success: true, id, updatedAt: now });
+  } catch (err) {
+    console.error("[api] PUT /threed/scenes failed", err);
+    res.status(500).json({ error: "Failed to save scene" });
+  }
+});
+
+api.delete("/threed/scenes/:id", async (req, res) => {
+  const { id } = req.params;
+  if (!SCENE_ID_RE.test(id)) return res.status(400).json({ error: "Invalid scene id" });
+  try {
+    await rm(path.join(scenesDir, `${id}.json`), { force: true });
+    await rm(path.join(scenesDir, `${id}.png`), { force: true });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[api] DELETE /threed/scenes failed", err);
+    res.status(500).json({ error: "Failed to delete scene" });
   }
 });
 

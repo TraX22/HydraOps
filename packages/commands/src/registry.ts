@@ -207,6 +207,13 @@ export const COMMANDS: Command[] = [
     handler: async () => ok("Opening One Shot.", { type: "open_oneshot" }),
   },
   {
+    name: "threed",
+    aliases: ["3d", "objeto3d"],
+    description: "Open the 3D plugin (the model writes Three.js, you see it)",
+    uiOnly: true,
+    handler: async () => ok("Opening 3D.", { type: "open_threed" }),
+  },
+  {
     name: "whoami",
     aliases: ["quien"],
     description: "Show who you are and the active agent",

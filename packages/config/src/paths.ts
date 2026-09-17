@@ -42,6 +42,8 @@ export const storageDir = path.join(dataRoot, "storage");
 export const logsDir = path.join(storageDir, "logs");
 export const uploadsDir = path.join(storageDir, "uploads");
 export const resultsDir = path.join(storageDir, "results");
+/** Saved scenes of the 3D plugin (<id>.json + <id>.png thumbnail). */
+export const scenesDir = path.join(storageDir, "scenes");
 /** Herramientas que escribe el usuario, cargadas en caliente por @hydraops/addons. */
 export const myAddonsDir = path.join(dataRoot, "my_addons");
 export const dbFile = path.join(dataRoot, "db.sqlite3");
@@ -93,4 +95,5 @@ export const writableDirs = [
   logsDir,
   uploadsDir,
   resultsDir,
+  scenesDir,
 ];
