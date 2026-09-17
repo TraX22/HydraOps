@@ -1654,6 +1654,15 @@ api.post("/threed/generate", async (req, res) => {
 
 const SCENE_ID_RE = /^[a-z0-9][a-z0-9\-]{5,40}$/;
 
+// Absolute path of a scene file, or null when the id is not a plain slug or
+// the resolved path would leave scenesDir (belt and braces: the regex already
+// forbids separators and dots).
+function sceneFile(id: string, ext: "json" | "png"): string | null {
+  if (!SCENE_ID_RE.test(id)) return null;
+  const file = path.resolve(scenesDir, `${id}.${ext}`);
+  return file.startsWith(scenesDir + path.sep) ? file : null;
+}
+
 api.get("/threed/scenes", async (_req, res) => {
   try {
     await mkdir(scenesDir, { recursive: true });
@@ -1662,7 +1671,8 @@ api.get("/threed/scenes", async (_req, res) => {
     for (const f of files) {
       try {
         const s = JSON.parse(await readFile(path.join(scenesDir, f), "utf-8"));
-        scenes.push({ id: s.id, name: s.name, model: s.model ?? "", updatedAt: s.updatedAt ?? "", thumb: await fileExists(path.join(scenesDir, `${s.id}.png`)) });
+        const png = sceneFile(String(s.id ?? ""), "png");
+        scenes.push({ id: s.id, name: s.name, model: s.model ?? "", updatedAt: s.updatedAt ?? "", thumb: png ? await fileExists(png) : false });
       } catch { /* skip a broken file */ }
     }
     scenes.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
@@ -1674,10 +1684,10 @@ api.get("/threed/scenes", async (_req, res) => {
 });
 
 api.get("/threed/scenes/:id", async (req, res) => {
-  const { id } = req.params;
-  if (!SCENE_ID_RE.test(id)) return res.status(400).json({ error: "Invalid scene id" });
+  const file = sceneFile(req.params.id, "json");
+  if (!file) return res.status(400).json({ error: "Invalid scene id" });
   try {
-    const raw = await readFile(path.join(scenesDir, `${id}.json`), "utf-8");
+    const raw = await readFile(file, "utf-8");
     res.json(JSON.parse(raw));
   } catch {
     res.status(404).json({ error: "Scene not found" });
@@ -1686,13 +1696,15 @@ api.get("/threed/scenes/:id", async (req, res) => {
 
 api.put("/threed/scenes/:id", async (req, res) => {
   const { id } = req.params;
-  if (!SCENE_ID_RE.test(id)) return res.status(400).json({ error: "Invalid scene id" });
+  const jsonFile = sceneFile(id, "json");
+  const pngFile = sceneFile(id, "png");
+  if (!jsonFile || !pngFile) return res.status(400).json({ error: "Invalid scene id" });
   try {
     const b = req.body ?? {};
     const code = String(b.code ?? "");
     if (!code.trim()) return res.status(400).json({ error: "code is required" });
     await mkdir(scenesDir, { recursive: true });
-    const existing = await readFile(path.join(scenesDir, `${id}.json`), "utf-8").then((r) => JSON.parse(r)).catch(() => null);
+    const existing = await readFile(jsonFile, "utf-8").then((r) => JSON.parse(r)).catch(() => null);
     const now = new Date().toISOString();
     const scene = {
       id,
@@ -1704,10 +1716,10 @@ api.put("/threed/scenes/:id", async (req, res) => {
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
-    await writeFile(path.join(scenesDir, `${id}.json`), JSON.stringify(scene, null, 2), "utf-8");
+    await writeFile(jsonFile, JSON.stringify(scene, null, 2), "utf-8");
     // Thumbnail: a PNG data URL captured by the sandbox.
     const thumb = typeof b.thumb === "string" ? b.thumb.match(/^data:image\/png;base64,([A-Za-z0-9+/=]+)$/) : null;
-    if (thumb) await writeFile(path.join(scenesDir, `${id}.png`), Buffer.from(thumb[1], "base64"));
+    if (thumb) await writeFile(pngFile, Buffer.from(thumb[1], "base64"));
     res.json({ success: true, id, updatedAt: now });
   } catch (err) {
     console.error("[api] PUT /threed/scenes failed", err);
@@ -1716,11 +1728,12 @@ api.put("/threed/scenes/:id", async (req, res) => {
 });
 
 api.delete("/threed/scenes/:id", async (req, res) => {
-  const { id } = req.params;
-  if (!SCENE_ID_RE.test(id)) return res.status(400).json({ error: "Invalid scene id" });
+  const jsonFile = sceneFile(req.params.id, "json");
+  const pngFile = sceneFile(req.params.id, "png");
+  if (!jsonFile || !pngFile) return res.status(400).json({ error: "Invalid scene id" });
   try {
-    await rm(path.join(scenesDir, `${id}.json`), { force: true });
-    await rm(path.join(scenesDir, `${id}.png`), { force: true });
+    await rm(jsonFile, { force: true });
+    await rm(pngFile, { force: true });
     res.json({ success: true });
   } catch (err) {
     console.error("[api] DELETE /threed/scenes failed", err);
