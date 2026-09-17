@@ -481,7 +481,21 @@ export async function listAvailableLeonardoModels(apiKey: string): Promise<{ id:
 // multimodal vision parts, readable text files are inlined, anything else is
 // referenced by path so the agent at least knows it exists.
 
-const ATTACHMENTS_RE = /\n*\[ATTACHMENTS\]\n([\s\S]*)$/;
+// Marker that separates the prompt from its attachment list (one "- path (mime)" per line).
+const ATTACHMENTS_MARKER = '[ATTACHMENTS]\n';
+
+// "- storage/uploads/x.png (image/png)" → { rel, mime }. Plain string parsing (no regex)
+// so the cost stays linear on arbitrary input.
+function parseAttachmentLine(line: string): { rel: string; mime: string } | null {
+  const l = line.trim();
+  if (!l.startsWith('-') || !l.endsWith(')')) return null;
+  const open = l.lastIndexOf('(');
+  if (open < 0) return null;
+  const rel = l.slice(1, open).trim();
+  const mime = l.slice(open + 1, -1).trim();
+  if (!rel || !mime || mime.includes('(') || mime.includes(')')) return null;
+  return { rel, mime };
+}
 const TEXT_MIMES = new Set(['application/json', 'application/xml', 'application/javascript', 'application/typescript', 'application/x-yaml', 'application/sql']);
 const TEXT_EXTS = new Set(['txt', 'md', 'markdown', 'json', 'csv', 'tsv', 'xml', 'yaml', 'yml', 'html', 'css', 'js', 'ts', 'tsx', 'jsx', 'py', 'cs', 'java', 'c', 'cpp', 'h', 'sh', 'ps1', 'sql', 'ini', 'toml', 'env', 'log'])
 
@@ -495,15 +509,14 @@ function isTextLike(mime: string, filename: string): boolean {
 const MAX_INLINE_DOC_CHARS = 12_000;
 
 export async function buildUserMessage(prompt: string, rootDir: string): Promise<CoreMessage> {
-  const match = prompt.match(ATTACHMENTS_RE);
-  if (!match) return { role: 'user', content: prompt };
+  const at = prompt.indexOf(ATTACHMENTS_MARKER);
+  if (at < 0) return { role: 'user', content: prompt };
 
-  const text = prompt.slice(0, match.index).trim();
-  const entries = match[1]
-    .split('\n').map(l => l.trim()).filter(l => l.startsWith('-'))
-    .map(l => /^-\s*(.+?)\s*\(([^()]+)\)\s*$/.exec(l))
-    .filter(Boolean)
-    .map(m => ({ rel: m![1], mime: m![2] }));
+  const text = prompt.slice(0, at).trim();
+  const entries = prompt.slice(at + ATTACHMENTS_MARKER.length)
+    .split('\n')
+    .map(parseAttachmentLine)
+    .filter((e): e is { rel: string; mime: string } => e !== null);
 
   const imageParts: any[] = [];
   const docSections: string[] = [];
