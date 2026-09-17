@@ -6,6 +6,8 @@ The **Main Chat** is where you talk to your agents and where everything's result
 
 Type and send. The system assigns the task to an agent and its reply arrives in the channel signed by it. No need to wait: you can send several tasks in a row and each arrives when it finishes.
 
+In an **agent's chat**, the task is for that agent. In the **main chat**, unless you name one (`@luna …`, or the name first), a fast model reads the message and picks the best-fitting agent from the **role** each `agent.md` declares and its worker type: code to the coder, images to the illustrator, video to the video maker, and everything else to whoever's role fits best. It uses the default model; a cheaper one can be set with `ROUTER_MODEL` in the `.env`. If the model does not answer, tasks are dealt out in turns.
+
 ## Attachments
 
 The **📎** clip attaches files to the message:
