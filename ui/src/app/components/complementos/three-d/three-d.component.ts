@@ -4,7 +4,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ApiService, ChatAttachment, ModelOption, ThreeDScene, ThreeDSceneSummary } from '../../../services/api.service';
 import { ComplementosService } from '../../../services/complementos.service';
 import { IconComponent } from '../../icon/icon.component';
-import { modelLabel } from '../../../shared/model-groups';
+import { groupModels, modelLabel } from '../../../shared/model-groups';
 
 // 3D: the model writes Three.js, the sandbox renders it. Same idea as
 // Claude's 3D artifacts. The renderer lives in /threed/sandbox.html inside an
@@ -63,6 +63,8 @@ export class ThreeDComponent implements OnInit, OnDestroy {
   readonly models = signal<ModelOption[]>([]);
   readonly model = signal<string>('');
   readonly modelLabel = modelLabel;
+  // Same company groups as the global model selector (Config).
+  readonly groupedModels = computed(() => groupModels(this.models()));
   readonly isLocalModel = computed(() => {
     const m = this.models().find(x => x.id === this.model());
     return m?.provider === 'local';

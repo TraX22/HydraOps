@@ -6,8 +6,12 @@
     <div class="td-name">3D<span class="td-beta">beta</span></div>
     <div class="td-toolbar-actions">
       <select class="td-select" [ngModel]="model()" (ngModelChange)="onModelChange($event)" [title]="'threeD.model' | translate">
-        @for (m of models(); track m.id) {
-          <option [value]="m.id">{{ m.emoji ? m.emoji + ' ' : '' }}{{ modelLabel(m.name) }}</option>
+        @for (group of groupedModels(); track group.provider) {
+          <optgroup [label]="group.label">
+            @for (m of group.models; track m.id) {
+              <option [value]="m.id">{{ m.emoji ? m.emoji + ' ' : '' }}{{ modelLabel(m.name) }}</option>
+            }
+          </optgroup>
         }
       </select>
       <button class="td-btn ghost" (click)="toggleWire()" [class.active]="wire()" [disabled]="!hasCode()" [title]="'threeD.wireframe' | translate">
@@ -39,16 +43,18 @@
         <div class="td-overlay muted">{{ 'threeD.empty' | translate }}</div>
       }
       @if (status() === 'generating' || status() === 'fixing' || status() === 'running') {
-        <div class="td-status">
-          <app-icon name="hourglass" />
-          @if (status() === 'fixing') {
-            {{ 'threeD.fixing' | translate: { n: fixAttempt() } }}
-          } @else if (status() === 'running') {
-            {{ 'threeD.rendering' | translate }}
-          } @else {
-            {{ 'threeD.generating' | translate: { model: modelLabel(model()) } }}
-            @if (isLocalModel()) { <small>{{ 'threeD.localHint' | translate }}</small> }
-          }
+        <div class="td-status" role="status" aria-live="polite">
+          <span class="td-spin"><app-icon name="hourglass" /></span>
+          <div class="td-status-text">
+            @if (status() === 'fixing') {
+              {{ 'threeD.fixing' | translate: { n: fixAttempt() } }}
+            } @else if (status() === 'running') {
+              {{ 'threeD.rendering' | translate }}
+            } @else {
+              {{ 'threeD.generating' | translate: { model: modelLabel(model()) } }}
+              @if (isLocalModel()) { <small>{{ 'threeD.localHint' | translate }}</small> }
+            }
+          </div>
         </div>
       }
       @if (stats(); as s) {
