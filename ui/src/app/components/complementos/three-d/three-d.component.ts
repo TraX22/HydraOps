@@ -79,6 +79,10 @@ export class ThreeDComponent implements OnInit, OnDestroy {
 
   readonly hasCode = computed(() => !!this.code().trim());
   readonly busy = computed(() => ['generating', 'running', 'fixing'].includes(this.status()));
+  // mm:ss since the current generation started (reasoning models can take minutes).
+  readonly elapsed = signal('');
+  private busySince = 0;
+  private ticker: ReturnType<typeof setInterval> | null = null;
 
   private nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
   private threeSource = '';
@@ -90,6 +94,11 @@ export class ThreeDComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     window.addEventListener('message', this.onMessage);
+    this.ticker = setInterval(() => {
+      if (!this.busy()) return;
+      const sec = Math.floor((Date.now() - this.busySince) / 1000);
+      this.elapsed.set(`${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`);
+    }, 1000);
     this.api.fetchThreeBundle().subscribe({
       next: src => { this.threeSource = src; this.initFrame(); },
       error: () => { this.status.set('error'); this.error.set(this.i18n.instant('threeD.noThree')); },
@@ -112,6 +121,7 @@ export class ThreeDComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     window.removeEventListener('message', this.onMessage);
+    if (this.ticker) clearInterval(this.ticker);
   }
 
   // ── Sandbox plumbing ──
@@ -191,6 +201,8 @@ export class ThreeDComponent implements OnInit, OnDestroy {
     const prompt = this.prompt().trim();
     if (!prompt || this.busy() || !this.ready()) return;
     const iterating = this.hasCode();
+    this.busySince = Date.now();
+    this.elapsed.set('0:00');
     this.status.set('generating');
     this.error.set('');
     this.errorLine.set(null);

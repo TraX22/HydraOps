@@ -1561,29 +1561,61 @@ const THREED_SYSTEM = `You write Three.js code for a 3D viewer. Reply with ONLY 
 
 function build(THREE, scene, helpers) { /* your code */ }
 
-Rules:
-- \`THREE\` is the full three.js namespace (r180+); \`scene\` is an empty THREE.Group — add your meshes to it with scene.add(...). Do not create a Scene, camera, renderer, lights or a render loop: the viewer has them.
-- Units are meters. Build the object centered at x=0,z=0 and standing on y=0 (nothing below the floor). Typical size 1–8 m.
-- Materials: THREE.MeshStandardMaterial with flat colors ({ color: 0x8b5a2b, roughness: 0.8 }). No textures, no image loading, no fonts.
-- Geometries you may use: BoxGeometry, CylinderGeometry, ConeGeometry, SphereGeometry, TorusGeometry, PlaneGeometry, ExtrudeGeometry, LatheGeometry, TubeGeometry, BufferGeometry from vertices. Group related parts with THREE.Group and position them relative to the group.
-- Reuse geometries/materials with variables; give parts sensible names (mesh.name = "roof").
-- No imports, no require, no fetch, no DOM (document/window), no async, no timers. Plain synchronous JavaScript.
-- helpers.center(obj) centers an object on the floor; helpers.addons.BufferGeometryUtils is available.
-- Keep the code under ~150 lines; comment the sections briefly in English.
+Environment:
+- \`THREE\` is the full three.js namespace (r180+). \`scene\` is an empty THREE.Group: add your objects with scene.add(...). The viewer already has a Scene, camera, lights and a render loop — never create them.
+- Units are meters, Y is up. The object stands on the floor (y=0, nothing below it) and is centered on x=0,z=0. Typical size 1–8 m.
+- Plain synchronous JavaScript: no imports, require, fetch, DOM, async or timers. No textures or fonts: flat-colored THREE.MeshStandardMaterial only.
+
+Helpers (each returns the created object; color = hex number like 0x8b5a2b or a material from helpers.mat; x, y, z = position of the CENTER, default 0):
+- helpers.mat(color, { roughness, metalness, flat, opacity, emissive }) → cached material (same color → same material)
+- helpers.box(w, h, d, color, x, y, z, name) · helpers.roundedBox(w, h, d, radius, color, x, y, z, name)
+- helpers.cylinder(rTop, rBottom, h, color, x, y, z, segments, name) · helpers.cone(r, h, color, x, y, z, segments, name)
+- helpers.sphere(r, color, x, y, z, name) · helpers.torus(r, tube, color, x, y, z, name)
+- helpers.lathe([[radius, y], ...], color, segments, name) → profile revolved around Y (bottles, vases, towers, wheels, domes)
+- helpers.extrude([[x, y], ...], depth, color, { bevel }, name) → 2D outline extruded along Z, centered (gables, arches, hull sides, plates)
+- helpers.group(name, ...children) · helpers.mirrorX(obj) → mirrored copy across x=0 (build one side, mirror the other)
+- helpers.ring(n, radius, (i, x, z, angle) => obj, y) · helpers.grid(nx, nz, spacing, (ix, iz, x, z) => obj) → Group of repeated parts
+- helpers.random(seed) → deterministic random() in [0,1) · helpers.center(obj) → moves obj so it is centered and on the floor
+- helpers.addons.BufferGeometryUtils, helpers.addons.RoundedBoxGeometry. Raw THREE geometries and meshes are fine too.
+
+Method — follow it, it is what makes the result look right:
+1. Start with a one-line plan comment: parts with sizes and colors, e.g. \`// parts: hull 6×1.2×2 wood, cabin 2×1.4×1.8 white, mast h=7 r=0.08, sail, rudder\`.
+2. Silhouette first: the 3–5 big shapes that make the object recognizable, with real-world proportions. Then medium parts (doors, wheels, railings, windows). Then a few small details (handles, trims, bolts) — they sell the object.
+3. Palette of 3–5 harmonious colors, reused across parts (all metal shares one material, all wood another). Two close shades (0x8b5a2b and 0x7a4a22) read better than one flat color.
+4. Parts touch or overlap slightly (0.01–0.05 m) so there are no gaps, and no two faces are exactly coplanar (offset by 0.01) to avoid z-fighting.
+5. One THREE.Group per logical part, named, children positioned relative to it. Build symmetric things once and mirrorX; repeat with ring/grid instead of copy-paste.
+6. Prefer lathe/extrude for anything with a profile or an outline over stacks of boxes; use \`flat: true\` materials for low-poly rock/wood looks.
+7. Under ~150 lines; short English comments per section.
 
 Example:
 \`\`\`js
-const wall = new THREE.MeshStandardMaterial({ color: 0xf1e7d0, roughness: 0.9 });
-const roof = new THREE.MeshStandardMaterial({ color: 0x9b3b2b, roughness: 0.8 });
-const house = new THREE.Group();
-const body = new THREE.Mesh(new THREE.BoxGeometry(4, 2.6, 3), wall);
-body.position.y = 1.3;
-house.add(body);
-const top = new THREE.Mesh(new THREE.ConeGeometry(2.9, 1.6, 4), roof);
-top.position.y = 2.6 + 0.8;
-top.rotation.y = Math.PI / 4;
-house.add(top);
-scene.add(house);
+// parts: rock r≈2.2 h=0.8 grey · tower lathe h=5.7 white with 3 red bands · gallery + railing · lantern r=0.55 glass · roof cone · door · rowboat 2.4×0.5×0.9 wood
+const rock = helpers.cylinder(1.9, 2.4, 0.8, helpers.mat(0x6f6a62, { flat: true, roughness: 1 }), 0, 0.4, 0, 9, "rock");
+scene.add(rock);
+
+const tower = helpers.group("tower");
+tower.position.y = 0.8;
+tower.add(helpers.lathe([[1.1, 0], [1.0, 0.6], [0.7, 5.2], [0.8, 5.4], [0.8, 5.7]], 0xf2efe8, 32, "body"));
+for (let i = 0; i < 3; i++) {                       // red bands follow the taper
+  const y = 1.0 + i * 1.5, r = 1.0 - (y / 5.2) * 0.3;
+  tower.add(helpers.cylinder(r + 0.02, r + 0.04, 0.55, 0xb83a2f, 0, y, 0, 32, "band" + i));
+}
+tower.add(helpers.cylinder(1.05, 1.05, 0.12, 0x3a3a3a, 0, 5.75, 0, 32, "gallery"));
+tower.add(helpers.ring(12, 1.0, (i, x, z) => helpers.cylinder(0.03, 0.03, 0.9, 0x3a3a3a, x, 0, z, 8), 6.25));
+const rail = helpers.torus(1.0, 0.03, 0x3a3a3a, 0, 6.7, 0, "handrail");
+rail.rotation.x = Math.PI / 2;                      // torus lies flat
+tower.add(rail);
+tower.add(helpers.cylinder(0.55, 0.55, 0.9, helpers.mat(0xfff2b0, { emissive: 0xffd34d, opacity: 0.85 }), 0, 6.3, 0, 16, "lantern"));
+tower.add(helpers.cone(0.75, 0.7, 0xb83a2f, 0, 7.1, 0, 16, "roof"));
+tower.add(helpers.box(0.5, 0.9, 0.08, 0x3a2a1a, 0, 0.45, 1.06, "door"));
+scene.add(tower);
+
+const boat = helpers.group("boat");                 // side outline extruded → hull
+boat.add(helpers.extrude([[-1.2, 0.5], [1.2, 0.5], [0.9, 0], [-0.9, 0]], 0.9, 0x8b5a2b, { bevel: 0.04 }, "hull"));
+boat.add(helpers.box(0.08, 0.06, 0.86, 0x7a4a22, 0, 0.35, 0, "seat"));
+boat.position.set(2.8, 0, 1.4);
+boat.rotation.y = 0.5;
+scene.add(boat);
 \`\`\``;
 
 // Only bare globals count: `mesh.parent.remove(...)` is ordinary Three.js code, so a
@@ -1641,7 +1673,7 @@ api.post("/threed/generate", async (req, res) => {
     }
     const message = await buildUserMessage(user, appRoot);
 
-    const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout generating the scene (240s)")), 240_000));
+    const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout generating the scene (10 min)")), 600_000));
     const result = (await Promise.race([generateText(llmConfig, [message], THREED_SYSTEM), timeout])) as { text: string; success: boolean; error?: string };
     if (!result.success) return res.status(502).json({ error: result.error || "The model could not write the scene." });
 

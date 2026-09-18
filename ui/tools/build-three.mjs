@@ -23,6 +23,7 @@ await build({
       export { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
       export { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
       export * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
+      export { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
     `,
     resolveDir: uiRoot,
     loader: "js",

@@ -41,6 +41,8 @@ You describe an object and the model **writes the Three.js code** that builds it
 2. Type what you want to see ("a colonial house with a gable roof and a wooden pier") and press **Generate** (or Ctrl+Enter). The object appears centered; drag to orbit, scroll to zoom.
 3. Optional: a **reference image**. Upload a photo or one of Luna's sprites and the model looks at it to respect shapes, proportions and colors. Only vision-capable (cloud) models see it; the local one ignores it.
 
+The model does not write raw Three.js: it gets a helper kit (boxes, cylinders, lathe profiles, extruded outlines, mirror, ring/grid repetition, shared materials) and a working method (silhouette first, then medium parts, then details; a 3–5 color palette; no coplanar faces). That is what makes the first result already look like something.
+
 What comes out well: geometric, parametric things — houses, towers, piers, props, simple vehicles. Organic shapes (a horse, a character) come out blocky: that needs a real mesh generator, planned for a later version.
 
 ### Iterate and fix

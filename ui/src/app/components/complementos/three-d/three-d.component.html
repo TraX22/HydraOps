@@ -54,6 +54,7 @@
               {{ 'threeD.generating' | translate: { model: modelLabel(model()) } }}
               @if (isLocalModel()) { <small>{{ 'threeD.localHint' | translate }}</small> }
             }
+            @if (status() !== 'running' && elapsed()) { <small class="td-elapsed">{{ elapsed() }}</small> }
           </div>
         </div>
       }

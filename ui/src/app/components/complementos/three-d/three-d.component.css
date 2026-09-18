@@ -34,6 +34,7 @@
 }
 .td-status-text { display: flex; flex-direction: column; gap: 2px; }
 .td-status small { color: var(--text-muted); }
+.td-elapsed { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
 .td-spin { display: inline-flex; color: var(--accent); animation: td-flip 1.6s ease-in-out infinite; }
 @keyframes td-flip {
   0%, 35% { transform: rotate(0deg); }

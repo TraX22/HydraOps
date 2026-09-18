@@ -41,6 +41,8 @@ Describís un objeto y el modelo **escribe el código Three.js** que lo construy
 2. Escribí qué querés ver ("una casa colonial con techo a dos aguas y un muelle de madera") y pulsá **Generar** (o Ctrl+Enter). El objeto aparece centrado; arrastrá para girarlo, rueda para acercar.
 3. Opcional: **imagen de referencia**. Subí una foto o un sprite de Luna y el modelo la mira para respetar formas, proporciones y colores. Solo la ven los modelos con visión, los de nube; el local la ignora.
 
+El modelo no escribe Three.js "a pelo": recibe un kit de ayudas (cajas, cilindros, torneado de perfiles, extrusión de siluetas, espejo, repetición en anillo o grilla, materiales compartidos) y un método de trabajo (silueta primero, luego partes medias, luego detalles; paleta de 3 a 5 colores; sin caras superpuestas). Eso es lo que hace que el primer resultado ya tenga forma.
+
 Lo que sale bien: cosas geométricas y paramétricas, casas, torres, muelles, props, vehículos simples. Lo orgánico (un caballo, un personaje) sale como bloques: eso pide un generador de mallas real, que queda para una versión futura.
 
 ### Iterar y corregir
