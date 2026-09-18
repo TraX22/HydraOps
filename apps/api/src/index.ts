@@ -1586,7 +1586,11 @@ house.add(top);
 scene.add(house);
 \`\`\``;
 
-const THREED_FORBIDDEN = /\b(import\s|require\s*\(|fetch\s*\(|XMLHttpRequest|WebSocket|document\.|window\.|parent\.|top\.|localStorage|sessionStorage|eval\s*\(|new\s+Function|setTimeout|setInterval|requestAnimationFrame)/;
+// Only bare globals count: `mesh.parent.remove(...)` is ordinary Three.js code, so a
+// preceding `.` (or identifier char) exempts the match. `parent`/`top` are not listed
+// at all: they are common local names ("the top of the chest") and the sandbox's
+// opaque origin already makes the real ones throw.
+const THREED_FORBIDDEN = /(?<![\w$.])(import\s|require\s*\(|fetch\s*\(|XMLHttpRequest|WebSocket|document\.|window\.|localStorage|sessionStorage|eval\s*\(|new\s+Function|setTimeout|setInterval|requestAnimationFrame)/;
 
 // Strip fences and an accidental function wrapper: we only want the body.
 function threedExtractCode(text: string): string {
