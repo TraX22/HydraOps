@@ -58,6 +58,12 @@
 
     scene = new T.Scene();
     scene.background = new T.Color(bg || "#1b1b2f");
+    // Image-based lighting: without an environment, metallic materials render
+    // black (nothing to reflect). RoomEnvironment is a small procedural studio.
+    const pmrem = new T.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new T.RoomEnvironment(), 0.04).texture;
+    scene.environmentIntensity = 0.6;
+    pmrem.dispose();
     camera = new T.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.05, 2000);
     camera.position.set(6, 5, 8);
     controls = new T.OrbitControls(camera, renderer.domElement);

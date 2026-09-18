@@ -24,6 +24,7 @@ await build({
       export { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
       export * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
       export { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+      export { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
     `,
     resolveDir: uiRoot,
     loader: "js",
