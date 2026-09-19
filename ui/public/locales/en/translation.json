@@ -383,7 +383,7 @@
     "retry": "Send this chat's last message again",
     "lang": "Switch the interface language",
     "theme": "Switch the interface theme",
-    "threed": "Open the 3D plugin"
+    "3d": "Open the 3D plugin"
   },
   "threeD": {
     "tagline": "Describe an object, the model writes Three.js and you watch it spin. Export .glb for Unity.",

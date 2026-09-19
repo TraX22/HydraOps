@@ -383,7 +383,7 @@
     "retry": "Reinvia l'ultimo messaggio di questa chat",
     "lang": "Cambia la lingua dell'interfaccia",
     "theme": "Cambia il tema dell'interfaccia",
-    "threed": "Apre il plugin 3D"
+    "3d": "Apre il plugin 3D"
   },
   "threeD": {
     "tagline": "Descrivi un oggetto, il modello scrive Three.js e lo vedi ruotare. Esporta .glb per Unity.",
