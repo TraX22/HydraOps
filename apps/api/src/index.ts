@@ -1,6 +1,7 @@
 import { config as loadDotenv } from "dotenv";
 import express from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import path from "node:path";
 import { readdir, readFile, writeFile, mkdir, rm, access, rename } from "node:fs/promises";
 import { randomUUID, createHash, timingSafeEqual } from "node:crypto";
@@ -1699,7 +1700,11 @@ function sceneFile(id: string, ext: "json" | "png"): string | null {
   return file.startsWith(scenesDir + path.sep) ? file : null;
 }
 
-api.get("/threed/scenes", async (_req, res) => {
+// The scene routes touch the disk on every call; a generous per-client cap keeps a
+// runaway page (or script) from hammering the file system. Far above what the UI needs.
+const scenesLimiter = rateLimit({ windowMs: 60_000, limit: 300, standardHeaders: "draft-7", legacyHeaders: false });
+
+api.get("/threed/scenes", scenesLimiter, async (_req, res) => {
   try {
     await mkdir(scenesDir, { recursive: true });
     const files = (await readdir(scenesDir)).filter((f) => f.endsWith(".json"));
@@ -1719,7 +1724,7 @@ api.get("/threed/scenes", async (_req, res) => {
   }
 });
 
-api.get("/threed/scenes/:id", async (req, res) => {
+api.get("/threed/scenes/:id", scenesLimiter, async (req, res) => {
   const file = sceneFile(req.params.id, "json");
   if (!file) return res.status(400).json({ error: "Invalid scene id" });
   try {
@@ -1730,7 +1735,7 @@ api.get("/threed/scenes/:id", async (req, res) => {
   }
 });
 
-api.put("/threed/scenes/:id", async (req, res) => {
+api.put("/threed/scenes/:id", scenesLimiter, async (req, res) => {
   const { id } = req.params;
   const jsonFile = sceneFile(id, "json");
   const pngFile = sceneFile(id, "png");
@@ -1763,7 +1768,7 @@ api.put("/threed/scenes/:id", async (req, res) => {
   }
 });
 
-api.delete("/threed/scenes/:id", async (req, res) => {
+api.delete("/threed/scenes/:id", scenesLimiter, async (req, res) => {
   const jsonFile = sceneFile(req.params.id, "json");
   const pngFile = sceneFile(req.params.id, "png");
   if (!jsonFile || !pngFile) return res.status(400).json({ error: "Invalid scene id" });
