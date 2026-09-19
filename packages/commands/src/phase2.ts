@@ -91,7 +91,12 @@ export const PHASE2_COMMANDS: Command[] = [
       const cfg = await ctx.api.getAgentConfig(agent);
       if (cfg.workerType !== "graphic" && cfg.workerType !== "video") return err(`${agent} is a ${cfg.workerType ?? "coder"} worker: it has no image/video engine.`);
       const q = args.trim();
-      if (!q) return info(`${agent}'s engine: ${cfg.graphicEngine || "auto"}.`);
+      if (!q) {
+        const id = cfg.graphicEngine || "auto";
+        if (id === "auto") return info(`${agent}'s engine: auto.`);
+        const known = (await ctx.api.listModels()).find((m) => m.id === id);
+        return info(`${agent}'s engine: ${known ? known.name.replace(/^APIkey · /, "") : id}.`);
+      }
       if (fold(q) === "auto") {
         await ctx.api.saveAgentConfig(agent, { graphicEngine: "auto", resolution: "auto" });
         return ok(`${agent}'s engine is back to automatic.`);

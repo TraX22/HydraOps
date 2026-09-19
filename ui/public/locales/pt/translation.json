@@ -383,7 +383,9 @@
     "retry": "Reenvia a última mensagem deste chat",
     "lang": "Muda o idioma da interface",
     "theme": "Muda o tema da interface",
-    "3d": "Abre o complemento 3D"
+    "3d": "Abre o complemento 3D",
+    "plugins": "Abre o painel de complementos (One Shot, 3D)",
+    "open": "Vai para uma tela do app"
   },
   "threeD": {
     "tagline": "Descreva um objeto, o modelo escreve Three.js e você o vê girar. Exporte .glb para o Unity.",

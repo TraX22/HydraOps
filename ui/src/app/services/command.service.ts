@@ -79,6 +79,9 @@ export class CommandService {
       case 'open_threed':
         this.complementos.openApp('3d');
         break;
+      case 'open_plugins':
+        this.complementos.openHub();
+        break;
       case 'navigate':
         this.router.navigate([a.path], { queryParams: a.query });
         break;

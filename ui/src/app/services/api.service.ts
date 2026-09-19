@@ -80,6 +80,7 @@ export type CommandAction =
   | { type: 'close_tab' }
   | { type: 'open_oneshot' }
   | { type: 'open_threed' }
+  | { type: 'open_plugins' }
   | { type: 'navigate'; path: string; query?: Record<string, string> }
   | { type: 'open_cron_form'; prefill: { name: string; prompt: string; cronExpression: string; assignedAgent: string } }
   | { type: 'set_lang'; lang: string }

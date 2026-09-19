@@ -4,15 +4,17 @@ Commands are verbs over HydraOps typed in the chat box, starting with `/`. No mo
 
 Typing `/` opens the palette with the commands and agents matching what you type. Arrow keys to move, Tab or Enter to complete, Enter to run. The result shows up in the chat as a system note: it is not stored and never sent to an agent.
 
-The same commands work in the Telegram bot. Those that only make sense with the interface (`/oneshot`, `/close`) answer there with a notice.
+The same commands work in the Telegram bot. Those that only make sense with the interface (`/close`, `/profile`, `/open`, `/plugins`, `/oneshot`, `/3d`, `/lang`, `/theme`) answer there with a notice.
+
+Names and aliases are case-insensitive. English aliases are listed in parentheses; most commands also have a Spanish alias (`/agentes`, `/usar`, `/tareas`, `/estado`, `/recordar`…) and `/help <command>` lists them all.
 
 ## Chat and agents
 
 | Command | What it does |
 |---|---|
-| `/help [command]` | List the commands; with a name, explain that one. |
-| `/agents` | Agents with their status, worker and model. |
-| `/use <agent>` | Open that agent's chat and make it the active one. |
+| `/help [command]` (`/commands`, `/start`) | List the commands; with a name, explain that one. |
+| `/agents` (`/list`) | Agents with their status, worker and model. |
+| `/use <agent>` (`/switch`, `/talk`) | Open that agent's chat and make it the active one. |
 | `/<agent> <message>` | Send a message to that agent **without switching tabs**. The reply appears in that agent's chat. |
 | `/main` | Back to the main chat. |
 | `/close` | Close the current tab. |
@@ -27,7 +29,7 @@ The same commands work in the Telegram bot. Those that only make sense with the 
 | `/recall <keywords>` | Search the agent's past conversations. |
 | `/memory` | Show the agent's memory file. |
 
-These three need an agent chat open: the main chat has no "active agent".
+These three need an agent chat open: the main chat has no "active agent". The same goes for `/model`, `/engine`, `/aspect`, `/tools`, `/grant`, `/revoke`, `/profile` and `/cron`.
 
 ## System
 
@@ -36,11 +38,11 @@ These three need an agent chat open: the main chat has no "active agent".
 | `/status` | Version, services with a heartbeat and providers with a key. |
 | `/keys` | Which providers have a key configured (never the values). |
 | `/telegram <text>` | Send that text to your Telegram. |
+| `/plugins` | Open the plugins hub. |
 | `/oneshot` | Open the One Shot canvas. |
 | `/3d` (`/threed`, `/objeto3d`) | Open the 3D plugin. |
+| `/open <view>` (`/go`) | Jump to a view: `chat`, `agents`, `system`, `config`, `tasks`, `addons`, `tools`, `stats`, `docs`, `me`. |
 | `/whoami` | Who you are and which agent is active. |
-
-Spanish aliases exist for most commands (`/agentes`, `/usar`, `/tareas`, `/estado`, `/recordar`…); `/help` lists them.
 
 
 ## Quick configuration of the active agent
@@ -48,7 +50,7 @@ Spanish aliases exist for most commands (`/agentes`, `/usar`, `/tareas`, `/estad
 | Command | What it does |
 |---|---|
 | `/model [name]` | Without an argument shows the agent's LLM; with one, changes it (partial names accepted). |
-| `/engine [name \| auto]` | The agent's image or video engine (graphic and video workers only). |
+| `/engine [name \| auto]` | The agent's image or video engine (graphic and video workers only). Without an argument it shows the current engine by name. |
 | `/aspect <16:9 \| 9:16 \| …>` | Image or video aspect ratio; only the ones the chosen engine supports. |
 | `/tools` | Tools granted to the agent. |
 | `/grant <tool>` · `/revoke <tool>` | Add or remove the line in the agent's `tools.md`. |

@@ -4,15 +4,17 @@ Los comandos son verbos sobre HydraOps que se escriben en la caja del chat empez
 
 Al escribir `/` aparece la paleta con los comandos y los agentes que coinciden con lo que vas tecleando. Flechas para moverte, Tab o Enter para completar, Enter para ejecutar. El resultado se muestra en el chat como una nota de sistema: no se guarda ni se le envía a ningún agente.
 
-Los mismos comandos funcionan en el bot de Telegram. Los que solo tienen sentido con la interfaz (`/oneshot`, `/close`) responden ahí con un aviso.
+Los mismos comandos funcionan en el bot de Telegram. Los que solo tienen sentido con la interfaz (`/close`, `/profile`, `/open`, `/plugins`, `/oneshot`, `/3d`, `/lang`, `/theme`) responden ahí con un aviso.
+
+Nombres y alias se escriben sin distinguir mayúsculas. Cada comando tiene su nombre en inglés y, entre paréntesis, sus alias; `/help <comando>` los lista.
 
 ## Chat y agentes
 
 | Comando | Qué hace |
 |---|---|
-| `/help [comando]` (`/ayuda`) | Lista los comandos; con un nombre, explica ese. |
-| `/agents` (`/agentes`) | Agentes con su estado, worker y modelo. |
-| `/use <agente>` (`/usar`) | Abre el chat de ese agente y lo deja activo. |
+| `/help [comando]` (`/ayuda`, `/commands`, `/start`) | Lista los comandos; con un nombre, explica ese. |
+| `/agents` (`/agentes`, `/list`) | Agentes con su estado, worker y modelo. |
+| `/use <agente>` (`/usar`, `/switch`, `/talk`) | Abre el chat de ese agente y lo deja activo. |
 | `/<agente> <mensaje>` | Le manda un mensaje a ese agente **sin cambiar de pestaña**. La respuesta aparece en el chat de ese agente. |
 | `/main` (`/principal`) | Vuelve al chat principal. |
 | `/close` (`/cerrar`) | Cierra la pestaña actual. |
@@ -27,7 +29,7 @@ Los mismos comandos funcionan en el bot de Telegram. Los que solo tienen sentido
 | `/recall <palabras>` (`/buscar`) | Busca en las conversaciones pasadas del agente. |
 | `/memory` (`/memoria`) | Muestra el archivo de memoria del agente. |
 
-Estos tres necesitan un chat de agente abierto: en el chat principal no hay "agente activo".
+Estos tres necesitan un chat de agente abierto: en el chat principal no hay "agente activo". Lo mismo vale para `/model`, `/engine`, `/aspect`, `/tools`, `/grant`, `/revoke`, `/profile` y `/cron`.
 
 ## Sistema
 
@@ -36,8 +38,10 @@ Estos tres necesitan un chat de agente abierto: en el chat principal no hay "age
 | `/status` (`/estado`) | Versión, servicios con latido y proveedores con clave. |
 | `/keys` (`/claves`) | Qué proveedores tienen clave configurada (nunca los valores). |
 | `/telegram <texto>` | Manda ese texto a tu Telegram. |
+| `/plugins` (`/complementos`) | Abre el panel de complementos. |
 | `/oneshot` | Abre el lienzo One Shot. |
 | `/3d` (`/threed`, `/objeto3d`) | Abre el complemento 3D. |
+| `/open <vista>` (`/abrir`, `/ir`, `/go`) | Salta a una vista: `chat`, `agents`, `system`, `config`, `tasks`, `addons`, `tools`, `stats`, `docs`, `me`. También entiende `agentes`, `sistema`, `ajustes`, `tareas`, `herramientas`, `estadisticas`, `documentacion`, `yo`. |
 | `/whoami` (`/quien`) | Quién sos y cuál es el agente activo. |
 
 
@@ -46,11 +50,11 @@ Estos tres necesitan un chat de agente abierto: en el chat principal no hay "age
 | Comando | Qué hace |
 |---|---|
 | `/model [nombre]` (`/modelo`) | Sin argumento muestra el LLM del agente; con uno lo cambia (acepta nombre parcial). |
-| `/engine [nombre \| auto]` (`/motor`) | Motor de imagen o video del agente (solo workers graphic y video). |
+| `/engine [nombre \| auto]` (`/motor`) | Motor de imagen o video del agente (solo workers graphic y video). Sin argumento muestra el motor actual por su nombre. |
 | `/aspect <16:9 \| 9:16 \| …>` (`/aspecto`) | Aspecto de imagen o video; solo los válidos para el motor elegido. |
 | `/tools` (`/herramientas`) | Herramientas concedidas al agente. |
 | `/grant <tool>` (`/conceder`) · `/revoke <tool>` (`/quitar`) | Agrega o quita la línea en el `tools.md` del agente. |
-| `/profile` (`/perfil`) | Abre la ficha del agente. |
+| `/profile` (`/perfil`, `/ficha`) | Abre la ficha del agente. |
 
 ## Tareas programadas
 
