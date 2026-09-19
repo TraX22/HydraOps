@@ -1,0 +1,253 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>HydraOps 3D sandbox</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1b1b2f; }
+  canvas { display: block; }
+  #msg { position: absolute; left: 12px; bottom: 10px; font: 12px system-ui, sans-serif; color: #c7d2fe; opacity: .8; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="msg"></div>
+<script>
+// The 3D plugin's isolated renderer. This page runs inside
+// <iframe sandbox="allow-scripts"> — an opaque origin: model-written code can
+// reach neither the app, nor its cookies or storage. Three.js arrives as text
+// from the parent (an opaque origin cannot import cross-origin modules
+// without CORS, and the dev server sends none) and is imported from a blob
+// URL. Everything else is postMessage, guarded by a per-session nonce.
+//
+// Contract for generated code: the BODY of `function build(THREE, scene, helpers)`.
+// It adds meshes to `scene` (a Group cleared before every run). No imports,
+// no DOM, no network.
+(() => {
+  let T = null, renderer, scene, camera, controls, root, grid, nonce = null, wire = false;
+  const msg = document.getElementById("msg");
+  const post = (m, transfer) => parent.postMessage(m, "*", transfer || []);
+
+  window.addEventListener("error", (e) => {
+    if (T) post({ type: "error", message: String(e.message || e.error || "error"), line: lineOf(e.error) });
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    if (T) post({ type: "error", message: String(e.reason?.message || e.reason || "error"), line: lineOf(e.reason) });
+  });
+
+  window.addEventListener("message", async (e) => {
+    const d = e.data || {};
+    if (d.type === "init") { nonce = d.nonce; await init(d.three, d.bg); return; }
+    if (!nonce || d.nonce !== nonce || !T) return;
+    if (d.type === "run") run(d.code);
+    else if (d.type === "export") exportGlb();
+    else if (d.type === "snapshot") snapshot();
+    else if (d.type === "view") view(d.mode, d.value);
+  });
+
+  async function init(src, bg) {
+    try {
+      T = await import(URL.createObjectURL(new Blob([src], { type: "text/javascript" })));
+    } catch (err) {
+      post({ type: "fatal", message: "Three.js could not be loaded: " + (err?.message || err) });
+      return;
+    }
+    renderer = new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    scene = new T.Scene();
+    scene.background = new T.Color(bg || "#1b1b2f");
+    // Image-based lighting: without an environment, metallic materials render
+    // black (nothing to reflect). RoomEnvironment is a small procedural studio.
+    const pmrem = new T.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new T.RoomEnvironment(), 0.04).texture;
+    scene.environmentIntensity = 0.6;
+    pmrem.dispose();
+    camera = new T.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.05, 2000);
+    camera.position.set(6, 5, 8);
+    controls = new T.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.target.set(0, 1, 0);
+
+    scene.add(new T.HemisphereLight(0xffffff, 0x334466, 1.1));
+    const sun = new T.DirectionalLight(0xffffff, 1.6);
+    sun.position.set(5, 10, 6);
+    scene.add(sun);
+    grid = new T.GridHelper(40, 40, 0x6366f1, 0x33365a);
+    scene.add(grid);
+
+    root = new T.Group();
+    root.name = "generated";
+    scene.add(root);
+
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+    (function loop() { requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
+    post({ type: "ready", three: T.REVISION });
+  }
+
+  // Line number inside the generated code (new Function adds two header lines).
+  function lineOf(err) {
+    const m = String(err?.stack || "").match(/<anonymous>:(\d+):\d+/);
+    return m ? Math.max(1, Number(m[1]) - 2) : null;
+  }
+
+  function clearRoot() {
+    root.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose());
+    });
+    root.clear();
+    // Generated code may move the group itself (helpers.center(scene)).
+    root.position.set(0, 0, 0); root.rotation.set(0, 0, 0); root.scale.set(1, 1, 1);
+  }
+
+  function fit() {
+    const box = new T.Box3().setFromObject(root);
+    if (box.isEmpty()) return;
+    const size = box.getSize(new T.Vector3());
+    const center = box.getCenter(new T.Vector3());
+    const radius = Math.max(size.x, size.y, size.z, 0.5);
+    controls.target.copy(center);
+    camera.position.copy(center).add(new T.Vector3(radius * 1.2, radius * 0.9, radius * 1.5));
+    camera.near = Math.max(radius / 200, 0.01);
+    camera.far = radius * 50;
+    camera.updateProjectionMatrix();
+    controls.update();
+  }
+
+  // The helper kit the generated code receives. Short constructors that return a
+  // positioned, named mesh, a material cache (same color → same material), and
+  // building blocks (lathe, extrude, mirror, ring, grid) so the model spends its
+  // tokens on the design instead of boilerplate. Documented in the API's system
+  // prompt (THREED_SYSTEM) — keep the two in sync.
+  function makeHelpers() {
+    const materials = new Map();
+    const mat = (color = 0x999999, o = {}) => {
+      if (color && color.isMaterial) return color;
+      const key = [String(color), o.roughness ?? 0.8, o.metalness ?? 0, o.flat ? 1 : 0, o.opacity ?? 1, String(o.emissive ?? 0)].join("|");
+      let m = materials.get(key);
+      if (!m) {
+        const opacity = o.opacity ?? 1;
+        m = new T.MeshStandardMaterial({
+          color, roughness: o.roughness ?? 0.8, metalness: o.metalness ?? 0, flatShading: !!o.flat,
+          transparent: opacity < 1, opacity, emissive: o.emissive ?? 0x000000,
+        });
+        materials.set(key, m);
+      }
+      return m;
+    };
+    const place = (mesh, x = 0, y = 0, z = 0, name) => { mesh.position.set(x, y, z); if (name) mesh.name = name; return mesh; };
+    const mesh = (geometry, color, x, y, z, name) => place(new T.Mesh(geometry, mat(color)), x, y, z, name);
+    return {
+      addons: { BufferGeometryUtils: T.BufferGeometryUtils, RoundedBoxGeometry: T.RoundedBoxGeometry },
+      color: (c) => new T.Color(c),
+      mat,
+      box: (w, h, d, color, x, y, z, name) => mesh(new T.BoxGeometry(w, h, d), color, x, y, z, name),
+      roundedBox: (w, h, d, radius, color, x, y, z, name) => mesh(new T.RoundedBoxGeometry(w, h, d, 4, radius), color, x, y, z, name),
+      cylinder: (rTop, rBottom, h, color, x, y, z, segments = 24, name) => mesh(new T.CylinderGeometry(rTop, rBottom, h, segments), color, x, y, z, name),
+      cone: (r, h, color, x, y, z, segments = 24, name) => mesh(new T.ConeGeometry(r, h, segments), color, x, y, z, name),
+      sphere: (r, color, x, y, z, name) => mesh(new T.SphereGeometry(r, 24, 16), color, x, y, z, name),
+      torus: (r, tube, color, x, y, z, name) => mesh(new T.TorusGeometry(r, tube, 12, 32), color, x, y, z, name),
+      // [[radius, y], ...] revolved around Y.
+      lathe: (points, color, segments = 32, name) => mesh(new T.LatheGeometry(points.map(([r, y]) => new T.Vector2(r, y)), segments), color, 0, 0, 0, name),
+      // [[x, y], ...] outline extruded along Z and centered on z=0.
+      extrude: (points, depth, color, o = {}, name) => {
+        const shape = new T.Shape(points.map(([x, y]) => new T.Vector2(x, y)));
+        const bevel = o.bevel || 0;
+        const g = new T.ExtrudeGeometry(shape, { depth, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2 });
+        g.translate(0, 0, -depth / 2);
+        return mesh(g, color, 0, 0, 0, name);
+      },
+      group: (name, ...children) => { const g = new T.Group(); g.name = name || ""; children.forEach((c) => c && g.add(c)); return g; },
+      // Mirrored copy across x=0 (the renderer handles the flipped winding).
+      mirrorX: (obj) => { const c = obj.clone(); c.scale.x *= -1; c.position.x *= -1; c.name = obj.name ? obj.name + "Mirror" : ""; return c; },
+      ring: (n, radius, fn, y = 0) => {
+        const g = new T.Group();
+        for (let i = 0; i < n; i++) {
+          const a = (i / n) * Math.PI * 2;
+          const o = fn(i, Math.cos(a) * radius, Math.sin(a) * radius, a);
+          if (o) { o.position.y += y; g.add(o); }
+        }
+        return g;
+      },
+      grid: (nx, nz, spacing, fn) => {
+        const g = new T.Group();
+        for (let ix = 0; ix < nx; ix++) for (let iz = 0; iz < nz; iz++) {
+          const o = fn(ix, iz, (ix - (nx - 1) / 2) * spacing, (iz - (nz - 1) / 2) * spacing);
+          if (o) g.add(o);
+        }
+        return g;
+      },
+      // Deterministic random in [0, 1) so a scene renders the same every time.
+      random: (seed = 1) => { let t = seed >>> 0; return () => { t += 0x6d2b79f5; let r = Math.imul(t ^ (t >>> 15), 1 | t); r ^= r + Math.imul(r ^ (r >>> 7), 61 | r); return ((r ^ (r >>> 14)) >>> 0) / 4294967296; }; },
+      center: (obj) => { const b = new T.Box3().setFromObject(obj); const c = b.getCenter(new T.Vector3()); obj.position.sub(c); obj.position.y -= b.min.y - c.y; return obj; },
+      fit,
+    };
+  }
+
+  function run(code) {
+    clearRoot();
+    msg.textContent = "";
+    const helpers = makeHelpers();
+    try {
+      const fn = new Function("THREE", "scene", "helpers", code);
+      fn(T, root, helpers);
+    } catch (err) {
+      post({ type: "error", message: String(err?.message || err), line: lineOf(err) });
+      return;
+    }
+    let meshes = 0, triangles = 0;
+    root.traverse((o) => {
+      if (o.isMesh) {
+        meshes++;
+        const g = o.geometry;
+        if (g) triangles += Math.round((g.index ? g.index.count : g.attributes.position?.count || 0) / 3);
+        (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m) m.wireframe = wire; });
+      }
+    });
+    fit();
+    msg.textContent = `${meshes} mesh${meshes === 1 ? "" : "es"} · ${triangles} tri`;
+    post({ type: "ok", stats: { meshes, triangles } });
+  }
+
+  function exportGlb() {
+    new T.GLTFExporter().parse(
+      root,
+      (result) => post({ type: "glb", buffer: result }, [result]),
+      (err) => post({ type: "error", message: "Export failed: " + (err?.message || err) }),
+      { binary: true },
+    );
+  }
+
+  // Small PNG for the saved-scenes list (the full canvas would be ~100 kB+).
+  function snapshot() {
+    renderer.render(scene, camera);
+    const src = renderer.domElement;
+    const w = 320, h = Math.max(1, Math.round((w * src.height) / src.width));
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    c.getContext("2d").drawImage(src, 0, 0, w, h);
+    post({ type: "snapshot", dataUrl: c.toDataURL("image/png") });
+  }
+
+  function view(mode, value) {
+    if (mode === "wireframe") {
+      wire = !!value;
+      root.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m) m.wireframe = wire; }); });
+    } else if (mode === "grid") {
+      grid.visible = !!value;
+    } else if (mode === "reset") {
+      fit();
+    } else if (mode === "bg") {
+      scene.background = new T.Color(value);
+    }
+  }
+})();
+</script>
+</body>
+</html>

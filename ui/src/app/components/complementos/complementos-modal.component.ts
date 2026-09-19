@@ -2,15 +2,16 @@ import { Component, inject, HostListener } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { IconComponent } from '../icon/icon.component';
 import { OneShotComponent } from './one-shot/one-shot.component';
+import { ThreeDComponent } from './three-d/three-d.component';
 import { ComplementosService } from '../../services/complementos.service';
 
 // The Complementos overlay ("pop up"): a hub of in-app mini-apps. Hosted once in
 // the app shell. The hub shows a grid of tools; picking one swaps to its view.
-// Today the only mini-app is "One Shot" (a fixed, untranslated product name).
+// Mini-apps: "One Shot" and "3D" (fixed, untranslated product names).
 @Component({
   selector: 'app-complementos-modal',
   standalone: true,
-  imports: [TranslatePipe, IconComponent, OneShotComponent],
+  imports: [TranslatePipe, IconComponent, OneShotComponent, ThreeDComponent],
   templateUrl: './complementos-modal.component.html',
   styleUrl: './complementos-modal.component.css',
 })

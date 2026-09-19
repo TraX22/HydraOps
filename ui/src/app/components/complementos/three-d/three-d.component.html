@@ -1,0 +1,144 @@
+<div class="three-d">
+  <header class="td-toolbar">
+    <button class="td-btn ghost" (click)="back()">
+      <app-icon name="chevron-left" /> {{ 'threeD.back' | translate }}
+    </button>
+    <div class="td-name">3D<span class="td-beta">beta</span></div>
+    <div class="td-toolbar-actions">
+      <select class="td-select" [ngModel]="model()" (ngModelChange)="onModelChange($event)" [title]="'threeD.model' | translate">
+        @for (group of groupedModels(); track group.provider) {
+          <optgroup [label]="group.label">
+            @for (m of group.models; track m.id) {
+              <option [value]="m.id">{{ m.emoji ? m.emoji + ' ' : '' }}{{ modelLabel(m.name) }}</option>
+            }
+          </optgroup>
+        }
+      </select>
+      <button class="td-btn ghost" (click)="toggleWire()" [class.active]="wire()" [disabled]="!hasCode()" [title]="'threeD.wireframe' | translate">
+        <app-icon name="frame" />
+      </button>
+      <button class="td-btn ghost" (click)="resetView()" [disabled]="!hasCode()" [title]="'threeD.resetView' | translate">
+        <app-icon name="maximize" />
+      </button>
+      <button class="td-btn" (click)="exportGlb()" [disabled]="!hasCode() || busy()">
+        <app-icon name="download" /> {{ 'threeD.export' | translate }}
+      </button>
+      <button class="td-btn" (click)="save()" [disabled]="!hasCode() || saving() || busy()">
+        <app-icon name="check" /> {{ (saving() ? 'threeD.saving' : (sceneId() && !dirty() ? 'threeD.saved' : 'threeD.save')) | translate }}
+      </button>
+      <button class="td-btn ghost" (click)="newScene()" [disabled]="busy()">
+        <app-icon name="plus" /> {{ 'threeD.newScene' | translate }}
+      </button>
+    </div>
+  </header>
+
+  <div class="td-body">
+    <div class="td-canvas-wrap">
+      <!-- Opaque-origin sandbox: generated code cannot reach the app. See the
+           note on security headers in three-d.component.ts. -->
+      <iframe #frame class="td-frame" src="/threed/sandbox.html" sandbox="allow-scripts" (load)="onFrameLoad()" title="3D"></iframe>
+      @if (status() === 'loading') {
+        <div class="td-overlay">{{ 'stats.loading' | translate }}</div>
+      } @else if (!hasCode() && status() !== 'generating') {
+        <div class="td-overlay muted">{{ 'threeD.empty' | translate }}</div>
+      }
+      @if (status() === 'generating' || status() === 'fixing' || status() === 'running') {
+        <div class="td-status" role="status" aria-live="polite">
+          <span class="td-spin"><app-icon name="hourglass" /></span>
+          <div class="td-status-text">
+            @if (status() === 'fixing') {
+              {{ 'threeD.fixing' | translate: { n: fixAttempt() } }}
+            } @else if (status() === 'running') {
+              {{ 'threeD.rendering' | translate }}
+            } @else {
+              {{ 'threeD.generating' | translate: { model: modelLabel(model()) } }}
+              @if (isLocalModel()) { <small>{{ 'threeD.localHint' | translate }}</small> }
+            }
+            @if (status() !== 'running' && elapsed()) { <small class="td-elapsed">{{ elapsed() }}</small> }
+          </div>
+        </div>
+      }
+      @if (stats(); as s) {
+        <div class="td-stats">{{ s.meshes }} · {{ s.triangles }} △</div>
+      }
+    </div>
+
+    <aside class="td-side">
+      <div class="td-tabs">
+        <button class="td-tab" [class.active]="tab() === 'prompt'" (click)="tab.set('prompt')">{{ 'threeD.prompt' | translate }}</button>
+        <button class="td-tab" [class.active]="tab() === 'code'" (click)="tab.set('code')" [disabled]="!hasCode()">{{ 'threeD.code' | translate }}</button>
+      </div>
+
+      @if (tab() === 'prompt') {
+        <input class="td-input" [ngModel]="sceneName()" (ngModelChange)="sceneName.set($event); dirty.set(true)" [placeholder]="'threeD.namePlaceholder' | translate" />
+        <textarea class="td-textarea" rows="5" [ngModel]="prompt()" (ngModelChange)="prompt.set($event)"
+                  [placeholder]="(hasCode() ? 'threeD.iteratePlaceholder' : 'threeD.promptPlaceholder') | translate"
+                  (keydown.control.enter)="generate()"></textarea>
+        <div class="td-row">
+          @if (reference(); as ref) {
+            <span class="td-ref" [title]="ref.name">
+              <img [src]="referenceUrl()" [alt]="ref.name" />
+              <button class="td-ref-x" (click)="reference.set(null)" [title]="'threeD.removeReference' | translate">×</button>
+            </span>
+          } @else {
+            <button class="td-btn ghost small" (click)="pickReference()" [disabled]="uploading()" [title]="'threeD.referenceHint' | translate">
+              <app-icon name="image" /> {{ (uploading() ? 'chat.uploading' : 'threeD.addReference') | translate }}
+            </button>
+          }
+          <input #fileInput type="file" accept="image/*" style="display: none" (change)="onReferenceSelected($event)" />
+          <button class="td-btn primary" (click)="generate()" [disabled]="!prompt().trim() || busy() || !ready()">
+            <app-icon name="zap" /> {{ (hasCode() ? 'threeD.iterate' : 'threeD.generate') | translate }}
+          </button>
+        </div>
+        @if (status() === 'error' && error()) {
+          <div class="td-error">
+            <app-icon name="alert" /> {{ error() }}@if (errorLine()) { <span class="td-line">L{{ errorLine() }}</span> }
+          </div>
+        }
+        @if (history().length) {
+          <div class="td-list-head">{{ 'threeD.history' | translate }}</div>
+          <ol class="td-hist">
+            @for (h of history(); track h.at) {
+              <li>{{ h.prompt }}@if (h.fixed) { <span class="td-fixed" [title]="'threeD.autoFixed' | translate">🛠 {{ h.fixed }}</span> }</li>
+            }
+          </ol>
+        }
+      } @else {
+        <textarea class="td-code" spellcheck="false" [ngModel]="codeDraft()" (ngModelChange)="codeDraft.set($event)"></textarea>
+        <div class="td-row">
+          <button class="td-btn ghost small" (click)="copyCode()">
+            <app-icon [name]="copied() ? 'check' : 'clipboard'" /> {{ (copied() ? 'threeD.copied' : 'threeD.copy') | translate }}
+          </button>
+          <button class="td-btn primary" (click)="applyDraft()" [disabled]="busy() || codeDraft() === code()">
+            <app-icon name="play" /> {{ 'threeD.apply' | translate }}
+          </button>
+        </div>
+        @if (status() === 'error' && error()) {
+          <div class="td-error"><app-icon name="alert" /> {{ error() }}@if (errorLine()) { <span class="td-line">L{{ errorLine() }}</span> }</div>
+        }
+      }
+
+      <hr class="td-sep" />
+      <div class="td-list-head">{{ 'threeD.scenes' | translate }}</div>
+      @if (!scenes().length) {
+        <div class="td-muted">{{ 'threeD.noScenes' | translate }}</div>
+      }
+      <div class="td-scenes">
+        @for (s of scenes(); track s.id) {
+          <div class="td-scene" [class.active]="s.id === sceneId()">
+            <button class="td-scene-open" (click)="openScene(s.id)" [title]="s.name">
+              @if (s.thumb) { <img [src]="thumbUrl(s)" [alt]="s.name" /> } @else { <app-icon name="cube" /> }
+              <span>{{ s.name }}</span>
+            </button>
+            @if (pendingDelete() === s.id) {
+              <button class="td-scene-x danger" (click)="deleteScene(s.id)" [title]="'common.delete' | translate"><app-icon name="check" /></button>
+              <button class="td-scene-x" (click)="cancelDelete()" [title]="'common.cancel' | translate"><app-icon name="x" /></button>
+            } @else {
+              <button class="td-scene-x" (click)="askDelete(s.id)" [title]="'common.delete' | translate"><app-icon name="trash" /></button>
+            }
+          </div>
+        }
+      </div>
+    </aside>
+  </div>
+</div>

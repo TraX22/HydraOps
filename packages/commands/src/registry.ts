@@ -16,6 +16,20 @@ function requireAgent(ctx: CommandContext): string | CommandResult {
   return err("This command works inside an agent's chat. Open one (or /use <agent>) and try again.");
 }
 
+// Views /open can jump to: canonical name → route, plus the words people type.
+const VIEWS: { name: string; path: string; aliases: string[] }[] = [
+  { name: "chat", path: "/", aliases: ["inicio", "home"] },
+  { name: "agents", path: "/agents", aliases: ["agentes"] },
+  { name: "system", path: "/system", aliases: ["sistema"] },
+  { name: "config", path: "/config", aliases: ["configuracion", "ajustes", "settings"] },
+  { name: "tasks", path: "/tasks", aliases: ["tareas", "crons", "programadas"] },
+  { name: "addons", path: "/addons", aliases: ["add-ons"] },
+  { name: "tools", path: "/herramientas", aliases: ["herramientas"] },
+  { name: "stats", path: "/stats", aliases: ["estadisticas", "statistics"] },
+  { name: "docs", path: "/docs", aliases: ["documentacion", "manual"] },
+  { name: "me", path: "/me", aliases: ["yo", "cuenta", "account"] },
+];
+
 const splitFirst = (args: string): [string, string] => {
   const t = args.trim();
   const i = t.search(/\s/);
@@ -205,6 +219,35 @@ export const COMMANDS: Command[] = [
     description: "Open the One Shot canvas",
     uiOnly: true,
     handler: async () => ok("Opening One Shot.", { type: "open_oneshot" }),
+  },
+  {
+    name: "3d",
+    aliases: ["threed", "objeto3d"],
+    description: "Open the 3D plugin (the model writes Three.js, you see it)",
+    uiOnly: true,
+    handler: async () => ok("Opening 3D.", { type: "open_threed" }),
+  },
+  {
+    name: "plugins",
+    aliases: ["complementos"],
+    description: "Open the plugins hub (One Shot, 3D)",
+    uiOnly: true,
+    handler: async () => ok("Opening plugins.", { type: "open_plugins" }),
+  },
+  {
+    name: "open",
+    aliases: ["abrir", "ir", "go"],
+    usage: "/open <chat | agents | system | config | tasks | addons | tools | stats | docs | me>",
+    description: "Jump to a view of the app",
+    uiOnly: true,
+    handler: async (_ctx, args) => {
+      const q = fold(args.trim());
+      const names = VIEWS.map((v) => v.name).join(", ");
+      if (!q) return err(`Usage: /open <view>. Views: ${names}.`);
+      const view = VIEWS.find((v) => v.name === q || v.aliases.includes(q));
+      if (!view) return err(`No view called "${args.trim()}". Views: ${names}.`);
+      return ok(`Opening ${view.name}.`, { type: "navigate", path: view.path });
+    },
   },
   {
     name: "whoami",

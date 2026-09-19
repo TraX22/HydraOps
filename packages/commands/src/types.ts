@@ -71,6 +71,8 @@ export type CommandAction =
   | { type: "main" }
   | { type: "close_tab" }
   | { type: "open_oneshot" }
+  | { type: "open_threed" }
+  | { type: "open_plugins" }
   | { type: "navigate"; path: string; query?: Record<string, string> }
   // The app opens the scheduled-task form pre-filled for the user to confirm.
   | { type: "open_cron_form"; prefill: { name: string; prompt: string; cronExpression: string; assignedAgent: string } }

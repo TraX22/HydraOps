@@ -92,8 +92,9 @@
 }
 .cmp-card-desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.4; }
 
-/* One Shot fills the wide window. */
-.cmp-window.wide app-one-shot {
+/* Mini-apps fill the wide window. */
+.cmp-window.wide app-one-shot,
+.cmp-window.wide app-three-d {
   display: block;
   height: 100%;
   min-height: 0;

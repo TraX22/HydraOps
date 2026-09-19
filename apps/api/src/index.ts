@@ -1,6 +1,7 @@
 import { config as loadDotenv } from "dotenv";
 import express from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import path from "node:path";
 import { readdir, readFile, writeFile, mkdir, rm, access, rename } from "node:fs/promises";
 import { randomUUID, createHash, timingSafeEqual } from "node:crypto";
@@ -21,8 +22,7 @@ import {
   docsDir,
   envFile,
   keyStoreFile,
-  readLocalLlmEnv,
-} from "@hydraops/config";
+  readLocalLlmEnv, scenesDir } from "@hydraops/config";
 
 loadDotenv({ path: envFile });
 
@@ -1287,6 +1287,7 @@ import {
   listAvailableMiniMaxModels,
   generateText,
   resolveLLMConfig,
+  buildUserMessage,
 } from "@hydraops/llm";
 
 api.get("/config/models", async (req, res) => {
@@ -1549,6 +1550,235 @@ api.post("/prompt/compile", async (req, res) => {
   } catch (err: any) {
     console.error("[api] POST /prompt/compile failed", err);
     res.status(500).json({ error: err?.message || "Failed to compile prompt" });
+  }
+});
+
+// ── 3D plugin ───────────────────────────────────────────────────────────────
+// The model writes the BODY of `function build(THREE, scene, helpers)`; the UI
+// runs it in an opaque-origin sandbox (ui/public/threed/sandbox.html). Same
+// synchronous LLM call as /prompt/compile, longer timeout (local models).
+
+const THREED_SYSTEM = `You write Three.js code for a 3D viewer. Reply with ONLY the body of this function, in one \`\`\`js fenced block, nothing else:
+
+function build(THREE, scene, helpers) { /* your code */ }
+
+Environment:
+- \`THREE\` is the full three.js namespace (r180+). \`scene\` is an empty THREE.Group: add your objects with scene.add(...). The viewer already has a Scene, camera, lights and a render loop — never create them.
+- Units are meters, Y is up. The object stands on the floor (y=0, nothing below it) and is centered on x=0,z=0. Typical size 1–8 m.
+- Plain synchronous JavaScript: no imports, require, fetch, DOM, async or timers. No textures or fonts: flat-colored THREE.MeshStandardMaterial only.
+
+Helpers (each returns the created object; color = hex number like 0x8b5a2b or a material from helpers.mat; x, y, z = position of the CENTER, default 0):
+- helpers.mat(color, { roughness, metalness, flat, opacity, emissive }) → cached material (same color → same material)
+- helpers.box(w, h, d, color, x, y, z, name) · helpers.roundedBox(w, h, d, radius, color, x, y, z, name)
+- helpers.cylinder(rTop, rBottom, h, color, x, y, z, segments, name) · helpers.cone(r, h, color, x, y, z, segments, name)
+- helpers.sphere(r, color, x, y, z, name) · helpers.torus(r, tube, color, x, y, z, name)
+- helpers.lathe([[radius, y], ...], color, segments, name) → profile revolved around Y (bottles, vases, towers, wheels, domes)
+- helpers.extrude([[x, y], ...], depth, color, { bevel }, name) → 2D outline extruded along Z, centered (gables, arches, hull sides, plates)
+- helpers.group(name, ...children) · helpers.mirrorX(obj) → mirrored copy across x=0 (build one side, mirror the other)
+- helpers.ring(n, radius, (i, x, z, angle) => obj, y) · helpers.grid(nx, nz, spacing, (ix, iz, x, z) => obj) → Group of repeated parts
+- helpers.random(seed) → deterministic random() in [0,1) · helpers.center(obj) → moves obj so it is centered and on the floor
+- helpers.addons.BufferGeometryUtils, helpers.addons.RoundedBoxGeometry. Raw THREE geometries and meshes are fine too.
+
+Method — follow it, it is what makes the result look right:
+1. Start with a one-line plan comment: parts with sizes and colors, e.g. \`// parts: hull 6×1.2×2 wood, cabin 2×1.4×1.8 white, mast h=7 r=0.08, sail, rudder\`.
+2. Silhouette first: the 3–5 big shapes that make the object recognizable, with real-world proportions. Then medium parts (doors, wheels, railings, windows). Then a few small details (handles, trims, bolts) — they sell the object.
+3. Palette of 3–5 harmonious colors, reused across parts (all metal shares one material, all wood another). Two close shades (0x8b5a2b and 0x7a4a22) read better than one flat color.
+4. Parts touch or overlap slightly (0.01–0.05 m) so there are no gaps, and no two faces are exactly coplanar (offset by 0.01) to avoid z-fighting.
+5. One THREE.Group per logical part, named, children positioned relative to it. Build symmetric things once and mirrorX; repeat with ring/grid instead of copy-paste.
+6. Prefer lathe/extrude for anything with a profile or an outline over stacks of boxes; use \`flat: true\` materials for low-poly rock/wood looks.
+7. Under ~150 lines; short English comments per section.
+
+Example:
+\`\`\`js
+// parts: rock r≈2.2 h=0.8 grey · tower lathe h=5.7 white with 3 red bands · gallery + railing · lantern r=0.55 glass · roof cone · door · rowboat 2.4×0.5×0.9 wood
+const rock = helpers.cylinder(1.9, 2.4, 0.8, helpers.mat(0x6f6a62, { flat: true, roughness: 1 }), 0, 0.4, 0, 9, "rock");
+scene.add(rock);
+
+const tower = helpers.group("tower");
+tower.position.y = 0.8;
+tower.add(helpers.lathe([[1.1, 0], [1.0, 0.6], [0.7, 5.2], [0.8, 5.4], [0.8, 5.7]], 0xf2efe8, 32, "body"));
+for (let i = 0; i < 3; i++) {                       // red bands follow the taper
+  const y = 1.0 + i * 1.5, r = 1.0 - (y / 5.2) * 0.3;
+  tower.add(helpers.cylinder(r + 0.02, r + 0.04, 0.55, 0xb83a2f, 0, y, 0, 32, "band" + i));
+}
+tower.add(helpers.cylinder(1.05, 1.05, 0.12, 0x3a3a3a, 0, 5.75, 0, 32, "gallery"));
+tower.add(helpers.ring(12, 1.0, (i, x, z) => helpers.cylinder(0.03, 0.03, 0.9, 0x3a3a3a, x, 0, z, 8), 6.25));
+const rail = helpers.torus(1.0, 0.03, 0x3a3a3a, 0, 6.7, 0, "handrail");
+rail.rotation.x = Math.PI / 2;                      // torus lies flat
+tower.add(rail);
+tower.add(helpers.cylinder(0.55, 0.55, 0.9, helpers.mat(0xfff2b0, { emissive: 0xffd34d, opacity: 0.85 }), 0, 6.3, 0, 16, "lantern"));
+tower.add(helpers.cone(0.75, 0.7, 0xb83a2f, 0, 7.1, 0, 16, "roof"));
+tower.add(helpers.box(0.5, 0.9, 0.08, 0x3a2a1a, 0, 0.45, 1.06, "door"));
+scene.add(tower);
+
+const boat = helpers.group("boat");                 // side outline extruded → hull
+boat.add(helpers.extrude([[-1.2, 0.5], [1.2, 0.5], [0.9, 0], [-0.9, 0]], 0.9, 0x8b5a2b, { bevel: 0.04 }, "hull"));
+boat.add(helpers.box(0.08, 0.06, 0.86, 0x7a4a22, 0, 0.35, 0, "seat"));
+boat.position.set(2.8, 0, 1.4);
+boat.rotation.y = 0.5;
+scene.add(boat);
+\`\`\``;
+
+// Only bare globals count: `mesh.parent.remove(...)` is ordinary Three.js code, so a
+// preceding `.` (or identifier char) exempts the match. `parent`/`top` are not listed
+// at all: they are common local names ("the top of the chest") and the sandbox's
+// opaque origin already makes the real ones throw.
+const THREED_FORBIDDEN = /(?<![\w$.])(import\s|require\s*\(|fetch\s*\(|XMLHttpRequest|WebSocket|document\.|window\.|localStorage|sessionStorage|eval\s*\(|new\s+Function|setTimeout|setInterval|requestAnimationFrame)/;
+
+// Strip fences and an accidental function wrapper: we only want the body.
+function threedExtractCode(text: string): string {
+  let code = text.trim();
+  const fence = code.match(/```(?:js|javascript|ts)?\s*\n([\s\S]*?)```/i);
+  if (fence) code = fence[1];
+  code = code.trim();
+  const wrapped = code.match(/^(?:export\s+)?function\s+build\s*\([^)]*\)\s*\{([\s\S]*)\}\s*$/);
+  if (wrapped) code = wrapped[1].trim();
+  return code;
+}
+
+async function threedModelConfig(model: string | undefined) {
+  const globalConfigs = await (db as any).select().from(systemConfigs);
+  const localLlm = readLocalLlmEnv();
+  const getGlobalConfig = (key: string, defaultValue: string) => {
+    if (key in localLlm) return localLlm[key] || defaultValue;
+    const found = globalConfigs.find((c: any) => c.key === key);
+    return found ? found.value : process.env[key] || defaultValue;
+  };
+  const selected = (model || "").trim() || getGlobalConfig("DEFAULT_MODEL", "") || process.env.DEFAULT_MODEL || "";
+  if (!selected) return null;
+  const cfg = resolveLLMConfig(selected, getGlobalConfig);
+  return cfg.provider === "leonardo" ? null : cfg;
+}
+
+api.post("/threed/generate", async (req, res) => {
+  try {
+    const prompt = String(req.body?.prompt ?? "").trim();
+    const previous = typeof req.body?.code === "string" ? req.body.code : "";
+    const runtimeError = typeof req.body?.error === "string" ? req.body.error.trim() : "";
+    const imagePath = typeof req.body?.imagePath === "string" ? req.body.imagePath.trim() : "";
+    if (!prompt) return res.status(400).json({ error: "prompt is required" });
+
+    const llmConfig = await threedModelConfig(req.body?.model);
+    if (!llmConfig) return res.status(400).json({ error: "No text model available. Pick one in Settings → Default model." });
+
+    let user = "";
+    if (previous && runtimeError) {
+      user = `The current code threw at runtime:\n${runtimeError}\n\nCurrent code:\n\`\`\`js\n${previous}\n\`\`\`\n\nFix it and return the FULL corrected body. The user's request was: ${prompt}`;
+    } else if (previous) {
+      user = `Current code:\n\`\`\`js\n${previous}\n\`\`\`\n\nChange requested: ${prompt}\n\nReturn the FULL updated body.`;
+    } else {
+      user = `Build this: ${prompt}`;
+    }
+    if (imagePath && /^storage\/uploads\/[\w.\-]+$/.test(imagePath)) {
+      user += `\n\nUse the attached image as a visual reference for shapes, proportions and colors.\n\n[ATTACHMENTS]\n- ${imagePath} (${imagePath.match(/\.(png|jpe?g|webp|gif)$/i) ? "image/" + imagePath.split(".").pop()!.toLowerCase().replace("jpg", "jpeg") : "image/png"})`;
+    }
+    const message = await buildUserMessage(user, appRoot);
+
+    const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout generating the scene (10 min)")), 600_000));
+    const result = (await Promise.race([generateText(llmConfig, [message], THREED_SYSTEM), timeout])) as { text: string; success: boolean; error?: string };
+    if (!result.success) return res.status(502).json({ error: result.error || "The model could not write the scene." });
+
+    const code = threedExtractCode(result.text || "");
+    if (!code) return res.status(502).json({ error: "The model returned no code." });
+    const bad = code.match(THREED_FORBIDDEN);
+    if (bad) return res.status(400).json({ error: `The generated code uses a forbidden API (${bad[0].trim()}). Try again or rephrase.` });
+    res.json({ code, model: llmConfig.model });
+  } catch (err: any) {
+    console.error("[api] POST /threed/generate failed", err);
+    res.status(500).json({ error: err?.message || "Failed to generate the scene" });
+  }
+});
+
+const SCENE_ID_RE = /^[a-z0-9][a-z0-9\-]{5,40}$/;
+
+// Absolute path of a scene file, or null when the id is not a plain slug or
+// the resolved path would leave scenesDir (belt and braces: the regex already
+// forbids separators and dots).
+function sceneFile(id: string, ext: "json" | "png"): string | null {
+  if (!SCENE_ID_RE.test(id)) return null;
+  const file = path.resolve(scenesDir, `${id}.${ext}`);
+  return file.startsWith(scenesDir + path.sep) ? file : null;
+}
+
+// The scene routes touch the disk on every call; a generous per-client cap keeps a
+// runaway page (or script) from hammering the file system. Far above what the UI needs.
+const scenesLimiter = rateLimit({ windowMs: 60_000, limit: 300, standardHeaders: "draft-7", legacyHeaders: false });
+
+api.get("/threed/scenes", scenesLimiter, async (_req, res) => {
+  try {
+    await mkdir(scenesDir, { recursive: true });
+    const files = (await readdir(scenesDir)).filter((f) => f.endsWith(".json"));
+    const scenes = [];
+    for (const f of files) {
+      try {
+        const s = JSON.parse(await readFile(path.join(scenesDir, f), "utf-8"));
+        const png = sceneFile(String(s.id ?? ""), "png");
+        scenes.push({ id: s.id, name: s.name, model: s.model ?? "", updatedAt: s.updatedAt ?? "", thumb: png ? await fileExists(png) : false });
+      } catch { /* skip a broken file */ }
+    }
+    scenes.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+    res.json(scenes);
+  } catch (err) {
+    console.error("[api] GET /threed/scenes failed", err);
+    res.status(500).json({ error: "Failed to list scenes" });
+  }
+});
+
+api.get("/threed/scenes/:id", scenesLimiter, async (req, res) => {
+  const file = sceneFile(req.params.id, "json");
+  if (!file) return res.status(400).json({ error: "Invalid scene id" });
+  try {
+    const raw = await readFile(file, "utf-8");
+    res.json(JSON.parse(raw));
+  } catch {
+    res.status(404).json({ error: "Scene not found" });
+  }
+});
+
+api.put("/threed/scenes/:id", scenesLimiter, async (req, res) => {
+  const { id } = req.params;
+  const jsonFile = sceneFile(id, "json");
+  const pngFile = sceneFile(id, "png");
+  if (!jsonFile || !pngFile) return res.status(400).json({ error: "Invalid scene id" });
+  try {
+    const b = req.body ?? {};
+    const code = String(b.code ?? "");
+    if (!code.trim()) return res.status(400).json({ error: "code is required" });
+    await mkdir(scenesDir, { recursive: true });
+    const existing = await readFile(jsonFile, "utf-8").then((r) => JSON.parse(r)).catch(() => null);
+    const now = new Date().toISOString();
+    const scene = {
+      id,
+      name: String(b.name ?? "").slice(0, 120) || "3D",
+      prompt: String(b.prompt ?? "").slice(0, 4000),
+      code: code.slice(0, 200_000),
+      model: String(b.model ?? ""),
+      history: Array.isArray(b.history) ? b.history.slice(-50) : [],
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    };
+    await writeFile(jsonFile, JSON.stringify(scene, null, 2), "utf-8");
+    // Thumbnail: a PNG data URL captured by the sandbox.
+    const thumb = typeof b.thumb === "string" ? b.thumb.match(/^data:image\/png;base64,([A-Za-z0-9+/=]+)$/) : null;
+    if (thumb) await writeFile(pngFile, Buffer.from(thumb[1], "base64"));
+    res.json({ success: true, id, updatedAt: now });
+  } catch (err) {
+    console.error("[api] PUT /threed/scenes failed", err);
+    res.status(500).json({ error: "Failed to save scene" });
+  }
+});
+
+api.delete("/threed/scenes/:id", scenesLimiter, async (req, res) => {
+  const jsonFile = sceneFile(req.params.id, "json");
+  const pngFile = sceneFile(req.params.id, "png");
+  if (!jsonFile || !pngFile) return res.status(400).json({ error: "Invalid scene id" });
+  try {
+    await rm(jsonFile, { force: true });
+    await rm(pngFile, { force: true });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[api] DELETE /threed/scenes failed", err);
+    res.status(500).json({ error: "Failed to delete scene" });
   }
 });
 

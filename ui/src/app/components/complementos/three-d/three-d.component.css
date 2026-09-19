@@ -1,0 +1,87 @@
+.three-d { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+
+/* Toolbar */
+/* Right padding keeps the last button clear of the modal's close (top-right). */
+.td-toolbar { display: flex; align-items: center; gap: 10px; padding: 10px 50px 10px 14px; border-bottom: 1px solid var(--border-color); flex-wrap: wrap; }
+.td-name { font-weight: 700; font-size: 15px; }
+.td-beta { margin-left: 6px; font-size: 9px; font-weight: 700; letter-spacing: .04em; color: var(--status-error); vertical-align: super; }
+.td-toolbar-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.td-select { max-width: 240px; padding: 6px 8px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-input); color: var(--text-primary); font-size: 12px; }
+
+.td-btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 12.5px;
+  border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-surface);
+  color: var(--text-primary); cursor: pointer; font-family: inherit;
+}
+.td-btn:hover:not(:disabled) { border-color: var(--accent); }
+.td-btn:disabled { opacity: .5; cursor: default; }
+.td-btn.ghost { background: transparent; }
+.td-btn.ghost.active { border-color: var(--accent); color: var(--accent); }
+.td-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.td-btn.small { padding: 4px 8px; font-size: 12px; }
+
+/* Body */
+.td-body { display: flex; flex: 1; min-height: 0; }
+.td-canvas-wrap { position: relative; flex: 1; min-width: 0; background: var(--bg-surface-alt); }
+.td-frame { width: 100%; height: 100%; border: 0; display: block; }
+.td-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; font-size: 14px; color: var(--text-primary); pointer-events: none; }
+.td-overlay.muted { color: var(--text-muted); }
+/* "Working" badge: a flipping hourglass plus a soft pulse so it reads as alive. */
+.td-status {
+  position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+  background: var(--bg-surface); border: 1px solid var(--accent); border-radius: var(--radius-sm); font-size: 12.5px;
+  animation: td-pulse 1.6s ease-in-out infinite;
+}
+.td-status-text { display: flex; flex-direction: column; gap: 2px; }
+.td-status small { color: var(--text-muted); }
+.td-elapsed { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+.td-spin { display: inline-flex; color: var(--accent); animation: td-flip 1.6s ease-in-out infinite; }
+@keyframes td-flip {
+  0%, 35% { transform: rotate(0deg); }
+  65%, 100% { transform: rotate(180deg); }
+}
+@keyframes td-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .td-status, .td-spin { animation: none; }
+}
+.td-stats { position: absolute; right: 12px; top: 12px; font-size: 11px; color: var(--text-muted); background: var(--bg-surface); padding: 2px 8px; border-radius: var(--radius-full); border: 1px solid var(--border-color); }
+
+/* Side panel */
+.td-side { width: 340px; display: flex; flex-direction: column; gap: 8px; padding: 12px; border-left: 1px solid var(--border-color); overflow-y: auto; }
+.td-tabs { display: flex; gap: 4px; }
+.td-tab { flex: 1; padding: 6px; font-size: 12.5px; border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); border-radius: var(--radius-sm); cursor: pointer; font-family: inherit; }
+.td-tab.active { background: var(--bg-surface-alt); color: var(--text-primary); border-color: var(--accent); }
+.td-tab:disabled { opacity: .5; cursor: default; }
+.td-input, .td-textarea, .td-code {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+  background: var(--bg-input); color: var(--text-primary); font-size: 13px; font-family: inherit; box-sizing: border-box;
+}
+.td-textarea { resize: vertical; min-height: 96px; }
+.td-code { font-family: 'JetBrains Mono', monospace; font-size: 12px; min-height: 260px; flex: 1; resize: vertical; white-space: pre; }
+.td-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.td-ref { position: relative; display: inline-flex; }
+.td-ref img { width: 44px; height: 44px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-color); }
+.td-ref-x { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; border: none; background: var(--status-error); color: #fff; font-size: 12px; line-height: 18px; cursor: pointer; padding: 0; }
+.td-error { display: flex; align-items: flex-start; gap: 6px; padding: 8px 10px; font-size: 12px; color: var(--status-error); background: var(--bg-surface-alt); border-radius: var(--radius-sm); word-break: break-word; }
+.td-line { margin-left: auto; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); }
+.td-list-head { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin-top: 4px; }
+.td-hist { margin: 0; padding-left: 18px; font-size: 12px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px; }
+.td-fixed { margin-left: 6px; font-size: 11px; color: var(--text-muted); }
+.td-sep { border: 0; border-top: 1px solid var(--border-color); margin: 4px 0; }
+.td-muted { font-size: 12px; color: var(--text-muted); }
+
+/* Saved scenes */
+.td-scenes { display: flex; flex-direction: column; gap: 4px; }
+.td-scene { display: flex; align-items: center; gap: 4px; }
+.td-scene.active .td-scene-open { border-color: var(--accent); }
+.td-scene-open {
+  flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px 6px; text-align: left; font-size: 12.5px;
+  border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-primary); cursor: pointer; font-family: inherit;
+}
+.td-scene-open img { width: 36px; height: 28px; object-fit: cover; border-radius: 4px; background: var(--bg-surface-alt); }
+.td-scene-open span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.td-scene-x { padding: 4px 6px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); cursor: pointer; }
+.td-scene-x.danger { color: var(--status-error); }

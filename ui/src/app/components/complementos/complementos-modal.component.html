@@ -16,12 +16,24 @@
                 <div class="cmp-card-name">One Shot<span class="cmp-card-beta">beta</span></div>
                 <div class="cmp-card-desc">{{ 'oneShot.tagline' | translate }}</div>
               </button>
+              <button class="cmp-card" (click)="svc.openApp('3d')">
+                <div class="cmp-card-icon"><app-icon name="cube" /></div>
+                <div class="cmp-card-name">3D<span class="cmp-card-beta">beta</span></div>
+                <div class="cmp-card-desc">{{ 'threeD.tagline' | translate }}</div>
+              </button>
             </div>
           </div>
         }
         @case ('one-shot') {
           @defer (on immediate) {
             <app-one-shot />
+          } @loading (minimum 150ms) {
+            <div class="cmp-loading">{{ 'stats.loading' | translate }}</div>
+          }
+        }
+        @case ('3d') {
+          @defer (on immediate) {
+            <app-three-d />
           } @loading (minimum 150ms) {
             <div class="cmp-loading">{{ 'stats.loading' | translate }}</div>
           }

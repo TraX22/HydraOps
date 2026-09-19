@@ -6,7 +6,10 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "three": "node tools/build-three.mjs",
+    "prestart": "node tools/build-three.mjs",
+    "prebuild": "node tools/build-three.mjs"
   },
   "private": true,
   "packageManager": "pnpm@9.15.9",
@@ -34,9 +37,11 @@
     "@angular/compiler-cli": "^21.2.20",
     "@tailwindcss/postcss": "^4.3.3",
     "autoprefixer": "^10.5.4",
+    "esbuild": "^0.28.1",
     "postcss": "^8.5.21",
     "prettier": "^3.8.1",
     "tailwindcss": "^4.3.3",
+    "three": "0.186.0",
     "typescript": "~5.9.2"
   }
 }
