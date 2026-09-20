@@ -394,7 +394,7 @@
     "whatsnew": "Ouvre l'onglet Nouveautés avec les notes des dernières versions"
   },
   "threeD": {
-    "tagline": "Décrivez un objet, le modèle écrit du Three.js et vous le voyez tourner. Export .glb pour Unity.",
+    "tagline": "Décrivez un objet, le modèle écrit du Three.js et vous le voyez tourner. Export .glb pour Unity, Unreal, Blender ou votre appli 3D préférée.",
     "back": "Extensions",
     "model": "Modèle",
     "prompt": "Prompt",
@@ -427,6 +427,18 @@
     "removeReference": "Retirer l'image",
     "wireframe": "Fil de fer",
     "resetView": "Centrer la vue",
-    "noThree": "Three.js n'a pas pu être chargé."
+    "noThree": "Three.js n'a pas pu être chargé.",
+    "enhance": "Améliorer le prompt",
+    "enhancing": "Amélioration du prompt avec {{model}}…",
+    "undoEnhance": "Annuler",
+    "enhanceHint": "Transforme votre idée en une description avec pièces, mesures et couleurs. Modifiable avant de générer.",
+    "style": "Style",
+    "styles": {
+      "auto": "Libre",
+      "lowpoly": "Low-poly",
+      "voxel": "Voxel",
+      "stylized": "Accessoire de jeu",
+      "realistic": "Réaliste"
+    }
   }
 }

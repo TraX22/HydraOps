@@ -108,7 +108,7 @@
 
   function fit() {
     const box = new T.Box3().setFromObject(root);
-    if (box.isEmpty()) return;
+    if (box.isEmpty() || ![box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z].every(Number.isFinite)) return;
     const size = box.getSize(new T.Vector3());
     const center = box.getCenter(new T.Vector3());
     const radius = Math.max(size.x, size.y, size.z, 0.5);
@@ -141,27 +141,69 @@
       }
       return m;
     };
-    const place = (mesh, x = 0, y = 0, z = 0, name) => { mesh.position.set(x, y, z); if (name) mesh.name = name; return mesh; };
-    const mesh = (geometry, color, x, y, z, name) => place(new T.Mesh(geometry, mat(color)), x, y, z, name);
+    // Wrong argument order is the most common mistake in generated code, and three.js
+    // turns a non-number into silent NaN geometry. Fail loudly instead: the message
+    // (with its line) goes back to the model, which fixes the call.
+    const nums = (helper, values) => {
+      for (const [label, v] of Object.entries(values)) {
+        if (!Number.isFinite(v)) throw new TypeError(`helpers.${helper}: "${label}" must be a number, got ${v && v.isMaterial ? "a material" : typeof v}. Check the argument order.`);
+      }
+    };
+    const place = (helper, mesh, x = 0, y = 0, z = 0, name) => {
+      nums(helper, { x, y, z });
+      mesh.position.set(x, y, z);
+      if (typeof name === "string" && name) mesh.name = name;
+      return mesh;
+    };
+    const mesh = (helper, geometry, color, x, y, z, name) => place(helper, new T.Mesh(geometry, mat(color)), x, y, z, name);
+    const looksLikeColor = (v, maxDim) => v === undefined || (v && v.isMaterial) || (v && v.isColor) || typeof v === "string" || (typeof v === "number" && v > maxDim);
     return {
       addons: { BufferGeometryUtils: T.BufferGeometryUtils, RoundedBoxGeometry: T.RoundedBoxGeometry },
       color: (c) => new T.Color(c),
       mat,
-      box: (w, h, d, color, x, y, z, name) => mesh(new T.BoxGeometry(w, h, d), color, x, y, z, name),
-      roundedBox: (w, h, d, radius, color, x, y, z, name) => mesh(new T.RoundedBoxGeometry(w, h, d, 4, radius), color, x, y, z, name),
-      cylinder: (rTop, rBottom, h, color, x, y, z, segments = 24, name) => mesh(new T.CylinderGeometry(rTop, rBottom, h, segments), color, x, y, z, name),
-      cone: (r, h, color, x, y, z, segments = 24, name) => mesh(new T.ConeGeometry(r, h, segments), color, x, y, z, name),
-      sphere: (r, color, x, y, z, name) => mesh(new T.SphereGeometry(r, 24, 16), color, x, y, z, name),
-      torus: (r, tube, color, x, y, z, name) => mesh(new T.TorusGeometry(r, tube, 12, 32), color, x, y, z, name),
+      box: (w, h, d, color, x, y, z, name) => { nums("box", { w, h, d }); return mesh("box", new T.BoxGeometry(w, h, d), color, x, y, z, name); },
+      // Same order as box, radius last and optional: (w, h, d, color, x, y, z, name, radius).
+      // The older (w, h, d, radius, color, x, y, z, name) order is still understood.
+      roundedBox: (w, h, d, a, b, ...rest) => {
+        nums("roundedBox", { w, h, d });
+        let color, x, y, z, name, radius;
+        if (looksLikeColor(a, Math.max(w, h, d))) { color = a; [x, y, z, name, radius] = [b, ...rest]; }
+        else { radius = a; color = b; [x, y, z, name] = rest; }
+        const limit = Math.min(w, h, d) / 2;
+        const r = Number.isFinite(radius) && radius >= 0 ? Math.min(radius, limit * 0.98) : limit * 0.3;
+        return mesh("roundedBox", new T.RoundedBoxGeometry(w, h, d, 4, r), color, x, y, z, name);
+      },
+      cylinder: (rTop, rBottom, h, color, x, y, z, segments = 24, name) => {
+        nums("cylinder", { rTop, rBottom, h });
+        if (typeof segments === "string" && name === undefined) { name = segments; segments = 24; }   // name passed in the segments slot
+        return mesh("cylinder", new T.CylinderGeometry(rTop, rBottom, h, Number.isFinite(segments) ? segments : 24), color, x, y, z, name);
+      },
+      cone: (r, h, color, x, y, z, segments = 24, name) => {
+        nums("cone", { r, h });
+        if (typeof segments === "string" && name === undefined) { name = segments; segments = 24; }
+        return mesh("cone", new T.ConeGeometry(r, h, Number.isFinite(segments) ? segments : 24), color, x, y, z, name);
+      },
+      sphere: (r, color, x, y, z, name) => { nums("sphere", { r }); return mesh("sphere", new T.SphereGeometry(r, 24, 16), color, x, y, z, name); },
+      torus: (r, tube, color, x, y, z, name) => { nums("torus", { r, tube }); return mesh("torus", new T.TorusGeometry(r, tube, 12, 32), color, x, y, z, name); },
       // [[radius, y], ...] revolved around Y.
-      lathe: (points, color, segments = 32, name) => mesh(new T.LatheGeometry(points.map(([r, y]) => new T.Vector2(r, y)), segments), color, 0, 0, 0, name),
+      lathe: (points, color, segments = 32, name) => {
+        if (!Array.isArray(points) || points.length < 2) throw new TypeError("helpers.lathe: points must be an array of [radius, y] pairs.");
+        points.forEach(([r, y], i) => nums("lathe", { [`points[${i}][0]`]: r, [`points[${i}][1]`]: y }));
+        if (typeof segments === "string" && name === undefined) { name = segments; segments = 32; }
+        return mesh("lathe", new T.LatheGeometry(points.map(([r, y]) => new T.Vector2(r, y)), Number.isFinite(segments) ? segments : 32), color, 0, 0, 0, name);
+      },
       // [[x, y], ...] outline extruded along Z and centered on z=0.
       extrude: (points, depth, color, o = {}, name) => {
+        if (!Array.isArray(points) || points.length < 3) throw new TypeError("helpers.extrude: points must be an array of at least three [x, y] pairs.");
+        points.forEach(([px, py], i) => nums("extrude", { [`points[${i}][0]`]: px, [`points[${i}][1]`]: py }));
+        nums("extrude", { depth });
+        if (typeof o === "string" && name === undefined) { name = o; o = {}; }
+        o = o || {};
         const shape = new T.Shape(points.map(([x, y]) => new T.Vector2(x, y)));
         const bevel = o.bevel || 0;
         const g = new T.ExtrudeGeometry(shape, { depth, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2 });
         g.translate(0, 0, -depth / 2);
-        return mesh(g, color, 0, 0, 0, name);
+        return mesh("extrude", g, color, 0, 0, 0, name);
       },
       group: (name, ...children) => { const g = new T.Group(); g.name = name || ""; children.forEach((c) => c && g.add(c)); return g; },
       // Mirrored copy across x=0 (the renderer handles the flipped winding).
@@ -199,6 +241,23 @@
       fn(T, root, helpers);
     } catch (err) {
       post({ type: "error", message: String(err?.message || err), line: lineOf(err) });
+      return;
+    }
+    // Raw THREE calls with bad arguments do not throw: they yield NaN vertices or
+    // transforms and an empty canvas. Report it as an error so it gets fixed.
+    const broken = [];
+    root.updateMatrixWorld(true);
+    root.traverse((o) => {
+      const badTransform = o.matrixWorld.elements.some((v) => !Number.isFinite(v));
+      let badGeometry = false;
+      const pos = o.isMesh && o.geometry && o.geometry.attributes.position;
+      if (pos) { const a = pos.array; for (let i = 0; i < a.length; i++) { if (!Number.isFinite(a[i])) { badGeometry = true; break; } } }
+      if (badTransform || badGeometry) broken.push(`${o.name || o.type}${badGeometry ? " (geometry)" : " (position/rotation/scale)"}`);
+    });
+    if (broken.length) {
+      const sample = broken.slice(0, 5).join(", ");
+      clearRoot();
+      post({ type: "error", message: `${broken.length} object(s) have NaN coordinates: ${sample}. A number was expected where something else was passed (wrong argument order, undefined variable, division by zero).`, line: null });
       return;
     }
     let meshes = 0, triangles = 0;

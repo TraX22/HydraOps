@@ -394,7 +394,7 @@
     "whatsnew": "Apre la scheda Novità con le note delle ultime versioni"
   },
   "threeD": {
-    "tagline": "Descrivi un oggetto, il modello scrive Three.js e lo vedi ruotare. Esporta .glb per Unity.",
+    "tagline": "Descrivi un oggetto, il modello scrive Three.js e lo vedi ruotare. Esporta .glb per Unity, Unreal, Blender o la tua app 3D preferita.",
     "back": "Plugin",
     "model": "Modello",
     "prompt": "Prompt",
@@ -427,6 +427,18 @@
     "removeReference": "Rimuovi immagine",
     "wireframe": "Wireframe",
     "resetView": "Centra vista",
-    "noThree": "Impossibile caricare Three.js."
+    "noThree": "Impossibile caricare Three.js.",
+    "enhance": "Migliora prompt",
+    "enhancing": "Miglioro il prompt con {{model}}…",
+    "undoEnhance": "Annulla",
+    "enhanceHint": "Trasforma la tua idea in una descrizione con parti, misure e colori. Puoi modificarla prima di generare.",
+    "style": "Stile",
+    "styles": {
+      "auto": "Libero",
+      "lowpoly": "Low-poly",
+      "voxel": "Voxel",
+      "stylized": "Prop da gioco",
+      "realistic": "Realistico"
+    }
   }
 }

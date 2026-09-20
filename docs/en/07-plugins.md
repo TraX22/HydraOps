@@ -33,13 +33,14 @@ Each diagram **autosaves** as you work, under a name you can edit. The right-han
 
 > 3D is in **beta**.
 
-You describe an object and the model **writes the Three.js code** that builds it; a viewer renders it on the spot and you can orbit it, iterate on it and export it as `.glb` for Unity. Same idea as Claude's 3D tool: there is no mesh generator behind it, just a language model that knows geometry and a canvas that runs what it writes. Everything runs on your machine: Three.js ships inside the app, no internet needed.
+You describe an object and the model **writes the Three.js code** that builds it; a viewer renders it on the spot and you can orbit it, iterate on it and export it as `.glb` for Unity, Unreal, Blender or your favorite 3D app. Same idea as Claude's 3D tool: there is no mesh generator behind it, just a language model that knows geometry and a canvas that runs what it writes. Everything runs on your machine: Three.js ships inside the app, no internet needed.
 
 ### Describe and generate
 
 1. Pick the **model** in the top bar. Anything that writes code works, including your **local model** (1–2 minutes per scene; a cloud one takes 5–15 seconds).
 2. Type what you want to see ("a colonial house with a gable roof and a wooden pier") and press **Generate** (or Ctrl+Enter). The object appears centered; drag to orbit, scroll to zoom.
-3. Optional: a **reference image**. Upload a photo or one of Luna's sprites and the model looks at it to respect shapes, proportions and colors. Only vision-capable (cloud) models see it; the local one ignores it.
+3. Optional: **Style** and **Improve prompt**. The style selector (Free, Low-poly, Voxel, Game prop, Realistic) sets the look of the scene and is saved with it. **Improve prompt** turns a short idea ("a treasure chest") into a brief with size, main parts, details and palette; you see it in the box, tweak it if you like, and only then generate. **Undo** brings your original text back. It uses the same model you picked and helps mid-size and local models the most.
+4. Optional: a **reference image**. Upload a photo or one of Luna's sprites and the model looks at it to respect shapes, proportions and colors. Only vision-capable (cloud) models see it; the local one ignores it.
 
 The model does not write raw Three.js: it gets a helper kit (boxes, cylinders, lathe profiles, extruded outlines, mirror, ring/grid repetition, shared materials) and a working method (silhouette first, then medium parts, then details; a 3–5 color palette; no coplanar faces). That is what makes the first result already look like something.
 
@@ -49,9 +50,9 @@ What comes out well: geometric, parametric things — houses, towers, piers, pro
 
 With the scene on screen, type the change ("make the roof red and add a chimney") and **Apply change**: the model gets the previous code and modifies it. If the code it writes fails at runtime, the viewer hands the error back and asks for a fix **up to twice on its own**; the panel shows "asking for a fix (1/2)". If it still fails, you see the error with its line, and you can edit the code by hand in the **Code** tab and **Apply**.
 
-### Export to Unity
+### Export to Unity, Unreal, Blender…
 
-**Export .glb** downloads the object as binary glTF, ready to drop into your project's *Assets* folder. Flat-color materials; no textures in this version.
+**Export .glb** downloads the object as binary glTF, the standard format almost every 3D tool opens. In **Blender** use *File → Import → glTF 2.0*. In **Unreal Engine 5** drag it into the Content Browser (the glTF importer is built in). In **Unity** you need the official *glTFast* package (`com.unity.cloud.gltfast`, from the Package Manager); once installed, drop the `.glb` into your *Assets* folder like any other model. Every part keeps its name and its group. Flat-color materials; no textures in this version.
 
 ### Saved scenes
 
