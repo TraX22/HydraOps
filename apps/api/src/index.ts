@@ -1569,7 +1569,7 @@ Environment:
 
 Helpers (each returns the created object; color = hex number like 0x8b5a2b or a material from helpers.mat; x, y, z = position of the CENTER, default 0):
 - helpers.mat(color, { roughness, metalness, flat, opacity, emissive }) → cached material (same color → same material)
-- helpers.box(w, h, d, color, x, y, z, name) · helpers.roundedBox(w, h, d, radius, color, x, y, z, name)
+- helpers.box(w, h, d, color, x, y, z, name) · helpers.roundedBox(w, h, d, color, x, y, z, name, radius) — same order as box, radius optional and LAST
 - helpers.cylinder(rTop, rBottom, h, color, x, y, z, segments, name) · helpers.cone(r, h, color, x, y, z, segments, name)
 - helpers.sphere(r, color, x, y, z, name) · helpers.torus(r, tube, color, x, y, z, name)
 - helpers.lathe([[radius, y], ...], color, segments, name) → profile revolved around Y (bottles, vases, towers, wheels, domes)
