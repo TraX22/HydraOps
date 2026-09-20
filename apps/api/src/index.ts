@@ -1569,7 +1569,7 @@ Environment:
 
 Helpers (each returns the created object; color = hex number like 0x8b5a2b or a material from helpers.mat; x, y, z = position of the CENTER, default 0):
 - helpers.mat(color, { roughness, metalness, flat, opacity, emissive }) → cached material (same color → same material)
-- helpers.box(w, h, d, color, x, y, z, name) · helpers.roundedBox(w, h, d, radius, color, x, y, z, name)
+- helpers.box(w, h, d, color, x, y, z, name) · helpers.roundedBox(w, h, d, color, x, y, z, name, radius) — same order as box, radius optional and LAST
 - helpers.cylinder(rTop, rBottom, h, color, x, y, z, segments, name) · helpers.cone(r, h, color, x, y, z, segments, name)
 - helpers.sphere(r, color, x, y, z, name) · helpers.torus(r, tube, color, x, y, z, name)
 - helpers.lathe([[radius, y], ...], color, segments, name) → profile revolved around Y (bottles, vases, towers, wheels, domes)
@@ -1618,6 +1618,44 @@ boat.position.set(2.8, 0, 1.4);
 boat.rotation.y = 0.5;
 scene.add(boat);
 \`\`\``;
+
+// Style presets. `look` is plain language for the brief the user reads; `build` adds
+// the how-to for the model that writes the code. Both requests get the same preset so
+// the brief and the code agree.
+const THREED_STYLES: Record<string, { look: string; build: string }> = {
+  lowpoly: {
+    look: "Low-poly: faceted, chunky simplified shapes with few sides on round parts, no tiny details, 3–4 colors.",
+    build: "Use 6–10 segments on round shapes and flat shading: helpers.mat(color, { flat: true }).",
+  },
+  voxel: {
+    look: "Voxel: everything is built from small axis-aligned cubes on a regular grid, like a blocky video game; no curves, no tilted parts.",
+    build: "One cell = 0.1–0.25 m. Use loops or helpers.grid over small helpers.box cells; no cylinders, spheres, lathe or rotations.",
+  },
+  stylized: {
+    look: "Stylized game prop: exaggerated, slightly chunky proportions, rounded edges, a bold saturated palette, a silhouette readable from far away and a few oversized details.",
+    build: "Prefer helpers.roundedBox over sharp boxes and thicken thin parts.",
+  },
+  realistic: {
+    look: "Realistic: true real-world measurements, smooth round shapes, subdued colors, different surface finishes per material and more small details (hinges, bolts, trims, seams).",
+    build: "Use 32+ segments on round shapes and vary roughness/metalness per material.",
+  },
+};
+const threedStyle = (raw: unknown, forCode: boolean): string => {
+  const st = THREED_STYLES[String(raw ?? "")];
+  return st ? (forCode ? `${st.look} ${st.build}` : st.look) : "";
+};
+
+// "[ATTACHMENTS]" block for an uploaded reference image (only uploads are accepted).
+function threedReference(imagePath: string): string {
+  if (!imagePath || !/^storage\/uploads\/[\w.\-]+$/.test(imagePath)) return "";
+  const ext = (imagePath.split(".").pop() || "png").toLowerCase().replace("jpg", "jpeg");
+  const mime = /^(png|jpeg|webp|gif)$/.test(ext) ? `image/${ext}` : "image/png";
+  return `\n\n[ATTACHMENTS]\n- ${imagePath} (${mime})`;
+}
+
+const THREED_ENHANCE_SYSTEM = `You turn a short idea into a precise build brief for a 3D modeler who writes Three.js code from text. Reply with ONLY the brief: one paragraph of 70–130 words, no title, no lists, no markdown, no quotes, no preamble. Write it in the same language as the idea.
+
+The brief must state, in this order: what the object is and its overall size in meters; the 3–5 big shapes that define its silhouette, each with proportions or measurements; the medium parts (doors, wheels, legs, railings, windows…); 3–6 small details that make it convincing; a palette of 3–5 colors with material feel (matte wood, brushed metal, glass, glowing…). Everything must be buildable from simple solids, revolved profiles and extruded outlines with flat colors: no textures, no text, no organic sculpting, no animation. Keep what the user asked for; add precision, never new subjects. If a style is given, make every choice consistent with it. If an image is attached, describe what it shows faithfully.`;
 
 // Only bare globals count: `mesh.parent.remove(...)` is ordinary Three.js code, so a
 // preceding `.` (or identifier char) exempts the match. `parent`/`top` are not listed
@@ -1669,9 +1707,10 @@ api.post("/threed/generate", async (req, res) => {
     } else {
       user = `Build this: ${prompt}`;
     }
-    if (imagePath && /^storage\/uploads\/[\w.\-]+$/.test(imagePath)) {
-      user += `\n\nUse the attached image as a visual reference for shapes, proportions and colors.\n\n[ATTACHMENTS]\n- ${imagePath} (${imagePath.match(/\.(png|jpe?g|webp|gif)$/i) ? "image/" + imagePath.split(".").pop()!.toLowerCase().replace("jpg", "jpeg") : "image/png"})`;
-    }
+    const style = threedStyle(req.body?.style, true);
+    if (style) user += `\n\nStyle — ${style}`;
+    const reference = threedReference(imagePath);
+    if (reference) user += `\n\nUse the attached image as a visual reference for shapes, proportions and colors.${reference}`;
     const message = await buildUserMessage(user, appRoot);
 
     const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout generating the scene (10 min)")), 600_000));
@@ -1686,6 +1725,43 @@ api.post("/threed/generate", async (req, res) => {
   } catch (err: any) {
     console.error("[api] POST /threed/generate failed", err);
     res.status(500).json({ error: err?.message || "Failed to generate the scene" });
+  }
+});
+
+// "Improve prompt": a one-line idea becomes a build brief the user can read and edit
+// before generating. Same model resolution as /threed/generate.
+api.post("/threed/enhance", async (req, res) => {
+  try {
+    const prompt = String(req.body?.prompt ?? "").trim().slice(0, 2000);
+    const imagePath = typeof req.body?.imagePath === "string" ? req.body.imagePath.trim() : "";
+    if (!prompt) return res.status(400).json({ error: "prompt is required" });
+
+    const llmConfig = await threedModelConfig(req.body?.model);
+    if (!llmConfig) return res.status(400).json({ error: "No text model available. Pick one in Settings → Default model." });
+
+    let user = `Idea: ${prompt}`;
+    const style = threedStyle(req.body?.style, false);
+    if (style) user += `\n\nStyle — ${style}`;
+    user += threedReference(imagePath);
+    const message = await buildUserMessage(user, appRoot);
+
+    const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout improving the prompt (3 min)")), 180_000));
+    const result = (await Promise.race([generateText(llmConfig, [message], THREED_ENHANCE_SYSTEM), timeout])) as { text: string; success: boolean; error?: string };
+    if (!result.success) return res.status(502).json({ error: result.error || "The model could not improve the prompt." });
+
+    // Models sometimes wrap the brief in quotes, fences or a "Brief:" label.
+    const brief = String(result.text || "")
+      .replace(/```[a-z]*\n?|```/gi, "")
+      .replace(/^\s*(brief|prompt)\s*:\s*/i, "")
+      .trim()
+      .replace(/^["“'`]+|["”'`]+$/g, "")
+      .replace(/\s*\n\s*/g, " ")
+      .trim();
+    if (!brief) return res.status(502).json({ error: "The model returned an empty brief." });
+    res.json({ prompt: brief.slice(0, 2400), model: llmConfig.model });
+  } catch (err: any) {
+    console.error("[api] POST /threed/enhance failed", err);
+    res.status(500).json({ error: err?.message || "Failed to improve the prompt" });
   }
 });
 
@@ -1753,6 +1829,7 @@ api.put("/threed/scenes/:id", scenesLimiter, async (req, res) => {
       prompt: String(b.prompt ?? "").slice(0, 4000),
       code: code.slice(0, 200_000),
       model: String(b.model ?? ""),
+      style: String(b.style ?? "") in THREED_STYLES ? String(b.style) : "",
       history: Array.isArray(b.history) ? b.history.slice(-50) : [],
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,

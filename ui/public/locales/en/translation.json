@@ -388,7 +388,7 @@
     "open": "Jump to a view of the app"
   },
   "threeD": {
-    "tagline": "Describe an object, the model writes Three.js and you watch it spin. Export .glb for Unity.",
+    "tagline": "Describe an object, the model writes Three.js and you watch it spin. Export .glb for Unity, Unreal, Blender or your favorite 3D app.",
     "back": "Plugins",
     "model": "Model",
     "prompt": "Prompt",
@@ -421,6 +421,18 @@
     "removeReference": "Remove image",
     "wireframe": "Wireframe",
     "resetView": "Center view",
-    "noThree": "Three.js could not be loaded."
+    "noThree": "Three.js could not be loaded.",
+    "enhance": "Improve prompt",
+    "enhancing": "Improving the prompt with {{model}}…",
+    "undoEnhance": "Undo",
+    "enhanceHint": "Turns your idea into a brief with parts, sizes and colors. You can edit it before generating.",
+    "style": "Style",
+    "styles": {
+      "auto": "Free",
+      "lowpoly": "Low-poly",
+      "voxel": "Voxel",
+      "stylized": "Game prop",
+      "realistic": "Realistic"
+    }
   }
 }

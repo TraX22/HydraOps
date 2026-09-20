@@ -42,11 +42,13 @@
       } @else if (!hasCode() && status() !== 'generating') {
         <div class="td-overlay muted">{{ 'threeD.empty' | translate }}</div>
       }
-      @if (status() === 'generating' || status() === 'fixing' || status() === 'running') {
+      @if (busy()) {
         <div class="td-status" role="status" aria-live="polite">
           <span class="td-spin"><app-icon name="hourglass" /></span>
           <div class="td-status-text">
-            @if (status() === 'fixing') {
+            @if (status() === 'enhancing') {
+              {{ 'threeD.enhancing' | translate: { model: modelLabel(model()) } }}
+            } @else if (status() === 'fixing') {
               {{ 'threeD.fixing' | translate: { n: fixAttempt() } }}
             } @else if (status() === 'running') {
               {{ 'threeD.rendering' | translate }}
@@ -75,6 +77,24 @@
                   [placeholder]="(hasCode() ? 'threeD.iteratePlaceholder' : 'threeD.promptPlaceholder') | translate"
                   (keydown.control.enter)="generate()"></textarea>
         <div class="td-row">
+          <label class="td-style">
+            <span>{{ 'threeD.style' | translate }}</span>
+            <select class="td-select small" [ngModel]="style()" (ngModelChange)="onStyleChange($event)" [disabled]="busy()">
+              @for (st of styles; track st) {
+                <option [value]="st">{{ ('threeD.styles.' + (st || 'auto')) | translate }}</option>
+              }
+            </select>
+          </label>
+          @if (!hasCode()) {
+            @if (beforeEnhance()) {
+              <button class="td-btn ghost small" (click)="undoEnhance()" [disabled]="busy()">{{ 'threeD.undoEnhance' | translate }}</button>
+            }
+            <button class="td-btn small" (click)="enhance()" [disabled]="!prompt().trim() || busy()" [title]="'threeD.enhanceHint' | translate">
+              <app-icon name="sparkles" /> {{ 'threeD.enhance' | translate }}
+            </button>
+          }
+        </div>
+        <div class="td-row">
           @if (reference(); as ref) {
             <span class="td-ref" [title]="ref.name">
               <img [src]="referenceUrl()" [alt]="ref.name" />
@@ -99,7 +119,7 @@
           <div class="td-list-head">{{ 'threeD.history' | translate }}</div>
           <ol class="td-hist">
             @for (h of history(); track h.at) {
-              <li>{{ h.prompt }}@if (h.fixed) { <span class="td-fixed" [title]="'threeD.autoFixed' | translate">🛠 {{ h.fixed }}</span> }</li>
+              <li><span class="td-hist-text" [title]="h.prompt">{{ h.prompt }}</span>@if (h.fixed) { <span class="td-fixed" [title]="'threeD.autoFixed' | translate">🛠 {{ h.fixed }}</span> }</li>
             }
           </ol>
         }

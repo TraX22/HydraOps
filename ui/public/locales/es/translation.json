@@ -388,7 +388,7 @@
     "open": "Salta a una vista de la app"
   },
   "threeD": {
-    "tagline": "Describís un objeto, el modelo escribe Three.js y lo ves girar. Exportá a .glb para Unity.",
+    "tagline": "Describís un objeto, el modelo escribe Three.js y lo ves girar. Exportá a .glb para Unity, Unreal, Blender o tu app 3D favorita.",
     "back": "Complementos",
     "model": "Modelo",
     "prompt": "Prompt",
@@ -421,6 +421,18 @@
     "removeReference": "Quitar imagen",
     "wireframe": "Alambre",
     "resetView": "Centrar vista",
-    "noThree": "No se pudo cargar Three.js."
+    "noThree": "No se pudo cargar Three.js.",
+    "enhance": "Mejorar prompt",
+    "enhancing": "Mejorando el prompt con {{model}}…",
+    "undoEnhance": "Deshacer",
+    "enhanceHint": "Convierte tu idea en una descripción con partes, medidas y colores. La podés editar antes de generar.",
+    "style": "Estilo",
+    "styles": {
+      "auto": "Libre",
+      "lowpoly": "Low-poly",
+      "voxel": "Vóxel",
+      "stylized": "Prop de juego",
+      "realistic": "Realista"
+    }
   }
 }
