@@ -157,11 +157,18 @@ function detectRunningApps() {
   });
 }
 
+// Only processes of THIS backend count. A developer checkout running next to the
+// installed app (or a second install) is someone else's stack: adopting its API
+// left the app with nothing on its own port and a blank window.
 function parseAppNames(output) {
   const names = new Set();
-  const pattern = /apps[\\/]([a-z0-9-]+)[\\/](?:src|dist)[\\/]index\.(?:ts|js)/gi;
-  let match;
-  while ((match = pattern.exec(output)) !== null) names.add(match[1].toLowerCase());
+  const root = REPO_ROOT.replace(/\\/g, "/").toLowerCase();
+  const pattern = /apps[\\/]([a-z0-9-]+)[\\/](?:src|dist)[\\/]index\.(?:ts|js)/i;
+  for (const line of String(output).split(/\r?\n/)) {
+    if (!line.replace(/\\/g, "/").toLowerCase().includes(root)) continue;
+    const match = pattern.exec(line);
+    if (match) names.add(match[1].toLowerCase());
+  }
   return names;
 }
 
@@ -392,7 +399,9 @@ class ServiceSupervisor extends EventEmitter {
           onProgress(`${service.label}: ya estaba en marcha`);
           continue;
         }
-        if (service.kind === "node" && alreadyRunning.has(service.app)) {
+        // A service with a port is adopted by its port alone (checked above): a
+        // same-named process that is not listening there is not serving this app.
+        if (service.kind === "node" && !service.port && alreadyRunning.has(service.app)) {
           this.#update(service.id, {
             status: "external",
             detail: "ya activo (proceso existente)",

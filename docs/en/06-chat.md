@@ -32,6 +32,10 @@ Results from image and video agents appear inline in the chat. Click an image to
 
 The channel history is kept across sessions, with its attachments and results. Generated and uploaded files live in the data folder (`storage/`), so you can also reach them from your file explorer.
 
+## Links
+
+Links in a reply always open **outside HydraOps**: in your browser when you use the desktop app, or in a new tab when you use it from a browser. The app window never navigates to another site.
+
 ## What's new
 
 After every update a **What's new** tab shows up in the chat with what the new version brings: what was added, improved and fixed. If you skipped versions it lists all the ones you missed, newest first. The notes are in English and ship inside the app, so they show without internet too.
