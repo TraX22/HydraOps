@@ -33,7 +33,7 @@ Each diagram **autosaves** as you work, under a name you can edit. The right-han
 
 > 3D is in **beta**.
 
-You describe an object and the model **writes the Three.js code** that builds it; a viewer renders it on the spot and you can orbit it, iterate on it and export it as `.glb` for Unity. Same idea as Claude's 3D tool: there is no mesh generator behind it, just a language model that knows geometry and a canvas that runs what it writes. Everything runs on your machine: Three.js ships inside the app, no internet needed.
+You describe an object and the model **writes the Three.js code** that builds it; a viewer renders it on the spot and you can orbit it, iterate on it and export it as `.glb` for Unity, Unreal, Blender or your favorite 3D app. Same idea as Claude's 3D tool: there is no mesh generator behind it, just a language model that knows geometry and a canvas that runs what it writes. Everything runs on your machine: Three.js ships inside the app, no internet needed.
 
 ### Describe and generate
 
@@ -50,9 +50,9 @@ What comes out well: geometric, parametric things — houses, towers, piers, pro
 
 With the scene on screen, type the change ("make the roof red and add a chimney") and **Apply change**: the model gets the previous code and modifies it. If the code it writes fails at runtime, the viewer hands the error back and asks for a fix **up to twice on its own**; the panel shows "asking for a fix (1/2)". If it still fails, you see the error with its line, and you can edit the code by hand in the **Code** tab and **Apply**.
 
-### Export to Unity
+### Export to Unity, Unreal, Blender…
 
-**Export .glb** downloads the object as binary glTF, ready to drop into your project's *Assets* folder. Flat-color materials; no textures in this version.
+**Export .glb** downloads the object as binary glTF, the standard format almost every 3D tool opens. In **Blender** use *File → Import → glTF 2.0*. In **Unreal Engine 5** drag it into the Content Browser (the glTF importer is built in). In **Unity** you need the official *glTFast* package (`com.unity.cloud.gltfast`, from the Package Manager); once installed, drop the `.glb` into your *Assets* folder like any other model. Every part keeps its name and its group. Flat-color materials; no textures in this version.
 
 ### Saved scenes
 

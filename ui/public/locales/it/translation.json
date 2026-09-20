@@ -388,7 +388,7 @@
     "open": "Vai a una vista dell'app"
   },
   "threeD": {
-    "tagline": "Descrivi un oggetto, il modello scrive Three.js e lo vedi ruotare. Esporta .glb per Unity.",
+    "tagline": "Descrivi un oggetto, il modello scrive Three.js e lo vedi ruotare. Esporta .glb per Unity, Unreal, Blender o la tua app 3D preferita.",
     "back": "Plugin",
     "model": "Modello",
     "prompt": "Prompt",

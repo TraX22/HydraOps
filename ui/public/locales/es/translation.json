@@ -388,7 +388,7 @@
     "open": "Salta a una vista de la app"
   },
   "threeD": {
-    "tagline": "Describís un objeto, el modelo escribe Three.js y lo ves girar. Exportá a .glb para Unity.",
+    "tagline": "Describís un objeto, el modelo escribe Three.js y lo ves girar. Exportá a .glb para Unity, Unreal, Blender o tu app 3D favorita.",
     "back": "Complementos",
     "model": "Modelo",
     "prompt": "Prompt",

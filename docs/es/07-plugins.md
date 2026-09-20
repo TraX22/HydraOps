@@ -33,7 +33,7 @@ Cada diagrama se **guarda solo** mientras trabajas, con un nombre que puedes edi
 
 > 3D está en **beta**.
 
-Describís un objeto y el modelo **escribe el código Three.js** que lo construye; un visor lo renderiza al instante y podés girarlo, iterar sobre él y exportarlo a `.glb` para Unity. Es la misma idea que la herramienta 3D de Claude: no hay un generador de mallas detrás, hay un modelo de lenguaje que sabe geometría y un lienzo que ejecuta lo que escribe. Todo corre en tu máquina: Three.js viaja dentro de la aplicación, sin internet.
+Describís un objeto y el modelo **escribe el código Three.js** que lo construye; un visor lo renderiza al instante y podés girarlo, iterar sobre él y exportarlo a `.glb` para Unity, Unreal, Blender o tu aplicación 3D favorita. Es la misma idea que la herramienta 3D de Claude: no hay un generador de mallas detrás, hay un modelo de lenguaje que sabe geometría y un lienzo que ejecuta lo que escribe. Todo corre en tu máquina: Three.js viaja dentro de la aplicación, sin internet.
 
 ### Describir y generar
 
@@ -50,9 +50,9 @@ Lo que sale bien: cosas geométricas y paramétricas, casas, torres, muelles, pr
 
 Con la escena en pantalla, escribís el cambio ("hacé el techo rojo y agregale una chimenea") y **Aplicar cambio**: el modelo recibe el código anterior y lo modifica. Si el código que escribe falla al ejecutarse, el visor le devuelve el error y le pide la corrección **hasta dos veces solo**, sin que hagas nada; el panel muestra "pidiendo corrección (1/2)". Si aun así falla, ves el error con la línea, y podés retocar el código a mano en la pestaña **Código** y **Aplicar**.
 
-### Exportar a Unity
+### Exportar a Unity, Unreal, Blender…
 
-**Exportar .glb** descarga el objeto en glTF binario, listo para arrastrar a la carpeta *Assets* de tu proyecto. Materiales de color plano; sin texturas en esta versión.
+**Exportar .glb** descarga el objeto en glTF binario, el formato estándar que abre casi cualquier herramienta 3D. En **Blender** se importa con *Archivo → Importar → glTF 2.0*. En **Unreal Engine 5** se arrastra al Content Browser (el importador de glTF viene incluido). En **Unity** hace falta el paquete oficial *glTFast* (`com.unity.cloud.gltfast`, desde el Package Manager); con él instalado, el `.glb` se arrastra a la carpeta *Assets* como cualquier otro modelo. Cada parte conserva su nombre y su grupo. Materiales de color plano; sin texturas en esta versión.
 
 ### Escenas guardadas
 
