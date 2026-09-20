@@ -315,6 +315,13 @@ ${personality}
       catch (e: any) { console.warn(`[${consumerName}] tool usage tracking failed: ${e?.message ?? e}`); }
     }
 
+    // Cancelled while it ran: the row already says so — write nothing, publish nothing, overwrite nothing.
+    if (await isTaskCancelled(db, taskId)) {
+      console.log(`[${consumerName}] Task ${taskId} was cancelled — result discarded`);
+      cancels.release(taskId);
+      m.ack();
+      continue;
+    }
     const resultRef = await writeLocalResult(taskId, {
       taskId,
       agentId,
@@ -340,13 +347,6 @@ ${personality}
         preview: (text || error || "No response.").slice(0, 2000),
       },
     });
-    // Cancelled while it ran: the row already says so — publish nothing, overwrite nothing.
-    if (await isTaskCancelled(db, taskId)) {
-      console.log(`[${consumerName}] Task ${taskId} was cancelled — result discarded`);
-      cancels.release(taskId);
-      m.ack();
-      continue;
-    }
     await publishJson(js, subjectForType(generated.type), generated);
 
     await (db as any).update(tasks)

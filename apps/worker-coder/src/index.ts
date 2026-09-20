@@ -452,6 +452,13 @@ ${agentPersonalityContext}
       artifacts: [{ path: "output.txt", contentType: "text/plain" }],
     };
 
+    // Cancelled while it ran: the row already says so — write nothing, publish nothing, overwrite nothing.
+    if (await isTaskCancelled(db, taskId)) {
+      console.log(`[${consumerName}] Task ${taskId} was cancelled — result discarded`);
+      cancels.release(taskId);
+      m.ack();
+      continue;
+    }
     const resultRef = await writeLocalResult(taskId, rawResult);
     const durationMs = Date.now() - started;
     const tokensUsed = usage ? usage.totalTokens : 0;
@@ -478,13 +485,6 @@ ${agentPersonalityContext}
     });
 
     console.log(`[worker-coder] Generated result event ${eventId}`);
-    // Cancelled while it ran: the row already says so — publish nothing, overwrite nothing.
-    if (await isTaskCancelled(db, taskId)) {
-      console.log(`[${consumerName}] Task ${taskId} was cancelled — result discarded`);
-      cancels.release(taskId);
-      m.ack();
-      continue;
-    }
     await publishJson(js, subjectForType(generated.type), generated);
 
     await (db as any).update(tasks)

@@ -1714,6 +1714,14 @@ function threedExtractCode(text: string): string {
   return code;
 }
 
+// The 3D calls are plain HTTP requests, not tasks: when the client goes away (the
+// Cancel button aborts the request) the model call is aborted with it.
+function abortWhenClientLeaves(res: express.Response): AbortSignal {
+  const controller = new AbortController();
+  res.on("close", () => { if (!res.writableEnded) controller.abort(new Error("Client closed the request")); });
+  return controller.signal;
+}
+
 async function threedModelConfig(model: string | undefined) {
   const globalConfigs = await (db as any).select().from(systemConfigs);
   const localLlm = readLocalLlmEnv();
@@ -1754,7 +1762,9 @@ api.post("/threed/generate", async (req, res) => {
     const message = await buildUserMessage(user, appRoot);
 
     const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout generating the scene (10 min)")), 600_000));
-    const result = (await Promise.race([generateText(llmConfig, [message], THREED_SYSTEM), timeout])) as { text: string; success: boolean; error?: string };
+    const abortSignal = abortWhenClientLeaves(res);
+    const result = (await Promise.race([generateText(llmConfig, [message], THREED_SYSTEM, undefined, undefined, { abortSignal }), timeout])) as { text: string; success: boolean; error?: string };
+    if (abortSignal.aborted) return; // cancelled from the UI: nobody is listening
     if (!result.success) return res.status(502).json({ error: result.error || "The model could not write the scene." });
 
     const code = threedExtractCode(result.text || "");
@@ -1786,7 +1796,9 @@ api.post("/threed/enhance", async (req, res) => {
     const message = await buildUserMessage(user, appRoot);
 
     const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout improving the prompt (3 min)")), 180_000));
-    const result = (await Promise.race([generateText(llmConfig, [message], THREED_ENHANCE_SYSTEM), timeout])) as { text: string; success: boolean; error?: string };
+    const abortSignal = abortWhenClientLeaves(res);
+    const result = (await Promise.race([generateText(llmConfig, [message], THREED_ENHANCE_SYSTEM, undefined, undefined, { abortSignal }), timeout])) as { text: string; success: boolean; error?: string };
+    if (abortSignal.aborted) return; // cancelled from the UI: nobody is listening
     if (!result.success) return res.status(502).json({ error: result.error || "The model could not improve the prompt." });
 
     // Models sometimes wrap the brief in quotes, fences or a "Brief:" label.
@@ -2942,7 +2954,8 @@ api.get("/stats", async (_req, res) => {
     const activeAgents = configs.filter((c: any) => isFresh(c.lastHeartbeat)).length;
 
     const perAgent = configs.map((c: any) => {
-      const agentTasks = allTasks.filter((t: any) => t.assignedAgent === c.agentId);
+      // Cancelled tasks are the user's call, not the agent's record: keep them out of its rates.
+      const agentTasks = allTasks.filter((t: any) => t.assignedAgent === c.agentId && t.status !== "cancelled");
       const stats = perAgentMap.get(c.agentId);
       return {
         agentId: c.agentId,

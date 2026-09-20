@@ -98,7 +98,7 @@ export class StatsComponent {
         sub: `/ ${s.tasks.total}`,
         icon: 'check',
       },
-      { labelKey: 'stats.failedTasks', value: `${s.tasks.failed}`, icon: 'failed' },
+      { labelKey: 'stats.failedTasks', value: `${s.tasks.failed}`, sub: s.tasks.cancelled ? `· ${s.tasks.cancelled} ⏹` : undefined, icon: 'failed' },
       { labelKey: 'stats.responseTime', value: this.formatMs(s.avgResponseMs), icon: 'zap' },
       { labelKey: 'stats.totalTokens', value: this.formatCount(s.totalTokens), icon: 'ticket' },
       { labelKey: 'stats.messages', value: `${s.tasks.total}`, icon: 'mail' },

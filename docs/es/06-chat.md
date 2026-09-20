@@ -36,7 +36,7 @@ El historial del canal se conserva entre sesiones, con sus adjuntos y resultados
 
 Mientras un agente trabaja, al lado de los puntitos de "escribiendo" aparece el botón **Detener**. Al pulsarlo la tarea queda **Cancelada** en el acto: el worker corta la llamada al modelo (en la nube deja de generar y de facturar salida; tu modelo local libera la GPU), no se guarda ninguna respuesta y el agente vuelve a estar disponible. También sirve para tareas que todavía están en cola detrás de otra: se saltean cuando les llega el turno. El comando `/cancel` (o `/cancelar`, `/stop`) detiene todo lo que esté corriendo en el chat donde lo escribas, y funciona igual desde Telegram.
 
-Lo que una herramienta ya hizo antes de detenerla no se deshace: un mensaje enviado a Telegram, una nota guardada en memoria o una tarea delegada a otro agente siguen su curso. En los agentes de imagen y video la tarea se marca cancelada y su resultado se descarta, pero el render que ya se pidió al proveedor puede terminar (y cobrarse) igual.
+Lo que una herramienta ya hizo antes de detenerla no se deshace: un mensaje enviado a Telegram, una nota guardada en memoria o una tarea delegada a otro agente siguen su curso. En los agentes de imagen y video el worker deja de esperar el render y descarta el resultado, pero lo que ya se le pidió al proveedor puede terminar (y cobrarse) igual: esos servicios no ofrecen cancelación.
 
 ## Novedades
 

@@ -873,12 +873,24 @@ function aspectFromSize(width: number, height: number): string {
   return known[0][0];
 }
 
-export async function generateImage(config: LLMConfig, prompt: string, width: number = 1024, height: number = 1024) {
+// Waits that can be cut short: polling a render for minutes must stop when the task is cancelled.
+function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new Error('Cancelled.'));
+    const timer = setTimeout(() => { signal?.removeEventListener('abort', onAbort); resolve(); }, ms);
+    const onAbort = () => { clearTimeout(timer); reject(new Error('Cancelled.')); };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+export async function generateImage(config: LLMConfig, prompt: string, width: number = 1024, height: number = 1024, opts: { abortSignal?: AbortSignal } = {}) {
+  const abortSignal = opts.abortSignal;
   try {
     console.log(`[LLM Image] Attempting with model: ${config.model} (${config.provider})`);
 
     if (config.provider === 'google') {
        const response = await fetch(proxied(`https://generativelanguage.googleapis.com/v1beta/models/${config.model}:predict?key=${config.apiKey}`), {
+         signal: abortSignal,
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify({
@@ -901,6 +913,7 @@ export async function generateImage(config: LLMConfig, prompt: string, width: nu
        // Note: Leonardo is asynchronous. This implementation starts the generation.
        // The worker should handle polling if needed, or we can do a basic poll here.
        const response = await fetch(proxied(`${config.baseURL}/generations`), {
+         signal: abortSignal,
          method: 'POST',
          headers: { 
            'Content-Type': 'application/json',
@@ -933,8 +946,9 @@ export async function generateImage(config: LLMConfig, prompt: string, width: nu
        // Basic Polling (max 30s)
        console.log(`[Leonardo] Generation started: ${generationId}. Polling...`);
        for (let i = 0; i < 15; i++) {
-          await new Promise(r => setTimeout(r, 2000));
+          await abortableSleep(2000, abortSignal);
           const statusRes = await fetch(proxied(`${config.baseURL}/generations/${generationId}`), {
+            signal: abortSignal,
             headers: { 'Authorization': `Bearer ${config.apiKey}` }
           });
           if (statusRes.ok) {
@@ -942,7 +956,7 @@ export async function generateImage(config: LLMConfig, prompt: string, width: nu
              const image = statusData.generations_by_pk?.generated_images?.[0];
              if (image?.url) {
                 // Fetch the image and convert to base64
-                const imgRes = await fetch(image.url);
+                const imgRes = await fetch(image.url, { signal: abortSignal });
                 const buffer = await imgRes.arrayBuffer();
                 return { success: true, base64: Buffer.from(buffer).toString('base64'), url: image.url, imageId: image.id };
              }
@@ -954,6 +968,7 @@ export async function generateImage(config: LLMConfig, prompt: string, width: nu
     // Fallback: OpenAI Compatible (incluye xAI Grok y DALL-E)
     let url = proxied((config.baseURL || 'https://api.openai.com/v1') + '/images/generations');
     const response = await fetch(url, {
+      signal: abortSignal,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1005,7 +1020,8 @@ export function isGrokVideoEngine(config: LLMConfig): boolean {
 /**
  * Master function to generate videos through multiple providers
  */
-export async function generateVideo(config: LLMConfig, prompt: string, width: number = 832, height: number = 480, aspect?: string | null) {
+export async function generateVideo(config: LLMConfig, prompt: string, width: number = 832, height: number = 480, aspect?: string | null, opts: { abortSignal?: AbortSignal } = {}) {
+  const abortSignal = opts.abortSignal;
   try {
      console.log(`[LLM Video] Attempting with model: ${config.model} (${config.provider})`);
      if (isGrokVideoEngine(config)) {
@@ -1016,6 +1032,7 @@ export async function generateVideo(config: LLMConfig, prompt: string, width: nu
         const aspectRatio = aspect && GROK_VIDEO_ASPECTS.includes(aspect) ? aspect : (height > width ? '9:16' : width === height ? '1:1' : '16:9');
         console.log(`[Grok Video] Starting ${config.model} (${aspectRatio}, 480p, 5s)...`);
         const startRes = await fetch(proxied(`${apiBase}/videos/generations`), {
+          signal: abortSignal,
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.apiKey}` },
           body: JSON.stringify({ model: config.model, prompt, duration: 5, aspect_ratio: aspectRatio, resolution: '480p' })
@@ -1027,8 +1044,9 @@ export async function generateVideo(config: LLMConfig, prompt: string, width: nu
 
         console.log(`[Grok Video] Polling request ${requestId}...`);
         for (let i = 0; i < VIDEO_POLL_ATTEMPTS; i++) {
-           await new Promise(r => setTimeout(r, VIDEO_POLL_INTERVAL_MS));
+           await abortableSleep(VIDEO_POLL_INTERVAL_MS, abortSignal);
            const statusRes = await fetch(proxied(`${apiBase}/videos/${requestId}`), {
+             signal: abortSignal,
              headers: { 'Authorization': `Bearer ${config.apiKey}` }
            });
            if (!statusRes.ok) continue;
@@ -1054,6 +1072,7 @@ export async function generateVideo(config: LLMConfig, prompt: string, width: nu
         const aspectRatio = aspect === '9:16' || aspect === '16:9' ? aspect : (height > width ? '9:16' : '16:9');
         console.log(`[Google Video] Starting ${config.model} (${aspectRatio})...`);
         const startRes = await fetch(proxied(`${apiBase}/models/${config.model}:predictLongRunning`), {
+          signal: abortSignal,
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.apiKey },
           body: JSON.stringify({
@@ -1068,8 +1087,9 @@ export async function generateVideo(config: LLMConfig, prompt: string, width: nu
 
         console.log(`[Google Video] Polling operation ${opName}...`);
         for (let i = 0; i < VIDEO_POLL_ATTEMPTS; i++) {
-           await new Promise(r => setTimeout(r, VIDEO_POLL_INTERVAL_MS));
+           await abortableSleep(VIDEO_POLL_INTERVAL_MS, abortSignal);
            const statusRes = await fetch(proxied(`${apiBase}/${opName}`), {
+             signal: abortSignal,
              headers: { 'x-goog-api-key': config.apiKey }
            });
            if (!statusRes.ok) continue;
@@ -1097,6 +1117,7 @@ export async function generateVideo(config: LLMConfig, prompt: string, width: nu
         // removed from Leonardo's API (returns 404 "Endpoint not found").
         console.log(`[Leonardo Video] Starting Motion 2.0 text-to-video...`);
         const motionRes = await fetch(proxied(`${config.baseURL}/generations-text-to-video`), {
+          signal: abortSignal,
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1129,8 +1150,9 @@ export async function generateVideo(config: LLMConfig, prompt: string, width: nu
 
         console.log(`[Leonardo Video] Polling motion generation ${motionGenId}...`);
         for (let i = 0; i < VIDEO_POLL_ATTEMPTS; i++) {
-           await new Promise(r => setTimeout(r, VIDEO_POLL_INTERVAL_MS));
+           await abortableSleep(VIDEO_POLL_INTERVAL_MS, abortSignal);
            const statusRes = await fetch(proxied(`${config.baseURL}/generations/${motionGenId}`), {
+             signal: abortSignal,
              headers: { 'Authorization': `Bearer ${config.apiKey}` }
            });
            if (statusRes.ok) {

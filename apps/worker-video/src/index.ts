@@ -164,6 +164,7 @@ async function renderToStorage(
   agentCfg: any,
   getGlobalConfig: (key: string, defaultValue: string) => string,
   prompt: string,
+  abortSignal?: AbortSignal,
 ): Promise<{ videoUrl?: string; relPath: string | null; sourceUrl: string | null; engine: string; error?: string }> {
   const videoConfig = resolveVideoEngine(agentCfg, getGlobalConfig);
   const [vidWidth, vidHeight] = videoSize(agentCfg.resolution);
@@ -175,7 +176,7 @@ async function renderToStorage(
     console.warn(`[${consumerName}] aspect ${aspect} is not available on ${videoConfig.provider}; rendering ${vidWidth}x${vidHeight} instead`);
   }
   console.log(`[${consumerName}] 🎬 Video task ${taskId} with ${videoConfig.provider}:${videoConfig.model} (${aspect ?? "auto"}, ${vidWidth}x${vidHeight})...`);
-  const video = await generateVideo(videoConfig, prompt, vidWidth, vidHeight, aspect);
+  const video = await generateVideo(videoConfig, prompt, vidWidth, vidHeight, aspect, { abortSignal });
   if (!video.success || !video.url) {
     return { relPath: null, sourceUrl: null, engine: videoConfig.model, error: video.error || "unknown error" };
   }
@@ -384,8 +385,10 @@ ${personality}
     // remembers what it produced so the result can carry the video; tracked in
     // tool_usage like any other tool.
     const rendered: { video: { videoUrl: string; relPath: string | null; sourceUrl: string | null; engine: string } | null; error: string | null } = { video: null, error: null };
+    // Stop button / /cancel: aborts the model call and any render polling of this task.
+    const controller = cancels.track(taskId!);
     const render = async (prompt: string): Promise<string> => {
-      const r = await renderToStorage(taskId!, agentCfg, getGlobalConfig, prompt);
+      const r = await renderToStorage(taskId!, agentCfg, getGlobalConfig, prompt, controller.signal);
       if (r.videoUrl) {
         rendered.video = { videoUrl: r.videoUrl, relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
         usageSink("generate_video", "native", "ok");
@@ -430,12 +433,13 @@ ${personality}
       [...history, await buildUserMessage(userPrompt, rootDir)],
       systemPrompt,
       toolsForModel,
-      rawToolsForModel
+      rawToolsForModel,
+      { abortSignal: controller.signal }
     );
 
     // Explicit request but the model never rendered (weak/local models): fall
     // back to the engine with the raw prompt, as the old video path did.
-    if (explicitVideo && !rendered.video && !rendered.error) {
+    if (explicitVideo && !rendered.video && !rendered.error && !controller.signal.aborted) {
       const r = await renderToStorage(taskId!, agentCfg, getGlobalConfig, userPrompt);
       if (r.videoUrl) rendered.video = { videoUrl: r.videoUrl, relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
       else rendered.error = r.error ?? "unknown error";
@@ -473,6 +477,13 @@ ${personality}
       catch (e: any) { console.warn(`[${consumerName}] tool usage tracking failed: ${e?.message ?? e}`); }
     }
 
+    // Cancelled while it ran: the row already says so — write nothing, publish nothing, overwrite nothing.
+    if (await isTaskCancelled(db, taskId)) {
+      console.log(`[${consumerName}] Task ${taskId} was cancelled — result discarded`);
+      cancels.release(taskId);
+      m.ack();
+      continue;
+    }
     const dir = path.join(storageDir, "results", taskId);
     await mkdir(dir, { recursive: true });
     await writeFile(
@@ -498,13 +509,6 @@ ${personality}
         preview: previewText.slice(0, 2000),
       },
     });
-    // Cancelled while it ran: the row already says so — publish nothing, overwrite nothing.
-    if (await isTaskCancelled(db, taskId)) {
-      console.log(`[${consumerName}] Task ${taskId} was cancelled — result discarded`);
-      cancels.release(taskId);
-      m.ack();
-      continue;
-    }
     await publishJson(js, subjectForType(generated.type), generated);
 
     await (db as any).update(tasks)

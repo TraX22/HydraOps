@@ -253,7 +253,7 @@ export interface ModelOption {
 }
 
 export interface StatsData {
-  tasks: { total: number; completed: number; failed: number; pending: number };
+  tasks: { total: number; completed: number; failed: number; pending: number; cancelled?: number };
   avgResponseMs: number;
   totalTokens: number;
   activeAgents: number;
