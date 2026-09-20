@@ -65,7 +65,12 @@
     "uploading": "Caricamento…",
     "editProfile": "Doppio clic: modifica il profilo di questo agente",
     "scrollToBottom": "Vai all'ultimo messaggio",
-    "attachTooBig": "massimo 20 MB"
+    "attachTooBig": "massimo 20 MB",
+    "whatsNew": "Novità",
+    "whatsNewTitle": "Novità di HydraOps {{version}}",
+    "whatsNewAll": "Vedi tutte le versioni su GitHub",
+    "whatsNewDone": "Ho capito",
+    "whatsNewClose": "Chiudi (torna al prossimo aggiornamento)"
   },
   "agents": {
     "title": "Agenti",
@@ -385,7 +390,8 @@
     "theme": "Cambia il tema dell'interfaccia",
     "3d": "Apre il plugin 3D",
     "plugins": "Apre il pannello dei plugin (One Shot, 3D)",
-    "open": "Vai a una vista dell'app"
+    "open": "Vai a una vista dell'app",
+    "whatsnew": "Apre la scheda Novità con le note delle ultime versioni"
   },
   "threeD": {
     "tagline": "Descrivi un oggetto, il modello scrive Three.js e lo vedi ruotare. Esporta .glb per Unity, Unreal, Blender o la tua app 3D preferita.",

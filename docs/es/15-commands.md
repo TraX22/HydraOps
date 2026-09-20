@@ -4,7 +4,7 @@ Los comandos son verbos sobre HydraOps que se escriben en la caja del chat empez
 
 Al escribir `/` aparece la paleta con los comandos y los agentes que coinciden con lo que vas tecleando. Flechas para moverte, Tab o Enter para completar, Enter para ejecutar. El resultado se muestra en el chat como una nota de sistema: no se guarda ni se le envía a ningún agente.
 
-Los mismos comandos funcionan en el bot de Telegram. Los que solo tienen sentido con la interfaz (`/close`, `/profile`, `/open`, `/plugins`, `/oneshot`, `/3d`, `/lang`, `/theme`) responden ahí con un aviso.
+Los mismos comandos funcionan en el bot de Telegram. Los que solo tienen sentido con la interfaz (`/close`, `/profile`, `/open`, `/plugins`, `/oneshot`, `/3d`, `/whatsnew`, `/lang`, `/theme`) responden ahí con un aviso.
 
 Nombres y alias se escriben sin distinguir mayúsculas. Cada comando tiene su nombre en inglés y, entre paréntesis, sus alias; `/help <comando>` los lista.
 
@@ -42,6 +42,7 @@ Estos tres necesitan un chat de agente abierto: en el chat principal no hay "age
 | `/oneshot` | Abre el lienzo One Shot. |
 | `/3d` (`/threed`, `/objeto3d`) | Abre el complemento 3D. |
 | `/open <vista>` (`/abrir`, `/ir`, `/go`) | Salta a una vista: `chat`, `agents`, `system`, `config`, `tasks`, `addons`, `tools`, `stats`, `docs`, `me`. También entiende `agentes`, `sistema`, `ajustes`, `tareas`, `herramientas`, `estadisticas`, `documentacion`, `yo`. |
+| `/whatsnew` (`/novedades`, `/changelog`, `/news`) | Abre la pestaña Novedades con las notas de las últimas versiones. |
 | `/whoami` (`/quien`) | Quién sos y cuál es el agente activo. |
 
 

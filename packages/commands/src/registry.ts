@@ -250,6 +250,13 @@ export const COMMANDS: Command[] = [
     },
   },
   {
+    name: "whatsnew",
+    aliases: ["novedades", "changelog", "news"],
+    description: "Open the What's new tab with the latest release notes",
+    uiOnly: true,
+    handler: async () => ok("Opening What's new.", { type: "open_whatsnew" }),
+  },
+  {
     name: "whoami",
     aliases: ["quien"],
     description: "Show who you are and the active agent",

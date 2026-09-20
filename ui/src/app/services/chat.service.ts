@@ -2,6 +2,10 @@ import { Injectable, signal, inject } from '@angular/core';
 import { ApiService, ChatAttachment, ChatMessage, Task } from './api.service';
 import { Subscription, interval, switchMap, catchError, EMPTY } from 'rxjs';
 
+// The "What's new" tab is not a chat: no history, no polling, no agent. It lives
+// outside `tabs` (which is persisted) and is driven by WhatsNewService.
+export const WHATS_NEW_TAB = '__whatsnew';
+
 export interface ChatTab {
   id: string;
   label: string;
@@ -19,6 +23,9 @@ export class ChatService {
   readonly activeTab = signal<string>('main');
   readonly tabs = signal<ChatTab[]>(this.loadTabs());
   readonly sending = signal(false);
+  readonly whatsNewOpen = signal(false);
+  /** Set by WhatsNewService: called when the user closes the tab. */
+  onWhatsNewClosed: (() => void) | null = null;
 
   private pollSub?: Subscription;
   private taskPollSubs = new Map<string, Subscription>();
@@ -58,6 +65,11 @@ export class ChatService {
   }
 
   switchTab(tabId: string): void {
+    if (tabId === WHATS_NEW_TAB) {
+      this.activeTab.set(tabId);
+      this.stopPolling();
+      return;
+    }
     this.activeTab.set(tabId);
     this.fetchHistory(tabId);
     this.startPolling(tabId);
@@ -84,6 +96,12 @@ export class ChatService {
   }
 
   closeTab(tabId: string): void {
+    if (tabId === WHATS_NEW_TAB) {
+      this.whatsNewOpen.set(false);
+      this.onWhatsNewClosed?.();
+      if (this.activeTab() === tabId) this.switchTab('main');
+      return;
+    }
     const updated = this.tabs().filter(t => t.id !== tabId);
     this.tabs.set(updated);
     this.saveTabs(updated);

@@ -80,6 +80,7 @@ export type CommandAction =
   | { type: 'close_tab' }
   | { type: 'open_oneshot' }
   | { type: 'open_threed' }
+  | { type: 'open_whatsnew' }
   | { type: 'open_plugins' }
   | { type: 'navigate'; path: string; query?: Record<string, string> }
   | { type: 'open_cron_form'; prefill: { name: string; prompt: string; cronExpression: string; assignedAgent: string } }
@@ -91,6 +92,12 @@ export interface CommandResult {
   text: string;
   kind?: 'info' | 'ok' | 'error';
   action?: CommandAction;
+}
+
+// ── What's new ──
+export interface ReleaseNotes {
+  version: string;
+  notes: string; // markdown, English
 }
 
 // ── 3D plugin ──
@@ -549,6 +556,14 @@ export class ApiService {
     const form = new FormData();
     form.append('file', file);
     return this.http.post<ChatAttachment>(`${this.base}/upload`, form);
+  }
+
+  // ── What's new ──
+  getWhatsNew(opts: { since?: string; all?: boolean }): Observable<{ current: string | null; releases: ReleaseNotes[] }> {
+    let params = new HttpParams();
+    if (opts.since) params = params.set('since', opts.since);
+    if (opts.all) params = params.set('all', '1');
+    return this.http.get<{ current: string | null; releases: ReleaseNotes[] }>(`${this.base}/whats-new`, { params });
   }
 
   // ── 3D plugin ──

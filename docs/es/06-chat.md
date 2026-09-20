@@ -31,3 +31,9 @@ Los resultados de los agentes de imagen y vídeo aparecen en línea en el chat. 
 ## Historial
 
 El historial del canal se conserva entre sesiones, con sus adjuntos y resultados. Los archivos generados y subidos viven en la carpeta de datos (`storage/`), así que también puedes llegar a ellos desde el explorador de archivos.
+
+## Novedades
+
+Después de cada actualización aparece en el chat la pestaña **Novedades** con lo que trae la versión nueva: qué se agregó, qué se mejoró y qué se corrigió. Si te salteaste versiones, muestra todas las que te perdiste, de la más nueva a la más vieja. Las notas están en inglés y viajan dentro de la aplicación, así que se ven también sin internet.
+
+La pestaña se cierra con la **×** o con **Entendido**, y no vuelve hasta la próxima actualización. Para releerla cuando quieras, escribí `/whatsnew` (o `/novedades`) en la caja del chat.

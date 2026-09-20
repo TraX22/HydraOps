@@ -65,7 +65,12 @@
     "uploading": "Uploading…",
     "editProfile": "Double-click: edit this agent's profile",
     "scrollToBottom": "Scroll to latest",
-    "attachTooBig": "max 20 MB"
+    "attachTooBig": "max 20 MB",
+    "whatsNew": "What's new",
+    "whatsNewTitle": "What's new in HydraOps {{version}}",
+    "whatsNewAll": "See all releases on GitHub",
+    "whatsNewDone": "Got it",
+    "whatsNewClose": "Close (comes back with the next update)"
   },
   "agents": {
     "title": "Agents",
@@ -385,7 +390,8 @@
     "theme": "Switch the interface theme",
     "3d": "Open the 3D plugin",
     "plugins": "Open the plugins hub (One Shot, 3D)",
-    "open": "Jump to a view of the app"
+    "open": "Jump to a view of the app",
+    "whatsnew": "Open the What's new tab with the latest release notes"
   },
   "threeD": {
     "tagline": "Describe an object, the model writes Three.js and you watch it spin. Export .glb for Unity, Unreal, Blender or your favorite 3D app.",

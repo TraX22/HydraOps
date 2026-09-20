@@ -31,3 +31,9 @@ Results from image and video agents appear inline in the chat. Click an image to
 ## History
 
 The channel history is kept across sessions, with its attachments and results. Generated and uploaded files live in the data folder (`storage/`), so you can also reach them from your file explorer.
+
+## What's new
+
+After every update a **What's new** tab shows up in the chat with what the new version brings: what was added, improved and fixed. If you skipped versions it lists all the ones you missed, newest first. The notes are in English and ship inside the app, so they show without internet too.
+
+Close the tab with the **×** or **Got it** and it stays away until the next update. To read it again at any time, type `/whatsnew` in the chat box.
