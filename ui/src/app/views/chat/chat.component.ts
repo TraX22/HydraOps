@@ -2,7 +2,8 @@ import { Component, inject, OnInit, OnDestroy, signal, computed, viewChild, Elem
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { ChatService, ChatTab } from '../../services/chat.service';
+import { ChatService, ChatTab, WHATS_NEW_TAB } from '../../services/chat.service';
+import { WhatsNewService } from '../../services/whats-new.service';
 import { AgentsService } from '../../services/agents.service';
 import { ApiService, ChatAttachment, ChatMessage } from '../../services/api.service';
 import { DatePipe } from '@angular/common';
@@ -24,6 +25,9 @@ export class ChatComponent implements OnInit, OnDestroy {
   agents = inject(AgentsService);
   private api = inject(ApiService);
   commands = inject(CommandService);
+  whatsNew = inject(WhatsNewService);
+  readonly whatsNewTab = WHATS_NEW_TAB;
+  readonly isWhatsNew = computed(() => this.chat.activeTab() === WHATS_NEW_TAB);
   private router = inject(Router);
   private translate = inject(TranslateService);
 
@@ -75,8 +79,11 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.chat.fetchHistory(this.chat.activeTab());
-    this.chat.startPolling(this.chat.activeTab());
+    if (this.chat.activeTab() !== WHATS_NEW_TAB) {
+      this.chat.fetchHistory(this.chat.activeTab());
+      this.chat.startPolling(this.chat.activeTab());
+    }
+    this.whatsNew.check();
     this.commands.load();
     // Engine ids (Leonardo uses bare UUIDs) become readable names once the
     // shared model list arrives; until then the footer shows the id.

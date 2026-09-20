@@ -4,7 +4,7 @@ Commands are verbs over HydraOps typed in the chat box, starting with `/`. No mo
 
 Typing `/` opens the palette with the commands and agents matching what you type. Arrow keys to move, Tab or Enter to complete, Enter to run. The result shows up in the chat as a system note: it is not stored and never sent to an agent.
 
-The same commands work in the Telegram bot. Those that only make sense with the interface (`/close`, `/profile`, `/open`, `/plugins`, `/oneshot`, `/3d`, `/lang`, `/theme`) answer there with a notice.
+The same commands work in the Telegram bot. Those that only make sense with the interface (`/close`, `/profile`, `/open`, `/plugins`, `/oneshot`, `/3d`, `/whatsnew`, `/lang`, `/theme`) answer there with a notice.
 
 Names and aliases are case-insensitive. English aliases are listed in parentheses; most commands also have a Spanish alias (`/agentes`, `/usar`, `/tareas`, `/estado`, `/recordar`…) and `/help <command>` lists them all.
 
@@ -42,6 +42,7 @@ These three need an agent chat open: the main chat has no "active agent". The sa
 | `/oneshot` | Open the One Shot canvas. |
 | `/3d` (`/threed`, `/objeto3d`) | Open the 3D plugin. |
 | `/open <view>` (`/go`) | Jump to a view: `chat`, `agents`, `system`, `config`, `tasks`, `addons`, `tools`, `stats`, `docs`, `me`. |
+| `/whatsnew` (`/changelog`, `/news`) | Open the What's new tab with the latest release notes. |
 | `/whoami` | Who you are and which agent is active. |
 
 

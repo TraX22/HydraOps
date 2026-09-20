@@ -7,6 +7,14 @@
         <span class="tab-dot main-dot"></span>
         {{ 'chat.mainChannel' | translate }}
       </button>
+      <!-- Right after the main tab: with many agent tabs the bar scrolls and the end is out of sight. -->
+      @if (chat.whatsNewOpen()) {
+        <button class="tab whatsnew-tab" [class.active]="isWhatsNew()" (click)="switchTab(whatsNewTab)">
+          <app-icon name="sparkles" />
+          {{ 'chat.whatsNew' | translate }}
+          <span class="tab-close" (click)="closeTab(whatsNewTab, $event)" [title]="'chat.whatsNewClose' | translate">×</span>
+        </button>
+      }
       @for (tab of chat.tabs(); track trackTab($index, tab)) {
         <button class="tab" [class.active]="chat.activeTab() === tab.id" (click)="switchTab(tab.id)">
           <span class="tab-dot"></span>
@@ -16,6 +24,25 @@
       }
     </div>
   </div>
+
+  @if (isWhatsNew()) {
+    <!-- What's new: release notes shipped with the app (English). -->
+    <div class="messages-area whatsnew">
+      <div class="whatsnew-inner">
+        <h3 class="whatsnew-title">{{ 'chat.whatsNewTitle' | translate: { version: whatsNew.current() } }}</h3>
+        @for (r of whatsNew.releases(); track r.version) {
+          <section class="whatsnew-release">
+            <div class="whatsnew-version">v{{ r.version }}</div>
+            <div class="msg-row bot"><div class="msg-bubble" [innerHTML]="r.notes | markdown"></div></div>
+          </section>
+        }
+        <div class="whatsnew-foot">
+          <a href="https://github.com/TraX22/HydraOps/releases" target="_blank" rel="noopener">{{ 'chat.whatsNewAll' | translate }}</a>
+          <button class="whatsnew-done" (click)="closeTab(whatsNewTab, $event)">{{ 'chat.whatsNewDone' | translate }}</button>
+        </div>
+      </div>
+    </div>
+  } @else {
 
   <!-- Messages -->
   <div class="messages-area" #messagesArea (scroll)="onMessagesScroll()" (click)="onMessagesClick($event)">
@@ -190,6 +217,8 @@
       </button>
     </div>
   </div>
+
+  }
 
   <!-- Lightbox (double-click on an image) -->
   @if (lightboxUrl(); as url) {

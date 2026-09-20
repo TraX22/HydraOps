@@ -65,7 +65,12 @@
     "uploading": "Envoi…",
     "editProfile": "Double-clic : modifier le profil de cet agent",
     "scrollToBottom": "Aller au dernier message",
-    "attachTooBig": "20 Mo maximum"
+    "attachTooBig": "20 Mo maximum",
+    "whatsNew": "Nouveautés",
+    "whatsNewTitle": "Nouveautés de HydraOps {{version}}",
+    "whatsNewAll": "Voir toutes les versions sur GitHub",
+    "whatsNewDone": "Compris",
+    "whatsNewClose": "Fermer (revient à la prochaine mise à jour)"
   },
   "agents": {
     "title": "Agents",
@@ -385,7 +390,8 @@
     "theme": "Change le thème de l'interface",
     "3d": "Ouvre l'extension 3D",
     "plugins": "Ouvre le panneau des extensions (One Shot, 3D)",
-    "open": "Aller à une vue de l'app"
+    "open": "Aller à une vue de l'app",
+    "whatsnew": "Ouvre l'onglet Nouveautés avec les notes des dernières versions"
   },
   "threeD": {
     "tagline": "Décrivez un objet, le modèle écrit du Three.js et vous le voyez tourner. Export .glb pour Unity.",

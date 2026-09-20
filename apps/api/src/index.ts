@@ -252,6 +252,43 @@ api.get("/version", async (_req, res) => {
   res.json({ current: APP_VERSION, latest, updateAvailable, url: versionCache.url });
 });
 
+// ── What's new ──────────────────────────────────────────────────────────────
+// Release notes ship with the app as docs/releases/<version>.md (English, the
+// same "Highlights" published on GitHub), so they work offline. The UI asks for
+// the releases newer than the last one the user dismissed.
+const RELEASE_FILE_RE = /^(\d+\.\d+\.\d+)\.md$/;
+
+api.get("/whats-new", async (req, res) => {
+  try {
+    const current = APP_VERSION ? APP_VERSION.replace(/^v/, "") : null;
+    const since = typeof req.query.since === "string" && /^\d+\.\d+\.\d+$/.test(req.query.since) ? req.query.since : null;
+    const all = req.query.all === "1" || req.query.all === "true";
+    if (!current) return res.json({ current: null, releases: [] });
+
+    const dir = path.join(docsDir, "releases");
+    const files = await readdir(dir).catch(() => [] as string[]);
+    const versions = files
+      .map((f) => RELEASE_FILE_RE.exec(f)?.[1])
+      .filter((v): v is string => !!v && cmpSemver(v, current) <= 0)   // never notes of a release newer than the app
+      .sort((a, b) => cmpSemver(b, a));
+
+    let wanted: string[];
+    if (all) wanted = versions.slice(0, 5);
+    else if (since) wanted = versions.filter((v) => cmpSemver(v, since) > 0).slice(0, 5);
+    else wanted = versions.filter((v) => v === current);
+
+    const releases = [];
+    for (const version of wanted) {
+      const notes = (await readFile(path.join(dir, `${version}.md`), "utf-8")).trim();
+      if (notes) releases.push({ version, notes });
+    }
+    res.json({ current, releases });
+  } catch (err) {
+    console.error("[api] GET /whats-new failed", err);
+    res.status(500).json({ error: "Failed to read the release notes" });
+  }
+});
+
 // ── Autoactualización desde código (Linux/macOS: git pull + rebuild + reinicio) ──
 // El botón "Actualizar" de la UI escribe una petición; el supervisor
 // (tools/serve.mjs o apps/desktop/src/main.js) la ejecuta y reinicia los

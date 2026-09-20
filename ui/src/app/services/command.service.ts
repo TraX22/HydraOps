@@ -4,6 +4,7 @@ import { ApiService, CommandResult, CommandSpec } from './api.service';
 import { ChatService } from './chat.service';
 import { AgentsService } from './agents.service';
 import { ComplementosService } from './complementos.service';
+import { WhatsNewService } from './whats-new.service';
 import { ThemeService } from './theme.service';
 import { TranslateService } from '@ngx-translate/core';
 
@@ -16,6 +17,7 @@ export class CommandService {
   private chat = inject(ChatService);
   private agents = inject(AgentsService);
   private complementos = inject(ComplementosService);
+  private whatsNew = inject(WhatsNewService);
   private router = inject(Router);
   private theme = inject(ThemeService);
   private translate = inject(TranslateService);
@@ -78,6 +80,9 @@ export class CommandService {
         break;
       case 'open_threed':
         this.complementos.openApp('3d');
+        break;
+      case 'open_whatsnew':
+        this.whatsNew.open();
         break;
       case 'open_plugins':
         this.complementos.openHub();
