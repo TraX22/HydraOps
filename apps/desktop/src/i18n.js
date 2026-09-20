@@ -28,6 +28,11 @@ const STRINGS = {
       fullscreen: "Full screen",
       about: "About",
     },
+    unavailable: {
+      title: "Starting HydraOps…",
+      body: "The services are still starting, or the API is not answering.",
+      hint: "This page reloads by itself as soon as they are ready. If it stays here, quit HydraOps from the tray and open it again.",
+    },
     tray: {
       open: "Open HydraOps",
       closeToTray: "Closing the window keeps HydraOps running",
@@ -68,6 +73,11 @@ const STRINGS = {
       zoomOut: "Alejar",
       fullscreen: "Pantalla completa",
       about: "Acerca de",
+    },
+    unavailable: {
+      title: "Iniciando HydraOps…",
+      body: "Los servicios todavía están arrancando, o la API no responde.",
+      hint: "Esta página se recarga sola en cuanto estén listos. Si se queda aquí, salí de HydraOps desde la bandeja y volvé a abrirlo.",
     },
     tray: {
       open: "Abrir HydraOps",
@@ -110,6 +120,11 @@ const STRINGS = {
       fullscreen: "Plein écran",
       about: "À propos",
     },
+    unavailable: {
+      title: "Démarrage de HydraOps…",
+      body: "Les services démarrent encore, ou l'API ne répond pas.",
+      hint: "Cette page se recharge toute seule dès qu'ils sont prêts. Si elle reste ici, quittez HydraOps depuis la zone de notification et rouvrez-le.",
+    },
     tray: {
       open: "Ouvrir HydraOps",
       closeToTray: "Fermer la fenêtre laisse HydraOps actif",
@@ -151,6 +166,11 @@ const STRINGS = {
       fullscreen: "Schermo intero",
       about: "Informazioni",
     },
+    unavailable: {
+      title: "Avvio di HydraOps…",
+      body: "I servizi si stanno ancora avviando, oppure l'API non risponde.",
+      hint: "Questa pagina si ricarica da sola appena sono pronti. Se resta qui, esci da HydraOps dall'area di notifica e riaprilo.",
+    },
     tray: {
       open: "Apri HydraOps",
       closeToTray: "Chiudere la finestra lascia HydraOps in esecuzione",
@@ -191,6 +211,11 @@ const STRINGS = {
       zoomOut: "Afastar",
       fullscreen: "Tela cheia",
       about: "Sobre",
+    },
+    unavailable: {
+      title: "Iniciando o HydraOps…",
+      body: "Os serviços ainda estão iniciando, ou a API não responde.",
+      hint: "Esta página recarrega sozinha assim que estiverem prontos. Se ficar aqui, saia do HydraOps pela bandeja e abra de novo.",
     },
     tray: {
       open: "Abrir o HydraOps",
