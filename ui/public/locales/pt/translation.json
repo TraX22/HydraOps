@@ -70,7 +70,10 @@
     "whatsNewTitle": "Novidades do HydraOps {{version}}",
     "whatsNewAll": "Ver todas as versões no GitHub",
     "whatsNewDone": "Entendi",
-    "whatsNewClose": "Fechar (volta na próxima atualização)"
+    "whatsNewClose": "Fechar (volta na próxima atualização)",
+    "stop": "Parar",
+    "stopHint": "Para esta tarefa: o agente deixa de gerar e nenhuma resposta é salva",
+    "cancelled": "Cancelada"
   },
   "agents": {
     "title": "Agentes",
@@ -391,7 +394,8 @@
     "3d": "Abre o complemento 3D",
     "plugins": "Abre o painel de complementos (One Shot, 3D)",
     "open": "Vai para uma tela do app",
-    "whatsnew": "Abre a aba Novidades com as notas das últimas versões"
+    "whatsnew": "Abre a aba Novidades com as notas das últimas versões",
+    "cancel": "Para a tarefa em que o agente deste chat está trabalhando"
   },
   "threeD": {
     "tagline": "Descreva um objeto, o modelo escreve Three.js e você o vê girar. Exporte .glb para Unity, Unreal, Blender ou seu app 3D favorito.",

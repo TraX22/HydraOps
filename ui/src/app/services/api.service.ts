@@ -40,7 +40,7 @@ export interface Task {
   id: string;
   prompt: string;
   channel: string;
-  status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'failed';
+  status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'failed' | 'cancelled';
   assignedAgent?: string;
   resultRef?: string;
   resultMeta?: Record<string, unknown>;
@@ -62,6 +62,8 @@ export interface ChatMessage {
   timestamp: string;
   taskId?: string;
   isTyping?: boolean;
+  /** The user stopped this task: shown as a quiet note instead of a reply. */
+  cancelled?: boolean;
   resultMeta?: Record<string, unknown>;
 }
 
@@ -413,6 +415,10 @@ export class ApiService {
 
   getTask(id: string): Observable<Task> {
     return this.http.get<Task>(`${this.base}/tasks/${id}`);
+  }
+
+  cancelTask(id: string): Observable<{ success: boolean }> {
+    return this.http.post<{ success: boolean }>(`${this.base}/tasks/${id}/cancel`, {});
   }
 
   deleteTask(id: string): Observable<void> {

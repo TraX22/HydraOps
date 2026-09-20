@@ -154,6 +154,16 @@ export class ChatService {
     });
   }
 
+  // Stop button on a typing bubble. The API flips the task to `cancelled` at once
+  // and tells the worker to abort; a 409 means it had just finished — either way
+  // the history is the source of truth.
+  cancelTask(taskId: string, channel: string): void {
+    this.api.cancelTask(taskId).subscribe({
+      next: () => this.fetchHistory(channel),
+      error: () => this.fetchHistory(channel),
+    });
+  }
+
   deleteMessage(taskId: string, channel: string): void {
     this.api.deleteTask(taskId).subscribe(() => this.fetchHistory(channel));
   }
@@ -190,7 +200,7 @@ export class ChatService {
         switchMap(() => this.api.getTask(taskId).pipe(catchError(() => EMPTY))),
       )
       .subscribe(task => {
-        if (task.status === 'completed' || task.status === 'failed') {
+        if (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') {
           sub.unsubscribe();
           this.taskPollSubs.delete(taskId);
           this.fetchHistory(channel);

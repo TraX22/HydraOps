@@ -30,7 +30,7 @@ import { createRegistry, rememberTool } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
 import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, searchAgentTasks } from "@hydraops/db";
 import { buildEnvelope } from "@hydraops/events";
-import { eq, and, gte, lt, asc, desc, like } from "drizzle-orm";
+import { eq, and, gte, lt, asc, desc, like, inArray } from "drizzle-orm";
 import os from "node:os";
 
 /**
@@ -2213,7 +2213,20 @@ api.get("/tasks", async (req, res) => {
       const agentId = row.assignedAgent ?? null;
       const agentName = agentId ? agentId.charAt(0).toUpperCase() + agentId.slice(1) : "Agent";
       const hasAvatar = agentId ? await fileExists(path.join(agentsDir, agentId, "avatar.png")) : false;
-      if (row.status === "completed" || row.status === "failed") {
+      if (row.status === "cancelled") {
+        const updated = row.updatedAt instanceof Date ? row.updatedAt.toISOString() : new Date(row.updatedAt).toISOString();
+        messages.push({
+          id: `${row.id}-a`,
+          role: "assistant",
+          content: "",
+          cancelled: true,
+          agentId,
+          agentName,
+          avatarUrl: hasAvatar ? `/avatars/${agentId}/avatar.png` : null,
+          timestamp: updated,
+          taskId: row.id,
+        });
+      } else if (row.status === "completed" || row.status === "failed") {
         const meta = row.resultMeta ?? {};
         const updated = row.updatedAt instanceof Date ? row.updatedAt.toISOString() : new Date(row.updatedAt).toISOString();
         messages.push({
@@ -2244,6 +2257,68 @@ api.get("/tasks", async (req, res) => {
   } catch (err: any) {
     console.error("[api] GET /tasks failed", err);
     res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// ── Cancelling tasks ────────────────────────────────────────────────────────
+// The row flips to `cancelled` here, at once, so the chat and the agent's dot
+// update immediately; a task.cancel_requested event then reaches whichever
+// worker is running the task, which aborts the model call. Workers and the
+// orchestrator never overwrite a cancelled row.
+const CANCELLABLE = ["pending", "assigned"];
+
+async function cancelTaskRows(rows: any[], requestedBy: string): Promise<string[]> {
+  const ids: string[] = [];
+  for (const row of rows) {
+    if (!CANCELLABLE.includes(row.status)) continue;
+    const eventId = randomUUID();
+    const ev = buildEnvelope({
+      id: eventId,
+      type: "task.cancel_requested",
+      version: 1,
+      occurredAt: new Date().toISOString(),
+      producer: env.SERVICE_NAME,
+      subject: { entity: "task", id: row.id },
+      data: { taskId: row.id, requestedBy },
+    });
+    await (db as any).transaction((tx: any) => {
+      tx.update(tasks).set({ status: "cancelled", updatedAt: new Date() }).where(eq(tasks.id, row.id)).run();
+      tx.insert(eventsTable).values({
+        id: eventId, type: ev.type, version: ev.version, occurredAt: new Date(ev.occurredAt),
+        producer: ev.producer, subjectEntity: ev.subject.entity, subjectId: ev.subject.id, payload: ev,
+      }).run();
+      tx.insert(outboxTable).values({ eventId, status: "pending", nextAttemptAt: new Date() }).run();
+    });
+    ids.push(row.id);
+  }
+  return ids;
+}
+
+// Cancel everything still running in one chat (the /cancel command).
+api.post("/tasks/cancel", async (req, res) => {
+  try {
+    const channel = String(req.body?.channel ?? "").trim();
+    if (!channel) return res.status(400).json({ error: "channel is required" });
+    const rows = await (db as any).select().from(tasks).where(and(eq(tasks.channel, channel), inArray(tasks.status, CANCELLABLE)));
+    const cancelled = await cancelTaskRows(rows, String(req.body?.requestedBy ?? "app"));
+    res.json({ success: true, cancelled });
+  } catch (err) {
+    console.error("[api] POST /tasks/cancel failed", err);
+    res.status(500).json({ error: "Failed to cancel" });
+  }
+});
+
+// Cancel one task (the stop button on its typing bubble).
+api.post("/tasks/:id/cancel", async (req, res) => {
+  try {
+    const rows = await (db as any).select().from(tasks).where(eq(tasks.id, req.params.id)).limit(1);
+    if (!rows[0]) return res.status(404).json({ error: "not_found" });
+    if (!CANCELLABLE.includes(rows[0].status)) return res.status(409).json({ error: "not_running", status: rows[0].status });
+    await cancelTaskRows(rows, String(req.body?.requestedBy ?? "app"));
+    res.json({ success: true, id: rows[0].id, status: "cancelled" });
+  } catch (err) {
+    console.error("[api] POST /tasks/:id/cancel failed", err);
+    res.status(500).json({ error: "Failed to cancel" });
   }
 });
 
@@ -2833,10 +2908,11 @@ api.get("/stats", async (_req, res) => {
       })
       .from(tasks);
 
-    const taskCounts = { total: allTasks.length, completed: 0, failed: 0, pending: 0 };
+    const taskCounts = { total: allTasks.length, completed: 0, failed: 0, pending: 0, cancelled: 0 };
     for (const t of allTasks) {
       if (t.status === "completed") taskCounts.completed++;
       else if (t.status === "failed") taskCounts.failed++;
+      else if (t.status === "cancelled") taskCounts.cancelled++;
       else taskCounts.pending++;
     }
 
@@ -2988,6 +3064,15 @@ const commandApi: CommandApi = {
     const data: any = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data?.error || `POST /api/tasks ${r.status}`);
     return { taskId: String(data.taskId) };
+  },
+  async cancelTasks(channel, requestedBy) {
+    const r = await fetch(`${selfUrl()}/api/tasks/cancel`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channel, requestedBy }), signal: AbortSignal.timeout(10_000),
+    });
+    if (!r.ok) throw new Error(`cancel failed (${r.status})`);
+    const data = (await r.json()) as any;
+    return { cancelled: Array.isArray(data.cancelled) ? data.cancelled.length : 0 };
   },
   async listTasks(channel, limit) {
     const rows = await (db as any).select().from(tasks).where(eq(tasks.channel, channel)).orderBy(desc(tasks.createdAt)).limit(limit);

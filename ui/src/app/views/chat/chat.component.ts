@@ -281,6 +281,10 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.chat.switchTab(tabId);
   }
 
+  stopTask(msg: ChatMessage): void {
+    if (msg.taskId) this.chat.cancelTask(msg.taskId, this.chat.activeTab());
+  }
+
   closeTab(tabId: string, e: Event): void {
     e.stopPropagation();
     this.chat.closeTab(tabId);

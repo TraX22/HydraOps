@@ -78,11 +78,20 @@
             </div>
 
             @if (msg.isTyping) {
-              <div class="typing-indicator">
-                <span class="typing-dot"></span>
-                <span class="typing-dot"></span>
-                <span class="typing-dot"></span>
+              <div class="typing-row">
+                <div class="typing-indicator">
+                  <span class="typing-dot"></span>
+                  <span class="typing-dot"></span>
+                  <span class="typing-dot"></span>
+                </div>
+                @if (msg.taskId) {
+                  <button class="stop-task-btn" (click)="stopTask(msg)" [title]="'chat.stopHint' | translate">
+                    <app-icon name="square" /> {{ 'chat.stop' | translate }}
+                  </button>
+                }
               </div>
+            } @else if (msg.cancelled) {
+              <div class="msg-cancelled"><app-icon name="square" /> {{ 'chat.cancelled' | translate }}</div>
             } @else if (editingMsgId() === msg.id) {
               <div class="msg-edit">
                 <textarea class="msg-edit-textarea" [(ngModel)]="editingText" rows="3"></textarea>

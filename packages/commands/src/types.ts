@@ -110,6 +110,8 @@ export interface CommandApi {
   listAgents(): Promise<AgentSummary[]>;
   createTask(agentId: string, prompt: string, opts?: { isRead?: boolean }): Promise<{ taskId: string }>;
   listTasks(channel: string, limit: number): Promise<TaskSummary[]>;
+  /** Cancel every task still pending or running in that chat; returns how many. */
+  cancelTasks(channel: string, requestedBy: string): Promise<{ cancelled: number }>;
   systemStatus(): Promise<SystemStatus>;
   remember(agentId: string, text: string): Promise<string>;
   recall(agentId: string, query: string): Promise<MemoryHit[]>;

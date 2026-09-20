@@ -594,7 +594,17 @@ function isToolMarkupLeak(text: string): boolean {
   return visible < 60;
 }
 
-export async function generateText(config: LLMConfig, messages: CoreMessage[], systemPrompt?: string, aiTools?: Record<string, any>, rawTools?: any[]) {
+export async function generateText(
+  config: LLMConfig,
+  messages: CoreMessage[],
+  systemPrompt?: string,
+  aiTools?: Record<string, any>,
+  rawTools?: any[],
+  // abortSignal: cancels the HTTP call to the provider (stops billing output tokens,
+  // frees a local GPU). Reaches every retry/fallback call below.
+  opts: { abortSignal?: AbortSignal } = {},
+) {
+  const abortSignal = opts.abortSignal;
   try {
     const hasTools = aiTools && Object.keys(aiTools).length > 0;
     console.log(`[LLM] Attempting with model: ${config.model} (${config.provider}) | Tools: ${hasTools}`);
@@ -622,6 +632,7 @@ export async function generateText(config: LLMConfig, messages: CoreMessage[], s
     let response;
     try {
       response = await vercelGenerateText({
+        abortSignal,
         model,
         system: finalSystemPrompt,
         messages,
@@ -639,6 +650,7 @@ export async function generateText(config: LLMConfig, messages: CoreMessage[], s
         } : undefined,
       });
     } catch (toolError: any) {
+      if (abortSignal?.aborted) throw toolError;
       const errorMsg = toolError.message.toLowerCase();
       console.error(`[LLM Tool Error] Error detected: ${toolError.message}`);
       
@@ -701,6 +713,7 @@ export async function generateText(config: LLMConfig, messages: CoreMessage[], s
                 // Generate final response after manual tool usage
                 // We use a simpler message format for maximum compatibility with local engines
                 const finalResponse = await vercelGenerateText({
+        abortSignal,
                   model,
                   system: finalSystemPrompt,
                   messages: [
@@ -734,6 +747,7 @@ export async function generateText(config: LLMConfig, messages: CoreMessage[], s
           };
         });
         response = await vercelGenerateText({
+        abortSignal,
           model,
           system: finalSystemPrompt,
           messages: stripped as any,
@@ -747,6 +761,7 @@ export async function generateText(config: LLMConfig, messages: CoreMessage[], s
         const fallbackPrompt = (finalSystemPrompt || "") + "\n\nIMPORTANT NOTICE: Your current engine (local) reported a technical problem when trying to use tools. Please inform the user that there was an error with the 'tools' parameter on the local server.";
         
         response = await vercelGenerateText({
+        abortSignal,
           model,
           system: fallbackPrompt,
           messages,
@@ -764,6 +779,7 @@ export async function generateText(config: LLMConfig, messages: CoreMessage[], s
          console.log(`[LLM Debug] Model went silent after tools. Forcing secondary text generation...`);
          try {
            const forcedResponse = await vercelGenerateText({
+        abortSignal,
              model,
              messages: [
                ...messages, 
@@ -794,6 +810,7 @@ export async function generateText(config: LLMConfig, messages: CoreMessage[], s
       let recovered: string | undefined;
       try {
         const retry = await vercelGenerateText({
+        abortSignal,
           model,
           system: finalSystemPrompt,
           messages: [
@@ -830,6 +847,10 @@ export async function generateText(config: LLMConfig, messages: CoreMessage[], s
       errorCode,
     };
   } catch (error: any) {
+    if (abortSignal?.aborted) {
+      console.log(`[LLM] Call to ${config.model} aborted.`);
+      return { text: '', usage: null, success: false, aborted: true, error: 'Cancelled.' };
+    }
     const lastError = error.message;
     console.error(`[LLM Error] Model ${config.model} failed: ${lastError}`);
     return {
