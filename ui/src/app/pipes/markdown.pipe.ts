@@ -44,6 +44,16 @@ marked.use({
   breaks: true,
   gfm: true,
   renderer: {
+    // Links always open outside the app (a new tab in the browser, the system
+    // browser in the desktop shell): a plain link would navigate the app away.
+    // Only web and mail links become anchors; anything else stays as text.
+    link(this: any, token: any) {
+      const href = String(token?.href ?? '');
+      const text = token?.tokens ? this.parser.parseInline(token.tokens) : escapeHtml(String(token?.text ?? href));
+      if (!/^(https?:|mailto:)/i.test(href)) return text;
+      const title = token?.title ? ` title="${escapeHtml(String(token.title)).replace(/"/g, '&quot;')}"` : '';
+      return `<a href="${escapeHtml(href).replace(/"/g, '&quot;')}"${title} target="_blank" rel="noopener noreferrer">${text}</a>`;
+    },
     code(token: any) {
       const text: string = typeof token === 'string' ? token : token.text ?? '';
       const rawLang: string = typeof token === 'string' ? '' : token.lang ?? '';

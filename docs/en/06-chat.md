@@ -38,6 +38,10 @@ While an agent is working, a **Stop** button sits next to the "typing" dots. Pre
 
 What a tool already did before you stopped it is not undone: a message sent to Telegram, a note saved to memory or a task delegated to another agent carry on. For image and video agents the worker stops waiting for the render and discards the result, but what was already requested from the provider may still finish (and be billed): those services offer no cancellation.
 
+## Links
+
+Links in a reply always open **outside HydraOps**: in your browser when you use the desktop app, or in a new tab when you use it from a browser. The app window never navigates to another site.
+
 ## What's new
 
 After every update a **What's new** tab shows up in the chat with what the new version brings: what was added, improved and fixed. If you skipped versions it lists all the ones you missed, newest first. The notes are in English and ship inside the app, so they show without internet too.

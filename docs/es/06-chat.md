@@ -38,6 +38,10 @@ Mientras un agente trabaja, al lado de los puntitos de "escribiendo" aparece el 
 
 Lo que una herramienta ya hizo antes de detenerla no se deshace: un mensaje enviado a Telegram, una nota guardada en memoria o una tarea delegada a otro agente siguen su curso. En los agentes de imagen y video el worker deja de esperar el render y descarta el resultado, pero lo que ya se le pidió al proveedor puede terminar (y cobrarse) igual: esos servicios no ofrecen cancelación.
 
+## Enlaces
+
+Los enlaces que aparecen en una respuesta se abren siempre **fuera de HydraOps**: en tu navegador si usás la app de escritorio, o en una pestaña nueva si entrás por el navegador. La ventana de la app nunca navega a otro sitio.
+
 ## Novedades
 
 Después de cada actualización aparece en el chat la pestaña **Novedades** con lo que trae la versión nueva: qué se agregó, qué se mejoró y qué se corrigió. Si te salteaste versiones, muestra todas las que te perdiste, de la más nueva a la más vieja. Las notas están en inglés y viajan dentro de la aplicación, así que se ven también sin internet.

@@ -184,6 +184,12 @@ function quitApp(reason) {
 
 function showMainWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
+  // Safety net: if the window ever sits on something that is not the app, bring it home.
+  const current = mainWindow.webContents.getURL();
+  if (appUrl && current && !isAppUrl(current) && !current.startsWith("file:")) {
+    shellLog(`la ventana estaba fuera de la app (${current.slice(0, 120)}): volviendo a la interfaz`);
+    mainWindow.loadURL(appUrl);
+  }
   if (!mainWindow.isVisible()) mainWindow.show();
   if (mainWindow.isMinimized()) mainWindow.restore();
   mainWindow.focus();
@@ -268,14 +274,56 @@ function splashMessage(text) {
   }
 }
 
+// ── Navigation guard ────────────────────────────────────────────────────────
+// The main window only ever shows HydraOps. It carries the preload bridge, so an
+// outside page must never load in it — and a user who clicked a link in a chat
+// must not end up trapped on a website with no way back. Anything that is not
+// the app's own origin opens in the system browser instead.
+let appUrl = "";
+let availabilityTimer = null;
+
+function isAppUrl(target) {
+  try { return new URL(target).origin === new URL(appUrl).origin; } catch { return false; }
+}
+
+function openInBrowser(target) {
+  try {
+    const u = new URL(target);
+    if (["http:", "https:", "mailto:"].includes(u.protocol)) shell.openExternal(u.toString());
+  } catch { /* not a URL: ignore */ }
+}
+
+// The app's page could not be loaded (the API is not up): say so instead of a
+// blank window, keep probing, and come back by ourselves when it answers.
+function showUnavailable() {
+  if (!mainWindow || mainWindow.isDestroyed() || availabilityTimer) return;
+  const t = shellI18n.t(currentLang).unavailable;
+  shellLog("la interfaz no responde: mostrando la página de espera y sondeando");
+  mainWindow.loadFile(path.join(__dirname, "unavailable.html"), { query: { title: t.title, body: t.body, hint: t.hint } });
+  availabilityTimer = setInterval(() => {
+    const req = require("node:http").get(appUrl, { timeout: 2000 }, (res) => {
+      res.resume();
+      if (res.statusCode && res.statusCode < 500) {
+        clearInterval(availabilityTimer);
+        availabilityTimer = null;
+        shellLog("la interfaz volvió a responder: recargando");
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.loadURL(appUrl);
+      }
+    });
+    req.on("error", () => { /* still down */ });
+    req.on("timeout", () => req.destroy());
+  }, 3000);
+}
+
 function createMainWindow(url) {
+  appUrl = url;
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 900,
     minHeight: 600,
     show: false,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#1b1b2f",
     title: "HydraOps",
     icon: APP_ICON,
     webPreferences: {
@@ -320,8 +368,21 @@ function createMainWindow(url) {
   // Los enlaces externos van al navegador del sistema, nunca a una ventana
   // de Electron con acceso al preload.
   mainWindow.webContents.setWindowOpenHandler(({ url: target }) => {
-    shell.openExternal(target);
+    openInBrowser(target);
     return { action: "deny" };
+  });
+  // A plain link (no target="_blank") would navigate THIS window. Keep it on the app.
+  const keepOnApp = (event, target) => {
+    if (isAppUrl(target)) return;
+    event.preventDefault();
+    shellLog(`navegación externa bloqueada en la ventana principal: ${String(target).slice(0, 200)} → navegador del sistema`);
+    openInBrowser(target);
+  };
+  mainWindow.webContents.on("will-navigate", keepOnApp);
+  mainWindow.webContents.on("will-redirect", keepOnApp);
+  mainWindow.webContents.on("did-fail-load", (_event, errorCode, _desc, validatedURL, isMainFrame) => {
+    // -3 = ERR_ABORTED (a navigation we cancelled ourselves)
+    if (isMainFrame && errorCode !== -3 && isAppUrl(validatedURL)) showUnavailable();
   });
 
   // Idioma persistido de la UI: lo leemos en cuanto carga para que el menú
