@@ -115,6 +115,19 @@
                 }
               }
 
+              @if (msg.role === 'assistant' && sources(msg).length) {
+                <details class="msg-sources">
+                  <summary [title]="'chat.sourcesLegend' | translate">{{ 'chat.sources' | translate }} · {{ sources(msg).length }}</summary>
+                  <ul>
+                    @for (src of sources(msg); track src.url) {
+                      <li [class.read]="src.kind === 'read'">
+                        <a [href]="src.url" target="_blank" rel="noopener noreferrer" [title]="src.url">{{ src.title || src.url }}</a>
+                        <span class="msg-source-host">{{ src.host }}</span>
+                      </li>
+                    }
+                  </ul>
+                </details>
+              }
               @if (hasImage(msg)) {
                 <div class="image-frame">
                   <img [src]="getImageUrl(msg)" alt="Generated image" class="result-image"

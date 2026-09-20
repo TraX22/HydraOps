@@ -70,7 +70,9 @@
     "whatsNewTitle": "Novidades do HydraOps {{version}}",
     "whatsNewAll": "Ver todas as versões no GitHub",
     "whatsNewDone": "Entendi",
-    "whatsNewClose": "Fechar (volta na próxima atualização)"
+    "whatsNewClose": "Fechar (volta na próxima atualização)",
+    "sources": "Fontes",
+    "sourcesLegend": "● aberta pelo agente · ○ apareceu em uma busca"
   },
   "agents": {
     "title": "Agentes",

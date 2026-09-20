@@ -32,6 +32,10 @@ Results from image and video agents appear inline in the chat. Click an image to
 
 The channel history is kept across sessions, with its attachments and results. Generated and uploaded files live in the data folder (`storage/`), so you can also reach them from your file explorer.
 
+## Sources
+
+When an agent searches the web or opens pages to answer you, **Sources · N** shows up under its reply. Expand it to see the real addresses its tools used: **●** marks pages the agent opened, **○** the ones that came up in a search. The same addresses stay in the conversation's memory, so a later "give me the link" gets the real one instead of one rebuilt from memory. Agents also follow the rule of never calling a link "verified" unless they opened it in that same turn.
+
 ## Links
 
 Links in a reply always open **outside HydraOps**: in your browser when you use the desktop app, or in a new tab when you use it from a browser. The app window never navigates to another site.

@@ -16,7 +16,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType } from "@hydraops/nats";
 import { eq, and, desc } from "drizzle-orm";
 import { generateText as llmGenerateText, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
-import { createRegistry } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText } from "@hydraops/addons";
 import { AckPolicy } from "nats";
 
 const WORKER_TYPE = "general";
@@ -238,6 +238,7 @@ ${personality}
 - The chat renders Markdown. For diagrams or simple charts, answer with a \`\`\`mermaid fenced code block (flowchart, sequence, pie, timeline…) — it renders as a real diagram. Use Markdown tables for tabular data; avoid ASCII-art boxes.
 - If the user only greets, introduce yourself briefly according to your soul.
 - You can only act through the tools listed for you. If a request needs something you have no tool for (asking another agent, sending a message, running code…), say so plainly and suggest what the user can do — never claim to have done it.
+- Links: only give a URL you actually opened or saw in a tool result or in this conversation (earlier answers list their sources). Never reconstruct an address from memory, and never call one "verified" or "confirmed" unless you opened it in this turn. If you do not have the link, say so and offer to look it up.
 - If there is a direct question or task, answer without greeting first.${userProfile}`;
 
     // Tools: all natives/my_addons + MCP tools (same contract as worker-coder)
@@ -268,19 +269,22 @@ ${personality}
     // after the LLM finishes so we can report what each agent actually uses.
     const toolUsageLog: { toolName: string; source: string; status: string }[] = [];
     const usageSink = (toolName: string, source: string, status: 'ok' | 'blocked' | 'error') => { toolUsageLog.push({ toolName, source, status }); };
+    // URLs the tools open or surface while answering: stored with the result, shown as
+    // "Sources" and replayed in the history (see @hydraops/addons sources.ts).
+    const sourceCollector = createSourceCollector();
     // Bind the calling agent's identity so identity-aware tools (`remember`,
     // `recall`) act on the right agent without trusting model input.
     const toolContext = {
       agentId,
       searchPastTasks: (query: string, limit?: number) => searchAgentTasks(sqliteClient, agentId, query, limit),
     };
-    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext);
-    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext);
+    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink);
+    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink);
 
     // Last 24h of the channel; empty for cron-fired tasks (see loadRecentChannelHistory).
     const historyRows = await loadRecentChannelHistory(db, channel, taskId);
     const history = historyRows.reverse().flatMap((t: any) => {
-      const assistantText = t.resultMeta?.text || t.resultMeta?.preview || "";
+      const assistantText = historyAssistantText(t.resultMeta);
       return [
         { role: "user", content: t.prompt },
         { role: "assistant", content: assistantText },
@@ -334,7 +338,7 @@ ${personality}
     await (db as any).update(tasks)
       .set({
         status: "completed",
-        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model },
+        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}) },
         updatedAt: new Date(),
       })
       .where(eq(tasks.id, taskId));
