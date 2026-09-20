@@ -100,6 +100,7 @@ export interface ThreeDScene {
   prompt: string;
   code: string;
   model: string;
+  style?: string;
   history: { prompt: string; code: string; at: string; fixed?: number }[];
   thumb?: string; // PNG data URL (write only)
   createdAt?: string;
@@ -557,8 +558,12 @@ export class ApiService {
     return this.http.get('/vendor/three/three.bundle.js', { responseType: 'text' });
   }
 
-  generate3d(body: { prompt: string; model?: string; code?: string; error?: string; imagePath?: string }): Observable<{ code: string; model: string }> {
+  generate3d(body: { prompt: string; model?: string; code?: string; error?: string; imagePath?: string; style?: string }): Observable<{ code: string; model: string }> {
     return this.http.post<{ code: string; model: string }>(`${this.base}/threed/generate`, body);
+  }
+
+  enhance3d(body: { prompt: string; model?: string; style?: string; imagePath?: string }): Observable<{ prompt: string; model: string }> {
+    return this.http.post<{ prompt: string; model: string }>(`${this.base}/threed/enhance`, body);
   }
 
   list3dScenes(): Observable<ThreeDSceneSummary[]> {

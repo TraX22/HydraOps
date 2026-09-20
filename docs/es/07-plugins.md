@@ -39,7 +39,8 @@ Describís un objeto y el modelo **escribe el código Three.js** que lo construy
 
 1. Elegí el **modelo** en la barra superior. Sirve cualquiera que escriba código, incluido tu **modelo local** (tarda 1 o 2 minutos por escena; uno de nube, entre 5 y 15 segundos).
 2. Escribí qué querés ver ("una casa colonial con techo a dos aguas y un muelle de madera") y pulsá **Generar** (o Ctrl+Enter). El objeto aparece centrado; arrastrá para girarlo, rueda para acercar.
-3. Opcional: **imagen de referencia**. Subí una foto o un sprite de Luna y el modelo la mira para respetar formas, proporciones y colores. Solo la ven los modelos con visión, los de nube; el local la ignora.
+3. Opcional: **Estilo** y **Mejorar prompt**. El selector de estilo (Libre, Low-poly, Vóxel, Prop de juego, Realista) fija la estética de la escena y se guarda con ella. **Mejorar prompt** convierte una idea corta ("un cofre del tesoro") en una descripción con tamaño, partes principales, detalles y paleta; la ves en la caja, la retocás si querés y recién ahí generás. **Deshacer** vuelve a tu texto original. Usa el mismo modelo elegido y ayuda sobre todo a los modelos medianos y al local.
+4. Opcional: **imagen de referencia**. Subí una foto o un sprite de Luna y el modelo la mira para respetar formas, proporciones y colores. Solo la ven los modelos con visión, los de nube; el local la ignora.
 
 El modelo no escribe Three.js "a pelo": recibe un kit de ayudas (cajas, cilindros, torneado de perfiles, extrusión de siluetas, espejo, repetición en anillo o grilla, materiales compartidos) y un método de trabajo (silueta primero, luego partes medias, luego detalles; paleta de 3 a 5 colores; sin caras superpuestas). Eso es lo que hace que el primer resultado ya tenga forma.
 

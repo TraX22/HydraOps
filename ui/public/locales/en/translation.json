@@ -421,6 +421,18 @@
     "removeReference": "Remove image",
     "wireframe": "Wireframe",
     "resetView": "Center view",
-    "noThree": "Three.js could not be loaded."
+    "noThree": "Three.js could not be loaded.",
+    "enhance": "Improve prompt",
+    "enhancing": "Improving the prompt with {{model}}…",
+    "undoEnhance": "Undo",
+    "enhanceHint": "Turns your idea into a brief with parts, sizes and colors. You can edit it before generating.",
+    "style": "Style",
+    "styles": {
+      "auto": "Free",
+      "lowpoly": "Low-poly",
+      "voxel": "Voxel",
+      "stylized": "Game prop",
+      "realistic": "Realistic"
+    }
   }
 }

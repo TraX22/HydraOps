@@ -421,6 +421,18 @@
     "removeReference": "Quitar imagen",
     "wireframe": "Alambre",
     "resetView": "Centrar vista",
-    "noThree": "No se pudo cargar Three.js."
+    "noThree": "No se pudo cargar Three.js.",
+    "enhance": "Mejorar prompt",
+    "enhancing": "Mejorando el prompt con {{model}}…",
+    "undoEnhance": "Deshacer",
+    "enhanceHint": "Convierte tu idea en una descripción con partes, medidas y colores. La podés editar antes de generar.",
+    "style": "Estilo",
+    "styles": {
+      "auto": "Libre",
+      "lowpoly": "Low-poly",
+      "voxel": "Vóxel",
+      "stylized": "Prop de juego",
+      "realistic": "Realista"
+    }
   }
 }

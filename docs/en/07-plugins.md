@@ -39,7 +39,8 @@ You describe an object and the model **writes the Three.js code** that builds it
 
 1. Pick the **model** in the top bar. Anything that writes code works, including your **local model** (1–2 minutes per scene; a cloud one takes 5–15 seconds).
 2. Type what you want to see ("a colonial house with a gable roof and a wooden pier") and press **Generate** (or Ctrl+Enter). The object appears centered; drag to orbit, scroll to zoom.
-3. Optional: a **reference image**. Upload a photo or one of Luna's sprites and the model looks at it to respect shapes, proportions and colors. Only vision-capable (cloud) models see it; the local one ignores it.
+3. Optional: **Style** and **Improve prompt**. The style selector (Free, Low-poly, Voxel, Game prop, Realistic) sets the look of the scene and is saved with it. **Improve prompt** turns a short idea ("a treasure chest") into a brief with size, main parts, details and palette; you see it in the box, tweak it if you like, and only then generate. **Undo** brings your original text back. It uses the same model you picked and helps mid-size and local models the most.
+4. Optional: a **reference image**. Upload a photo or one of Luna's sprites and the model looks at it to respect shapes, proportions and colors. Only vision-capable (cloud) models see it; the local one ignores it.
 
 The model does not write raw Three.js: it gets a helper kit (boxes, cylinders, lathe profiles, extruded outlines, mirror, ring/grid repetition, shared materials) and a working method (silhouette first, then medium parts, then details; a 3–5 color palette; no coplanar faces). That is what makes the first result already look like something.
 

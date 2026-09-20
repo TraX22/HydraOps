@@ -16,7 +16,7 @@ import { groupModels, modelLabel } from '../../../shared/model-groups';
 // inline script), blob: for the Three.js module, and a frame-src that allows
 // the opaque-origin frame — otherwise this plugin goes blank.
 
-type Status = 'loading' | 'idle' | 'generating' | 'running' | 'fixing' | 'ok' | 'error';
+type Status = 'loading' | 'idle' | 'enhancing' | 'generating' | 'running' | 'fixing' | 'ok' | 'error';
 
 interface Iteration {
   prompt: string;
@@ -27,6 +27,9 @@ interface Iteration {
 
 const MAX_AUTO_FIX = 2;
 const MODEL_KEY = 'hydra_threed_model';
+const STYLE_KEY = 'hydra_threed_style';
+// Style presets; the directives live in the API (THREED_STYLES). '' = none.
+const STYLES = ['', 'lowpoly', 'voxel', 'stylized', 'realistic'] as const;
 
 @Component({
   selector: 'app-three-d',
@@ -78,7 +81,12 @@ export class ThreeDComponent implements OnInit, OnDestroy {
   readonly dirty = signal(false);
 
   readonly hasCode = computed(() => !!this.code().trim());
-  readonly busy = computed(() => ['generating', 'running', 'fixing'].includes(this.status()));
+  readonly busy = computed(() => ['enhancing', 'generating', 'running', 'fixing'].includes(this.status()));
+
+  readonly styles = STYLES;
+  readonly style = signal<string>('');
+  // The idea as typed, kept so "Improve prompt" can be undone.
+  readonly beforeEnhance = signal('');
   // mm:ss since the current generation started (reasoning models can take minutes).
   readonly elapsed = signal('');
   private busySince = 0;
@@ -103,6 +111,10 @@ export class ThreeDComponent implements OnInit, OnDestroy {
       next: src => { this.threeSource = src; this.initFrame(); },
       error: () => { this.status.set('error'); this.error.set(this.i18n.instant('threeD.noThree')); },
     });
+    try {
+      const savedStyle = localStorage.getItem(STYLE_KEY) ?? '';
+      if ((STYLES as readonly string[]).includes(savedStyle)) this.style.set(savedStyle);
+    } catch { /* storage unavailable */ }
     this.api.getModelsShared().subscribe({
       next: all => {
         // The catalog can list an id twice (same model under two providers); keep the first.
@@ -197,10 +209,45 @@ export class ThreeDComponent implements OnInit, OnDestroy {
     try { localStorage.setItem(MODEL_KEY, id); } catch { /* storage unavailable */ }
   }
 
+  onStyleChange(value: string): void {
+    this.style.set(value);
+    this.dirty.set(true);
+    try { localStorage.setItem(STYLE_KEY, value); } catch { /* storage unavailable */ }
+  }
+
+  // Turns the short idea into a build brief (same model, no code yet). The user
+  // reads it, edits it if needed, and only then generates.
+  enhance(): void {
+    const idea = this.prompt().trim();
+    if (!idea || this.busy()) return;
+    const previous = this.status();
+    this.busySince = Date.now();
+    this.elapsed.set('0:00');
+    this.status.set('enhancing');
+    this.error.set('');
+    this.errorLine.set(null);
+    this.api.enhance3d({ prompt: idea, model: this.model() || undefined, style: this.style() || undefined, imagePath: this.reference()?.path }).subscribe({
+      next: r => {
+        this.beforeEnhance.set(idea);
+        this.prompt.set(r.prompt);
+        this.status.set(previous === 'error' ? 'idle' : previous);
+      },
+      error: err => this.fail(this.describe(err)),
+    });
+  }
+
+  undoEnhance(): void {
+    if (!this.beforeEnhance()) return;
+    this.prompt.set(this.beforeEnhance());
+    this.beforeEnhance.set('');
+  }
+
   async generate(): Promise<void> {
     const prompt = this.prompt().trim();
     if (!prompt || this.busy() || !this.ready()) return;
     const iterating = this.hasCode();
+    const nameSource = this.beforeEnhance() || prompt;
+    this.beforeEnhance.set('');
     this.busySince = Date.now();
     this.elapsed.set('0:00');
     this.status.set('generating');
@@ -214,11 +261,11 @@ export class ThreeDComponent implements OnInit, OnDestroy {
       this.fail(this.describe(err));
       return;
     }
-    await this.applyGenerated(code, prompt);
+    await this.applyGenerated(code, prompt, nameSource);
   }
 
   // Runs the code; on a runtime error asks the model to fix it, up to MAX_AUTO_FIX times.
-  private async applyGenerated(code: string, prompt: string): Promise<void> {
+  private async applyGenerated(code: string, prompt: string, nameSource = prompt): Promise<void> {
     let current = code;
     for (let attempt = 0; attempt <= MAX_AUTO_FIX; attempt++) {
       this.status.set('running');
@@ -228,7 +275,7 @@ export class ThreeDComponent implements OnInit, OnDestroy {
       if (r.ok) {
         this.history.update(h => [...h, { prompt, code: current, at: new Date().toISOString(), fixed: attempt || undefined }]);
         // Default name: the first words of the first prompt.
-        if (!this.sceneName().trim()) this.sceneName.set(prompt.split(/\s+/).slice(0, 6).join(' ').slice(0, 60));
+        if (!this.sceneName().trim()) this.sceneName.set(nameSource.split(/\s+/).slice(0, 6).join(' ').slice(0, 60).replace(/[\s,;:.]+$/, ''));
         this.prompt.set('');
         this.dirty.set(true);
         this.status.set('ok');
@@ -254,7 +301,7 @@ export class ThreeDComponent implements OnInit, OnDestroy {
 
   private requestCode(body: { prompt: string; code?: string; error?: string }): Promise<string> {
     return new Promise((resolve, reject) => {
-      this.api.generate3d({ ...body, model: this.model() || undefined, imagePath: this.reference()?.path }).subscribe({
+      this.api.generate3d({ ...body, model: this.model() || undefined, style: this.style() || undefined, imagePath: this.reference()?.path }).subscribe({
         next: r => resolve(r.code),
         error: err => reject(err),
       });
@@ -293,6 +340,7 @@ export class ThreeDComponent implements OnInit, OnDestroy {
     this.codeDraft.set('');
     this.history.set([]);
     this.reference.set(null);
+    this.beforeEnhance.set('');
     this.stats.set(null);
     this.error.set('');
     this.dirty.set(false);
@@ -359,7 +407,7 @@ export class ThreeDComponent implements OnInit, OnDestroy {
     const name = this.sceneName().trim() || this.defaultName();
     this.saving.set(true);
     const thumb = this.ready() ? await this.snapshot() : null;
-    const scene: ThreeDScene = { id, name, prompt: this.history().at(-1)?.prompt ?? this.prompt(), code: this.code(), model: this.model(), history: this.history(), thumb: thumb ?? undefined };
+    const scene: ThreeDScene = { id, name, prompt: this.history().at(-1)?.prompt ?? this.prompt(), code: this.code(), model: this.model(), style: this.style(), history: this.history(), thumb: thumb ?? undefined };
     this.api.save3dScene(id, scene).subscribe({
       next: () => { this.sceneId.set(id); this.sceneName.set(name); this.saving.set(false); this.dirty.set(false); this.loadScenes(); },
       error: () => this.saving.set(false),
@@ -379,6 +427,8 @@ export class ThreeDComponent implements OnInit, OnDestroy {
         this.reference.set(null);
         this.dirty.set(false);
         if (s.model && this.models().some(m => m.id === s.model)) this.model.set(s.model);
+        this.style.set((STYLES as readonly string[]).includes(s.style ?? '') ? (s.style ?? '') : '');
+        this.beforeEnhance.set('');
         if (this.ready()) void this.runCode(s.code).then(r => this.status.set(r.ok ? 'ok' : 'error'));
       },
       error: () => {},
