@@ -258,7 +258,10 @@ api.get("/version", async (_req, res) => {
 // the releases newer than the last one the user dismissed.
 const RELEASE_FILE_RE = /^(\d+\.\d+\.\d+)\.md$/;
 
-api.get("/whats-new", async (req, res) => {
+// Reads the docs folder on every call: cap it like the other file-backed routes.
+const whatsNewLimiter = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false });
+
+api.get("/whats-new", whatsNewLimiter, async (req, res) => {
   try {
     const current = APP_VERSION ? APP_VERSION.replace(/^v/, "") : null;
     const since = typeof req.query.since === "string" && /^\d+\.\d+\.\d+$/.test(req.query.since) ? req.query.since : null;
