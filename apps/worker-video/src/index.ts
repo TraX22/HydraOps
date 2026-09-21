@@ -395,7 +395,16 @@ ${EXTERNAL_CONTENT_RULE}
     const rendered: { video: { videoUrl: string; relPath: string | null; sourceUrl: string | null; engine: string } | null; error: string | null } = { video: null, error: null };
     // Stop button / /cancel: aborts the model call and any render polling of this task.
     const controller = cancels.track(taskId!);
+    // One render per task, one attempt: renders are slow and the most expensive thing an
+    // agent can do, and a page that says "make 20 clips" must not be able to spend 20.
+    let renderAttempts = 0;
     const render = async (prompt: string): Promise<string> => {
+      if (++renderAttempts > 1) {
+        // Counted before any await, so parallel calls from the model cannot all be paid.
+        return rendered.error
+          ? "Video generation already failed in this task. Tell the user briefly and suggest retrying or changing the engine."
+          : "A video is already being made in this task, and only one is made per task. Describe it to the user; they can ask for another one in a new message.";
+      }
       const r = await renderToStorage(taskId!, agentCfg, getGlobalConfig, prompt, controller.signal);
       if (r.videoUrl) {
         rendered.video = { videoUrl: r.videoUrl, relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
@@ -448,6 +457,7 @@ ${EXTERNAL_CONTENT_RULE}
     // Explicit request but the model never rendered (weak/local models): fall
     // back to the engine with the raw prompt, as the old video path did.
     if (explicitVideo && !rendered.video && !rendered.error && !controller.signal.aborted) {
+      taskSecurity.beforeCall("generate_video", { sensitive: true }, { prompt: userPrompt, via: "explicit request" });
       const r = await renderToStorage(taskId!, agentCfg, getGlobalConfig, userPrompt);
       if (r.videoUrl) rendered.video = { videoUrl: r.videoUrl, relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
       else rendered.error = r.error ?? "unknown error";
@@ -456,9 +466,14 @@ ${EXTERNAL_CONTENT_RULE}
     // The model narrated the call instead of making it ("run tool
     // generate_video with prompt is …"): honour it anyway.
     let finalText = text;
-    if (!rendered.video && !rendered.error && /\bgenerate_video\b/i.test(text || "")) {
+    // Not on a task that read third-party content, unless the user asked for a video:
+    // a model that REPORTS "the page told me to call generate_video with prompt …" is
+    // doing the right thing, and must not get that order executed for it.
+    const narrationAllowed = explicitVideo || !taskSecurity.tainted;
+    if (!rendered.video && !rendered.error && narrationAllowed && /\bgenerate_video\b/i.test(text || "")) {
       const leaked = leakedToolPrompt(text, "generate_video");
       console.warn(`[${consumerName}] model narrated a generate_video call instead of making it — rendering with ${leaked ? "its own prompt" : "the user's prompt"}`);
+      taskSecurity.beforeCall("generate_video", { sensitive: true }, { prompt: leaked ?? userPrompt, via: "narrated call" });
       const r = await renderToStorage(taskId!, agentCfg, getGlobalConfig, leaked ?? userPrompt);
       if (r.videoUrl) rendered.video = { videoUrl: r.videoUrl, relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
       else rendered.error = r.error ?? "unknown error";

@@ -123,7 +123,9 @@ export interface TaskSecurity {
   afterCall<T>(toolName: string, risk: ToolRisk, args: unknown, result: T): T | string;
   events(): SecurityEvent[];
   /** For resultMeta: undefined while the task never touched external content. */
-  summary(): { tainted: true; origins: TaintOrigin[]; sensitiveCalls: number } | undefined;
+  /** sensitiveCallsBeforeTaint: made before any outside content arrived (also when issued in
+   *  parallel with the read), so that content cannot have shaped them. */
+  summary(): { tainted: true; origins: TaintOrigin[]; sensitiveCalls: number; sensitiveCallsBeforeTaint: number } | undefined;
 }
 
 const MAX_ORIGINS = 12;
@@ -151,6 +153,7 @@ export function createTaskSecurity(): TaskSecurity {
   const log: SecurityEvent[] = [];
   let tainted = false;
   let sensitiveCalls = 0;
+  let sensitiveCallsBeforeTaint = 0;
 
   const record = (e: SecurityEvent) => { if (log.length < MAX_EVENTS) log.push(e); };
 
@@ -158,7 +161,8 @@ export function createTaskSecurity(): TaskSecurity {
     id,
     get tainted() { return tainted; },
     beforeCall(toolName, risk, args) {
-      if (!tainted || !risk.sensitive) return;
+      if (!risk.sensitive) return;
+      if (!tainted) { sensitiveCallsBeforeTaint++; return; }
       sensitiveCalls++;
       record({ type: 'sensitive_after_taint', toolName, detail: describeArgs(args) });
     },
@@ -175,6 +179,6 @@ export function createTaskSecurity(): TaskSecurity {
       return wrapExternalContent(result, toolName, id);
     },
     events: () => [...log],
-    summary: () => (tainted ? { tainted: true as const, origins: [...origins], sensitiveCalls } : undefined),
+    summary: () => (tainted ? { tainted: true as const, origins: [...origins], sensitiveCalls, sensitiveCallsBeforeTaint } : undefined),
   };
 }

@@ -385,10 +385,21 @@ ${EXTERNAL_CONTENT_RULE}
     const drawn: { image: { relPath: string; sourceUrl: string | null; engine: string } | null; error: string | null } = { image: null, error: null };
     // Stop button / /cancel: aborts the model call and any render polling of this task.
     const controller = cancels.track(taskId!);
+    // One image per task, two attempts at most. The chat shows a single image, so more
+    // would only be spent money — and a page that says "make 50 variations" must not
+    // be able to spend 50.
+    let drawAttempts = 0;
+    // Models issue tool calls in parallel: the turn is taken synchronously, before any
+    // await, or three simultaneous calls would all find "no image yet" and all be paid.
+    let drawing = false;
     const draw = async (prompt: string): Promise<string> => {
-      const r = await drawToStorage(taskId!, agentCfg, getGlobalConfig, prompt, controller.signal);
+      if (drawn.image || drawing) return "An image is already being made in this task, and only one is made per task. Describe it to the user; they can ask for another one in a new message.";
+      if (++drawAttempts > 2) return "Image generation already failed twice in this task. Tell the user briefly and suggest retrying or changing the engine.";
+      drawing = true;
+      const r = await drawToStorage(taskId!, agentCfg, getGlobalConfig, prompt, controller.signal).finally(() => { drawing = false; });
       if (r.relPath) {
         drawn.image = { relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
+        drawn.error = null;
         usageSink("generate_image", "native", "ok");
         return "Image generated and already shown to the user. Reply with a short description of what you drew and suggested Next Steps; do not paste links.";
       }
@@ -438,6 +449,7 @@ ${EXTERNAL_CONTENT_RULE}
     // Explicit request but the model never drew (weak/local models): fall back
     // to the engine with the raw prompt, as the old draw path did.
     if (explicitDraw && !drawn.image && !drawn.error && !controller.signal.aborted) {
+      taskSecurity.beforeCall("generate_image", { sensitive: true }, { prompt: userPrompt, via: "explicit request" });
       const r = await drawToStorage(taskId!, agentCfg, getGlobalConfig, userPrompt);
       if (r.relPath) drawn.image = { relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
       else drawn.error = r.error ?? "unknown error";
@@ -446,9 +458,14 @@ ${EXTERNAL_CONTENT_RULE}
     // The model narrated the call instead of making it (seen with grok-4.3:
     // "run tool generate_image with prompt is …"): honour it anyway.
     let finalText = text;
-    if (!drawn.image && !drawn.error && /\bgenerate_image\b/i.test(text || "")) {
+    // Not on a task that read third-party content, unless the user asked for an image:
+    // a model that REPORTS "the page told me to call generate_image with prompt …" is
+    // doing the right thing, and must not get that order executed for it.
+    const narrationAllowed = explicitDraw || !taskSecurity.tainted;
+    if (!drawn.image && !drawn.error && narrationAllowed && /\bgenerate_image\b/i.test(text || "")) {
       const leaked = leakedToolPrompt(text, "generate_image");
       console.warn(`[${consumerName}] model narrated a generate_image call instead of making it — rendering with ${leaked ? "its own prompt" : "the user's prompt"}`);
+      taskSecurity.beforeCall("generate_image", { sensitive: true }, { prompt: leaked ?? userPrompt, via: "narrated call" });
       const r = await drawToStorage(taskId!, agentCfg, getGlobalConfig, leaked ?? userPrompt);
       if (r.relPath) drawn.image = { relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
       else drawn.error = r.error ?? "unknown error";
