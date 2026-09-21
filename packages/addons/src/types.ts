@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ToolRisk } from "./provenance.js";
 
 // An add-on that needs an API key declares it here. The UI (Addons section)
 // renders a field to enter it; the real key lives in the key store and travels
@@ -42,4 +43,8 @@ export interface HydraTool {
   execute: (args: any, context?: ToolContext) => Promise<any>;
   source?: 'native' | 'my_addons';
   requiresKey?: ToolKeyRequirement;
+  // What the tool can do, for the prompt-injection defense (see provenance.ts).
+  // A user add-on that declares nothing is treated as the worst case.
+  // A function when it depends on the arguments (e.g. GET vs POST).
+  risk?: ToolRisk | ((args: any) => ToolRisk);
 }

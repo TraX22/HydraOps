@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { HydraTool } from "../../../types.js";
+import { HydraTool } from "../../types.js";
 
 // perplexity_search — AI-powered web search via the Perplexity Sonar API.
 //
@@ -72,6 +72,7 @@ async function askPerplexity(query: string, recency?: string): Promise<string> {
 
 export const perplexitySearchTool: HydraTool = {
   name: "perplexity_search",
+  risk: { readsExternal: true },
   // Just "Perplexity" — the brand is description enough (per the user), unlike
   // Brave where "Search" disambiguates from the browser.
   title: "Perplexity",

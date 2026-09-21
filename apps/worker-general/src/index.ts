@@ -11,12 +11,12 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, buildCronDedupContext, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
+import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, buildCronDedupContext, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, EXTERNAL_CONTENT_RULE } from "@hydraops/addons";
 import { AckPolicy } from "nats";
 
 const WORKER_TYPE = "general";
@@ -248,6 +248,7 @@ ${personality}
 - If the user only greets, introduce yourself briefly according to your soul.
 - You can only act through the tools listed for you. If a request needs something you have no tool for (asking another agent, sending a message, running code…), say so plainly and suggest what the user can do — never claim to have done it.
 - Links: only give a URL you actually opened or saw in a tool result or in this conversation (earlier answers list their sources). Never reconstruct an address from memory, and never call one "verified" or "confirmed" unless you opened it in this turn. If you do not have the link, say so and offer to look it up.
+${EXTERNAL_CONTENT_RULE}
 - If there is a direct question or task, answer without greeting first.${userProfile}`;
 
     // Tools: all natives/my_addons + MCP tools (same contract as worker-coder)
@@ -281,14 +282,17 @@ ${personality}
     // URLs the tools open or surface while answering: stored with the result, shown as
     // "Sources" and replayed in the history (see @hydraops/addons sources.ts).
     const sourceCollector = createSourceCollector();
+    // Prompt-injection state of this task: set when a tool brings in third-party
+    // content, which then reaches the model marked as data (see provenance.ts).
+    const taskSecurity = createTaskSecurity();
     // Bind the calling agent's identity so identity-aware tools (`remember`,
     // `recall`) act on the right agent without trusting model input.
     const toolContext = {
       agentId,
       searchPastTasks: (query: string, limit?: number) => searchAgentTasks(sqliteClient, agentId, query, limit),
     };
-    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink);
-    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink);
+    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
+    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
 
     // Last 24h of the channel; empty for cron-fired tasks (see loadRecentChannelHistory).
     const historyRows = await loadRecentChannelHistory(db, channel, taskId);
@@ -317,6 +321,10 @@ ${personality}
     if (toolUsageLog.length) {
       try { await recordToolUsage(db, agentId, taskId, toolUsageLog); }
       catch (e: any) { console.warn(`[${consumerName}] tool usage tracking failed: ${e?.message ?? e}`); }
+    }
+    if (taskSecurity.events().length) {
+      try { await recordSecurityEvents(db, agentId, taskId, taskSecurity.events()); }
+      catch (e: any) { console.warn(`[${consumerName}] security log failed: ${e?.message ?? e}`); }
     }
 
     // Cancelled while it ran: the row already says so — write nothing, publish nothing, overwrite nothing.
@@ -356,7 +364,7 @@ ${personality}
     await (db as any).update(tasks)
       .set({
         status: "completed",
-        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}) },
+        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) },
         updatedAt: new Date(),
       })
       .where(and(eq(tasks.id, taskId), ne(tasks.status, "cancelled")));

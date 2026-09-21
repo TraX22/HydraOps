@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { HydraTool } from "../../../types.js";
+import { HydraTool } from "../../types.js";
 
 // youtube_transcript — fetch a YouTube video's transcript (captions/subtitles).
 //
@@ -179,6 +179,7 @@ async function getTranscript(input: string, lang?: string): Promise<string> {
 
 export const youtubeTranscriptTool: HydraTool = {
   name: "youtube_transcript",
+  risk: { readsExternal: true },
   title: "YouTube Transcript",
   description:
     "Fetch the transcript (captions/subtitles) of a YouTube video from its URL or id — uploaded subtitles or YouTube's auto-generated ones. Use it to summarise, quote, or answer questions about a video. Optionally pass a 2-letter language code to pick a caption track.",

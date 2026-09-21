@@ -12,12 +12,12 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
+import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, generateImage, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, EXTERNAL_CONTENT_RULE } from "@hydraops/addons";
 import { tool } from "ai";
 import { z } from "zod";
 import { AckPolicy } from "nats";
@@ -332,6 +332,7 @@ ${personality}
 - If the user only greets, introduce yourself briefly according to your soul.
 - You can only act through the tools listed for you. If a request needs something you have no tool for (asking another agent, sending a message, running code…), say so plainly and suggest what the user can do — never claim to have done it.
 - Links: only give a URL you actually opened or saw in a tool result or in this conversation (earlier answers list their sources). Never reconstruct an address from memory, and never call one "verified" or "confirmed" unless you opened it in this turn. If you do not have the link, say so and offer to look it up.
+${EXTERNAL_CONTENT_RULE}
 - If there is a direct question or task, answer without greeting first.${explicitDraw ? "\n- The user explicitly asked for an image: you MUST call generate_image in this turn." : ""}${userProfile}`;
 
     // Same tool set as worker-general: natives/my_addons + MCP tools
@@ -365,14 +366,17 @@ ${personality}
     // URLs the tools open or surface while answering: stored with the result, shown as
     // "Sources" and replayed in the history (see @hydraops/addons sources.ts).
     const sourceCollector = createSourceCollector();
+    // Prompt-injection state of this task: set when a tool brings in third-party
+    // content, which then reaches the model marked as data (see provenance.ts).
+    const taskSecurity = createTaskSecurity();
     // Bind the calling agent's identity so identity-aware tools (`remember`,
     // `recall`) act on the right agent without trusting model input.
     const toolContext = {
       agentId,
       searchPastTasks: (query: string, limit?: number) => searchAgentTasks(sqliteClient, agentId, query, limit),
     };
-    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink);
-    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink);
+    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
+    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
 
 
     // The drawing tool. It stores the file where the chat serves it from and
@@ -402,12 +406,12 @@ ${personality}
       generate_image: tool({
         description: generateImageDescription,
         inputSchema: generateImageSchema,
-        execute: ({ prompt }: { prompt: string }) => draw(prompt),
+        execute: ({ prompt }: { prompt: string }) => { taskSecurity.beforeCall("generate_image", { sensitive: true }, { prompt }); return draw(prompt); },
       }),
     };
     const rawToolsForModel = [
       ...rawTools,
-      { name: "generate_image", description: generateImageDescription, schema: generateImageSchema, execute: (args: any) => draw(String(args?.prompt ?? "")) },
+      { name: "generate_image", description: generateImageDescription, schema: generateImageSchema, execute: (args: any) => { taskSecurity.beforeCall("generate_image", { sensitive: true }, args); return draw(String(args?.prompt ?? "")); } },
     ];
 
     // Last 24h of the channel; empty for cron-fired tasks (see loadRecentChannelHistory).
@@ -451,7 +455,7 @@ ${personality}
       finalText = stripToolNarration(text, "generate_image");
     }
 
-    resultMeta = { text: finalText, usage, success, error, errorCode, modelUsed: llmConfig.model, ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}) };
+    resultMeta = { text: finalText, usage, success, error, errorCode, modelUsed: llmConfig.model, ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) };
     if (drawn.image) {
       Object.assign(resultMeta, {
         imagePath: drawn.image.relPath,
@@ -469,6 +473,10 @@ ${personality}
     if (toolUsageLog.length) {
       try { await recordToolUsage(db, agentId, taskId, toolUsageLog); }
       catch (e: any) { console.warn(`[${consumerName}] tool usage tracking failed: ${e?.message ?? e}`); }
+    }
+    if (taskSecurity.events().length) {
+      try { await recordSecurityEvents(db, agentId, taskId, taskSecurity.events()); }
+      catch (e: any) { console.warn(`[${consumerName}] security log failed: ${e?.message ?? e}`); }
     }
 
     // Cancelled while it ran: the row already says so — write nothing, publish nothing, overwrite nothing.

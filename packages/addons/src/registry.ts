@@ -3,6 +3,7 @@ import { HydraTool, ToolContext, ToolKeyRequirement } from './types.js';
 import { McpClientManager, McpServerStatus } from './mcp.js';
 import { guardTool } from './guard.js';
 import { extractSources, type ToolSourceSink } from './sources.js';
+import { resolveToolRisk, type TaskSecurity, type ToolRisk } from './provenance.js';
 
 /**
  * Called once per tool invocation for usage tracking. `source` is native |
@@ -16,12 +17,18 @@ export type ToolUsageSink = (toolName: string, source: string, status: 'ok' | 'b
  * touching the security layer. It sits OUTSIDE guardTool: a guard block returns
  * the ⛔ marker string (→ 'blocked'), a thrown error → 'error', anything else →
  * 'ok'. Tracking is best-effort and must never change what the model receives.
+ *
+ * The one thing that does change the result is `security` (see provenance.ts): a
+ * tool that reads third-party content marks the task as tainted and hands its
+ * result to the model wrapped in "data, not instructions" markers.
  */
-function instrumentTool(t: HydraTool, source: string, sink?: ToolUsageSink, sourceSink?: ToolSourceSink): HydraTool {
+function instrumentTool(t: HydraTool, source: string, sink?: ToolUsageSink, sourceSink?: ToolSourceSink, security?: TaskSecurity): HydraTool {
   return {
     ...t,
     execute: async (args: any) => {
+      const risk = resolveToolRisk(t, source, args);
       try {
+        security?.beforeCall(t.name, risk, args);
         const result = await t.execute(args);
         const blocked = typeof result === 'string' && result.startsWith('⛔ Blocked by HydraOps security guard');
         try { sink?.(t.name, source, blocked ? 'blocked' : 'ok'); } catch { /* tracking never breaks a call */ }
@@ -29,7 +36,8 @@ function instrumentTool(t: HydraTool, source: string, sink?: ToolUsageSink, sour
         if (sourceSink && !blocked) {
           try { const found = extractSources(t.name, args, result); if (found.length) sourceSink(found); } catch { /* best-effort */ }
         }
-        return result;
+        // Last, so usage and sources above still see the tool's own output.
+        return security ? security.afterCall(t.name, risk, args, result) : result;
       } catch (err) {
         try { sink?.(t.name, source, 'error'); } catch { /* ignore */ }
         throw err;
@@ -88,13 +96,14 @@ export class ToolRegistry {
   }
 
   // Metadata for the UI (no schema/execute)
-  listNative(): { name: string; title?: string; description: string; source: string; requiresKey?: ToolKeyRequirement }[] {
+  listNative(): { name: string; title?: string; description: string; source: string; requiresKey?: ToolKeyRequirement; risk: ToolRisk }[] {
     return [...this.nativeTools.values()].map(t => ({
       name: t.name,
       ...(t.title ? { title: t.title } : {}),
       description: t.description,
       source: t.source ?? 'native',
       ...(t.requiresKey ? { requiresKey: t.requiresKey } : {}),
+      risk: resolveToolRisk(t, t.source ?? 'native'),
     }));
   }
 
@@ -102,26 +111,28 @@ export class ToolRegistry {
   // usage sink reports every invocation (tool + source + status) for tracking.
   // `context` (e.g. the calling agent's id) is bound INSIDE the guard/tracking
   // wrappers, so it reaches the tool untouched and callers never pass it per call.
-  getRawTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink, context?: ToolContext, sourceSink?: ToolSourceSink): HydraTool[] {
+  // `security` is the task's prompt-injection state (see provenance.ts); pass the
+  // SAME object to getRawTools and getAiSdkTools so both views share one taint.
+  getRawTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink, context?: ToolContext, sourceSink?: ToolSourceSink, security?: TaskSecurity): HydraTool[] {
     const activeTools: HydraTool[] = [];
 
     const bind = (t: HydraTool): HydraTool =>
       context ? { ...t, execute: (args: any) => t.execute(args, context) } : t;
     const finalize = (t: HydraTool, source: string) => {
       const bound = bind(t);
-      return sink || sourceSink ? instrumentTool(guardTool(bound), source, sink, sourceSink) : guardTool(bound);
+      return sink || sourceSink || security ? instrumentTool(guardTool(bound), source, sink, sourceSink, security) : guardTool(bound);
     };
 
     for (const name of allowedNames) {
       const nt = this.nativeTools.get(name);
-      // Solo devolvemos nativas si no están desactivadas globalmente.
-      // guardTool() envuelve TODA tool (nativa o MCP) con la blocklist dura
-      // y la redacción de secretos — este es el único punto de salida.
+      // Natives are returned only when not switched off globally. guardTool()
+      // wraps EVERY tool (native or MCP) with the hard blocklist and the secret
+      // redaction — this is the single exit point.
       if (nt && globalNativeState[name] !== false) {
         activeTools.push(finalize(nt, nt.source === 'my_addons' ? 'my_addons' : 'native'));
       }
 
-      // Herramientas MCP
+      // MCP tools
       const mt = this.mcpManager.mcpTools.get(name);
       if (mt) {
         activeTools.push(finalize(mt, 'mcp'));
@@ -131,9 +142,9 @@ export class ToolRegistry {
     return activeTools;
   }
 
-  // Devuelve el objeto formateado para Vercel AI SDK
-  getAiSdkTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink, context?: ToolContext, sourceSink?: ToolSourceSink) {
-    const rawTools = this.getRawTools(allowedNames, globalNativeState, sink, context, sourceSink);
+  // Returns the tools in the shape the Vercel AI SDK expects
+  getAiSdkTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink, context?: ToolContext, sourceSink?: ToolSourceSink, security?: TaskSecurity) {
+    const rawTools = this.getRawTools(allowedNames, globalNativeState, sink, context, sourceSink, security);
     if (rawTools.length === 0) return undefined;
     
     const aiTools: Record<string, any> = {};

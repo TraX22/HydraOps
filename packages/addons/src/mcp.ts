@@ -4,6 +4,7 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { HydraTool } from "./types.js";
+import { classifyMcpTool } from "./provenance.js";
 
 // --- Server state types ---
 export type McpServerState = 'connecting' | 'connected' | 'failed' | 'timeout' | 'disconnected';
@@ -248,7 +249,9 @@ export class McpClientManager {
               name: toolName,
               description: `[From ${serverName}]: ${t.description || ''}`,
               schema: zodSchema,
-              execute: this.createToolExecutor(serverName, client, t.name)
+              execute: this.createToolExecutor(serverName, client, t.name),
+              // Known server, or the tool's own MCP annotations; worst case otherwise.
+              risk: classifyMcpTool(serverName, t.annotations),
             });
             registeredCount++;
             console.log(`[MCP] Registered tool: ${toolName}`);

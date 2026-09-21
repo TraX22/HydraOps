@@ -27,6 +27,8 @@ Puedes escribir herramientas propias: cada una es una carpeta dentro de `my_addo
 
 Ojo: tus add-ons son código tuyo y se ejecutan sin restricción. Trátalos como tal.
 
+Decile a HydraOps qué hace tu herramienta agregando un campo `risk` al objeto exportado: `{ readsExternal: true }` si devuelve texto escrito por terceros (una página, un feed, una bandeja de entrada), `{ sensitive: true }` si actúa o manda algo hacia afuera, o ambos. Una herramienta que no declara nada se trata como las dos cosas — la suposición segura. Ver [Seguridad](./13-security.md).
+
 ## Servidores MCP
 
 MCP (Model Context Protocol) es el estándar para conectar herramientas de terceros por HTTP. En **Add-ons → Servidores MCP**, el botón **Editar JSON** abre la configuración:

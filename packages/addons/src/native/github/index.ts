@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { HydraTool } from "../../../types.js";
+import { HydraTool } from "../../types.js";
 
 // github — work with a developer's GitHub through the official REST API.
 //
@@ -108,6 +108,7 @@ const out = (r: GhResult, shape: (d: any) => unknown): string =>
 
 export const githubListReposTool: HydraTool = {
   name: "github_list_repos",
+  risk: { readsExternal: true },
   description: "List GitHub repositories — the authenticated user's own repos, or a given user/org's public repos. Use before other repo operations to find the exact owner/name.",
   schema: z.object({
     owner: z.string().optional().describe("A user or org login to list their repos. Omit to list YOUR repositories."),
@@ -123,6 +124,7 @@ export const githubListReposTool: HydraTool = {
 
 export const githubGetFileTool: HydraTool = {
   name: "github_get_file",
+  risk: { readsExternal: true },
   description: "Read the contents of a file in a GitHub repository at a given path (optionally at a specific branch, tag, or commit).",
   schema: z.object({
     owner: z.string(), repo: z.string(), path: z.string().describe("File path within the repo, e.g. src/index.ts"),
@@ -142,6 +144,7 @@ export const githubGetFileTool: HydraTool = {
 
 export const githubListIssuesTool: HydraTool = {
   name: "github_list_issues",
+  risk: { readsExternal: true },
   description: "List issues in a repository, with optional filters. Pull requests are excluded.",
   schema: z.object({
     owner: z.string(), repo: z.string(),
@@ -158,6 +161,7 @@ export const githubListIssuesTool: HydraTool = {
 
 export const githubGetIssueTool: HydraTool = {
   name: "github_get_issue",
+  risk: { readsExternal: true },
   description: "Get a single issue (or pull request) with its body and, optionally, its comments.",
   schema: z.object({
     owner: z.string(), repo: z.string(), number: z.number().int(),
@@ -179,6 +183,7 @@ export const githubGetIssueTool: HydraTool = {
 
 export const githubCreateIssueTool: HydraTool = {
   name: "github_create_issue",
+  risk: { sensitive: true },
   description: "Open a new issue in a repository. Requires a token whose scope allows writing issues on that repo.",
   schema: z.object({
     owner: z.string(), repo: z.string(), title: z.string(),
@@ -193,6 +198,7 @@ export const githubCreateIssueTool: HydraTool = {
 
 export const githubCommentTool: HydraTool = {
   name: "github_comment",
+  risk: { sensitive: true },
   description: "Add a comment to an issue OR a pull request (PRs are issues on GitHub, so use the PR number here). Needs write scope.",
   schema: z.object({
     owner: z.string(), repo: z.string(), number: z.number().int().describe("Issue or PR number."),
@@ -206,6 +212,7 @@ export const githubCommentTool: HydraTool = {
 
 export const githubListPullsTool: HydraTool = {
   name: "github_list_pulls",
+  risk: { readsExternal: true },
   description: "List pull requests in a repository.",
   schema: z.object({
     owner: z.string(), repo: z.string(),
@@ -220,6 +227,7 @@ export const githubListPullsTool: HydraTool = {
 
 export const githubGetPullTool: HydraTool = {
   name: "github_get_pull",
+  risk: { readsExternal: true },
   description: "Get a pull request with its description and, optionally, the list of changed files.",
   schema: z.object({
     owner: z.string(), repo: z.string(), number: z.number().int(),
@@ -241,6 +249,7 @@ export const githubGetPullTool: HydraTool = {
 
 export const githubSearchTool: HydraTool = {
   name: "github_search",
+  risk: { readsExternal: true },
   description: "Search GitHub for repositories, code, or issues/PRs using GitHub's search syntax (e.g. 'repo:owner/name path:src useState').",
   schema: z.object({
     query: z.string().describe("GitHub search query."),
@@ -263,6 +272,8 @@ export const githubSearchTool: HydraTool = {
 
 export const githubApiTool: HydraTool = {
   name: "github_api",
+  // Reads with GET; any other method writes.
+  risk: (args: any) => (String(args?.method ?? "").toUpperCase() === "GET" ? { readsExternal: true } : { readsExternal: true, sensitive: true }),
   description: "Escape hatch: call ANY GitHub REST API endpoint directly when no curated github_* tool fits. Provide the method and path (e.g. GET /repos/{owner}/{repo}/branches). The token's scope still governs what's allowed.",
   schema: z.object({
     method: z.enum(["GET", "POST", "PATCH", "PUT", "DELETE"]).describe("HTTP method."),

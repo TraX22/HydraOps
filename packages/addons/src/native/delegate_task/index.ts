@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { HydraTool, ToolContext } from "../../../types.js";
+import { HydraTool, ToolContext } from "../../types.js";
 
 // delegate_task — let an agent hand work to another HydraOps agent. It creates
 // a task in the target agent's chat through the local API (loopback), exactly
@@ -69,6 +69,8 @@ async function delegateTask(agent: string, prompt: string, context?: ToolContext
 
 export const delegateTaskTool: HydraTool = {
   name: "delegate_task",
+  // Makes another agent act, with that agent's tools.
+  risk: { sensitive: true },
   title: "Delegate",
   description:
     "Hand a task to another HydraOps agent by name (e.g. Luna for images, Valentina for video, Sofia for code). Creates the task in that agent's chat; the agent works on it on its own and the reply appears THERE, not in this conversation. Use it when the user asks you to have another agent do something, or when the work clearly belongs to another agent. Write the prompt self-contained, as the user would, with everything the other agent needs. Returns a confirmation only — never the result.",

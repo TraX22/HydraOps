@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { HydraTool } from "../../../types.js";
+import { HydraTool } from "../../types.js";
 
 async function searchWeb(query: string) {
   try {
@@ -37,6 +37,7 @@ async function searchWeb(query: string) {
 
 export const webSearchTool: HydraTool = {
   name: "web_search",
+  risk: { readsExternal: true },
   title: "Web Search",
   description:
     "Search for updated information on the internet when you do not have the answer or need recent data.",
