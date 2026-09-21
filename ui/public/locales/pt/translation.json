@@ -73,7 +73,9 @@
     "whatsNewClose": "Fechar (volta na próxima atualização)",
     "stop": "Parar",
     "stopHint": "Para esta tarefa: o agente deixa de gerar e nenhuma resposta é salva",
-    "cancelled": "Cancelada"
+    "cancelled": "Cancelada",
+    "sources": "Fontes",
+    "sourcesLegend": "● aberta pelo agente · ○ apareceu em uma busca"
   },
   "agents": {
     "title": "Agentes",

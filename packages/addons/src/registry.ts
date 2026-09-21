@@ -2,6 +2,7 @@ import { tool } from 'ai';
 import { HydraTool, ToolContext, ToolKeyRequirement } from './types.js';
 import { McpClientManager, McpServerStatus } from './mcp.js';
 import { guardTool } from './guard.js';
+import { extractSources, type ToolSourceSink } from './sources.js';
 
 /**
  * Called once per tool invocation for usage tracking. `source` is native |
@@ -16,17 +17,21 @@ export type ToolUsageSink = (toolName: string, source: string, status: 'ok' | 'b
  * the ⛔ marker string (→ 'blocked'), a thrown error → 'error', anything else →
  * 'ok'. Tracking is best-effort and must never change what the model receives.
  */
-function instrumentTool(t: HydraTool, source: string, sink: ToolUsageSink): HydraTool {
+function instrumentTool(t: HydraTool, source: string, sink?: ToolUsageSink, sourceSink?: ToolSourceSink): HydraTool {
   return {
     ...t,
     execute: async (args: any) => {
       try {
         const result = await t.execute(args);
         const blocked = typeof result === 'string' && result.startsWith('⛔ Blocked by HydraOps security guard');
-        try { sink(t.name, source, blocked ? 'blocked' : 'ok'); } catch { /* tracking never breaks a call */ }
+        try { sink?.(t.name, source, blocked ? 'blocked' : 'ok'); } catch { /* tracking never breaks a call */ }
+        // Which addresses did this call open or surface? (see sources.ts)
+        if (sourceSink && !blocked) {
+          try { const found = extractSources(t.name, args, result); if (found.length) sourceSink(found); } catch { /* best-effort */ }
+        }
         return result;
       } catch (err) {
-        try { sink(t.name, source, 'error'); } catch { /* ignore */ }
+        try { sink?.(t.name, source, 'error'); } catch { /* ignore */ }
         throw err;
       }
     },
@@ -97,14 +102,14 @@ export class ToolRegistry {
   // usage sink reports every invocation (tool + source + status) for tracking.
   // `context` (e.g. the calling agent's id) is bound INSIDE the guard/tracking
   // wrappers, so it reaches the tool untouched and callers never pass it per call.
-  getRawTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink, context?: ToolContext): HydraTool[] {
+  getRawTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink, context?: ToolContext, sourceSink?: ToolSourceSink): HydraTool[] {
     const activeTools: HydraTool[] = [];
 
     const bind = (t: HydraTool): HydraTool =>
       context ? { ...t, execute: (args: any) => t.execute(args, context) } : t;
     const finalize = (t: HydraTool, source: string) => {
       const bound = bind(t);
-      return sink ? instrumentTool(guardTool(bound), source, sink) : guardTool(bound);
+      return sink || sourceSink ? instrumentTool(guardTool(bound), source, sink, sourceSink) : guardTool(bound);
     };
 
     for (const name of allowedNames) {
@@ -127,8 +132,8 @@ export class ToolRegistry {
   }
 
   // Devuelve el objeto formateado para Vercel AI SDK
-  getAiSdkTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink, context?: ToolContext) {
-    const rawTools = this.getRawTools(allowedNames, globalNativeState, sink, context);
+  getAiSdkTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink, context?: ToolContext, sourceSink?: ToolSourceSink) {
+    const rawTools = this.getRawTools(allowedNames, globalNativeState, sink, context, sourceSink);
     if (rawTools.length === 0) return undefined;
     
     const aiTools: Record<string, any> = {};

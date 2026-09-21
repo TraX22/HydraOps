@@ -37,3 +37,4 @@ export async function createRegistry(): Promise<ToolRegistry> {
 
   return registry;
 }
+export * from './sources.js';

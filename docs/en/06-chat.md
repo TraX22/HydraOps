@@ -38,6 +38,10 @@ While an agent is working, a **Stop** button sits next to the "typing" dots. Pre
 
 What a tool already did before you stopped it is not undone: a message sent to Telegram, a note saved to memory or a task delegated to another agent carry on. For image and video agents the worker stops waiting for the render and discards the result, but what was already requested from the provider may still finish (and be billed): those services offer no cancellation.
 
+## Sources
+
+When an agent searches the web or opens pages to answer you, **Sources · N** shows up under its reply. Expand it to see the real addresses its tools used: **●** marks pages the agent opened, **○** the ones that came up in a search. The same addresses stay in the conversation's memory, so a later "give me the link" gets the real one instead of one rebuilt from memory. Agents also follow the rule of never calling a link "verified" unless they opened it in that same turn.
+
 ## Links
 
 Links in a reply always open **outside HydraOps**: in your browser when you use the desktop app, or in a new tab when you use it from a browser. The app window never navigates to another site.

@@ -401,6 +401,19 @@ export class ChatComponent implements OnInit, OnDestroy {
     }).catch(() => {});
   }
 
+  // URLs the agent's tools opened ("read") or were shown in search results ("found").
+  sources(msg: ChatMessage): { url: string; title?: string; kind: string; host: string }[] {
+    const raw = (msg.resultMeta as Record<string, unknown> | undefined)?.['sources'];
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter((s): s is { url: string; title?: string; kind?: string } => !!s && typeof (s as any).url === 'string' && /^https?:\/\//i.test((s as any).url))
+      .map(s => {
+        let host = '';
+        try { host = new URL(s.url).hostname.replace(/^www\./, ''); } catch { /* keep empty */ }
+        return { url: s.url, title: s.title, kind: s.kind ?? 'found', host };
+      });
+  }
+
   hasImage(msg: ChatMessage): boolean {
     const meta = msg.resultMeta as Record<string, unknown> | undefined;
     return !!meta?.['imageUrl'];

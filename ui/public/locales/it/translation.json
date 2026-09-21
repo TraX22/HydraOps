@@ -73,7 +73,9 @@
     "whatsNewClose": "Chiudi (torna al prossimo aggiornamento)",
     "stop": "Ferma",
     "stopHint": "Ferma questa attività: l'agente smette di generare e non viene salvata alcuna risposta",
-    "cancelled": "Annullata"
+    "cancelled": "Annullata",
+    "sources": "Fonti",
+    "sourcesLegend": "● aperta dall'agente · ○ apparsa in una ricerca"
   },
   "agents": {
     "title": "Agenti",

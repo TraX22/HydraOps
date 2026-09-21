@@ -38,6 +38,10 @@ Mientras un agente trabaja, al lado de los puntitos de "escribiendo" aparece el 
 
 Lo que una herramienta ya hizo antes de detenerla no se deshace: un mensaje enviado a Telegram, una nota guardada en memoria o una tarea delegada a otro agente siguen su curso. En los agentes de imagen y video el worker deja de esperar el render y descarta el resultado, pero lo que ya se le pidió al proveedor puede terminar (y cobrarse) igual: esos servicios no ofrecen cancelación.
 
+## Fuentes
+
+Cuando un agente busca en la web o abre páginas para responderte, debajo de su respuesta aparece **Fuentes · N**. Al desplegarlo ves las direcciones reales que usaron sus herramientas: con **●** las páginas que el agente abrió, con **○** las que le aparecieron en una búsqueda. Esas mismas direcciones quedan en la memoria de la conversación, así que si después le pedís "dame el link" te da el verdadero en lugar de reconstruirlo de memoria. Los agentes tienen además la regla de no dar por "verificado" un enlace que no abrieron en ese mismo turno.
+
 ## Enlaces
 
 Los enlaces que aparecen en una respuesta se abren siempre **fuera de HydraOps**: en tu navegador si usás la app de escritorio, o en una pestaña nueva si entrás por el navegador. La ventana de la app nunca navega a otro sitio.

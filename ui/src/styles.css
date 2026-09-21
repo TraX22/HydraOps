@@ -183,6 +183,24 @@ body {
 .whatsnew-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; }
 .whatsnew-foot a { color: var(--accent); }
 .whatsnew-done { padding: 6px 14px; border: 1px solid var(--accent); border-radius: var(--radius-sm); background: var(--accent); color: #fff; cursor: pointer; font-family: inherit; font-size: 13px; }
+/* Links inside replies read as links: blue, underlined on hover — on both bubbles and in both themes. */
+.msg-bubble a { color: #60a5fa; text-decoration: none; word-break: break-word; }
+.msg-bubble a:hover { text-decoration: underline; }
+.msg-row.user .msg-bubble a { color: #dbeafe; text-decoration: underline; }
+:root[data-theme="light"] .msg-row.bot .msg-bubble a, :root[data-theme="light"] .msg-sources a { color: #1d4ed8; }
+
+/* Sources of an answer (URLs the tools opened or found), under the reply. */
+.msg-sources { margin-top: 6px; font-size: 12.5px; color: var(--text-muted); }
+.msg-sources summary { cursor: pointer; user-select: none; width: fit-content; }
+.msg-sources summary:hover { color: var(--text-primary); }
+.msg-sources ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.msg-sources li { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.msg-sources li::before { content: "○"; font-size: 9px; opacity: .7; }
+.msg-sources li.read::before { content: "●"; color: var(--accent); opacity: 1; }
+.msg-sources a { color: #60a5fa; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-sources a:hover { text-decoration: underline; }
+.msg-source-host { flex: 0 0 auto; font-size: 11px; opacity: .7; }
+
 /* Release notes (What's new tab): emoji-led bullets, spaced, no disc (the emoji is the marker). */
 .whatsnew-release .msg-bubble ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 

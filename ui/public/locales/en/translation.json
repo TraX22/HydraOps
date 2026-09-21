@@ -73,7 +73,9 @@
     "whatsNewClose": "Close (comes back with the next update)",
     "stop": "Stop",
     "stopHint": "Stop this task: the agent stops generating and no reply is saved",
-    "cancelled": "Cancelled"
+    "cancelled": "Cancelled",
+    "sources": "Sources",
+    "sourcesLegend": "● opened by the agent · ○ appeared in a search"
   },
   "agents": {
     "title": "Agents",
