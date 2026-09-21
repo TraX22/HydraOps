@@ -131,17 +131,18 @@ const env = {
   MY_ADDONS_DIR: path.join(HERE, "addons"),
   BATTERY_SINK_FILE: sink,
 };
-const node = (entry) => [process.execPath, ["--import", "tsx", entry]];
+// Arguments to run a TypeScript entry point in ONE node process (so stopping it is clean).
+const tsx = (entry) => ["--import", "tsx", entry];
 
 console.log(`[battery] model: ${MODEL} · data: ${dataDir}`);
 let failed = false;
 try {
-  const migrate = spawnSync(...node("packages/db/src/migrate.ts"), { cwd: ROOT, env, encoding: "utf-8" });
+  const migrate = spawnSync(process.execPath, tsx("packages/db/src/migrate.ts"), { cwd: ROOT, env, encoding: "utf-8" });
   if (migrate.status !== 0) throw new Error("migration failed:\n" + (migrate.stderr || migrate.stdout));
 
   start("nats", await findNats(), ["-js", "-sd", path.join(dataDir, "nats"), "-p", String(NATS_PORT), "-a", "127.0.0.1"], env, logDir);
   await sleep(1500);
-  for (const svc of ["api", "outbox-worker", "orchestrator", "worker-general"]) start(svc, ...node(`apps/${svc}/src/index.ts`), env, logDir);
+  for (const svc of ["api", "outbox-worker", "orchestrator", "worker-general"]) start(svc, process.execPath, tsx(`apps/${svc}/src/index.ts`), env, logDir);
   await waitForApi();
   await sleep(4000); // let the worker finish subscribing
 
