@@ -46,6 +46,10 @@ When an agent searches the web or opens pages to answer you, **Sources · N** sh
 
 Links in a reply always open **outside HydraOps**: in your browser when you use the desktop app, or in a new tab when you use it from a browser. The app window never navigates to another site.
 
+## Safe content
+
+What an agent writes is shown as Markdown, never as live HTML: before it is painted, every reply goes through a filter that removes scripts, forms, embedded frames, styles and anything that could run code or pose as part of the app. Images load only when HydraOps itself serves them; an image from another site appears as a link (🖼), so opening it is your call and viewing a reply never makes requests to third parties. This matters because an agent that reads web pages can be manipulated by what those pages say.
+
 ## What's new
 
 After every update a **What's new** tab shows up in the chat with what the new version brings: what was added, improved and fixed. If you skipped versions it lists all the ones you missed, newest first. The notes are in English and ship inside the app, so they show without internet too.
