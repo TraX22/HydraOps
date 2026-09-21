@@ -86,6 +86,13 @@ export const TaskFailedV1 = z.object({
   durationMs: z.number().int().nonnegative(),
 });
 
+// The user stopped a task (stop button, /cancel). The API has already marked it
+// `cancelled`; whichever worker is running it aborts the model call.
+export const TaskCancelRequestedV1 = z.object({
+  taskId: z.string().uuid(),
+  requestedBy: z.string().max(200).optional(),
+});
+
 export const SystemCronUpdatedV1 = z.object({});
 // Run one scheduled task now (the /run command); the orchestrator fires it.
 export const SystemCronRunV1 = z.object({ cronId: z.string().min(1) });
@@ -99,6 +106,7 @@ export const registry = {
   "agent.task_assigned": { 1: AgentTaskAssignedV1 },
   "agent.result_generated": { 1: AgentResultGeneratedV1 },
   "task.failed": { 1: TaskFailedV1 },
+  "task.cancel_requested": { 1: TaskCancelRequestedV1 },
   "system.cron_updated": { 1: SystemCronUpdatedV1 },
   "system.cron_run": { 1: SystemCronRunV1 },
 } as const;

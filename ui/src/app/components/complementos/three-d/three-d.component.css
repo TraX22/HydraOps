@@ -32,6 +32,7 @@
   background: var(--bg-surface); border: 1px solid var(--accent); border-radius: var(--radius-sm); font-size: 12.5px;
   animation: td-pulse 1.6s ease-in-out infinite;
 }
+.td-cancel { pointer-events: auto; margin-left: 4px; }
 .td-status-text { display: flex; flex-direction: column; gap: 2px; }
 .td-status small { color: var(--text-muted); }
 .td-elapsed { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }

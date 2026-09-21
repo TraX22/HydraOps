@@ -24,6 +24,12 @@ export * from "./recall.js";
  * after an LLM turn with the events collected by the usage sink. Best-effort:
  * tracking must never break task processing, so callers wrap this in try/catch.
  */
+/** True when the user cancelled this task (the API sets the status; workers must not overwrite it). */
+export async function isTaskCancelled(db: any, taskId: string): Promise<boolean> {
+  const rows = await db.select({ status: schema.tasks.status }).from(schema.tasks).where(eq(schema.tasks.id, taskId)).limit(1);
+  return rows[0]?.status === "cancelled";
+}
+
 export async function recordToolUsage(
   db: any,
   agentId: string,

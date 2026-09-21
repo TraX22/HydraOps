@@ -46,6 +46,8 @@ The model does not write raw Three.js: it gets a helper kit (boxes, cylinders, l
 
 What comes out well: geometric, parametric things — houses, towers, piers, props, simple vehicles. Organic shapes (a horse, a character) come out blocky: that needs a real mesh generator, planned for a later version.
 
+While the model works, the badge in the top-left corner shows the elapsed time and a **Cancel** button: it aborts the model call at once (handy with reasoning models that take minutes) and leaves your text as it was.
+
 ### Iterate and fix
 
 With the scene on screen, type the change ("make the roof red and add a chimney") and **Apply change**: the model gets the previous code and modifies it. If the code it writes fails at runtime, the viewer hands the error back and asks for a fix **up to twice on its own**; the panel shows "asking for a fix (1/2)". If it still fails, you see the error with its line, and you can edit the code by hand in the **Code** tab and **Apply**.

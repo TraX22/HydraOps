@@ -1,3 +1,4 @@
+import type { Subscription } from 'rxjs';
 import { Component, ElementRef, OnDestroy, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -26,6 +27,7 @@ interface Iteration {
 }
 
 const MAX_AUTO_FIX = 2;
+const CANCELLED = Symbol('cancelled');
 const MODEL_KEY = 'hydra_threed_model';
 const STYLE_KEY = 'hydra_threed_style';
 // Style presets; the directives live in the API (THREED_STYLES). '' = none.
@@ -68,6 +70,11 @@ export class ThreeDComponent implements OnInit, OnDestroy {
   readonly modelLabel = modelLabel;
   // Same company groups as the global model selector (Config).
   readonly groupedModels = computed(() => groupModels(this.models()));
+  // The chosen model by its display name (the id of the local one is just "local-model").
+  readonly modelName = computed(() => {
+    const m = this.models().find(x => x.id === this.model());
+    return m ? modelLabel(m.name) : this.model();
+  });
   readonly isLocalModel = computed(() => {
     const m = this.models().find(x => x.id === this.model());
     return m?.provider === 'local';
@@ -87,6 +94,11 @@ export class ThreeDComponent implements OnInit, OnDestroy {
   readonly style = signal<string>('');
   // The idea as typed, kept so "Improve prompt" can be undone.
   readonly beforeEnhance = signal('');
+  // The in-flight model request (generate / fix / improve): unsubscribing aborts the
+  // HTTP call, and the API aborts the model call when the client goes away.
+  private inFlight: Subscription | null = null;
+  private rejectInFlight: ((reason: unknown) => void) | null = null;
+  private statusBeforeBusy: Status = 'idle';
   // mm:ss since the current generation started (reasoning models can take minutes).
   readonly elapsed = signal('');
   private busySince = 0;
@@ -134,6 +146,7 @@ export class ThreeDComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     window.removeEventListener('message', this.onMessage);
     if (this.ticker) clearInterval(this.ticker);
+    this.inFlight?.unsubscribe(); // leaving the plugin stops the model call too
   }
 
   // ── Sandbox plumbing ──
@@ -226,14 +239,28 @@ export class ThreeDComponent implements OnInit, OnDestroy {
     this.status.set('enhancing');
     this.error.set('');
     this.errorLine.set(null);
-    this.api.enhance3d({ prompt: idea, model: this.model() || undefined, style: this.style() || undefined, imagePath: this.reference()?.path }).subscribe({
+    this.statusBeforeBusy = previous === 'error' ? 'idle' : previous;
+    this.inFlight = this.api.enhance3d({ prompt: idea, model: this.model() || undefined, style: this.style() || undefined, imagePath: this.reference()?.path }).subscribe({
       next: r => {
+        this.inFlight = null;
         this.beforeEnhance.set(idea);
         this.prompt.set(r.prompt);
         this.status.set(previous === 'error' ? 'idle' : previous);
       },
-      error: err => this.fail(this.describe(err)),
+      error: err => { this.inFlight = null; this.fail(this.describe(err)); },
     });
+  }
+
+  // Cancel button on the working badge.
+  cancel(): void {
+    if (!this.inFlight) return;
+    this.inFlight.unsubscribe();
+    this.inFlight = null;
+    const reject = this.rejectInFlight; this.rejectInFlight = null;
+    this.error.set('');
+    this.errorLine.set(null);
+    this.status.set(this.hasCode() ? 'ok' : this.statusBeforeBusy === 'loading' ? 'loading' : 'idle');
+    reject?.(CANCELLED);
   }
 
   undoEnhance(): void {
@@ -258,7 +285,7 @@ export class ThreeDComponent implements OnInit, OnDestroy {
     try {
       code = await this.requestCode({ prompt, code: iterating ? this.code() : undefined });
     } catch (err: unknown) {
-      this.fail(this.describe(err));
+      if (err !== CANCELLED) this.fail(this.describe(err));
       return;
     }
     await this.applyGenerated(code, prompt, nameSource);
@@ -293,7 +320,7 @@ export class ThreeDComponent implements OnInit, OnDestroy {
       try {
         current = await this.requestCode({ prompt, code: current, error: r.line ? `${message} (line ${r.line})` : message });
       } catch (err: unknown) {
-        this.fail(this.describe(err));
+        if (err !== CANCELLED) this.fail(this.describe(err));
         return;
       }
     }
@@ -301,9 +328,10 @@ export class ThreeDComponent implements OnInit, OnDestroy {
 
   private requestCode(body: { prompt: string; code?: string; error?: string }): Promise<string> {
     return new Promise((resolve, reject) => {
-      this.api.generate3d({ ...body, model: this.model() || undefined, style: this.style() || undefined, imagePath: this.reference()?.path }).subscribe({
-        next: r => resolve(r.code),
-        error: err => reject(err),
+      this.rejectInFlight = reject;
+      this.inFlight = this.api.generate3d({ ...body, model: this.model() || undefined, style: this.style() || undefined, imagePath: this.reference()?.path }).subscribe({
+        next: r => { this.inFlight = null; this.rejectInFlight = null; resolve(r.code); },
+        error: err => { this.inFlight = null; this.rejectInFlight = null; reject(err); },
       });
     });
   }

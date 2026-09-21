@@ -46,6 +46,8 @@ El modelo no escribe Three.js "a pelo": recibe un kit de ayudas (cajas, cilindro
 
 Lo que sale bien: cosas geométricas y paramétricas, casas, torres, muelles, props, vehículos simples. Lo orgánico (un caballo, un personaje) sale como bloques: eso pide un generador de mallas real, que queda para una versión futura.
 
+Mientras el modelo trabaja, el cartel de arriba a la izquierda muestra el tiempo transcurrido y un botón **Cancelar**: corta la llamada al modelo en el acto (útil con razonadores que tardan minutos) y deja tu texto como estaba.
+
 ### Iterar y corregir
 
 Con la escena en pantalla, escribís el cambio ("hacé el techo rojo y agregale una chimenea") y **Aplicar cambio**: el modelo recibe el código anterior y lo modifica. Si el código que escribe falla al ejecutarse, el visor le devuelve el error y le pide la corrección **hasta dos veces solo**, sin que hagas nada; el panel muestra "pidiendo corrección (1/2)". Si aun así falla, ves el error con la línea, y podés retocar el código a mano en la pestaña **Código** y **Aplicar**.
