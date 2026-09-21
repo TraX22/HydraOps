@@ -160,6 +160,18 @@ body {
 }
 .msg-bubble p:first-child { margin-top: 0; }
 .msg-bubble p:last-child { margin-bottom: 0; }
+/* Stop button on a typing bubble + the "cancelled" note (chat view). */
+.typing-row { display: flex; align-items: center; gap: 10px; }
+.stop-task-btn {
+  display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; font-size: 12px; font-family: inherit;
+  border: 1px solid var(--border-color); border-radius: var(--radius-full); background: transparent;
+  color: var(--text-muted); cursor: pointer; opacity: .75;
+}
+.stop-task-btn:hover { opacity: 1; color: var(--status-error); border-color: var(--status-error); }
+.stop-task-btn app-icon svg { width: 11px; height: 11px; }
+.msg-cancelled { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-style: italic; color: var(--text-muted); }
+.msg-cancelled app-icon svg { width: 11px; height: 11px; }
+
 /* What's new tab (chat view). Global on purpose: keeps the chat component under its CSS budget. */
 .whatsnew-tab { display: inline-flex; align-items: center; gap: 6px; }
 .whatsnew-tab app-icon { color: var(--accent); }

@@ -196,6 +196,10 @@ async function waitForTask(chatId: number, token: string, agentId: string, taskI
         console.log(`[telegram-bot] ← ${agentId} replied (${reply.length} chars, task ${taskId})`);
         return reply;
       }
+      if (task.status === "cancelled") {
+        console.log(`[telegram-bot] ⏹ ${agentId} task ${taskId} cancelled`);
+        return "Cancelled.";
+      }
       if (task.status === "failed") {
         console.log(`[telegram-bot] ✖ ${agentId} task ${taskId} failed`);
         return `The task failed: ${task.resultMeta?.error || task.result_meta?.error || "unknown error"}`;

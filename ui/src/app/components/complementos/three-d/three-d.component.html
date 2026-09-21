@@ -47,17 +47,20 @@
           <span class="td-spin"><app-icon name="hourglass" /></span>
           <div class="td-status-text">
             @if (status() === 'enhancing') {
-              {{ 'threeD.enhancing' | translate: { model: modelLabel(model()) } }}
+              {{ 'threeD.enhancing' | translate: { model: modelName() } }}
             } @else if (status() === 'fixing') {
               {{ 'threeD.fixing' | translate: { n: fixAttempt() } }}
             } @else if (status() === 'running') {
               {{ 'threeD.rendering' | translate }}
             } @else {
-              {{ 'threeD.generating' | translate: { model: modelLabel(model()) } }}
+              {{ 'threeD.generating' | translate: { model: modelName() } }}
               @if (isLocalModel()) { <small>{{ 'threeD.localHint' | translate }}</small> }
             }
             @if (status() !== 'running' && elapsed()) { <small class="td-elapsed">{{ elapsed() }}</small> }
           </div>
+          @if (status() !== 'running') {
+            <button class="td-btn ghost small td-cancel" (click)="cancel()">{{ 'common.cancel' | translate }}</button>
+          }
         </div>
       }
       @if (stats(); as s) {

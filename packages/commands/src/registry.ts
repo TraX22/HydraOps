@@ -122,13 +122,25 @@ export const COMMANDS: Command[] = [
     },
   },
   {
+    name: "cancel",
+    aliases: ["cancelar", "stop", "detener"],
+    description: "Stop the task this chat's agent is working on",
+    handler: async (ctx) => {
+      // In the app the chat is the conversation; elsewhere (Telegram) it is the active agent's.
+      const channel = ctx.transport === "app" ? ctx.conversationId : (ctx.activeAgent ?? ctx.conversationId);
+      const { cancelled } = await ctx.api.cancelTasks(channel, `${ctx.transport}:${ctx.senderId}`);
+      if (!cancelled) return info("Nothing is running in this chat.");
+      return ok(cancelled === 1 ? "Task cancelled." : `${cancelled} tasks cancelled.`);
+    },
+  },
+  {
     name: "tasks",
     aliases: ["tareas"],
     description: "Latest tasks of this chat with their status",
     handler: async (ctx) => {
       const tasks = await ctx.api.listTasks(ctx.conversationId, 10);
       if (!tasks.length) return info("No tasks in this chat yet.");
-      const ICON: Record<string, string> = { pending: "⏳", assigned: "🟠", completed: "✅", failed: "❌" };
+      const ICON: Record<string, string> = { pending: "⏳", assigned: "🟠", completed: "✅", failed: "❌", cancelled: "⏹" };
       const lines = tasks.map((t) => {
         const when = t.createdAt.slice(11, 16);
         const who = t.agent ? ` · ${t.agent}` : "";

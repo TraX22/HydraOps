@@ -19,6 +19,7 @@ Names and aliases are case-insensitive. English aliases are listed in parenthese
 | `/main` | Back to the main chat. |
 | `/close` | Close the current tab. |
 | `/delegate <agent> <task>` | Create a task for another agent, from wherever you are. |
+| `/cancel` (`/stop`) | Stop the task running (or queued) in the chat where you type it. |
 | `/tasks` | Latest tasks of this chat with their status. |
 
 ## Active agent's memory

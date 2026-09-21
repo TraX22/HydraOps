@@ -13,10 +13,10 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, loadRecentChannelHistory, searchAgentTasks } from "@hydraops/db";
+import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
-import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType } from "@hydraops/nats";
-import { and, desc, eq } from "drizzle-orm";
+import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, generateVideo, resolveLLMConfig, buildUserMessage, GROK_VIDEO_ASPECTS, isGrokVideoEngine } from "@hydraops/llm";
 import { createRegistry, createSourceCollector, historyAssistantText } from "@hydraops/addons";
 import { tool } from "ai";
@@ -45,6 +45,8 @@ const { db, client: sqliteClient } = createDb(env.DATABASE_URL);
 const nc = await connectNats(env.NATS_URL);
 await ensureEventsStream(nc);
 const js = await getJs(nc);
+// Stop button / /cancel: aborts the task this worker is running (see createCancelRegistry).
+const cancels = createCancelRegistry(nc, consumerName);
 
 console.log(`[${consumerName}] listening for agent.task_assigned (workerType=${WORKER_TYPE}) on ${env.NATS_URL}`);
 
@@ -162,6 +164,7 @@ async function renderToStorage(
   agentCfg: any,
   getGlobalConfig: (key: string, defaultValue: string) => string,
   prompt: string,
+  abortSignal?: AbortSignal,
 ): Promise<{ videoUrl?: string; relPath: string | null; sourceUrl: string | null; engine: string; error?: string }> {
   const videoConfig = resolveVideoEngine(agentCfg, getGlobalConfig);
   const [vidWidth, vidHeight] = videoSize(agentCfg.resolution);
@@ -173,7 +176,7 @@ async function renderToStorage(
     console.warn(`[${consumerName}] aspect ${aspect} is not available on ${videoConfig.provider}; rendering ${vidWidth}x${vidHeight} instead`);
   }
   console.log(`[${consumerName}] 🎬 Video task ${taskId} with ${videoConfig.provider}:${videoConfig.model} (${aspect ?? "auto"}, ${vidWidth}x${vidHeight})...`);
-  const video = await generateVideo(videoConfig, prompt, vidWidth, vidHeight, aspect);
+  const video = await generateVideo(videoConfig, prompt, vidWidth, vidHeight, aspect, { abortSignal });
   if (!video.success || !video.url) {
     return { relPath: null, sourceUrl: null, engine: videoConfig.model, error: video.error || "unknown error" };
   }
@@ -278,6 +281,11 @@ for await (const m of sub) {
     const agentId = data.agentId as string;
     const channel = (data.channel as string) || "main";
     const taskRows = await (db as any).select().from(tasks).where(eq(tasks.id, taskId)).limit(1);
+    if (taskRows[0]?.status === "cancelled") {
+      console.log(`[${consumerName}] Task ${taskId} was cancelled before it started — skipped`);
+      m.ack();
+      continue;
+    }
     const userPrompt = (data.prompt as string) || taskRows[0]?.prompt || "";
     if (!userPrompt) {
       m.ack();
@@ -381,8 +389,10 @@ ${personality}
     // remembers what it produced so the result can carry the video; tracked in
     // tool_usage like any other tool.
     const rendered: { video: { videoUrl: string; relPath: string | null; sourceUrl: string | null; engine: string } | null; error: string | null } = { video: null, error: null };
+    // Stop button / /cancel: aborts the model call and any render polling of this task.
+    const controller = cancels.track(taskId!);
     const render = async (prompt: string): Promise<string> => {
-      const r = await renderToStorage(taskId!, agentCfg, getGlobalConfig, prompt);
+      const r = await renderToStorage(taskId!, agentCfg, getGlobalConfig, prompt, controller.signal);
       if (r.videoUrl) {
         rendered.video = { videoUrl: r.videoUrl, relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
         usageSink("generate_video", "native", "ok");
@@ -427,12 +437,13 @@ ${personality}
       [...history, await buildUserMessage(userPrompt, rootDir)],
       systemPrompt,
       toolsForModel,
-      rawToolsForModel
+      rawToolsForModel,
+      { abortSignal: controller.signal }
     );
 
     // Explicit request but the model never rendered (weak/local models): fall
     // back to the engine with the raw prompt, as the old video path did.
-    if (explicitVideo && !rendered.video && !rendered.error) {
+    if (explicitVideo && !rendered.video && !rendered.error && !controller.signal.aborted) {
       const r = await renderToStorage(taskId!, agentCfg, getGlobalConfig, userPrompt);
       if (r.videoUrl) rendered.video = { videoUrl: r.videoUrl, relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
       else rendered.error = r.error ?? "unknown error";
@@ -470,6 +481,13 @@ ${personality}
       catch (e: any) { console.warn(`[${consumerName}] tool usage tracking failed: ${e?.message ?? e}`); }
     }
 
+    // Cancelled while it ran: the row already says so — write nothing, publish nothing, overwrite nothing.
+    if (await isTaskCancelled(db, taskId)) {
+      console.log(`[${consumerName}] Task ${taskId} was cancelled — result discarded`);
+      cancels.release(taskId);
+      m.ack();
+      continue;
+    }
     const dir = path.join(storageDir, "results", taskId);
     await mkdir(dir, { recursive: true });
     await writeFile(
@@ -504,13 +522,17 @@ ${personality}
         resultMeta,
         updatedAt: new Date(),
       })
-      .where(eq(tasks.id, taskId));
+      .where(and(eq(tasks.id, taskId), ne(tasks.status, "cancelled")));
 
     console.log(`[${consumerName}] Task ${taskId} completed.`);
+    cancels.release(taskId);
     m.ack();
   } catch (err: any) {
     console.error(`[${consumerName}] Error processing task ${taskId ?? "(unknown)"}:`, err);
-    if (taskId) {
+    const wasCancelled = taskId ? await isTaskCancelled(db, taskId).catch(() => false) : false;
+    cancels.release(taskId);
+    if (wasCancelled) console.log(`[${consumerName}] Task ${taskId} was cancelled — not reported as failed`);
+    if (taskId && !wasCancelled) {
       // Emit task.failed so subscribers (e.g. the Telegram bot) can notify on
       // cron failures. Best-effort: publishing must never break the ack.
       try {

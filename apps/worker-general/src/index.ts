@@ -11,10 +11,10 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, buildCronDedupContext, loadRecentChannelHistory, searchAgentTasks } from "@hydraops/db";
+import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, buildCronDedupContext, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
-import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType } from "@hydraops/nats";
-import { eq, and, desc } from "drizzle-orm";
+import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
+import { eq, and, desc, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
 import { createRegistry, createSourceCollector, historyAssistantText } from "@hydraops/addons";
 import { AckPolicy } from "nats";
@@ -41,6 +41,8 @@ const { db, client: sqliteClient } = createDb(env.DATABASE_URL);
 const nc = await connectNats(env.NATS_URL);
 await ensureEventsStream(nc);
 const js = await getJs(nc);
+// Stop button / /cancel: aborts the task this worker is running (see createCancelRegistry).
+const cancels = createCancelRegistry(nc, consumerName);
 
 console.log(`[${consumerName}] listening for agent.task_assigned (workerType=${WORKER_TYPE}) on ${env.NATS_URL}`);
 
@@ -141,10 +143,12 @@ async function loadUserProfile(): Promise<string> {
   }
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+// onTimeout lets the caller abort the underlying work: rejecting alone leaves the
+// model call running (and billing) in the background.
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string, onTimeout?: () => void): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;
   const timeout = new Promise<T>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`[${consumerName}] Timeout of ${ms}ms: ${label}`)), ms);
+    timer = setTimeout(() => { onTimeout?.(); reject(new Error(`[${consumerName}] Timeout of ${ms}ms: ${label}`)); }, ms);
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer!));
 }
@@ -186,6 +190,11 @@ for await (const m of sub) {
     const channel = (data.channel as string) || "main";
 
     const taskRows = await (db as any).select().from(tasks).where(eq(tasks.id, taskId)).limit(1);
+    if (taskRows[0]?.status === "cancelled") {
+      console.log(`[${consumerName}] Task ${taskId} was cancelled before it started — skipped`);
+      m.ack();
+      continue;
+    }
     const userPrompt = (data.prompt as string) || taskRows[0]?.prompt || "";
     if (!userPrompt) {
       console.warn(`[${consumerName}] No prompt for task ${taskId}. Skipping.`);
@@ -296,10 +305,12 @@ ${personality}
     const cronDedup = await buildCronDedupContext(db, taskId);
 
     console.log(`[${consumerName}] Processing task ${taskId} for agent ${agentId} (${llmConfig.provider}:${llmConfig.model})...`);
+    const controller = cancels.track(taskId);
     const { text, usage, success, error, errorCode } = await withTimeout(
-      llmGenerateText(llmConfig, [...history, await buildUserMessage(userPrompt, rootDir)], systemPrompt + cronDedup, aiTools, rawTools),
+      llmGenerateText(llmConfig, [...history, await buildUserMessage(userPrompt, rootDir)], systemPrompt + cronDedup, aiTools, rawTools, { abortSignal: controller.signal }),
       llmConfig.provider === "local" ? 300_000 : 120_000,
-      `LLM call`
+      `LLM call`,
+      () => controller.abort(new Error("LLM call timed out")),
     );
 
     // Persist tool usage for this task (best-effort; never break processing).
@@ -308,6 +319,13 @@ ${personality}
       catch (e: any) { console.warn(`[${consumerName}] tool usage tracking failed: ${e?.message ?? e}`); }
     }
 
+    // Cancelled while it ran: the row already says so — write nothing, publish nothing, overwrite nothing.
+    if (await isTaskCancelled(db, taskId)) {
+      console.log(`[${consumerName}] Task ${taskId} was cancelled — result discarded`);
+      cancels.release(taskId);
+      m.ack();
+      continue;
+    }
     const resultRef = await writeLocalResult(taskId, {
       taskId,
       agentId,
@@ -341,13 +359,17 @@ ${personality}
         resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}) },
         updatedAt: new Date(),
       })
-      .where(eq(tasks.id, taskId));
+      .where(and(eq(tasks.id, taskId), ne(tasks.status, "cancelled")));
 
     console.log(`[${consumerName}] Task ${taskId} completed.`);
+    cancels.release(taskId);
     m.ack();
   } catch (err: any) {
     console.error(`[${consumerName}] Error processing task ${taskId ?? "(unknown)"}:`, err);
-    if (taskId) {
+    const wasCancelled = taskId ? await isTaskCancelled(db, taskId).catch(() => false) : false;
+    cancels.release(taskId);
+    if (wasCancelled) console.log(`[${consumerName}] Task ${taskId} was cancelled — not reported as failed`);
+    if (taskId && !wasCancelled) {
       // Emit task.failed so subscribers (e.g. the Telegram bot) can notify on
       // cron failures. Best-effort: publishing must never break the ack.
       try {

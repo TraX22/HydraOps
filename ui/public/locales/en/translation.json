@@ -71,6 +71,9 @@
     "whatsNewAll": "See all releases on GitHub",
     "whatsNewDone": "Got it",
     "whatsNewClose": "Close (comes back with the next update)",
+    "stop": "Stop",
+    "stopHint": "Stop this task: the agent stops generating and no reply is saved",
+    "cancelled": "Cancelled",
     "sources": "Sources",
     "sourcesLegend": "● opened by the agent · ○ appeared in a search"
   },
@@ -393,7 +396,8 @@
     "3d": "Open the 3D plugin",
     "plugins": "Open the plugins hub (One Shot, 3D)",
     "open": "Jump to a view of the app",
-    "whatsnew": "Open the What's new tab with the latest release notes"
+    "whatsnew": "Open the What's new tab with the latest release notes",
+    "cancel": "Stop the task this chat's agent is working on"
   },
   "threeD": {
     "tagline": "Describe an object, the model writes Three.js and you watch it spin. Export .glb for Unity, Unreal, Blender or your favorite 3D app.",

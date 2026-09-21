@@ -19,6 +19,7 @@ Nombres y alias se escriben sin distinguir mayúsculas. Cada comando tiene su no
 | `/main` (`/principal`) | Vuelve al chat principal. |
 | `/close` (`/cerrar`) | Cierra la pestaña actual. |
 | `/delegate <agente> <tarea>` (`/delegar`) | Crea una tarea para otro agente desde donde estés. |
+| `/cancel` (`/cancelar`, `/stop`, `/detener`) | Detiene la tarea en curso (o en cola) del chat donde lo escribas. |
 | `/tasks` (`/tareas`) | Últimas tareas de este chat con su estado. |
 
 ## Memoria del agente activo

@@ -142,6 +142,12 @@ function enqueueEvent(envelope: ReturnType<typeof buildEnvelope>) {
 }
 
 async function assignTask(taskId: string, channel: string, prompt: string) {
+  // Cancelled while still queued: leave it alone.
+  const current = await (db as any).select({ status: tasks.status }).from(tasks).where(eq(tasks.id, taskId)).limit(1);
+  if (current[0]?.status === "cancelled") {
+    console.log(`[orchestrator] Task ${taskId} was cancelled before assignment — skipped`);
+    return;
+  }
   const { agentId, workerType } = await pickAgent(channel, prompt);
 
   const envelope = buildEnvelope({
