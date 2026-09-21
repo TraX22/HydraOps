@@ -356,7 +356,7 @@ ${personality}
     await (db as any).update(tasks)
       .set({
         status: "completed",
-        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}) },
+        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, completedAt: new Date().toISOString(), ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}) },
         updatedAt: new Date(),
       })
       .where(and(eq(tasks.id, taskId), ne(tasks.status, "cancelled")));
