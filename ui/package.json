@@ -25,6 +25,7 @@
     "@ngx-translate/core": "^18.0.0",
     "@ngx-translate/http-loader": "^18.0.0",
     "@types/prismjs": "^1.26.6",
+    "dompurify": "^3",
     "marked": "^18.0.7",
     "mermaid": "^11.17.2",
     "prismjs": "^1.30.0",

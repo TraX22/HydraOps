@@ -46,6 +46,10 @@ Cuando un agente busca en la web o abre páginas para responderte, debajo de su 
 
 Los enlaces que aparecen en una respuesta se abren siempre **fuera de HydraOps**: en tu navegador si usás la app de escritorio, o en una pestaña nueva si entrás por el navegador. La ventana de la app nunca navega a otro sitio.
 
+## Contenido seguro
+
+Lo que escribe un agente se muestra como Markdown, pero nunca como HTML activo: antes de pintarse, cada respuesta pasa por un filtro que elimina scripts, formularios, marcos incrustados, estilos y cualquier cosa que pueda ejecutar código o disfrazarse de parte de la app. Las imágenes solo se cargan si las sirve el propio HydraOps; una imagen de otro sitio aparece como un enlace (🖼) para que abrirla sea tu decisión y ver una respuesta nunca haga pedidos a terceros. Esto importa porque un agente que lee páginas web puede ser manipulado por el contenido de esas páginas.
+
 ## Novedades
 
 Después de cada actualización aparece en el chat la pestaña **Novedades** con lo que trae la versión nueva: qué se agregó, qué se mejoró y qué se corrigió. Si te salteaste versiones, muestra todas las que te perdiste, de la más nueva a la más vieja. Las notas están en inglés y viajan dentro de la aplicación, así que se ven también sin internet.
