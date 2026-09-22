@@ -509,7 +509,7 @@ ${personality}
       .set({
         status: "completed",
         resultRef: `results/${taskId}/result.json`,
-        resultMeta,
+        resultMeta: { ...resultMeta, completedAt: new Date().toISOString() },
         updatedAt: new Date(),
       })
       .where(and(eq(tasks.id, taskId), ne(tasks.status, "cancelled")));

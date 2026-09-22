@@ -2240,7 +2240,7 @@ api.get("/tasks", async (req, res) => {
         });
       } else if (row.status === "completed" || row.status === "failed") {
         const meta = row.resultMeta ?? {};
-        const updated = row.updatedAt instanceof Date ? row.updatedAt.toISOString() : new Date(row.updatedAt).toISOString();
+        const updated = taskFinishedAt(row).toISOString();
         messages.push({
           id: `${row.id}-a`,
           role: "assistant",
@@ -2271,6 +2271,20 @@ api.get("/tasks", async (req, res) => {
     res.status(500).json({ error: "internal_error" });
   }
 });
+
+// When a task finished. Workers stamp resultMeta.completedAt; older rows only have
+// updatedAt, which marking a chat as read used to overwrite.
+function taskFinishedAt(row: any): Date {
+  const meta = typeof row?.resultMeta === "string" ? safeJson(row.resultMeta) : row?.resultMeta;
+  const stamped = meta?.completedAt ? new Date(meta.completedAt) : null;
+  if (stamped && !Number.isNaN(stamped.getTime())) return stamped;
+  return row?.updatedAt instanceof Date ? row.updatedAt : new Date(row?.updatedAt);
+}
+function safeJson(text: string): any { try { return JSON.parse(text); } catch { return null; } }
+
+// No task can really run this long (workers time out far earlier), so a legacy row
+// whose created→updated gap exceeds it was touched later: not a duration.
+const MAX_PLAUSIBLE_TASK_MS = 15 * 60_000;
 
 // ── Cancelling tasks ────────────────────────────────────────────────────────
 // The row flips to `cancelled` here, at once, so the chat and the agent's dot
@@ -2860,7 +2874,7 @@ api.patch("/tasks/:id/read", async (req, res) => {
   try {
     const { id } = req.params;
     await (db as any).update(tasks)
-      .set({ isRead: true, updatedAt: new Date() })
+      .set({ isRead: true }) // not an update of the task: updatedAt stays the completion time
       .where(eq(tasks.id, id))
       .run();
     res.json({ success: true });
@@ -2875,7 +2889,7 @@ api.patch("/agents/:agentId/mark-read", async (req, res) => {
   try {
     const { agentId } = req.params;
     await (db as any).update(tasks)
-      .set({ isRead: true, updatedAt: new Date() })
+      .set({ isRead: true }) // not an update of the task: updatedAt stays the completion time
       .where(and(
         eq(tasks.assignedAgent, agentId),
         eq(tasks.status, "completed"),
@@ -2929,7 +2943,7 @@ api.get("/stats", async (_req, res) => {
     }
 
     // Tokens come from resultMeta.usage (chat tasks only — image/video tasks
-    // don't report usage); duration is created→updated of completed tasks.
+    // don't report usage); duration is created→finished of completed tasks.
     let totalTokens = 0;
     const durations: number[] = [];
     const perAgentMap = new Map<string, { tokens: number; durations: number[] }>();
@@ -2937,7 +2951,10 @@ api.get("/stats", async (_req, res) => {
       if (t.status !== "completed") continue;
       const meta = typeof t.resultMeta === "string" ? JSON.parse(t.resultMeta) : t.resultMeta;
       const tokens = Number(meta?.usage?.totalTokens) || 0;
-      const durationMs = new Date(t.updatedAt).getTime() - new Date(t.createdAt).getTime();
+      // created → finished. Rows from before completedAt existed fall back to updatedAt,
+      // and are skipped when the gap is implausible (see MAX_PLAUSIBLE_TASK_MS).
+      const rawMs = taskFinishedAt(t).getTime() - new Date(t.createdAt).getTime();
+      const durationMs = meta?.completedAt || rawMs <= MAX_PLAUSIBLE_TASK_MS ? rawMs : 0;
       totalTokens += tokens;
       if (durationMs > 0) durations.push(durationMs);
       if (t.assignedAgent) {
