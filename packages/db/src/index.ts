@@ -97,7 +97,9 @@ export async function buildCronDedupContext(
     .map((t: any) => {
       const raw = (t.resultMeta?.text || t.resultMeta?.preview || "").trim();
       if (!raw) return "";
-      const when = t.updatedAt ? new Date(t.updatedAt).toISOString() : "";
+      // completedAt when the worker stamped it; updatedAt only as a fallback for old rows.
+      const finished = t.resultMeta?.completedAt ?? t.updatedAt;
+      const when = finished ? new Date(finished).toISOString() : "";
       const clip = raw.length > maxChars ? raw.slice(0, maxChars) + "…" : raw;
       return `--- Previous run ${when} ---\n${clip}`;
     })

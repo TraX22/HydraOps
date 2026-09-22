@@ -618,6 +618,9 @@ importers:
       '@types/prismjs':
         specifier: ^1.26.6
         version: 1.26.6
+      dompurify:
+        specifier: ^3
+        version: 3.4.15
       marked:
         specifier: ^18.0.7
         version: 18.0.7
