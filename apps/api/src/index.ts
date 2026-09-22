@@ -28,7 +28,7 @@ loadDotenv({ path: envFile });
 
 import { createRegistry, rememberTool } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
-import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, searchAgentTasks } from "@hydraops/db";
+import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, searchAgentTasks } from "@hydraops/db";
 import { buildEnvelope } from "@hydraops/events";
 import { eq, and, gte, lt, asc, desc, like, inArray } from "drizzle-orm";
 import os from "node:os";
@@ -3289,6 +3289,24 @@ app.listen(port, host, () => {
   }
 });
 
+// --- Prompt-injection log ---
+// What the workers recorded while tasks ran (see @hydraops/addons provenance.ts):
+// the moment a task first took in third-party content, and each sensitive tool
+// call made after that. Newest first; ?taskId narrows it to one task.
+const securityLimiter = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false });
+api.get("/security/events", securityLimiter, async (req, res) => {
+  try {
+    const limit = Math.min(500, Math.max(1, Math.floor(Number(req.query.limit) || 100)));
+    const taskId = typeof req.query.taskId === "string" ? req.query.taskId.trim() : "";
+    const base = (db as any).select().from(securityEvents);
+    const rows = await (taskId ? base.where(eq(securityEvents.taskId, taskId)) : base)
+      .orderBy(desc(securityEvents.id)).limit(limit);
+    res.json({ events: rows });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Could not read the security log" });
+  }
+});
+
 // Tool-usage retention: keep the last 60 days so a user working in a given month
 // still has the previous month's stats, and drop anything older so the table does
 // not grow forever. Prune once at startup, then daily. Best-effort — a failed
@@ -3298,6 +3316,8 @@ async function pruneToolUsage(): Promise<void> {
   try {
     const removed = await purgeOldToolUsage(db, TOOL_USAGE_RETENTION_DAYS);
     if (removed > 0) console.log(`[api] tool_usage retention: pruned ${removed} rows older than ${TOOL_USAGE_RETENTION_DAYS} days`);
+    // The prompt-injection log follows the same window.
+    await purgeOldSecurityEvents(db, TOOL_USAGE_RETENTION_DAYS);
   } catch (err) {
     console.warn("[api] tool_usage retention prune failed", err);
   }

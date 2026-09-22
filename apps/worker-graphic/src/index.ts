@@ -12,12 +12,12 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
+import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, generateImage, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, EXTERNAL_CONTENT_RULE } from "@hydraops/addons";
 import { tool } from "ai";
 import { z } from "zod";
 import { AckPolicy } from "nats";
@@ -332,6 +332,7 @@ ${personality}
 - If the user only greets, introduce yourself briefly according to your soul.
 - You can only act through the tools listed for you. If a request needs something you have no tool for (asking another agent, sending a message, running code…), say so plainly and suggest what the user can do — never claim to have done it.
 - Links: only give a URL you actually opened or saw in a tool result or in this conversation (earlier answers list their sources). Never reconstruct an address from memory, and never call one "verified" or "confirmed" unless you opened it in this turn. If you do not have the link, say so and offer to look it up.
+${EXTERNAL_CONTENT_RULE}
 - If there is a direct question or task, answer without greeting first.${explicitDraw ? "\n- The user explicitly asked for an image: you MUST call generate_image in this turn." : ""}${userProfile}`;
 
     // Same tool set as worker-general: natives/my_addons + MCP tools
@@ -365,14 +366,17 @@ ${personality}
     // URLs the tools open or surface while answering: stored with the result, shown as
     // "Sources" and replayed in the history (see @hydraops/addons sources.ts).
     const sourceCollector = createSourceCollector();
+    // Prompt-injection state of this task: set when a tool brings in third-party
+    // content, which then reaches the model marked as data (see provenance.ts).
+    const taskSecurity = createTaskSecurity();
     // Bind the calling agent's identity so identity-aware tools (`remember`,
     // `recall`) act on the right agent without trusting model input.
     const toolContext = {
       agentId,
       searchPastTasks: (query: string, limit?: number) => searchAgentTasks(sqliteClient, agentId, query, limit),
     };
-    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink);
-    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink);
+    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
+    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
 
 
     // The drawing tool. It stores the file where the chat serves it from and
@@ -381,10 +385,21 @@ ${personality}
     const drawn: { image: { relPath: string; sourceUrl: string | null; engine: string } | null; error: string | null } = { image: null, error: null };
     // Stop button / /cancel: aborts the model call and any render polling of this task.
     const controller = cancels.track(taskId!);
+    // One image per task, two attempts at most. The chat shows a single image, so more
+    // would only be spent money — and a page that says "make 50 variations" must not
+    // be able to spend 50.
+    let drawAttempts = 0;
+    // Models issue tool calls in parallel: the turn is taken synchronously, before any
+    // await, or three simultaneous calls would all find "no image yet" and all be paid.
+    let drawing = false;
     const draw = async (prompt: string): Promise<string> => {
-      const r = await drawToStorage(taskId!, agentCfg, getGlobalConfig, prompt, controller.signal);
+      if (drawn.image || drawing) return "An image is already being made in this task, and only one is made per task. Describe it to the user; they can ask for another one in a new message.";
+      if (++drawAttempts > 2) return "Image generation already failed twice in this task. Tell the user briefly and suggest retrying or changing the engine.";
+      drawing = true;
+      const r = await drawToStorage(taskId!, agentCfg, getGlobalConfig, prompt, controller.signal).finally(() => { drawing = false; });
       if (r.relPath) {
         drawn.image = { relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
+        drawn.error = null;
         usageSink("generate_image", "native", "ok");
         return "Image generated and already shown to the user. Reply with a short description of what you drew and suggested Next Steps; do not paste links.";
       }
@@ -402,12 +417,12 @@ ${personality}
       generate_image: tool({
         description: generateImageDescription,
         inputSchema: generateImageSchema,
-        execute: ({ prompt }: { prompt: string }) => draw(prompt),
+        execute: ({ prompt }: { prompt: string }) => { taskSecurity.beforeCall("generate_image", { sensitive: true }, { prompt }); return draw(prompt); },
       }),
     };
     const rawToolsForModel = [
       ...rawTools,
-      { name: "generate_image", description: generateImageDescription, schema: generateImageSchema, execute: (args: any) => draw(String(args?.prompt ?? "")) },
+      { name: "generate_image", description: generateImageDescription, schema: generateImageSchema, execute: (args: any) => { taskSecurity.beforeCall("generate_image", { sensitive: true }, args); return draw(String(args?.prompt ?? "")); } },
     ];
 
     // Last 24h of the channel; empty for cron-fired tasks (see loadRecentChannelHistory).
@@ -434,6 +449,7 @@ ${personality}
     // Explicit request but the model never drew (weak/local models): fall back
     // to the engine with the raw prompt, as the old draw path did.
     if (explicitDraw && !drawn.image && !drawn.error && !controller.signal.aborted) {
+      taskSecurity.beforeCall("generate_image", { sensitive: true }, { prompt: userPrompt, via: "explicit request" });
       const r = await drawToStorage(taskId!, agentCfg, getGlobalConfig, userPrompt);
       if (r.relPath) drawn.image = { relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
       else drawn.error = r.error ?? "unknown error";
@@ -442,16 +458,21 @@ ${personality}
     // The model narrated the call instead of making it (seen with grok-4.3:
     // "run tool generate_image with prompt is …"): honour it anyway.
     let finalText = text;
-    if (!drawn.image && !drawn.error && /\bgenerate_image\b/i.test(text || "")) {
+    // Not on a task that read third-party content, unless the user asked for an image:
+    // a model that REPORTS "the page told me to call generate_image with prompt …" is
+    // doing the right thing, and must not get that order executed for it.
+    const narrationAllowed = explicitDraw || !taskSecurity.tainted;
+    if (!drawn.image && !drawn.error && narrationAllowed && /\bgenerate_image\b/i.test(text || "")) {
       const leaked = leakedToolPrompt(text, "generate_image");
       console.warn(`[${consumerName}] model narrated a generate_image call instead of making it — rendering with ${leaked ? "its own prompt" : "the user's prompt"}`);
+      taskSecurity.beforeCall("generate_image", { sensitive: true }, { prompt: leaked ?? userPrompt, via: "narrated call" });
       const r = await drawToStorage(taskId!, agentCfg, getGlobalConfig, leaked ?? userPrompt);
       if (r.relPath) drawn.image = { relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
       else drawn.error = r.error ?? "unknown error";
       finalText = stripToolNarration(text, "generate_image");
     }
 
-    resultMeta = { text: finalText, usage, success, error, errorCode, modelUsed: llmConfig.model, ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}) };
+    resultMeta = { text: finalText, usage, success, error, errorCode, modelUsed: llmConfig.model, ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) };
     if (drawn.image) {
       Object.assign(resultMeta, {
         imagePath: drawn.image.relPath,
@@ -469,6 +490,10 @@ ${personality}
     if (toolUsageLog.length) {
       try { await recordToolUsage(db, agentId, taskId, toolUsageLog); }
       catch (e: any) { console.warn(`[${consumerName}] tool usage tracking failed: ${e?.message ?? e}`); }
+    }
+    if (taskSecurity.events().length) {
+      try { await recordSecurityEvents(db, agentId, taskId, taskSecurity.events()); }
+      catch (e: any) { console.warn(`[${consumerName}] security log failed: ${e?.message ?? e}`); }
     }
 
     // Cancelled while it ran: the row already says so — write nothing, publish nothing, overwrite nothing.

@@ -134,3 +134,22 @@ export const toolUsage = sqliteTable(
   })
 );
 
+// Prompt-injection defense log (see @hydraops/addons provenance.ts): when a task
+// first took in third-party content, and every sensitive tool call made after that.
+export const securityEvents = sqliteTable(
+  "security_events",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    agentId: text("agent_id").notNull(),
+    taskId: text("task_id"),
+    type: text("type").notNull(), // tainted | sensitive_after_taint
+    toolName: text("tool_name").notNull(),
+    detail: text("detail").notNull().default(""),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  },
+  (t) => ({
+    taskIdx: index("security_events_task_idx").on(t.taskId),
+    createdIdx: index("security_events_created_idx").on(t.createdAt),
+  })
+);
+

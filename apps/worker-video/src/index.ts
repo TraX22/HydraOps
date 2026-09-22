@@ -13,12 +13,12 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
+import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, generateVideo, resolveLLMConfig, buildUserMessage, GROK_VIDEO_ASPECTS, isGrokVideoEngine } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, EXTERNAL_CONTENT_RULE } from "@hydraops/addons";
 import { tool } from "ai";
 import { z } from "zod";
 import { AckPolicy } from "nats";
@@ -342,6 +342,7 @@ ${personality}
 - If the user only greets, introduce yourself briefly according to your soul.
 - You can only act through the tools listed for you. If a request needs something you have no tool for (asking another agent, sending a message, running code…), say so plainly and suggest what the user can do — never claim to have done it.
 - Links: only give a URL you actually opened or saw in a tool result or in this conversation (earlier answers list their sources). Never reconstruct an address from memory, and never call one "verified" or "confirmed" unless you opened it in this turn. If you do not have the link, say so and offer to look it up.
+${EXTERNAL_CONTENT_RULE}
 - If there is a direct question or task, answer without greeting first.${explicitVideo ? "\n- The user explicitly asked for a video: you MUST call generate_video in this turn." : ""}${userProfile}`;
 
     // Same tool set as worker-general: natives/my_addons + MCP tools
@@ -375,14 +376,17 @@ ${personality}
     // URLs the tools open or surface while answering: stored with the result, shown as
     // "Sources" and replayed in the history (see @hydraops/addons sources.ts).
     const sourceCollector = createSourceCollector();
+    // Prompt-injection state of this task: set when a tool brings in third-party
+    // content, which then reaches the model marked as data (see provenance.ts).
+    const taskSecurity = createTaskSecurity();
     // Bind the calling agent's identity so identity-aware tools (`remember`,
     // `recall`) act on the right agent without trusting model input.
     const toolContext = {
       agentId,
       searchPastTasks: (query: string, limit?: number) => searchAgentTasks(sqliteClient, agentId, query, limit),
     };
-    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink);
-    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink);
+    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
+    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
 
 
     // The rendering tool. It stores the MP4 where the chat serves it from and
@@ -391,7 +395,16 @@ ${personality}
     const rendered: { video: { videoUrl: string; relPath: string | null; sourceUrl: string | null; engine: string } | null; error: string | null } = { video: null, error: null };
     // Stop button / /cancel: aborts the model call and any render polling of this task.
     const controller = cancels.track(taskId!);
+    // One render per task, one attempt: renders are slow and the most expensive thing an
+    // agent can do, and a page that says "make 20 clips" must not be able to spend 20.
+    let renderAttempts = 0;
     const render = async (prompt: string): Promise<string> => {
+      if (++renderAttempts > 1) {
+        // Counted before any await, so parallel calls from the model cannot all be paid.
+        return rendered.error
+          ? "Video generation already failed in this task. Tell the user briefly and suggest retrying or changing the engine."
+          : "A video is already being made in this task, and only one is made per task. Describe it to the user; they can ask for another one in a new message.";
+      }
       const r = await renderToStorage(taskId!, agentCfg, getGlobalConfig, prompt, controller.signal);
       if (r.videoUrl) {
         rendered.video = { videoUrl: r.videoUrl, relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
@@ -412,12 +425,12 @@ ${personality}
       generate_video: tool({
         description: generateVideoDescription,
         inputSchema: generateVideoSchema,
-        execute: ({ prompt }: { prompt: string }) => render(prompt),
+        execute: ({ prompt }: { prompt: string }) => { taskSecurity.beforeCall("generate_video", { sensitive: true }, { prompt }); return render(prompt); },
       }),
     };
     const rawToolsForModel = [
       ...rawTools,
-      { name: "generate_video", description: generateVideoDescription, schema: generateVideoSchema, execute: (args: any) => render(String(args?.prompt ?? "")) },
+      { name: "generate_video", description: generateVideoDescription, schema: generateVideoSchema, execute: (args: any) => { taskSecurity.beforeCall("generate_video", { sensitive: true }, args); return render(String(args?.prompt ?? "")); } },
     ];
 
     // Last 24h of the channel; empty for cron-fired tasks (see loadRecentChannelHistory).
@@ -444,6 +457,7 @@ ${personality}
     // Explicit request but the model never rendered (weak/local models): fall
     // back to the engine with the raw prompt, as the old video path did.
     if (explicitVideo && !rendered.video && !rendered.error && !controller.signal.aborted) {
+      taskSecurity.beforeCall("generate_video", { sensitive: true }, { prompt: userPrompt, via: "explicit request" });
       const r = await renderToStorage(taskId!, agentCfg, getGlobalConfig, userPrompt);
       if (r.videoUrl) rendered.video = { videoUrl: r.videoUrl, relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
       else rendered.error = r.error ?? "unknown error";
@@ -452,16 +466,21 @@ ${personality}
     // The model narrated the call instead of making it ("run tool
     // generate_video with prompt is …"): honour it anyway.
     let finalText = text;
-    if (!rendered.video && !rendered.error && /\bgenerate_video\b/i.test(text || "")) {
+    // Not on a task that read third-party content, unless the user asked for a video:
+    // a model that REPORTS "the page told me to call generate_video with prompt …" is
+    // doing the right thing, and must not get that order executed for it.
+    const narrationAllowed = explicitVideo || !taskSecurity.tainted;
+    if (!rendered.video && !rendered.error && narrationAllowed && /\bgenerate_video\b/i.test(text || "")) {
       const leaked = leakedToolPrompt(text, "generate_video");
       console.warn(`[${consumerName}] model narrated a generate_video call instead of making it — rendering with ${leaked ? "its own prompt" : "the user's prompt"}`);
+      taskSecurity.beforeCall("generate_video", { sensitive: true }, { prompt: leaked ?? userPrompt, via: "narrated call" });
       const r = await renderToStorage(taskId!, agentCfg, getGlobalConfig, leaked ?? userPrompt);
       if (r.videoUrl) rendered.video = { videoUrl: r.videoUrl, relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
       else rendered.error = r.error ?? "unknown error";
       finalText = stripToolNarration(text, "generate_video");
     }
 
-    resultMeta = { text: finalText, usage, success, error, errorCode, modelUsed: llmConfig.model, ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}) };
+    resultMeta = { text: finalText, usage, success, error, errorCode, modelUsed: llmConfig.model, ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) };
     if (rendered.video) {
       Object.assign(resultMeta, {
         videoPath: rendered.video.relPath,
@@ -479,6 +498,10 @@ ${personality}
     if (toolUsageLog.length) {
       try { await recordToolUsage(db, agentId, taskId, toolUsageLog); }
       catch (e: any) { console.warn(`[${consumerName}] tool usage tracking failed: ${e?.message ?? e}`); }
+    }
+    if (taskSecurity.events().length) {
+      try { await recordSecurityEvents(db, agentId, taskId, taskSecurity.events()); }
+      catch (e: any) { console.warn(`[${consumerName}] security log failed: ${e?.message ?? e}`); }
     }
 
     // Cancelled while it ran: the row already says so — write nothing, publish nothing, overwrite nothing.

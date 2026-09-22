@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { HydraTool } from "../../../types.js";
+import { HydraTool } from "../../types.js";
 
 // send_to_telegram — let an agent deliver a message to the user's Telegram
 // (their paired chats) ON DEMAND, e.g. when the user says "send this to
@@ -45,6 +45,8 @@ async function sendToTelegram(text: string, title?: string): Promise<string> {
 
 export const sendToTelegramTool: HydraTool = {
   name: "send_to_telegram",
+  // Carries text out of the app.
+  risk: { sensitive: true },
   description:
     "Send a message to the user's Telegram (their paired chats via the HydraOps bot). Use this when the user asks to send, forward, or push something to Telegram — e.g. \"send this to Telegram\" or \"avísame por Telegram\". Pass the full text to deliver; optionally a short title shown above it.",
   schema: z.object({

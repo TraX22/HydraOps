@@ -15,6 +15,7 @@ export const systemConfigs = schema.systemConfigs as any;
 export const cronJobs = schema.cronJobs as any;
 export const workerStatus = schema.workerStatus as any;
 export const toolUsage = schema.toolUsage as any;
+export const securityEvents = schema.securityEvents as any;
 
 export * from "./client.js";
 export * from "./recall.js";
@@ -47,6 +48,20 @@ export async function recordToolUsage(
     createdAt: now,
   }));
   await db.insert(schema.toolUsage).values(rows).run();
+}
+
+/** Persist a task's prompt-injection events (best-effort log, written by the workers). */
+export async function recordSecurityEvents(
+  db: any,
+  agentId: string,
+  taskId: string | null,
+  events: { type: string; toolName: string; detail: string }[],
+): Promise<void> {
+  if (!events.length) return;
+  const now = new Date();
+  await db.insert(schema.securityEvents)
+    .values(events.map((e) => ({ agentId, taskId, type: e.type, toolName: e.toolName, detail: e.detail, createdAt: now })))
+    .run();
 }
 
 /**
@@ -152,5 +167,12 @@ export async function purgeOldToolUsage(
     .delete(schema.toolUsage)
     .where(lt(schema.toolUsage.createdAt, cutoff))
     .run();
+  return Number(result?.changes ?? result?.rowCount ?? 0);
+}
+
+/** Same retention for the prompt-injection log (see recordSecurityEvents). */
+export async function purgeOldSecurityEvents(db: any, retentionDays = 60): Promise<number> {
+  const cutoff = new Date(Date.now() - Math.max(1, Math.floor(retentionDays)) * 86_400_000);
+  const result: any = await db.delete(schema.securityEvents).where(lt(schema.securityEvents.createdAt, cutoff)).run();
   return Number(result?.changes ?? result?.rowCount ?? 0);
 }

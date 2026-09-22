@@ -27,6 +27,8 @@ You can write your own tools: each is a folder inside `my_addons/` (in the data 
 
 Careful: your add-ons are your code and run unrestricted. Treat them as such.
 
+Tell HydraOps what your tool does by adding a `risk` field to the exported object: `{ readsExternal: true }` if it returns text written by third parties (a page, a feed, an inbox), `{ sensitive: true }` if it acts or sends something out, or both. A tool that declares nothing is treated as both — the safe assumption. See [Security](./13-security.md).
+
 ## MCP servers
 
 MCP (Model Context Protocol) is the standard for connecting third-party tools over HTTP. In **Add-ons → MCP servers**, the **Edit JSON** button opens the configuration:

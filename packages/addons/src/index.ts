@@ -38,3 +38,4 @@ export async function createRegistry(): Promise<ToolRegistry> {
   return registry;
 }
 export * from './sources.js';
+export * from './provenance.js';

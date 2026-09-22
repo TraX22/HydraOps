@@ -29,6 +29,13 @@
       "when": 1788270099526,
       "tag": "0003_gray_zeigeist",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789999525141,
+      "tag": "0004_mighty_hellion",
+      "breakpoints": true
     }
   ]
 }

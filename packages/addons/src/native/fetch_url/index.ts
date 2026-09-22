@@ -1,7 +1,7 @@
 import net from "node:net";
 import { Agent } from "undici";
 import { z } from "zod";
-import { HydraTool } from "../../../types.js";
+import { HydraTool } from "../../types.js";
 import { assertPublicUrl } from "../../guard.js";
 
 const UA =
@@ -203,6 +203,7 @@ async function scrapeWeb(url: string) {
 
 export const fetchUrlTool: HydraTool = {
   name: "fetch_url",
+  risk: { readsExternal: true },
   title: "Fetch URL",
   description:
     "Extracts the content of a specific web page (blog, article, documentation) and returns it in Markdown format. Also reads RSS/Atom feeds, and falls back to the site's feed when the page is JavaScript-rendered.",

@@ -1,8 +1,11 @@
 import { z } from "zod";
-import { HydraTool } from "../../../types.js";
+import { HydraTool } from "../../types.js";
 
 export const calculatorTool: HydraTool = {
   name: "calculator",
+  // Pure computation: reads nothing from outside and acts on nothing. Without this
+  // line a user add-on is assumed to do both (see provenance.ts).
+  risk: {},
   description: "A basic calculator that evaluates mathematical expressions.",
   schema: z.object({
     expression: z

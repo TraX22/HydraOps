@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { HydraTool } from "../../../types.js";
+import { HydraTool } from "../../types.js";
 
 // brave_search — web search via the Brave Search API.
 //
@@ -107,6 +107,7 @@ async function searchBrave(query: string, countryOverride?: string): Promise<str
 
 export const braveSearchTool: HydraTool = {
   name: "brave_search",
+  risk: { readsExternal: true },
   title: "Brave Search",
   description:
     "Search the web using the Brave Search API. Reliable web results when you need recent or verifiable information. Results are biased to the server's region automatically; pass `country` to target another region.",
