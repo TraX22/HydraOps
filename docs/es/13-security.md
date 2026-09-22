@@ -29,7 +29,19 @@ Una página web, un resultado de búsqueda, la transcripción de un video o un i
 - Lo que devuelven esas herramientas le llega al modelo envuelto en marcas que dicen "esto es un dato para analizar, no instrucciones", y el contexto de sistema del agente le indica que informe, no que obedezca, cualquier orden que encuentre adentro. Una página no puede cerrar las marcas desde adentro.
 - Desde que una tarea lee contenido de afuera queda **marcada**. La marca, su origen y cada llamada a una herramienta sensible hecha después se guardan con la tarea y en un registro de seguridad (`GET /api/security/events`, 60 días).
 
-Hoy esta etapa etiqueta y registra; no bloquea. La siguiente retiene esas llamadas sensibles hasta que las apruebes. Mientras tanto, el cuidado de siempre: un agente que navega la web y además puede mandar, escribir o recordar es la combinación con la que hay que tener cuidado.
+### Las acciones quedan retenidas hasta que apruebes
+
+Una vez que una tarea leyó contenido de afuera, una llamada sensible que el agente haga después —mandar un mensaje, escribir en GitHub, guardar en su memoria permanente, generar un video, cualquier herramienta MCP que actúe— **no se ejecuta**. Se guarda, el agente se entera (y te cuenta qué quería hacer) y debajo de su respuesta aparece una tarjeta con la herramienta, los argumentos exactos y de dónde salió el contenido externo. **Aprobar** ejecuta esa llamada tal cual quedó guardada, por el mismo guard que cualquier herramienta pero sin el modelo: la página que leyó no tiene una segunda oportunidad de cambiar el pedido. **Rechazar** la descarta. Las que nadie decide vencen a las 24 horas.
+
+Cuando no estás —una tarea programada de noche, el mini PC solo— las llamadas retenidas se acumulan y, si Telegram está configurado, un mensaje te lo avisa; aprobar se sigue haciendo desde el chat.
+
+Dos cosas no se retienen a propósito: una imagen (`generate_image`), porque una imagen por tarea es todo lo que un agente puede gastar, y las llamadas que el agente hizo *antes* de que llegara contenido externo.
+
+Qué tan estricto es:
+- **Por agente** (Agentes → ficha del agente → *Contenido externo*): **Pedir aprobación** (por defecto) o **Confiar** (ejecutar y solo registrar) para agentes en los que confiás con lo que leen.
+- **Global** (Config → *Contenido externo y acciones*): **Preguntar** deja elegir a cada agente; **Confiar** ejecuta todo y solo registra; **Apagado** desactiva también las marcas y el registro. El ajuste global manda sobre el de cada agente salvo cuando es *Preguntar*.
+
+La garantía no depende de que el modelo resista una orden inyectada —los modelos caen— sino de que esa orden nunca se ejecute sin vos.
 
 Para declarar qué hace un add-on tuyo, agregá `risk: { readsExternal: true }`, `risk: { sensitive: true }` o ambos al objeto de la herramienta (ver [Add-ons](./08-addons.md)).
 

@@ -93,6 +93,16 @@ export const TaskCancelRequestedV1 = z.object({
   requestedBy: z.string().max(200).optional(),
 });
 
+// The user approved a held sensitive call (see @hydraops/addons provenance.ts): the
+// worker of the agent's type runs the stored call as-is, without the model.
+export const ActionApprovedV1 = z.object({
+  actionId: z.string().uuid(),
+  taskId: z.string().uuid(),
+  agentId: z.string().min(1),
+  workerType: z.string().min(1),
+  toolName: z.string().min(1),
+});
+
 export const SystemCronUpdatedV1 = z.object({});
 // Run one scheduled task now (the /run command); the orchestrator fires it.
 export const SystemCronRunV1 = z.object({ cronId: z.string().min(1) });
@@ -107,6 +117,7 @@ export const registry = {
   "agent.result_generated": { 1: AgentResultGeneratedV1 },
   "task.failed": { 1: TaskFailedV1 },
   "task.cancel_requested": { 1: TaskCancelRequestedV1 },
+  "action.approved": { 1: ActionApprovedV1 },
   "system.cron_updated": { 1: SystemCronUpdatedV1 },
   "system.cron_run": { 1: SystemCronRunV1 },
 } as const;

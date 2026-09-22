@@ -86,6 +86,8 @@ export class AgentsComponent implements OnInit {
   private static readonly VEO_RESOLUTIONS = ['auto', '16:9', '9:16'];
   private static readonly LEONARDO_VIDEO_RESOLUTIONS = ['auto', '16:9', '9:16', '3:4'];
   resolution = signal('auto');
+  // Prompt-injection defense: ask (hold sensitive calls after outside content) | trusted.
+  securityMode = signal<'ask' | 'trusted'>('ask');
 
   // Only the aspects the selected engine can actually render. Anything else
   // would be mapped to the closest supported size by the worker without the
@@ -415,6 +417,7 @@ export class AgentsComponent implements OnInit {
       if (this.selectedAgent()?.id === agent.id) {
         this.engine.set((cfg['graphicEngine'] as string) || 'auto');
         this.resolution.set((cfg['resolution'] as string) || 'auto');
+        this.securityMode.set(cfg['securityMode'] === 'trusted' ? 'trusted' : 'ask');
       }
     });
   }
@@ -544,7 +547,12 @@ export class AgentsComponent implements OnInit {
     this.saveConfig({ model });
   }
 
-  private saveConfig(partial: { model?: string; workerType?: string; graphicEngine?: string; resolution?: string }): void {
+  onSecurityModeChange(securityMode: 'ask' | 'trusted'): void {
+    this.securityMode.set(securityMode);
+    this.saveConfig({ securityMode });
+  }
+
+  private saveConfig(partial: { model?: string; workerType?: string; graphicEngine?: string; resolution?: string; securityMode?: string }): void {
     const agent = this.selectedAgent();
     if (!agent) return;
     const payload = {
@@ -552,6 +560,7 @@ export class AgentsComponent implements OnInit {
       workerType: partial.workerType ?? agent.workerType ?? 'coder',
       graphicEngine: partial.graphicEngine ?? this.engine(),
       resolution: partial.resolution ?? this.resolution(),
+      securityMode: partial.securityMode ?? this.securityMode(),
     };
     this.savingConfig.set(true);
     this.api.saveAgentConfig(agent.id, payload).subscribe({

@@ -75,7 +75,23 @@
     "stopHint": "Detiene esta tarea: el agente deja de generar y no se guarda respuesta",
     "cancelled": "Cancelada",
     "sources": "Fuentes",
-    "sourcesLegend": "● abierta por el agente · ○ apareció en una búsqueda"
+    "sourcesLegend": "● abierta por el agente · ○ apareció en una búsqueda",
+    "held": {
+      "title": "Acción retenida",
+      "why": "El agente quiso hacer esto después de leer contenido externo ({{from}}). No se ejecutó: decidís vos.",
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "expires": "Vence en {{when}}",
+      "result": "Resultado",
+      "status": {
+        "pending": "pendiente",
+        "approved": "aprobada · ejecutando…",
+        "executed": "ejecutada",
+        "failed": "falló",
+        "rejected": "rechazada",
+        "expired": "vencida"
+      }
+    }
   },
   "agents": {
     "title": "Agentes",
@@ -116,7 +132,11 @@
       "noResults": "Sin resultados",
       "editRaw": "Editar como texto",
       "editTags": "Editar con selector"
-    }
+    },
+    "securityMode": "Contenido externo",
+    "securityModeHint": "Qué hace el agente cuando quiere actuar después de leer una página, una búsqueda o un archivo de terceros",
+    "securityAsk": "🛡️ Pedir aprobación (recomendado)",
+    "securityTrusted": "Confiar: actuar sin preguntar"
   },
   "system": {
     "title": "Sistema",
@@ -148,6 +168,16 @@
       "startInTray": "Empezar en la bandeja",
       "startInTrayHint": "Al arrancar con Windows no abre la ventana: queda en la bandeja hasta que la abras.",
       "devOnly": "Disponible solo en la aplicación instalada."
+    },
+    "security": {
+      "title": "Contenido externo y acciones",
+      "hint": "Cuando un agente lee una página, una búsqueda o un archivo de terceros y después quiere enviar, escribir, recordar o generar un video, la acción se retiene hasta que la apruebes en el chat. Manda sobre el ajuste de cada agente salvo en 'Preguntar'.",
+      "ask": "Preguntar",
+      "askHint": "Retener acciones sensibles (cada agente puede marcarse como de confianza)",
+      "trusted": "Confiar",
+      "trustedHint": "Ejecutar y solo registrar, para todos los agentes",
+      "off": "Apagado",
+      "offHint": "Sin marcas ni registro"
     }
   },
   "cron": {

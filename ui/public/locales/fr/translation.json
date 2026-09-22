@@ -75,7 +75,23 @@
     "stopHint": "Arrête cette tâche : l'agent cesse de générer et aucune réponse n'est enregistrée",
     "cancelled": "Annulée",
     "sources": "Sources",
-    "sourcesLegend": "● ouverte par l'agent · ○ apparue dans une recherche"
+    "sourcesLegend": "● ouverte par l'agent · ○ apparue dans une recherche",
+    "held": {
+      "title": "Action retenue",
+      "why": "L'agent voulait faire ceci après avoir lu du contenu externe ({{from}}). Elle n'a pas été exécutée : à vous de décider.",
+      "approve": "Approuver",
+      "reject": "Refuser",
+      "expires": "Expire dans {{when}}",
+      "result": "Résultat",
+      "status": {
+        "pending": "en attente",
+        "approved": "approuvée · en cours…",
+        "executed": "exécutée",
+        "failed": "échouée",
+        "rejected": "refusée",
+        "expired": "expirée"
+      }
+    }
   },
   "agents": {
     "title": "Agents",
@@ -116,7 +132,11 @@
       "noResults": "Aucun résultat",
       "editRaw": "Éditer en texte",
       "editTags": "Éditer avec le sélecteur"
-    }
+    },
+    "securityMode": "Contenu externe",
+    "securityModeHint": "Ce que fait l'agent quand il veut agir après avoir lu une page, une recherche ou un fichier tiers",
+    "securityAsk": "🛡️ Demander l'approbation (recommandé)",
+    "securityTrusted": "De confiance : agir sans demander"
   },
   "system": {
     "title": "Système",
@@ -148,6 +168,16 @@
       "startInTray": "Démarrer dans la zone de notification",
       "startInTrayHint": "Au démarrage avec Windows, aucune fenêtre ne s'ouvre : il attend dans la zone de notification.",
       "devOnly": "Disponible uniquement dans l'application installée."
+    },
+    "security": {
+      "title": "Contenu externe et actions",
+      "hint": "Quand un agent lit une page, une recherche ou un fichier tiers puis veut envoyer, écrire, mémoriser ou générer une vidéo, l'action est retenue jusqu'à votre approbation dans le chat. Prime sur le réglage de chaque agent sauf en « Demander ».",
+      "ask": "Demander",
+      "askHint": "Retenir les actions sensibles (chaque agent peut être marqué de confiance)",
+      "trusted": "Faire confiance",
+      "trustedHint": "Exécuter et seulement journaliser, pour tous les agents",
+      "off": "Désactivé",
+      "offHint": "Ni marquage ni journal"
     }
   },
   "cron": {

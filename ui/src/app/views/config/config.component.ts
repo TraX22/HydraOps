@@ -64,8 +64,17 @@ export class ConfigComponent implements OnInit {
   desktop = (window as unknown as { hydraDesktop?: { settings?: { get(): Promise<DesktopSettings>; set(p: Partial<DesktopSettings>): Promise<DesktopSettings> } } }).hydraDesktop?.settings;
   desktopSettings = signal<DesktopSettings | null>(null);
 
+  // Global mode of the prompt-injection defense (per-agent choice counts only while this is 'ask').
+  securityMode = signal<'ask' | 'trusted' | 'off'>('ask');
+
+  setSecurityMode(mode: 'ask' | 'trusted' | 'off'): void {
+    this.securityMode.set(mode);
+    this.api.setSecurityMode(mode).subscribe();
+  }
+
   ngOnInit(): void {
     this.fetchConfig();
+    this.api.getSecurityMode().subscribe({ next: r => this.securityMode.set(r.mode), error: () => {} });
     this.desktop?.get().then(s => this.desktopSettings.set(s)).catch(() => {});
   }
 

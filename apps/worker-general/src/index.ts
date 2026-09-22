@@ -11,12 +11,12 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, buildCronDedupContext, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
+import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, buildCronDedupContext, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, EXTERNAL_CONTENT_RULE } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE } from "@hydraops/addons";
 import { AckPolicy } from "nats";
 
 const WORKER_TYPE = "general";
@@ -153,6 +153,74 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string, onTimeou
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer!));
 }
 
+
+// --- Approved actions: run a held sensitive call as-is, without the model ---
+// (see @hydraops/addons provenance.ts and approvals.ts). The approval is the user's
+// decision on that one stored call; nothing is generated again.
+async function readAgentToolLines(agentId: string): Promise<string[]> {
+  try {
+    const md = await readFile(path.join(agentsDir, agentId, `${agentId}.tools.md`), "utf-8");
+    return md.split("\n").map((l) => l.trim()).filter((l) => l.startsWith("-")).map((l) => l.substring(1).trim());
+  } catch { return []; }
+}
+async function runApprovedAction(actionId: string): Promise<void> {
+  const action = await loadPendingAction(db, actionId);
+  if (!action || action.status !== "approved") return;
+  const globalConfigs = await (db as any).select().from(systemConfigs);
+  const localLlm = readLocalLlmEnv();
+  const getGlobalConfig = (key: string, defaultValue: string) => {
+    if (key in localLlm) return localLlm[key] || defaultValue;
+    const found = globalConfigs.find((c: any) => c.key === key);
+    return found ? found.value : process.env[key] || defaultValue;
+  };
+  const mcpServersConfigStr = getGlobalConfig("mcp_servers_config", '{"mcpServers":{}}');
+  if (mcpServersConfigStr !== lastMcpConfigStr) {
+    try {
+      await globalRegistry.mcpManager.closeAll();
+      await withTimeout(globalRegistry.initializeMcp(JSON.parse(mcpServersConfigStr)), 15_000, "MCP init");
+    } catch (mcpErr: any) {
+      console.error(`[${consumerName}] MCP init failed: ${mcpErr.message}`);
+    }
+    lastMcpConfigStr = mcpServersConfigStr;
+  }
+  const agentId = String(action.agentId);
+  console.log(`[${consumerName}] Running approved ${action.toolName} (${actionId}) for ${agentId}...`);
+  const outcome = await executeApprovedCall(globalRegistry, {
+    toolName: String(action.toolName),
+    args: action.args ?? {},
+    requestedTools: await readAgentToolLines(agentId),
+    nativeState: JSON.parse(getGlobalConfig("native_addons_state", "{}")),
+    context: { agentId, searchPastTasks: (query: string, limit?: number) => searchAgentTasks(sqliteClient, agentId, query, limit) },
+  });
+  await finishPendingAction(db, actionId, outcome.ok ? "executed" : "failed", outcome.result);
+  console.log(`[${consumerName}] Approved ${action.toolName} (${actionId}): ${outcome.ok ? "executed" : "failed"}.`);
+}
+const approvalsSub = await js.pullSubscribe(subjectForType("action.approved"), {
+  stream: "EVENTS",
+  config: {
+    durable_name: "worker_general_action_approved",
+    ack_policy: AckPolicy.Explicit,
+  },
+});
+approvalsSub.pull({ batch: 1, expires: 1000 });
+setInterval(() => approvalsSub.pull({ batch: 1, expires: 1000 }), 2000);
+(async () => {
+  for await (const m of approvalsSub) {
+    try {
+      const envlp = parseEnvelope(JSON.parse(new TextDecoder().decode(m.data)));
+      const data = envlp.data as any;
+      if (data.workerType === WORKER_TYPE) {
+        const inserted = await (db as any).insert(processedEvents).values({ consumerName, eventId: envlp.id })
+          .onConflictDoNothing().returning({ eventId: processedEvents.eventId });
+        if (inserted.length > 0) await runApprovedAction(String(data.actionId));
+      }
+    } catch (e: any) {
+      console.error(`[${consumerName}] approved action failed: ${e?.message ?? e}`);
+    }
+    m.ack();
+  }
+})();
+
 const sub = await js.pullSubscribe(subjectForType("agent.task_assigned"), {
   stream: "EVENTS",
   config: {
@@ -278,13 +346,19 @@ ${EXTERNAL_CONTENT_RULE}
     // Usage tracking: the sink collects every tool call this turn; flushed to DB
     // after the LLM finishes so we can report what each agent actually uses.
     const toolUsageLog: { toolName: string; source: string; status: string }[] = [];
-    const usageSink = (toolName: string, source: string, status: 'ok' | 'blocked' | 'error') => { toolUsageLog.push({ toolName, source, status }); };
+    const usageSink = (toolName: string, source: string, status: 'ok' | 'blocked' | 'error' | 'held') => { toolUsageLog.push({ toolName, source, status }); };
     // URLs the tools open or surface while answering: stored with the result, shown as
     // "Sources" and replayed in the history (see @hydraops/addons sources.ts).
     const sourceCollector = createSourceCollector();
     // Prompt-injection state of this task: set when a tool brings in third-party
     // content, which then reaches the model marked as data (see provenance.ts).
-    const taskSecurity = createTaskSecurity();
+    // From then on a sensitive call is HELD for the user's approval (mode 'ask').
+    const taskSecurity = createTaskSecurity({
+      mode: resolveSecurityMode(getGlobalConfig("security_mode", "ask"), cfgRows[0]?.securityMode),
+      // One image per task is bound elsewhere; a video is held (it is the costly one).
+      neverHold: ["generate_image"],
+      onHold: ({ toolName, args, origins }) => createPendingAction(db, { taskId: taskId!, agentId, channel, toolName, args, origins }),
+    });
     // Bind the calling agent's identity so identity-aware tools (`remember`,
     // `recall`) act on the right agent without trusting model input.
     const toolContext = {

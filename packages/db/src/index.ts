@@ -1,5 +1,6 @@
 import * as sqliteSchema from "./schema.js";
 import { and, desc, eq, gte, lt, ne } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +17,7 @@ export const cronJobs = schema.cronJobs as any;
 export const workerStatus = schema.workerStatus as any;
 export const toolUsage = schema.toolUsage as any;
 export const securityEvents = schema.securityEvents as any;
+export const pendingActions = schema.pendingActions as any;
 
 export * from "./client.js";
 export * from "./recall.js";
@@ -166,6 +168,42 @@ export async function purgeOldToolUsage(
   const result: any = await db
     .delete(schema.toolUsage)
     .where(lt(schema.toolUsage.createdAt, cutoff))
+    .run();
+  return Number(result?.changes ?? result?.rowCount ?? 0);
+}
+
+export const PENDING_ACTION_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** Store a held sensitive call (see @hydraops/addons provenance.ts); returns its id. */
+export async function createPendingAction(
+  db: any,
+  a: { taskId: string; agentId: string; channel: string; toolName: string; args: unknown; origins: unknown },
+): Promise<string> {
+  const id = randomUUID();
+  const now = new Date();
+  await db.insert(schema.pendingActions).values({
+    id, taskId: a.taskId, agentId: a.agentId, channel: a.channel, toolName: a.toolName,
+    args: a.args ?? {}, origins: a.origins ?? [], status: "pending",
+    createdAt: now, expiresAt: new Date(now.getTime() + PENDING_ACTION_TTL_MS),
+  }).run();
+  return id;
+}
+
+export async function loadPendingAction(db: any, id: string): Promise<any | null> {
+  const rows = await db.select().from(schema.pendingActions).where(eq(schema.pendingActions.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+
+/** Outcome of an approved call: executed | failed, with what the tool returned. */
+export async function finishPendingAction(db: any, id: string, status: "executed" | "failed", result: string): Promise<void> {
+  await db.update(schema.pendingActions).set({ status, result, decidedAt: new Date() }).where(eq(schema.pendingActions.id, id)).run();
+}
+
+/** Pending actions past their deadline become 'expired'; returns how many. */
+export async function expirePendingActions(db: any): Promise<number> {
+  const result: any = await db.update(schema.pendingActions)
+    .set({ status: "expired", decidedAt: new Date() })
+    .where(and(eq(schema.pendingActions.status, "pending"), lt(schema.pendingActions.expiresAt, new Date())))
     .run();
   return Number(result?.changes ?? result?.rowCount ?? 0);
 }

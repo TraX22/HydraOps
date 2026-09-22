@@ -138,6 +138,12 @@
               <option [value]="r">{{ r === 'auto' ? ('agents.autoResolution' | translate) : r }}</option>
             }
           </select>
+          <label class="field-sublabel">{{ 'agents.securityMode' | translate }}</label>
+          <select class="field-select" [ngModel]="securityMode()" (ngModelChange)="onSecurityModeChange($event)"
+                  [title]="'agents.securityModeHint' | translate">
+            <option value="ask">{{ 'agents.securityAsk' | translate }}</option>
+            <option value="trusted">{{ 'agents.securityTrusted' | translate }}</option>
+          </select>
         </div>
 
         <!-- Personality / config files -->

@@ -29,7 +29,19 @@ A web page, a search result, a video transcript or an issue can contain text wri
 - What those tools return reaches the model wrapped in markers that say "this is data to analyse, not instructions", and the agent's system context tells it to report, not obey, any order found inside. A page cannot close the markers from within.
 - From the moment a task reads outside content it is **marked**. The mark, its origin and every sensitive tool call made after it are stored with the task and in a security log (`GET /api/security/events`, kept 60 days).
 
-Today this stage labels and records; it does not block. The next one holds those sensitive calls until you approve them. Until then, keep the usual care: an agent that browses the web and can also send, write or remember is the combination to be careful with.
+### Actions are held for your approval
+
+Once a task has read outside content, a sensitive call the agent then makes — sending a message, writing to GitHub, saving to its permanent memory, generating a video, any MCP tool that acts — is **not run**. It is stored, the agent is told so (and tells you what it wanted to do), and a card appears under its reply with the tool, the exact arguments and where the outside content came from. **Approve** runs that call exactly as stored, through the same guard as any tool call but without the model: the page it read gets no second chance to change the request. **Reject** discards it. Undecided calls expire after 24 hours.
+
+While you are away — a scheduled task at night, the mini PC on its own — held calls pile up and, if Telegram is set up, one message tells you so; approving still happens in the chat.
+
+Two things are deliberately not held: an image (`generate_image`), because one image per task is all an agent can ever spend, and calls the agent made *before* any outside content arrived.
+
+How strict this is:
+- **Per agent** (Agents → the agent's profile → *Outside content*): **Ask for approval** (the default) or **Trusted** (run and only record) for agents you trust with what they read.
+- **Globally** (Config → *Outside content and actions*): **Ask** lets each agent choose; **Trust** runs everything and only records; **Off** disables the marking and the log too. The global setting wins over the per-agent one unless it is *Ask*.
+
+The guarantee does not depend on the model resisting an injected order — models do get fooled — but on that order never being executed without you.
 
 To declare what an add-on of yours does, add `risk: { readsExternal: true }`, `risk: { sensitive: true }` or both to the tool object (see [Add-ons](./08-addons.md)).
 

@@ -52,6 +52,20 @@
       </div>
     </section>
 
+    <!-- Prompt-injection defense -->
+    <section class="config-section">
+      <h3>{{ 'config.security.title' | translate }}</h3>
+      <p class="hint">{{ 'config.security.hint' | translate }}</p>
+      <div class="log-levels">
+        @for (m of ['ask', 'trusted', 'off']; track m) {
+          <button class="level-btn" [class.active]="securityMode() === m" (click)="setSecurityMode($any(m))"
+                  [title]="('config.security.' + m + 'Hint') | translate">
+            {{ ('config.security.' + m) | translate }}
+          </button>
+        }
+      </div>
+    </section>
+
     <!-- Desktop shell (Electron only) -->
     @if (desktopSettings(); as ds) {
       <section class="config-section">

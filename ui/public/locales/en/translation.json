@@ -75,7 +75,23 @@
     "stopHint": "Stop this task: the agent stops generating and no reply is saved",
     "cancelled": "Cancelled",
     "sources": "Sources",
-    "sourcesLegend": "● opened by the agent · ○ appeared in a search"
+    "sourcesLegend": "● opened by the agent · ○ appeared in a search",
+    "held": {
+      "title": "Held action",
+      "why": "The agent wanted to do this after reading outside content ({{from}}). It was not run: your call.",
+      "approve": "Approve",
+      "reject": "Reject",
+      "expires": "Expires in {{when}}",
+      "result": "Result",
+      "status": {
+        "pending": "pending",
+        "approved": "approved · running…",
+        "executed": "done",
+        "failed": "failed",
+        "rejected": "rejected",
+        "expired": "expired"
+      }
+    }
   },
   "agents": {
     "title": "Agents",
@@ -116,7 +132,11 @@
       "noResults": "No results",
       "editRaw": "Edit as text",
       "editTags": "Edit with selector"
-    }
+    },
+    "securityMode": "Outside content",
+    "securityModeHint": "What the agent does when it wants to act after reading a third-party page, search or file",
+    "securityAsk": "🛡️ Ask for approval (recommended)",
+    "securityTrusted": "Trusted: act without asking"
   },
   "system": {
     "title": "System",
@@ -148,6 +168,16 @@
       "startInTray": "Start in the tray",
       "startInTrayHint": "When starting with Windows, no window opens: it waits in the tray until you open it.",
       "devOnly": "Only available in the installed application."
+    },
+    "security": {
+      "title": "Outside content and actions",
+      "hint": "When an agent reads a third-party page, search or file and then wants to send, write, remember or generate a video, the action is held until you approve it in the chat. Overrides each agent's setting unless set to 'Ask'.",
+      "ask": "Ask",
+      "askHint": "Hold sensitive actions (each agent can be marked as trusted)",
+      "trusted": "Trust",
+      "trustedHint": "Run and only log, for every agent",
+      "off": "Off",
+      "offHint": "No marking, no log"
     }
   },
   "cron": {

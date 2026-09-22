@@ -65,6 +65,23 @@ export interface ChatMessage {
   /** The user stopped this task: shown as a quiet note instead of a reply. */
   cancelled?: boolean;
   resultMeta?: Record<string, unknown>;
+  /** Sensitive calls this reply wanted to make after reading outside content (held for approval). */
+  pendingActions?: HeldAction[];
+}
+
+// A sensitive tool call held for the user's decision (see the Security page of the manual).
+export interface HeldAction {
+  id: string;
+  taskId: string;
+  agentId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  origins: { tool: string; ref?: string }[];
+  status: 'pending' | 'approved' | 'executed' | 'failed' | 'rejected' | 'expired';
+  result: string | null;
+  createdAt: string;
+  expiresAt: string;
+  decidedAt: string | null;
 }
 
 // ── Commands (the chat's "/verbs", executed by the API) ──
@@ -365,7 +382,7 @@ export class ApiService {
     return this.http.get<Record<string, unknown>>(`${this.base}/agents/${agentId}/config`);
   }
 
-  saveAgentConfig(agentId: string, config: { model: string; workerType?: string; graphicEngine?: string; graphicFormat?: string; resolution?: string }): Observable<void> {
+  saveAgentConfig(agentId: string, config: { model: string; workerType?: string; graphicEngine?: string; graphicFormat?: string; resolution?: string; securityMode?: string }): Observable<void> {
     return this.http.post<void>(`${this.base}/agents/${agentId}/config`, config);
   }
 
@@ -419,6 +436,22 @@ export class ApiService {
 
   cancelTask(id: string): Observable<{ success: boolean }> {
     return this.http.post<{ success: boolean }>(`${this.base}/tasks/${id}/cancel`, {});
+  }
+
+  approveHeldAction(id: string): Observable<{ action: HeldAction }> {
+    return this.http.post<{ action: HeldAction }>(`${this.base}/security/actions/${id}/approve`, {});
+  }
+
+  rejectHeldAction(id: string): Observable<{ action: HeldAction }> {
+    return this.http.post<{ action: HeldAction }>(`${this.base}/security/actions/${id}/reject`, {});
+  }
+
+  getSecurityMode(): Observable<{ mode: 'ask' | 'trusted' | 'off' }> {
+    return this.http.get<{ mode: 'ask' | 'trusted' | 'off' }>(`${this.base}/security/mode`);
+  }
+
+  setSecurityMode(mode: 'ask' | 'trusted' | 'off'): Observable<{ mode: string }> {
+    return this.http.post<{ mode: string }>(`${this.base}/security/mode`, { mode });
   }
 
   deleteTask(id: string): Observable<void> {

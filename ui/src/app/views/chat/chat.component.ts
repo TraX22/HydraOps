@@ -10,13 +10,14 @@ import { DatePipe } from '@angular/common';
 import { MarkdownPipe } from '../../pipes/markdown.pipe';
 import { watchMermaid } from '../../pipes/mermaid-render';
 import { IconComponent } from '../../components/icon/icon.component';
+import { HeldActionComponent } from '../../components/held-action/held-action.component';
 import { modelLabel } from '../../shared/model-groups';
 import { CommandService, PaletteItem } from '../../services/command.service';
 
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [FormsModule, TranslatePipe, MarkdownPipe, DatePipe, IconComponent],
+  imports: [FormsModule, TranslatePipe, MarkdownPipe, DatePipe, IconComponent, HeldActionComponent],
   templateUrl: './chat.component.html',
   styleUrl: './chat.component.css',
 })
