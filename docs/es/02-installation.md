@@ -75,6 +75,16 @@ pnpm serve        # compila paquetes e interfaz y arranca; aplica las migracione
 
 Si la pila estaba corriendo, párala antes (Ctrl+C, o `systemctl stop hydraops` si la dejaste como servicio; ver [Modo servidor](./12-server-mode.md)). Para saber qué versión tienes: aparece abajo del menú lateral, y `git describe --tags` en la terminal.
 
+**Si `git pull` dice que las ramas han divergido** ("Necesita especificar cómo reconciliar las ramas divergentes"): la historia del repositorio se reescribió en septiembre de 2026, y un clon anterior ya no comparte esos commits con GitHub. No es un conflicto de código. Alinea tu copia con la de GitHub:
+
+```bash
+git status                      # si muestra archivos modificados que quieras conservar, guárdalos aparte
+git fetch origin
+git reset --hard origin/main
+```
+
+Esto solo reescribe el código versionado: tu base de datos, `storage/`, `.env`, tus agentes y tu perfil están fuera de git y no se tocan. Luego sigue con `pnpm install` y `pnpm serve`.
+
 ## Después de instalar
 
 Sigue con [Primeros pasos](./03-first-steps.md): configurar una clave de API (o un modelo local) y crear tu primer agente.

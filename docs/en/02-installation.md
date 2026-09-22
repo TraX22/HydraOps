@@ -75,6 +75,16 @@ pnpm serve        # builds packages and interface and starts; applies the databa
 
 If the stack was running, stop it first (Ctrl+C, or `systemctl stop hydraops` if you set it up as a service; see [Server mode](./12-server-mode.md)). To know which version you have: it shows at the bottom of the sidebar, and `git describe --tags` in the terminal.
 
+**If `git pull` says the branches have diverged** ("You have divergent branches and need to specify how to reconcile them"): the repository's history was rewritten in September 2026, and an older clone no longer shares those commits with GitHub. It is not a code conflict. Align your copy with GitHub's:
+
+```bash
+git status                      # if it lists modified files you want to keep, save them elsewhere first
+git fetch origin
+git reset --hard origin/main
+```
+
+This only rewrites the versioned code: your database, `storage/`, `.env`, your agents and your profile live outside git and are not touched. Then carry on with `pnpm install` and `pnpm serve`.
+
 ## After installing
 
 Continue with [First steps](./03-first-steps.md): set up an API key (or a local model) and create your first agent.
