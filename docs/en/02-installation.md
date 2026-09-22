@@ -59,6 +59,22 @@ That brings up the whole stack and leaves the application at `http://127.0.0.1:3
 
 On Windows you can also use the desktop window from source with `pnpm desktop`.
 
+### Updating (Linux, macOS and Windows from source)
+
+Two ways; both keep your data (agents, database, attachments and keys live outside the code).
+
+**From the app.** When a new version is out, the **System** view shows a notice with an **Update** button. Pressing it makes HydraOps `git pull` the latest release, rebuild and restart its own services; the interface reloads when it is done. It only works when the installation is a git clone with no unsaved local changes (it tells you if there are).
+
+**By hand**, from the repository folder:
+
+```bash
+git pull
+pnpm install      # only needed when dependencies changed; harmless to run every time
+pnpm serve        # builds packages and interface and starts; applies the database migrations before starting anything
+```
+
+If the stack was running, stop it first (Ctrl+C, or `systemctl stop hydraops` if you set it up as a service; see [Server mode](./12-server-mode.md)). To know which version you have: it shows at the bottom of the sidebar, and `git describe --tags` in the terminal.
+
 ## After installing
 
 Continue with [First steps](./03-first-steps.md): set up an API key (or a local model) and create your first agent.
