@@ -247,9 +247,22 @@ body {
   font-family: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 13px; line-height: 1.5; color: #dcdfe4;
 }
-.mermaid-block[data-state='done'] { background: transparent; }
+/* A rendered diagram sits on a soft surface with the app's radius: it reads as a
+   figure, not as a code block that happened to draw something. */
+.mermaid-block[data-state='done'] { background: var(--bg-surface-alt, var(--bg-surface)); border-radius: var(--radius-md); }
 .mermaid-block[data-state='done'] .mermaid-src { display: none; }
 .mermaid-block .mermaid-svg {
-  display: flex; justify-content: center; padding: 10px;
+  display: flex; justify-content: center; padding: 10px; cursor: zoom-in;
 }
+/* Click → the diagram fills the screen (mermaid-render.ts toggles the class); click or Esc closes. */
+.mermaid-block.zoomed {
+  position: fixed; inset: 0; z-index: 1000; margin: 0; border: 0; border-radius: 0;
+  background: rgba(0, 0, 0, 0.85); display: flex; align-items: center; justify-content: center; overflow: auto;
+}
+.mermaid-block.zoomed .mermaid-svg {
+  cursor: zoom-out; padding: 24px; width: min(96vw, 1600px); max-height: 94vh;
+  background: var(--bg-surface); border-radius: var(--radius-md); box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+}
+.mermaid-block.zoomed .mermaid-svg svg { width: 100%; max-height: 90vh; }
 .mermaid-block .mermaid-svg svg { max-width: 100%; height: auto; }
+.mermaid-block .mermaid-svg .node rect, .mermaid-block .mermaid-svg .node polygon, .mermaid-block .mermaid-svg .node circle { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.12)); }

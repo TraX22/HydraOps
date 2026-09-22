@@ -17,7 +17,7 @@ El clip **📎** adjunta archivos al mensaje:
 
 ## Diagramas en las respuestas
 
-El chat renderiza Markdown, y desde la v0.1.21 también **diagramas Mermaid**: si un agente responde con un bloque de código ` ```mermaid `, aparece como diagrama de verdad (flujos, secuencias, tortas, líneas de tiempo…), adaptado al tema claro u oscuro. Los agentes ya saben que lo tienen disponible; también puedes pedirlo explícitamente ("hazme un diagrama de flujo de..."). Si el diagrama viene mal escrito, se muestra el código tal cual en lugar de romperse.
+El chat renderiza Markdown, y desde la v0.1.21 también **diagramas Mermaid**: si un agente responde con un bloque de código ` ```mermaid `, aparece como diagrama de verdad (flujos, secuencias, tortas, líneas de tiempo…), con los colores de HydraOps en el tema claro y en el oscuro. Un clic sobre el diagrama lo abre a pantalla completa (otro clic o Esc lo cierra). Los agentes ya saben que lo tienen disponible; también puedes pedirlo explícitamente ("hazme un diagrama de flujo de..."). Si el diagrama viene mal escrito, se muestra el código tal cual en lugar de romperse.
 
 ## Imágenes y vídeo generados
 
