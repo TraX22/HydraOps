@@ -4,6 +4,7 @@ import { marked } from 'marked';
 // Must import first: puts Prism on the global so the language files below can
 // extend it (they reference a global `Prism`, which a bundler doesn't provide).
 import Prism from './prism-setup';
+import { sanitizeHtml } from './sanitize-html';
 
 // Prism language grammars (core already bundles markup/css/clike/javascript).
 import 'prismjs/components/prism-typescript';
@@ -38,21 +39,35 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function escapeAttr(s: string): string {
+  return escapeHtml(s).replace(/"/g, '&quot;');
+}
+
+// A page of the manual, as the docs link to each other: ./05-agents.md, 12-server-mode.md#ports
+const DOC_LINK = /^(\.{1,2}\/)?[\w./-]+\.md(#[\w-]*)?$/i;
+
 // Render fenced code as a framed block with a language label, a copy button, and
 // Prism syntax highlighting. Configured once at module load.
 marked.use({
   breaks: true,
   gfm: true,
   renderer: {
-    // Links always open outside the app (a new tab in the browser, the system
-    // browser in the desktop shell): a plain link would navigate the app away.
-    // Only web and mail links become anchors; anything else stays as text.
+    // Web and mail links always open outside the app (a new tab in the browser, the
+    // system browser in the desktop shell): a plain link would navigate the app away.
+    // In-page anchors and the manual's own page links (./05-agents.md) stay inside —
+    // the Docs view handles their clicks. Anything else stays as text.
+    // sanitize-html.ts enforces the same rule on the final HTML.
     link(this: any, token: any) {
       const href = String(token?.href ?? '');
       const text = token?.tokens ? this.parser.parseInline(token.tokens) : escapeHtml(String(token?.text ?? href));
-      if (!/^(https?:|mailto:)/i.test(href)) return text;
-      const title = token?.title ? ` title="${escapeHtml(String(token.title)).replace(/"/g, '&quot;')}"` : '';
-      return `<a href="${escapeHtml(href).replace(/"/g, '&quot;')}"${title} target="_blank" rel="noopener noreferrer">${text}</a>`;
+      const title = token?.title ? ` title="${escapeAttr(String(token.title))}"` : '';
+      if (/^(https?:|mailto:)/i.test(href)) {
+        return `<a href="${escapeAttr(href)}"${title} target="_blank" rel="noopener noreferrer">${text}</a>`;
+      }
+      if (href.startsWith('#') || DOC_LINK.test(href)) {
+        return `<a href="${escapeAttr(href)}"${title}>${text}</a>`;
+      }
+      return text;
     },
     code(token: any) {
       const text: string = typeof token === 'string' ? token : token.text ?? '';
@@ -82,7 +97,10 @@ export class MarkdownPipe implements PipeTransform {
 
   transform(value: string): SafeHtml {
     if (!value) return '';
-    const html = marked.parse(value) as string;
+    // Markdown passes raw HTML through and an agent's text is not trusted input:
+    // sanitize first (see sanitize-html.ts). The bypass below is then only telling
+    // Angular not to strip the classes and attributes our own renderer relies on.
+    const html = sanitizeHtml(marked.parse(value) as string);
     return this.sanitizer.bypassSecurityTrustHtml(html);
   }
 }
