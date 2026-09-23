@@ -5,7 +5,7 @@ import rateLimit from "express-rate-limit";
 import path from "node:path";
 import { readdir, readFile, writeFile, mkdir, rm, access, rename } from "node:fs/promises";
 import { randomUUID, randomBytes, createHash, timingSafeEqual } from "node:crypto";
-import { writeFileSync } from "node:fs";
+import { writeFileSync, chmodSync } from "node:fs";
 import { spawn } from "node:child_process";
 import multer from "multer";
 
@@ -104,7 +104,11 @@ if (wantsNetwork && !process.env.HYDRA_AUTH_TOKEN?.trim()) {
     env = /^HYDRA_AUTH_TOKEN=.*$/m.test(env)
       ? env.replace(/^HYDRA_AUTH_TOKEN=.*$/m, line)
       : `${env}${env && !env.endsWith("\n") ? "\n" : ""}${line}\n`;
-    writeFileSync(envFile, env, "utf-8");
+    // The .env now holds a credential: owner-only on POSIX (mode applies on creation,
+    // chmod covers an existing file). Windows ignores POSIX modes; its per-user profile
+    // folder already keeps other users out.
+    writeFileSync(envFile, env, { encoding: "utf-8", mode: 0o600 });
+    if (process.platform !== "win32") chmodSync(envFile, 0o600);
     process.env.HYDRA_AUTH_TOKEN = token;
     generatedToken = true;
   } catch (err) {
