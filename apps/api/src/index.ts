@@ -5,7 +5,7 @@ import rateLimit from "express-rate-limit";
 import path from "node:path";
 import { readdir, readFile, writeFile, mkdir, rm, access, rename } from "node:fs/promises";
 import { randomUUID, randomBytes, createHash, timingSafeEqual } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import multer from "multer";
 
