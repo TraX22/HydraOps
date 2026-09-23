@@ -17,7 +17,7 @@ The **📎** clip attaches files to the message:
 
 ## Diagrams in replies
 
-The chat renders Markdown, and since v0.1.21 also **Mermaid diagrams**: when an agent replies with a ` ```mermaid ` code block, it shows up as a real diagram (flowcharts, sequences, pies, timelines…), matching the light or dark theme. Agents already know it's available; you can also ask for one explicitly ("draw me a flowchart of..."). If the diagram is malformed, its code is shown as-is instead of breaking.
+The chat renders Markdown, and since v0.1.21 also **Mermaid diagrams**: when an agent replies with a ` ```mermaid ` code block, it shows up as a real diagram (flowcharts, sequences, pies, timelines…), in HydraOps' own colours in both the light and the dark theme. Click a diagram to open it full screen (click again or Esc to close). Agents already know it's available; you can also ask for one explicitly ("draw me a flowchart of..."). If the diagram is malformed, its code is shown as-is instead of breaking.
 
 ## Generated images and video
 
