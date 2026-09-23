@@ -446,6 +446,11 @@ export class ApiService {
     return this.http.post<{ action: HeldAction }>(`${this.base}/security/actions/${id}/reject`, {});
   }
 
+  // Whether the API listens on the network; the token only comes back to this computer.
+  getNetworkAccess(): Observable<{ open: boolean; host: string; port: number; token?: string }> {
+    return this.http.get<{ open: boolean; host: string; port: number; token?: string }>(`${this.base}/system/network-access`);
+  }
+
   getSecurityMode(): Observable<{ mode: 'ask' | 'trusted' | 'off' }> {
     return this.http.get<{ mode: 'ask' | 'trusted' | 'off' }>(`${this.base}/security/mode`);
   }

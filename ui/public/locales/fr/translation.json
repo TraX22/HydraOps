@@ -178,6 +178,16 @@
       "trustedHint": "Exécuter et seulement journaliser, pour tous les agents",
       "off": "Désactivé",
       "offHint": "Ni marquage ni journal"
+    },
+    "network": {
+      "title": "Accès réseau",
+      "open": "L'API écoute sur {{host}}:{{port}} : d'autres appareils peuvent entrer avec le jeton.",
+      "closed": "Seul cet ordinateur peut utiliser HydraOps. Pour l'ouvrir à votre réseau ou l'utiliser depuis votre téléphone, voir Mode serveur dans le manuel.",
+      "show": "Afficher",
+      "hide": "Masquer",
+      "copy": "Copier",
+      "copied": "Copié",
+      "tokenHint": "Ce jeton ne s'affiche que sur cet ordinateur. Les autres appareils le demandent une fois ; gardez-le comme un mot de passe."
     }
   },
   "cron": {

@@ -32,7 +32,8 @@ export class AddonsComponent implements OnInit {
   jsonSaved = signal(false);
 
   // Per-addon API-key input (only addons with requiresKey). Keyed by addon name.
-  keyInput = signal<Record<string, string>>({});
+  // One draft per add-on; an add-on nobody typed into has no entry yet.
+  keyInput = signal<Record<string, string | undefined>>({});
   keySaved = signal<Record<string, boolean>>({});
 
   constructor() {

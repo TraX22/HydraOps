@@ -4,7 +4,8 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import path from "node:path";
 import { readdir, readFile, writeFile, mkdir, rm, access, rename } from "node:fs/promises";
-import { randomUUID, createHash, timingSafeEqual } from "node:crypto";
+import { randomUUID, randomBytes, createHash, timingSafeEqual } from "node:crypto";
+import { readFileSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import multer from "multer";
 
@@ -86,6 +87,30 @@ app.use(express.json({ limit: "1mb" }));
 // Para scripts y curl vale también `Authorization: Bearer <token>`.
 
 const AUTH_COOKIE = "hydra_auth";
+
+// Opening the API to the network needs a token. When HYDRA_HOST asks for the network
+// and there is none, generate a long random one, save it in the .env (so it survives
+// restarts and the other services read the same value) and print it once. Only if it
+// cannot be saved does the API refuse to open (see the listen() call at the end).
+const requestedHost = process.env.HYDRA_HOST?.trim() || "127.0.0.1";
+const wantsNetwork = requestedHost !== "127.0.0.1" && requestedHost !== "localhost" && requestedHost !== "::1";
+let generatedToken = false;
+if (wantsNetwork && !process.env.HYDRA_AUTH_TOKEN?.trim()) {
+  const token = randomBytes(24).toString("base64url");
+  try {
+    let env = "";
+    try { env = readFileSync(envFile, "utf-8"); } catch { /* no .env yet */ }
+    const line = `HYDRA_AUTH_TOKEN=${token}`;
+    env = /^HYDRA_AUTH_TOKEN=.*$/m.test(env)
+      ? env.replace(/^HYDRA_AUTH_TOKEN=.*$/m, line)
+      : `${env}${env && !env.endsWith("\n") ? "\n" : ""}${line}\n`;
+    writeFileSync(envFile, env, "utf-8");
+    process.env.HYDRA_AUTH_TOKEN = token;
+    generatedToken = true;
+  } catch (err) {
+    console.error(`[api] ✖ could not save a generated HYDRA_AUTH_TOKEN to ${envFile}`, err);
+  }
+}
 const authToken = process.env.HYDRA_AUTH_TOKEN?.trim() || "";
 const authStrict = process.env.HYDRA_AUTH_STRICT?.trim() === "1";
 
@@ -3286,8 +3311,14 @@ api.post("/commands", async (req, res) => {
 });
 
 const port = Number(process.env.PORT ?? 3000);
-let host = process.env.HYDRA_HOST?.trim() || "127.0.0.1";
-const wantsNetwork = host !== "127.0.0.1" && host !== "localhost" && host !== "::1";
+let host = requestedHost;
+if (generatedToken) {
+  console.warn(
+    `[api] 🔑 HYDRA_HOST=${host} and there was no HYDRA_AUTH_TOKEN: generated one and saved it in ${envFile}.\n` +
+    `[api]    Token: ${authToken}\n` +
+    `[api]    Other devices on the network will ask for it once. It also shows in Config on this computer.`
+  );
+}
 if (wantsNetwork && !authToken) {
   console.error(
     `[api] ✖ HYDRA_HOST=${host} sin HYDRA_AUTH_TOKEN — la API NO se abre a la red sin token. ` +
@@ -3380,6 +3411,18 @@ api.post("/security/actions/:id/approve", securityLimiter, async (req, res) => {
 api.post("/security/actions/:id/reject", securityLimiter, async (req, res) => {
   try { const r = await decidePendingAction(String(req.params.id), "rejected"); res.status(r.status).json(r.body); }
   catch (err: any) { res.status(500).json({ error: err?.message ?? "reject failed" }); }
+});
+
+// Network access, for the Config view. The token is only ever returned to a request
+// from this computer: a device on the network must already know it to get in.
+api.get("/system/network-access", (req, res) => {
+  const local = isLoopbackAddress(req.socket.remoteAddress) && !authStrict;
+  res.json({
+    open: wantsNetwork && host !== "127.0.0.1",
+    host,
+    port,
+    ...(local && wantsNetwork && authToken ? { token: authToken } : {}),
+  });
 });
 
 // Global mode of the defense: ask (default) | trusted | off. Per-agent choice lives

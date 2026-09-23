@@ -64,6 +64,17 @@ export class ConfigComponent implements OnInit {
   desktop = (window as unknown as { hydraDesktop?: { settings?: { get(): Promise<DesktopSettings>; set(p: Partial<DesktopSettings>): Promise<DesktopSettings> } } }).hydraDesktop?.settings;
   desktopSettings = signal<DesktopSettings | null>(null);
 
+  // Network access (HYDRA_HOST): the token to type on other devices, shown only here.
+  network = signal<{ open: boolean; host: string; port: number; token?: string } | null>(null);
+  showToken = signal(false);
+  tokenCopied = signal(false);
+
+  copyToken(): void {
+    const t = this.network()?.token;
+    if (!t) return;
+    navigator.clipboard?.writeText(t).then(() => { this.tokenCopied.set(true); setTimeout(() => this.tokenCopied.set(false), 1500); }).catch(() => {});
+  }
+
   // Global mode of the prompt-injection defense (per-agent choice counts only while this is 'ask').
   securityMode = signal<'ask' | 'trusted' | 'off'>('ask');
 
@@ -75,6 +86,7 @@ export class ConfigComponent implements OnInit {
   ngOnInit(): void {
     this.fetchConfig();
     this.api.getSecurityMode().subscribe({ next: r => this.securityMode.set(r.mode), error: () => {} });
+    this.api.getNetworkAccess().subscribe({ next: r => this.network.set(r), error: () => {} });
     this.desktop?.get().then(s => this.desktopSettings.set(s)).catch(() => {});
   }
 

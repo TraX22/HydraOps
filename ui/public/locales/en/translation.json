@@ -178,6 +178,16 @@
       "trustedHint": "Run and only log, for every agent",
       "off": "Off",
       "offHint": "No marking, no log"
+    },
+    "network": {
+      "title": "Network access",
+      "open": "The API listens on {{host}}:{{port}}: other devices can get in with the token.",
+      "closed": "Only this computer can use HydraOps. To open it to your network or use it from your phone, see Server mode in the manual.",
+      "show": "Show",
+      "hide": "Hide",
+      "copy": "Copy",
+      "copied": "Copied",
+      "tokenHint": "This token only shows on this computer. Other devices ask for it once; keep it like a password."
     }
   },
   "cron": {
