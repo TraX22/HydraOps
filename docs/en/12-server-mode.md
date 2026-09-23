@@ -52,9 +52,14 @@ Every service's logs end up in the journal: `journalctl -u hydraops -f`. Stoppin
 
 ## Updating a server
 
+The **Update** button of the System view works in server mode too (it `git pull`s, rebuilds and restarts the services in place). By hand:
+
 ```bash
+sudo systemctl stop hydraops      # or Ctrl+C if you started it with pnpm serve
 git pull
 pnpm install
 pnpm build && pnpm --filter ui build
-sudo systemctl restart hydraops   # or Ctrl+C and pnpm serve again
+sudo systemctl start hydraops     # or pnpm serve again
 ```
+
+More in [Installation → Updating](./02-installation.md).
