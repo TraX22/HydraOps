@@ -52,9 +52,14 @@ Los logs de todos los servicios acaban en el journal: `journalctl -u hydraops -f
 
 ## Actualizar un servidor
 
+El botón **Actualizar** de la vista Sistema también funciona en modo servidor (hace `git pull`, recompila y reinicia los servicios en sitio). A mano:
+
 ```bash
+sudo systemctl stop hydraops      # o Ctrl+C si lo arrancaste con pnpm serve
 git pull
 pnpm install
 pnpm build && pnpm --filter ui build
-sudo systemctl restart hydraops   # o Ctrl+C y pnpm serve de nuevo
+sudo systemctl start hydraops     # o pnpm serve de nuevo
 ```
+
+Más detalle en [Instalación → Actualizar](./02-installation.md).

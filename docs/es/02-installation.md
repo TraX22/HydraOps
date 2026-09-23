@@ -59,6 +59,32 @@ Eso levanta la pila entera y deja la aplicación en `http://127.0.0.1:3000`. La 
 
 En Windows también puedes usar la ventana de escritorio desde el código con `pnpm desktop`.
 
+### Actualizar (Linux, macOS y Windows desde el código)
+
+Hay dos formas; las dos conservan tus datos (agentes, base de datos, adjuntos y claves viven fuera del código).
+
+**Desde la aplicación.** Cuando hay una versión nueva, la vista **Sistema** muestra un aviso con el botón **Actualizar**. Al pulsarlo, HydraOps hace `git pull` de la última release, recompila y reinicia sus servicios solo; la interfaz se recarga al terminar. Solo funciona si la instalación es un clon de git sin cambios locales sin guardar (si los hay, te lo dice).
+
+**A mano**, desde la carpeta del repositorio:
+
+```bash
+git pull
+pnpm install      # solo hace falta si cambiaron las dependencias; no cuesta nada ejecutarlo siempre
+pnpm serve        # compila paquetes e interfaz y arranca; aplica las migraciones de la base de datos antes de levantar nada
+```
+
+Si la pila estaba corriendo, párala antes (Ctrl+C, o `systemctl stop hydraops` si la dejaste como servicio; ver [Modo servidor](./12-server-mode.md)). Para saber qué versión tienes: aparece abajo del menú lateral, y `git describe --tags` en la terminal.
+
+**Si `git pull` dice que las ramas han divergido** ("Necesita especificar cómo reconciliar las ramas divergentes"): la historia del repositorio se reescribió en septiembre de 2026, y un clon anterior ya no comparte esos commits con GitHub. No es un conflicto de código. Alinea tu copia con la de GitHub:
+
+```bash
+git status                      # si muestra archivos modificados que quieras conservar, guárdalos aparte
+git fetch origin
+git reset --hard origin/main
+```
+
+Esto solo reescribe el código versionado: tu base de datos, `storage/`, `.env`, tus agentes y tu perfil están fuera de git y no se tocan. Luego sigue con `pnpm install` y `pnpm serve`.
+
 ## Después de instalar
 
 Sigue con [Primeros pasos](./03-first-steps.md): configurar una clave de API (o un modelo local) y crear tu primer agente.
