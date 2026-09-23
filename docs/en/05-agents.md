@@ -25,6 +25,7 @@ Selecting an agent in the list opens its profile:
 - **Avatar** — click to change it (PNG/JPG/WebP, 2 MB max).
 - **Rename** — the pencil next to the name.
 - **Model and engine** — the agent's LLM; for image and video workers, also the generation engine and the **resolution/aspect** (or "Automatic": the worker decides).
+- **Outside content** — what the agent does when it wants to act after reading a page, a search or a third-party file: ask for your approval (default) or act as trusted. See [Security](./13-security.md).
 - **Configuration files** — the six Markdown files of its personality, editable in a modal.
 - **💬** — opens the chat with it.
 

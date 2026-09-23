@@ -75,7 +75,23 @@
     "stopHint": "Ferma questa attività: l'agente smette di generare e non viene salvata alcuna risposta",
     "cancelled": "Annullata",
     "sources": "Fonti",
-    "sourcesLegend": "● aperta dall'agente · ○ apparsa in una ricerca"
+    "sourcesLegend": "● aperta dall'agente · ○ apparsa in una ricerca",
+    "held": {
+      "title": "Azione trattenuta",
+      "why": "L'agente voleva farlo dopo aver letto contenuti esterni ({{from}}). Non è stata eseguita: decidi tu.",
+      "approve": "Approva",
+      "reject": "Rifiuta",
+      "expires": "Scade tra {{when}}",
+      "result": "Risultato",
+      "status": {
+        "pending": "in attesa",
+        "approved": "approvata · in esecuzione…",
+        "executed": "eseguita",
+        "failed": "fallita",
+        "rejected": "rifiutata",
+        "expired": "scaduta"
+      }
+    }
   },
   "agents": {
     "title": "Agenti",
@@ -116,7 +132,11 @@
       "noResults": "Nessun risultato",
       "editRaw": "Modifica come testo",
       "editTags": "Modifica con selettore"
-    }
+    },
+    "securityMode": "Contenuti esterni",
+    "securityModeHint": "Cosa fa l'agente quando vuole agire dopo aver letto una pagina, una ricerca o un file di terzi",
+    "securityAsk": "🛡️ Chiedi approvazione (consigliato)",
+    "securityTrusted": "Fidato: agisce senza chiedere"
   },
   "system": {
     "title": "Sistema",
@@ -148,6 +168,16 @@
       "startInTray": "Avvia nella barra",
       "startInTrayHint": "All'avvio con Windows non apre la finestra: resta nella barra finché non la apri.",
       "devOnly": "Disponibile solo nell'applicazione installata."
+    },
+    "security": {
+      "title": "Contenuti esterni e azioni",
+      "hint": "Quando un agente legge una pagina, una ricerca o un file di terzi e poi vuole inviare, scrivere, ricordare o generare un video, l'azione viene trattenuta finché non la approvi nella chat. Prevale sull'impostazione di ogni agente tranne in 'Chiedi'.",
+      "ask": "Chiedi",
+      "askHint": "Trattieni le azioni sensibili (ogni agente può essere marcato come fidato)",
+      "trusted": "Fidati",
+      "trustedHint": "Esegui e registra soltanto, per tutti gli agenti",
+      "off": "Spento",
+      "offHint": "Nessuna marcatura, nessun registro"
     }
   },
   "cron": {

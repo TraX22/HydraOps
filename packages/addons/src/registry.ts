@@ -10,7 +10,7 @@ import { resolveToolRisk, type TaskSecurity, type ToolRisk } from './provenance.
  * my_addons | mcp; `status` is ok | blocked (by the security guard) | error.
  * Wired by the workers so we can record what each agent actually uses.
  */
-export type ToolUsageSink = (toolName: string, source: string, status: 'ok' | 'blocked' | 'error') => void;
+export type ToolUsageSink = (toolName: string, source: string, status: 'ok' | 'blocked' | 'error' | 'held') => void;
 
 /**
  * Wraps an already-guarded tool so every call is reported to the sink, without
@@ -27,6 +27,13 @@ function instrumentTool(t: HydraTool, source: string, sink?: ToolUsageSink, sour
     ...t,
     execute: async (args: any) => {
       const risk = resolveToolRisk(t, source, args);
+      // A sensitive call on a task that read outside content is not run: it is stored
+      // for the user's approval and the model gets an explanation instead.
+      if (security?.shouldHold(t.name, risk)) {
+        const message = await security.hold(t.name, args);
+        try { sink?.(t.name, source, 'held'); } catch { /* tracking never breaks a call */ }
+        return message;
+      }
       try {
         security?.beforeCall(t.name, risk, args);
         const result = await t.execute(args);

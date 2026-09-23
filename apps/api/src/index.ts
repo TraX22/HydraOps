@@ -28,7 +28,7 @@ loadDotenv({ path: envFile });
 
 import { createRegistry, rememberTool } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
-import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, searchAgentTasks } from "@hydraops/db";
+import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, searchAgentTasks } from "@hydraops/db";
 import { buildEnvelope } from "@hydraops/events";
 import { eq, and, gte, lt, asc, desc, like, inArray } from "drizzle-orm";
 import os from "node:os";
@@ -993,7 +993,7 @@ api.get("/agents/:id/config", async (req, res) => {
 api.post("/agents/:id/config", async (req, res) => {
   const { id } = req.params;
   if (!AGENT_ID_RE.test(id)) return res.status(400).json({ error: "Invalid agent id" });
-  const { model, workerType, graphicEngine, graphicFormat, resolution } = req.body;
+  const { model, workerType, graphicEngine, graphicFormat, resolution, securityMode } = req.body;
   // El campo debe venir, pero "" es válido: significa "Automático" (sigue el
   // modelo por defecto global). Solo se rechaza si falta del todo.
   if (model === undefined || model === null) return res.status(400).json({ error: "model is required" });
@@ -1006,6 +1006,7 @@ api.post("/agents/:id/config", async (req, res) => {
     if (graphicEngine) updatePayload.graphicEngine = graphicEngine;
     if (graphicFormat) updatePayload.graphicFormat = graphicFormat;
     if (resolution) updatePayload.resolution = resolution;
+    if (securityMode === "ask" || securityMode === "trusted") updatePayload.securityMode = securityMode;
 
     await (db as any).insert(agentConfigs)
       .values({ agentId: id, ...updatePayload })
@@ -2211,6 +2212,17 @@ api.get("/tasks", async (req, res) => {
       .where(and(eq(tasks.channel, channel), gte(tasks.createdAt, since)))
       .orderBy(asc(tasks.createdAt));
 
+    // Sensitive calls held for approval, grouped by the task that made them (see
+    // @hydraops/addons provenance.ts); the chat shows them as cards under the reply.
+    const heldRows = rows.length
+      ? await (db as any).select().from(pendingActions).where(eq(pendingActions.channel, channel)).orderBy(asc(pendingActions.createdAt))
+      : [];
+    const heldByTask = new Map<string, any[]>();
+    for (const a of heldRows) {
+      if (!heldByTask.has(a.taskId)) heldByTask.set(a.taskId, []);
+      heldByTask.get(a.taskId)!.push(publicPendingAction(a));
+    }
+
     const messages: any[] = [];
     for (const row of rows) {
       const created = row.createdAt instanceof Date ? row.createdAt.toISOString() : new Date(row.createdAt).toISOString();
@@ -2251,6 +2263,7 @@ api.get("/tasks", async (req, res) => {
           timestamp: updated,
           taskId: row.id,
           resultMeta: meta,
+          ...(heldByTask.has(row.id) ? { pendingActions: heldByTask.get(row.id) } : {}),
         });
       } else {
         messages.push({
@@ -3294,6 +3307,119 @@ app.listen(port, host, () => {
 // the moment a task first took in third-party content, and each sensitive tool
 // call made after that. Newest first; ?taskId narrows it to one task.
 const securityLimiter = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false });
+// What the chat needs about a held call (arguments already redacted at the
+// worker; the id is a random uuid, so returning it is fine).
+function publicPendingAction(a: any) {
+  const iso = (d: any) => (d instanceof Date ? d : new Date(d)).toISOString();
+  return {
+    id: a.id, taskId: a.taskId, agentId: a.agentId, toolName: a.toolName,
+    args: a.args ?? {}, origins: Array.isArray(a.origins) ? a.origins : [],
+    status: a.status, result: a.result ?? null,
+    createdAt: iso(a.createdAt), expiresAt: iso(a.expiresAt), decidedAt: a.decidedAt ? iso(a.decidedAt) : null,
+  };
+}
+
+// --- Held actions: approve or reject a sensitive call an agent wanted to make ---
+// on a task that had read outside content. Approving publishes action.approved;
+// the agent's worker then runs the stored call as-is, without the model.
+api.get("/security/actions", securityLimiter, async (req, res) => {
+  try {
+    const channel = typeof req.query.channel === "string" ? req.query.channel.trim() : "";
+    const status = typeof req.query.status === "string" ? req.query.status.trim() : "";
+    const conds = [channel ? eq(pendingActions.channel, channel) : undefined, status ? eq(pendingActions.status, status) : undefined].filter(Boolean);
+    const base = (db as any).select().from(pendingActions);
+    const rows = await (conds.length ? base.where(and(...conds)) : base).orderBy(desc(pendingActions.createdAt)).limit(200);
+    res.json({ actions: rows.map(publicPendingAction) });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Could not read held actions" });
+  }
+});
+
+async function decidePendingAction(id: string, decision: "approved" | "rejected"): Promise<{ status: number; body: any }> {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return { status: 400, body: { error: "invalid_id" } };
+  const [row] = await (db as any).select().from(pendingActions).where(eq(pendingActions.id, id)).limit(1);
+  if (!row) return { status: 404, body: { error: "not_found" } };
+  if (row.status !== "pending") return { status: 409, body: { error: "already_decided", action: publicPendingAction(row) } };
+  const expiresAt = row.expiresAt instanceof Date ? row.expiresAt : new Date(row.expiresAt);
+  if (expiresAt.getTime() < Date.now()) {
+    await (db as any).update(pendingActions).set({ status: "expired", decidedAt: new Date() }).where(eq(pendingActions.id, id)).run();
+    return { status: 409, body: { error: "expired" } };
+  }
+  const now = new Date();
+  if (decision === "rejected") {
+    await (db as any).update(pendingActions).set({ status: "rejected", decidedAt: now }).where(eq(pendingActions.id, id)).run();
+    return { status: 200, body: { action: publicPendingAction({ ...row, status: "rejected", decidedAt: now }) } };
+  }
+  const [cfg] = await (db as any).select().from(agentConfigs).where(eq(agentConfigs.agentId, row.agentId)).limit(1);
+  const workerType = cfg?.workerType || "general";
+  const eventId = randomUUID();
+  const ev = buildEnvelope({
+    id: eventId,
+    type: "action.approved",
+    version: 1,
+    occurredAt: now.toISOString(),
+    producer: env.SERVICE_NAME,
+    subject: { entity: "task", id: row.taskId },
+    data: { actionId: id, taskId: row.taskId, agentId: row.agentId, workerType, toolName: row.toolName },
+  });
+  await (db as any).transaction((tx: any) => {
+    tx.update(pendingActions).set({ status: "approved", decidedAt: now }).where(eq(pendingActions.id, id)).run();
+    tx.insert(eventsTable).values({
+      id: eventId, type: ev.type, version: ev.version, occurredAt: now,
+      producer: ev.producer, subjectEntity: ev.subject.entity, subjectId: ev.subject.id, payload: ev,
+    }).run();
+    tx.insert(outboxTable).values({ eventId, status: "pending", nextAttemptAt: now }).run();
+  });
+  return { status: 200, body: { action: publicPendingAction({ ...row, status: "approved", decidedAt: now }) } };
+}
+
+api.post("/security/actions/:id/approve", securityLimiter, async (req, res) => {
+  try { const r = await decidePendingAction(String(req.params.id), "approved"); res.status(r.status).json(r.body); }
+  catch (err: any) { res.status(500).json({ error: err?.message ?? "approve failed" }); }
+});
+api.post("/security/actions/:id/reject", securityLimiter, async (req, res) => {
+  try { const r = await decidePendingAction(String(req.params.id), "rejected"); res.status(r.status).json(r.body); }
+  catch (err: any) { res.status(500).json({ error: err?.message ?? "reject failed" }); }
+});
+
+// Global mode of the defense: ask (default) | trusted | off. Per-agent choice lives
+// in agent_configs.security_mode and only counts while the global one is 'ask'.
+const SECURITY_MODES = ["ask", "trusted", "off"];
+api.get("/security/mode", securityLimiter, async (_req, res) => {
+  const [row] = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, "security_mode")).limit(1);
+  res.json({ mode: SECURITY_MODES.includes(row?.value) ? row.value : "ask" });
+});
+api.post("/security/mode", securityLimiter, async (req, res) => {
+  const mode = String(req.body?.mode ?? "");
+  if (!SECURITY_MODES.includes(mode)) return res.status(400).json({ error: "mode must be ask | trusted | off" });
+  await (db as any).insert(systemConfigs).values({ key: "security_mode", value: mode, updatedAt: new Date() })
+    .onConflictDoUpdate({ target: systemConfigs.key, set: { value: mode, updatedAt: new Date() } }).run();
+  res.json({ mode });
+});
+
+// Held calls nobody decided on expire after 24 h. While the user is away (a cron at
+// night, the mini PC on its own) the held calls pile up and one Telegram line per new
+// batch says so; approving still happens in the chat.
+let lastHeldNoticeAt = 0;
+let heldSeen = new Set<string>();
+async function sweepPendingActions(): Promise<void> {
+  try {
+    await expirePendingActions(db);
+    const rows = await (db as any).select().from(pendingActions).where(eq(pendingActions.status, "pending"));
+    const fresh = rows.filter((a: any) => !heldSeen.has(a.id));
+    heldSeen = new Set(rows.map((a: any) => a.id));
+    if (!fresh.length || Date.now() - lastHeldNoticeAt < 10 * 60_000) return;
+    lastHeldNoticeAt = Date.now();
+    const lines = fresh.slice(0, 5).map((a: any) => `• ${a.agentId} → ${a.toolName}`);
+    const more = fresh.length > 5 ? `\n…and ${fresh.length - 5} more` : "";
+    await pushTelegram(`⏸ ${fresh.length} action${fresh.length === 1 ? "" : "s"} held for your approval (an agent read outside content and then wanted to act). Open the chat to approve or reject; they expire in 24 h.\n${lines.join("\n")}${more}`);
+  } catch (err) {
+    console.warn("[api] pending actions sweep failed", err);
+  }
+}
+setTimeout(() => void sweepPendingActions(), 15_000).unref();
+setInterval(() => void sweepPendingActions(), 60_000).unref();
+
 api.get("/security/events", securityLimiter, async (req, res) => {
   try {
     const limit = Math.min(500, Math.max(1, Math.floor(Number(req.query.limit) || 100)));

@@ -25,6 +25,7 @@ Al seleccionar un agente en la lista se abre su ficha:
 - **Avatar** — clic para cambiarlo (PNG/JPG/WebP, máximo 2 MB).
 - **Renombrar** — el lápiz junto al nombre.
 - **Modelo y motor** — el LLM del agente; en los workers de imagen y vídeo, además el motor de generación y la **resolución/aspecto** (o "Automático": el worker decide).
+- **Contenido externo** — qué hace el agente cuando quiere actuar después de leer una página, una búsqueda o un archivo de terceros: pedir tu aprobación (por defecto) o actuar como de confianza. Ver [Seguridad](./13-security.md).
 - **Archivos de configuración** — los seis Markdown de su personalidad, editables en un modal.
 - **💬** — abre el chat con él.
 

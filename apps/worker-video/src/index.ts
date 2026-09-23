@@ -13,12 +13,12 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
+import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, generateVideo, resolveLLMConfig, buildUserMessage, GROK_VIDEO_ASPECTS, isGrokVideoEngine } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, EXTERNAL_CONTENT_RULE } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE } from "@hydraops/addons";
 import { tool } from "ai";
 import { z } from "zod";
 import { AckPolicy } from "nats";
@@ -246,6 +246,85 @@ async function loadUserProfile(): Promise<string> {
   }
 }
 
+
+// --- Approved actions: run a held sensitive call as-is, without the model ---
+// (see @hydraops/addons provenance.ts and approvals.ts). The approval is the user's
+// decision on that one stored call; nothing is generated again.
+async function readAgentToolLines(agentId: string): Promise<string[]> {
+  try {
+    const md = await readFile(path.join(agentsDir, agentId, `${agentId}.tools.md`), "utf-8");
+    return md.split("\n").map((l) => l.trim()).filter((l) => l.startsWith("-")).map((l) => l.substring(1).trim());
+  } catch { return []; }
+}
+async function runApprovedAction(actionId: string): Promise<void> {
+  const action = await loadPendingAction(db, actionId);
+  if (!action || action.status !== "approved") return;
+  const globalConfigs = await (db as any).select().from(systemConfigs);
+  const localLlm = readLocalLlmEnv();
+  const getGlobalConfig = (key: string, defaultValue: string) => {
+    if (key in localLlm) return localLlm[key] || defaultValue;
+    const found = globalConfigs.find((c: any) => c.key === key);
+    return found ? found.value : process.env[key] || defaultValue;
+  };
+  const mcpServersConfigStr = getGlobalConfig("mcp_servers_config", '{"mcpServers":{}}');
+  if (mcpServersConfigStr !== lastMcpConfigStr) {
+    try {
+      await globalRegistry.mcpManager.closeAll();
+      await withTimeout(globalRegistry.initializeMcp(JSON.parse(mcpServersConfigStr)), 15_000, "MCP init");
+    } catch (mcpErr: any) {
+      console.error(`[${consumerName}] MCP init failed: ${mcpErr.message}`);
+    }
+    lastMcpConfigStr = mcpServersConfigStr;
+  }
+  const agentId = String(action.agentId);
+  console.log(`[${consumerName}] Running approved ${action.toolName} (${actionId}) for ${agentId}...`);
+  const outcome = await executeApprovedCall(globalRegistry, {
+    toolName: String(action.toolName),
+    args: action.args ?? {},
+    requestedTools: await readAgentToolLines(agentId),
+    nativeState: JSON.parse(getGlobalConfig("native_addons_state", "{}")),
+    context: { agentId, searchPastTasks: (query: string, limit?: number) => searchAgentTasks(sqliteClient, agentId, query, limit) },
+    // generate_video is this worker's own tool: render with the ORIGINAL task id so the
+    // clip lands in the message the agent was answering.
+    runOwnTool: (toolName: string, args: any) => toolName !== "generate_video" ? undefined : (async () => {
+      const cfgRows = await (db as any).select().from(agentConfigs).where(eq(agentConfigs.agentId, agentId)).limit(1);
+      const r = await renderToStorage(String(action.taskId), cfgRows[0] ?? {}, getGlobalConfig, String(args?.prompt ?? ""));
+      if (!r.videoUrl) throw new Error(r.error ?? "unknown error");
+      const [row] = await (db as any).select().from(tasks).where(eq(tasks.id, action.taskId)).limit(1);
+      const meta = { ...(row?.resultMeta ?? {}), videoPath: r.relPath, videoUrl: r.videoUrl, sourceUrl: r.sourceUrl, videoModel: r.engine };
+      await (db as any).update(tasks).set({ resultMeta: meta }).where(eq(tasks.id, action.taskId)).run();
+      return "Video generated and shown in the chat.";
+    })(),
+  });
+  await finishPendingAction(db, actionId, outcome.ok ? "executed" : "failed", outcome.result);
+  console.log(`[${consumerName}] Approved ${action.toolName} (${actionId}): ${outcome.ok ? "executed" : "failed"}.`);
+}
+const approvalsSub = await js.pullSubscribe(subjectForType("action.approved"), {
+  stream: "EVENTS",
+  config: {
+    durable_name: "worker_video_action_approved",
+    ack_policy: AckPolicy.Explicit,
+  },
+});
+approvalsSub.pull({ batch: 1, expires: 1000 });
+setInterval(() => approvalsSub.pull({ batch: 1, expires: 1000 }), 2000);
+(async () => {
+  for await (const m of approvalsSub) {
+    try {
+      const envlp = parseEnvelope(JSON.parse(new TextDecoder().decode(m.data)));
+      const data = envlp.data as any;
+      if (data.workerType === WORKER_TYPE) {
+        const inserted = await (db as any).insert(processedEvents).values({ consumerName, eventId: envlp.id })
+          .onConflictDoNothing().returning({ eventId: processedEvents.eventId });
+        if (inserted.length > 0) await runApprovedAction(String(data.actionId));
+      }
+    } catch (e: any) {
+      console.error(`[${consumerName}] approved action failed: ${e?.message ?? e}`);
+    }
+    m.ack();
+  }
+})();
+
 const sub = await js.pullSubscribe(subjectForType("agent.task_assigned"), {
   stream: "EVENTS",
   config: {
@@ -372,13 +451,19 @@ ${EXTERNAL_CONTENT_RULE}
     // Usage tracking: the sink collects every tool call this turn; flushed to
     // DB after the LLM finishes so we can report what each agent actually uses.
     const toolUsageLog: { toolName: string; source: string; status: string }[] = [];
-    const usageSink = (toolName: string, source: string, status: 'ok' | 'blocked' | 'error') => { toolUsageLog.push({ toolName, source, status }); };
+    const usageSink = (toolName: string, source: string, status: 'ok' | 'blocked' | 'error' | 'held') => { toolUsageLog.push({ toolName, source, status }); };
     // URLs the tools open or surface while answering: stored with the result, shown as
     // "Sources" and replayed in the history (see @hydraops/addons sources.ts).
     const sourceCollector = createSourceCollector();
     // Prompt-injection state of this task: set when a tool brings in third-party
     // content, which then reaches the model marked as data (see provenance.ts).
-    const taskSecurity = createTaskSecurity();
+    // From then on a sensitive call is HELD for the user's approval (mode 'ask').
+    const taskSecurity = createTaskSecurity({
+      mode: resolveSecurityMode(getGlobalConfig("security_mode", "ask"), agentCfg?.securityMode),
+      // One image per task is bound elsewhere; a video is held (it is the costly one).
+      neverHold: ["generate_image"],
+      onHold: ({ toolName, args, origins }) => createPendingAction(db, { taskId: taskId!, agentId, channel, toolName, args, origins }),
+    });
     // Bind the calling agent's identity so identity-aware tools (`remember`,
     // `recall`) act on the right agent without trusting model input.
     const toolContext = {
@@ -399,6 +484,8 @@ ${EXTERNAL_CONTENT_RULE}
     // agent can do, and a page that says "make 20 clips" must not be able to spend 20.
     let renderAttempts = 0;
     const render = async (prompt: string): Promise<string> => {
+      // The page the agent read may have shaped this request: hold it for the user.
+      if (taskSecurity.shouldHold("generate_video", { sensitive: true })) return taskSecurity.hold("generate_video", { prompt });
       if (++renderAttempts > 1) {
         // Counted before any await, so parallel calls from the model cannot all be paid.
         return rendered.error
@@ -456,7 +543,8 @@ ${EXTERNAL_CONTENT_RULE}
 
     // Explicit request but the model never rendered (weak/local models): fall
     // back to the engine with the raw prompt, as the old video path did.
-    if (explicitVideo && !rendered.video && !rendered.error && !controller.signal.aborted) {
+    const heldVideo = (taskSecurity.summary()?.held ?? 0) > 0;
+    if (explicitVideo && !rendered.video && !rendered.error && !heldVideo && !controller.signal.aborted) {
       taskSecurity.beforeCall("generate_video", { sensitive: true }, { prompt: userPrompt, via: "explicit request" });
       const r = await renderToStorage(taskId!, agentCfg, getGlobalConfig, userPrompt);
       if (r.videoUrl) rendered.video = { videoUrl: r.videoUrl, relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
@@ -469,7 +557,7 @@ ${EXTERNAL_CONTENT_RULE}
     // Not on a task that read third-party content, unless the user asked for a video:
     // a model that REPORTS "the page told me to call generate_video with prompt …" is
     // doing the right thing, and must not get that order executed for it.
-    const narrationAllowed = explicitVideo || !taskSecurity.tainted;
+    const narrationAllowed = !heldVideo && (explicitVideo || !taskSecurity.tainted);
     if (!rendered.video && !rendered.error && narrationAllowed && /\bgenerate_video\b/i.test(text || "")) {
       const leaked = leakedToolPrompt(text, "generate_video");
       console.warn(`[${consumerName}] model narrated a generate_video call instead of making it — rendering with ${leaked ? "its own prompt" : "the user's prompt"}`);

@@ -75,7 +75,23 @@
     "stopHint": "Para esta tarefa: o agente deixa de gerar e nenhuma resposta é salva",
     "cancelled": "Cancelada",
     "sources": "Fontes",
-    "sourcesLegend": "● aberta pelo agente · ○ apareceu em uma busca"
+    "sourcesLegend": "● aberta pelo agente · ○ apareceu em uma busca",
+    "held": {
+      "title": "Ação retida",
+      "why": "O agente quis fazer isto depois de ler conteúdo externo ({{from}}). Não foi executada: você decide.",
+      "approve": "Aprovar",
+      "reject": "Rejeitar",
+      "expires": "Expira em {{when}}",
+      "result": "Resultado",
+      "status": {
+        "pending": "pendente",
+        "approved": "aprovada · executando…",
+        "executed": "executada",
+        "failed": "falhou",
+        "rejected": "rejeitada",
+        "expired": "expirada"
+      }
+    }
   },
   "agents": {
     "title": "Agentes",
@@ -116,7 +132,11 @@
       "noResults": "Sem resultados",
       "editRaw": "Editar como texto",
       "editTags": "Editar com seletor"
-    }
+    },
+    "securityMode": "Conteúdo externo",
+    "securityModeHint": "O que o agente faz quando quer agir depois de ler uma página, uma busca ou um arquivo de terceiros",
+    "securityAsk": "🛡️ Pedir aprovação (recomendado)",
+    "securityTrusted": "Confiável: agir sem perguntar"
   },
   "system": {
     "title": "Sistema",
@@ -148,6 +168,16 @@
       "startInTray": "Iniciar na bandeja",
       "startInTrayHint": "Ao iniciar com o Windows não abre a janela: fica na bandeja até você abrir.",
       "devOnly": "Disponível apenas no aplicativo instalado."
+    },
+    "security": {
+      "title": "Conteúdo externo e ações",
+      "hint": "Quando um agente lê uma página, uma busca ou um arquivo de terceiros e depois quer enviar, escrever, lembrar ou gerar um vídeo, a ação fica retida até você aprovar no chat. Prevalece sobre o ajuste de cada agente, exceto em 'Perguntar'.",
+      "ask": "Perguntar",
+      "askHint": "Reter ações sensíveis (cada agente pode ser marcado como confiável)",
+      "trusted": "Confiar",
+      "trustedHint": "Executar e apenas registrar, para todos os agentes",
+      "off": "Desligado",
+      "offHint": "Sem marcação nem registro"
     }
   },
   "cron": {

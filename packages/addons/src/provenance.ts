@@ -11,8 +11,10 @@
  *
  * A task becomes TAINTED the moment a readsExternal tool returns. That result is
  * handed to the model wrapped in markers that say "data, not instructions", and a
- * sensitive call made after that point is recorded. This stage only observes and
- * labels; holding such calls for the user's approval builds on the same state.
+ * sensitive call made after that point is HELD: not run, but stored for the user
+ * to approve or reject from the chat (mode 'ask', the default). 'trusted' runs it
+ * and only records it; 'off' records nothing. The guarantee never depends on the
+ * model resisting an injected order — only on that order not being executed.
  */
 import { randomBytes } from 'node:crypto';
 import type { HydraTool } from './types.js';
@@ -100,10 +102,27 @@ function safeStringify(value: unknown): string {
 
 // ── Per-task state ────────────────────────────────────────────────────────────
 
+export type SecurityMode = 'ask' | 'trusted' | 'off';
+
+export interface HoldRequest {
+  toolName: string;
+  args: unknown;
+  origins: TaintOrigin[];
+}
+
+export interface TaskSecurityOptions {
+  /** ask (default): hold sensitive calls on a tainted task; trusted: run and record; off: nothing. */
+  mode?: SecurityMode;
+  /** Tools never held even in ask mode (they are bounded some other way, e.g. one image per task). */
+  neverHold?: string[];
+  /** Persists a held call; returns its id (shown to the model) or null if it could not be stored. */
+  onHold?: (req: HoldRequest) => Promise<string | null> | string | null;
+}
+
 export interface SecurityEvent {
   /** tainted = first external content entered the task; sensitive_after_taint = a
-   *  sensitive tool ran after that (the call a later stage holds for approval). */
-  type: 'tainted' | 'sensitive_after_taint';
+   *  sensitive tool ran after that; held = it was NOT run, pending the user's approval. */
+  type: 'tainted' | 'sensitive_after_taint' | 'held';
   toolName: string;
   detail: string;
 }
@@ -121,11 +140,15 @@ export interface TaskSecurity {
   beforeCall(toolName: string, risk: ToolRisk, args: unknown): void;
   /** Call with a tool's result; marks the task and returns what the model should see. */
   afterCall<T>(toolName: string, risk: ToolRisk, args: unknown, result: T): T | string;
+  /** True when this call must not run now: tainted task, sensitive tool, ask mode. */
+  shouldHold(toolName: string, risk: ToolRisk): boolean;
+  /** Stores the call for approval and returns the text the model gets instead of a result. */
+  hold(toolName: string, args: unknown): Promise<string>;
   events(): SecurityEvent[];
   /** For resultMeta: undefined while the task never touched external content. */
   /** sensitiveCallsBeforeTaint: made before any outside content arrived (also when issued in
    *  parallel with the read), so that content cannot have shaped them. */
-  summary(): { tainted: true; origins: TaintOrigin[]; sensitiveCalls: number; sensitiveCallsBeforeTaint: number } | undefined;
+  summary(): { tainted: true; origins: TaintOrigin[]; sensitiveCalls: number; sensitiveCallsBeforeTaint: number; held: number } | undefined;
 }
 
 const MAX_ORIGINS = 12;
@@ -147,13 +170,35 @@ function originRef(args: any): string | undefined {
 const isEmptyOrBlocked = (result: unknown) =>
   result == null || result === '' || (typeof result === 'string' && result.startsWith('⛔ Blocked by HydraOps security guard'));
 
-export function createTaskSecurity(): TaskSecurity {
+/**
+ * The mode a task runs in: the global setting wins when it is not 'ask'; otherwise
+ * the agent's own choice (ask unless the user marked the agent as trusted).
+ */
+export function resolveSecurityMode(global: unknown, agent: unknown): SecurityMode {
+  if (global === 'trusted' || global === 'off') return global;
+  return agent === 'trusted' ? 'trusted' : 'ask';
+}
+
+/** What the model is told instead of a result when a call is held. */
+export function heldMessage(toolName: string, actionId: string | null, origins: TaintOrigin[]): string {
+  const from = origins.map((o) => o.ref ?? o.tool).slice(0, 3).join(', ');
+  return (
+    `⏸ ${toolName} was NOT run: it is held for the user's approval, because this task read content from outside the app (${from}) and that content may have influenced the request. ` +
+    (actionId ? `The user can approve or reject it from this chat. ` : `It could not be stored either; ask the user to try again. `) +
+    `Tell the user briefly what you wanted to do and why, then continue without it. Do not retry the call, and do not say it was done.`
+  );
+}
+
+export function createTaskSecurity(options: TaskSecurityOptions = {}): TaskSecurity {
   const id = randomBytes(6).toString('hex');
+  const mode: SecurityMode = options.mode ?? 'ask';
+  const neverHold = new Set(options.neverHold ?? []);
   const origins: TaintOrigin[] = [];
   const log: SecurityEvent[] = [];
   let tainted = false;
   let sensitiveCalls = 0;
   let sensitiveCallsBeforeTaint = 0;
+  let held = 0;
 
   const record = (e: SecurityEvent) => { if (log.length < MAX_EVENTS) log.push(e); };
 
@@ -161,13 +206,24 @@ export function createTaskSecurity(): TaskSecurity {
     id,
     get tainted() { return tainted; },
     beforeCall(toolName, risk, args) {
-      if (!risk.sensitive) return;
+      if (!risk.sensitive || mode === 'off') return;
       if (!tainted) { sensitiveCallsBeforeTaint++; return; }
       sensitiveCalls++;
       record({ type: 'sensitive_after_taint', toolName, detail: describeArgs(args) });
     },
+    shouldHold(toolName, risk) {
+      return mode === 'ask' && tainted && risk.sensitive === true && !neverHold.has(toolName);
+    },
+    async hold(toolName, args) {
+      held++;
+      let actionId: string | null = null;
+      try { actionId = (await options.onHold?.({ toolName, args, origins: [...origins] })) ?? null; }
+      catch { actionId = null; }
+      record({ type: 'held', toolName, detail: (actionId ? `${actionId} ` : '') + describeArgs(args) });
+      return heldMessage(toolName, actionId, origins);
+    },
     afterCall(toolName, risk, args, result) {
-      if (!risk.readsExternal || isEmptyOrBlocked(result)) return result;
+      if (mode === 'off' || !risk.readsExternal || isEmptyOrBlocked(result)) return result;
       const ref = originRef(args);
       if (!tainted) {
         tainted = true;
@@ -179,6 +235,6 @@ export function createTaskSecurity(): TaskSecurity {
       return wrapExternalContent(result, toolName, id);
     },
     events: () => [...log],
-    summary: () => (tainted ? { tainted: true as const, origins: [...origins], sensitiveCalls, sensitiveCallsBeforeTaint } : undefined),
+    summary: () => (tainted ? { tainted: true as const, origins: [...origins], sensitiveCalls, sensitiveCallsBeforeTaint, held } : undefined),
   };
 }

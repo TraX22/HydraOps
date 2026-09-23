@@ -83,6 +83,10 @@ export const agentConfigs = sqliteTable("agent_configs", {
   graphicFormat: text("graphic_format").default("png"),
   // Aspect ratio for image/video generation: auto | 1:1 | 16:9 | 9:16 | 4:3 | 3:4
   resolution: text("resolution").default("auto"),
+  // Prompt-injection defense: ask (hold sensitive calls on a task that read outside
+  // content until the user approves) | trusted (run them, just record). See
+  // @hydraops/addons provenance.ts. The global switch lives in system_configs.
+  securityMode: text("security_mode").default("ask"),
   lastHeartbeat: integer("last_heartbeat", { mode: "timestamp" }),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
@@ -131,6 +135,34 @@ export const toolUsage = sqliteTable(
     agentIdx: index("tool_usage_agent_idx").on(t.agentId),
     toolIdx: index("tool_usage_tool_idx").on(t.toolName),
     createdIdx: index("tool_usage_created_idx").on(t.createdAt),
+  })
+);
+
+// A sensitive tool call an agent wanted to make on a task that had read outside
+// content. It was NOT run; the user approves or rejects it from the chat, and on
+// approval the agent's worker runs the stored call as-is, without the model.
+export const pendingActions = sqliteTable(
+  "pending_actions",
+  {
+    id: text("id").primaryKey(),
+    taskId: text("task_id").notNull(),
+    agentId: text("agent_id").notNull(),
+    channel: text("channel").notNull(),
+    toolName: text("tool_name").notNull(),
+    args: text("args", { mode: "json" }).notNull(),
+    // Where the outside content came from (tool + url/query), for the card.
+    origins: text("origins", { mode: "json" }).notNull(),
+    // pending | approved | executed | failed | rejected | expired
+    status: text("status").notNull().default("pending"),
+    result: text("result"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+    decidedAt: integer("decided_at", { mode: "timestamp" }),
+  },
+  (t) => ({
+    channelIdx: index("pending_actions_channel_idx").on(t.channel),
+    taskIdx: index("pending_actions_task_idx").on(t.taskId),
+    statusIdx: index("pending_actions_status_idx").on(t.status),
   })
 );
 

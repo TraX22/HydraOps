@@ -124,6 +124,9 @@
                 }
               }
 
+              @for (held of msg.pendingActions ?? []; track held.id) {
+                <app-held-action [action]="held" (decided)="chat.fetchHistory(chat.activeTab())" />
+              }
               @if (msg.role === 'assistant' && sources(msg).length) {
                 <details class="msg-sources">
                   <summary [title]="'chat.sourcesLegend' | translate">{{ 'chat.sources' | translate }} · {{ sources(msg).length }}</summary>
