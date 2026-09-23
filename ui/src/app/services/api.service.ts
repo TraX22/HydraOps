@@ -69,6 +69,17 @@ export interface ChatMessage {
   pendingActions?: HeldAction[];
 }
 
+// One line of the prompt-injection log (GET /api/security/events).
+export interface SecurityEvent {
+  id: number;
+  agentId: string;
+  taskId: string | null;
+  type: 'tainted' | 'sensitive_after_taint' | 'held';
+  toolName: string;
+  detail: string;
+  createdAt: string;
+}
+
 // A sensitive tool call held for the user's decision (see the Security page of the manual).
 export interface HeldAction {
   id: string;
@@ -189,7 +200,7 @@ export interface TelegramIntegration {
   allowlist: number[];
   pairingCode: string;
   defaultAgent: string;
-  notifications?: { cron?: boolean; cronFailures?: boolean };
+  notifications?: { cron?: boolean; cronFailures?: boolean; heldActions?: boolean };
 }
 
 export interface GitHubIntegration {
@@ -444,6 +455,14 @@ export class ApiService {
 
   rejectHeldAction(id: string): Observable<{ action: HeldAction }> {
     return this.http.post<{ action: HeldAction }>(`${this.base}/security/actions/${id}/reject`, {});
+  }
+
+  getSecurityEvents(limit = 50): Observable<{ events: SecurityEvent[] }> {
+    return this.http.get<{ events: SecurityEvent[] }>(`${this.base}/security/events`, { params: { limit } });
+  }
+
+  getHeldActions(): Observable<{ actions: HeldAction[] }> {
+    return this.http.get<{ actions: HeldAction[] }>(`${this.base}/security/actions`);
   }
 
   getSecurityMode(): Observable<{ mode: 'ask' | 'trusted' | 'off' }> {

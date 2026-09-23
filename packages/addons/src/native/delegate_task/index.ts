@@ -56,7 +56,9 @@ async function delegateTask(agent: string, prompt: string, context?: ToolContext
       headers: { "Content-Type": "application/json" },
       // isRead:false — like Telegram-originated tasks, the target agent shows
       // unread activity until the user opens its chat.
-      body: JSON.stringify({ prompt: delegated, channel: target.id, isRead: false }),
+      // A task that had read outside content hands its taint on: the delegated prompt may
+      // carry that content's intent, so the other agent's sensitive calls are held too.
+      body: JSON.stringify({ prompt: delegated, channel: target.id, isRead: false, inheritedTaint: context?.taintOrigins?.() ?? [] }),
       signal: AbortSignal.timeout(10_000),
     });
     const data: any = await res.json().catch(() => ({}));

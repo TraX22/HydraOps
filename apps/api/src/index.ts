@@ -2142,6 +2142,14 @@ api.post("/tasks", async (req, res) => {
     // Default read (the user's own message typed in the UI); external transports
     // (e.g. the Telegram bot) pass isRead:false so the agent shows unread activity.
     const isRead = req.body?.isRead !== false;
+    // Set by delegate_task when the delegating task had read outside content. It can
+    // only make the new task stricter, so it is accepted from any caller; shape-checked.
+    const inheritedTaint = Array.isArray(req.body?.inheritedTaint)
+      ? req.body.inheritedTaint
+          .filter((o: any) => o && typeof o.tool === "string")
+          .slice(0, 12)
+          .map((o: any) => ({ tool: String(o.tool).slice(0, 80), ...(typeof o.ref === "string" ? { ref: o.ref.slice(0, 200) } : {}) }))
+      : [];
 
     const taskId = randomUUID();
     const eventId = randomUUID();
@@ -2171,6 +2179,7 @@ api.post("/tasks", async (req, res) => {
         channel,
         status: "pending",
         isRead, // user's own UI message starts read; external transports pass false
+        ...(inheritedTaint.length ? { inheritedTaint } : {}),
         createdAt: new Date(),
         updatedAt: new Date(),
       }).run();
@@ -2560,7 +2569,7 @@ const TELEGRAM_CONFIG_KEY = "telegram_config";
 
 async function readTelegramConfig(): Promise<any> {
   const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, TELEGRAM_CONFIG_KEY)).limit(1);
-  const base = { enabled: false, allowlist: [] as number[], pairingCode: "", defaultAgent: "", notifications: { cron: true, cronFailures: true }, sessions: {} as Record<string, string> };
+  const base = { enabled: false, allowlist: [] as number[], pairingCode: "", defaultAgent: "", notifications: { cron: true, cronFailures: true, heldActions: true }, sessions: {} as Record<string, string> };
   return rows[0] ? { ...base, ...JSON.parse(rows[0].value) } : base;
 }
 
@@ -2577,6 +2586,7 @@ api.get("/system/integrations/telegram", async (_req, res) => {
       notifications: {
         cron: cfg.notifications?.cron !== false,
         cronFailures: cfg.notifications?.cronFailures !== false,
+        heldActions: cfg.notifications?.heldActions !== false,
       },
     });
   } catch (err: any) {
@@ -2602,6 +2612,9 @@ api.post("/system/integrations/telegram", async (req, res) => {
     }
     if (b.notifications && typeof b.notifications.cronFailures === "boolean") {
       cfg.notifications = { ...(cfg.notifications || {}), cronFailures: b.notifications.cronFailures };
+    }
+    if (b.notifications && typeof b.notifications.heldActions === "boolean") {
+      cfg.notifications = { ...(cfg.notifications || {}), heldActions: b.notifications.heldActions };
     }
     const value = JSON.stringify(cfg);
     await (db as any).insert(systemConfigs)
@@ -3398,21 +3411,11 @@ api.post("/security/mode", securityLimiter, async (req, res) => {
 });
 
 // Held calls nobody decided on expire after 24 h. While the user is away (a cron at
-// night, the mini PC on its own) the held calls pile up and one Telegram line per new
-// batch says so; approving still happens in the chat.
-let lastHeldNoticeAt = 0;
-let heldSeen = new Set<string>();
+// night, the mini PC on its own) the Telegram bot sends each new one with Approve /
+// Reject buttons (apps/telegram-bot notifications.ts); here they only expire.
 async function sweepPendingActions(): Promise<void> {
   try {
     await expirePendingActions(db);
-    const rows = await (db as any).select().from(pendingActions).where(eq(pendingActions.status, "pending"));
-    const fresh = rows.filter((a: any) => !heldSeen.has(a.id));
-    heldSeen = new Set(rows.map((a: any) => a.id));
-    if (!fresh.length || Date.now() - lastHeldNoticeAt < 10 * 60_000) return;
-    lastHeldNoticeAt = Date.now();
-    const lines = fresh.slice(0, 5).map((a: any) => `• ${a.agentId} → ${a.toolName}`);
-    const more = fresh.length > 5 ? `\n…and ${fresh.length - 5} more` : "";
-    await pushTelegram(`⏸ ${fresh.length} action${fresh.length === 1 ? "" : "s"} held for your approval (an agent read outside content and then wanted to act). Open the chat to approve or reject; they expire in 24 h.\n${lines.join("\n")}${more}`);
   } catch (err) {
     console.warn("[api] pending actions sweep failed", err);
   }

@@ -115,6 +115,11 @@ export interface TaskSecurityOptions {
   mode?: SecurityMode;
   /** Tools never held even in ask mode (they are bounded some other way, e.g. one image per task). */
   neverHold?: string[];
+  /** Tools held on a tainted task even in 'trusted' mode (only 'off' lets them through):
+   *  the agent's permanent memory, where an injected rule would outlive the task. */
+  alwaysHold?: string[];
+  /** Outside content this task started with: it was delegated by a task that had read some. */
+  inherited?: TaintOrigin[];
   /** Persists a held call; returns its id (shown to the model) or null if it could not be stored. */
   onHold?: (req: HoldRequest) => Promise<string | null> | string | null;
 }
@@ -142,6 +147,11 @@ export interface TaskSecurity {
   afterCall<T>(toolName: string, risk: ToolRisk, args: unknown, result: T): T | string;
   /** True when this call must not run now: tainted task, sensitive tool, ask mode. */
   shouldHold(toolName: string, risk: ToolRisk): boolean;
+  /** Third-party text that reached the task by another road than a tool result (a recalled
+   *  conversation that had read some): marks the task and returns the text wrapped as data. */
+  external(toolName: string, ref: string | undefined, content: string): string;
+  /** Where the outside content came from so far (empty while the task is clean). */
+  origins(): TaintOrigin[];
   /** Stores the call for approval and returns the text the model gets instead of a result. */
   hold(toolName: string, args: unknown): Promise<string>;
   events(): SecurityEvent[];
@@ -193,6 +203,7 @@ export function createTaskSecurity(options: TaskSecurityOptions = {}): TaskSecur
   const id = randomBytes(6).toString('hex');
   const mode: SecurityMode = options.mode ?? 'ask';
   const neverHold = new Set(options.neverHold ?? []);
+  const alwaysHold = new Set(options.alwaysHold ?? []);
   const origins: TaintOrigin[] = [];
   const log: SecurityEvent[] = [];
   let tainted = false;
@@ -201,6 +212,14 @@ export function createTaskSecurity(options: TaskSecurityOptions = {}): TaskSecur
   let held = 0;
 
   const record = (e: SecurityEvent) => { if (log.length < MAX_EVENTS) log.push(e); };
+
+  // Delegated by a task that had read outside content: the prompt this task got may
+  // carry that content's intent, so it starts tainted (not in 'off' mode).
+  if (mode !== 'off' && options.inherited?.length) {
+    tainted = true;
+    for (const o of options.inherited.slice(0, MAX_ORIGINS)) origins.push({ tool: o.tool, ...(o.ref ? { ref: o.ref } : {}) });
+    record({ type: 'tainted', toolName: 'delegate_task', detail: 'inherited from the delegating task' });
+  }
 
   return {
     id,
@@ -212,8 +231,14 @@ export function createTaskSecurity(options: TaskSecurityOptions = {}): TaskSecur
       record({ type: 'sensitive_after_taint', toolName, detail: describeArgs(args) });
     },
     shouldHold(toolName, risk) {
-      return mode === 'ask' && tainted && risk.sensitive === true && !neverHold.has(toolName);
+      if (!tainted || risk.sensitive !== true || mode === 'off') return false;
+      if (alwaysHold.has(toolName)) return true;
+      return mode === 'ask' && !neverHold.has(toolName);
     },
+    external(toolName, ref, content) {
+      return this.afterCall(toolName, { readsExternal: true }, ref ? { query: ref } : {}, content) as string;
+    },
+    origins: () => [...origins],
     async hold(toolName, args) {
       held++;
       let actionId: string | null = null;

@@ -125,6 +125,14 @@ export class HerramientasComponent implements OnInit {
     this.api.saveTelegramIntegration({ notifications: { cron } }).subscribe(() => this.flashCfgSaved());
   }
 
+  toggleNotifyHeldActions(): void {
+    const t = this.telegram();
+    if (!t) return;
+    const heldActions = !(t.notifications?.heldActions !== false);
+    this.patch({ notifications: { ...(t.notifications ?? {}), heldActions } });
+    this.api.saveTelegramIntegration({ notifications: { heldActions } }).subscribe(() => this.flashCfgSaved());
+  }
+
   toggleNotifyCronFailures(): void {
     const t = this.telegram();
     if (!t) return;

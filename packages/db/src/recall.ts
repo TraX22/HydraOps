@@ -18,6 +18,8 @@ export interface RecallHit {
   date: string; // YYYY-MM-DD
   prompt: string;
   excerpt: string;
+  /** That task had read outside content (resultMeta.security.tainted). */
+  tainted: boolean;
 }
 
 // One-time-per-process guard; the schema statements are all IF NOT EXISTS so a
@@ -94,10 +96,11 @@ export function searchAgentTasks(
 
   const rows = client
     .prepare(
-      `SELECT task_id, prompt, created_at,
-              snippet(tasks_fts, 3, '', '', ' … ', 48) AS excerpt
-       FROM tasks_fts
-       WHERE tasks_fts MATCH ? AND agent_id = ?
+      `SELECT tasks_fts.task_id AS task_id, tasks_fts.prompt AS prompt, tasks_fts.created_at AS created_at,
+              snippet(tasks_fts, 3, '', '', ' … ', 48) AS excerpt,
+              json_extract(t.result_meta, '$.security.tainted') AS tainted
+       FROM tasks_fts LEFT JOIN tasks t ON t.id = tasks_fts.task_id
+       WHERE tasks_fts MATCH ? AND tasks_fts.agent_id = ?
        ORDER BY rank
        LIMIT ?`,
     )
@@ -112,6 +115,7 @@ export function searchAgentTasks(
       date: new Date(ts).toISOString().slice(0, 10),
       prompt: prompt.length > PROMPT_CLIP_CHARS ? prompt.slice(0, PROMPT_CLIP_CHARS) + "…" : prompt,
       excerpt: String(r.excerpt ?? "").trim(),
+      tainted: r.tainted === 1 || r.tainted === true,
     };
   });
 }

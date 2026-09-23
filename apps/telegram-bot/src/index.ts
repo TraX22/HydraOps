@@ -7,6 +7,7 @@ import { readFile } from "node:fs/promises";
 import type { CommandResult } from "@hydraops/commands";
 import { toTelegramHtml } from "./format.js";
 import { startNotifier } from "./notifications.js";
+import { startHeldActionsNotifier, handleHeldActionCallback, type HeldActionsDeps } from "./held-actions.js";
 
 loadDotenv({ path: envFile });
 
@@ -65,7 +66,7 @@ interface TelegramConfig {
   pairingCode: string;
   defaultAgent: string;
   /** Proactive push notifications (see notifications.ts). */
-  notifications: { cron: boolean; cronFailures: boolean };
+  notifications: { cron: boolean; cronFailures: boolean; heldActions?: boolean };
   /** Per-chat active agent; runtime state owned by the bot. */
   sessions: Record<string, string>;
 }
@@ -75,7 +76,7 @@ const DEFAULT_CONFIG: TelegramConfig = {
   allowlist: [],
   pairingCode: "",
   defaultAgent: "",
-  notifications: { cron: true, cronFailures: true },
+  notifications: { cron: true, cronFailures: true, heldActions: true },
   sessions: {},
 };
 
@@ -237,6 +238,11 @@ async function drainBacklog(token: string): Promise<void> {
 }
 
 async function handleUpdate(token: string, cfg: TelegramConfig, update: any): Promise<void> {
+  // A press on a held action's Approve / Reject button.
+  if (update.callback_query) {
+    await handleHeldActionCallback(heldDeps, token, cfg.allowlist, update.callback_query);
+    return;
+  }
   const msg = update.message;
   const text: string = msg?.text ?? "";
   const chatId: number = msg?.chat?.id;
@@ -344,6 +350,21 @@ async function loop(): Promise<void> {
     }
   }
 }
+
+// Held actions (prompt-injection defense): each new one is sent with Approve / Reject
+// buttons; a press goes to the same API call as the chat card.
+const heldDeps: HeldActionsDeps = {
+  db,
+  apiUrl: API_URL,
+  apiHeaders,
+  getConfig: async () => {
+    const c = await readConfig();
+    return { enabled: c.enabled, allowlist: c.allowlist, notifications: c.notifications };
+  },
+  getToken: readToken,
+  tg: (token, method, params) => tg(token, method, params),
+};
+startHeldActionsNotifier(heldDeps);
 
 loop();
 
