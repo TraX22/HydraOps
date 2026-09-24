@@ -84,6 +84,15 @@ function parseScalar(v: string): string | string[] {
   return unquote(t);
 }
 
+/** `key: value` → [key, value] without a regex (a backtracking one is slow on crafted lines). */
+function splitKeyValue(line: string): [string, string] | null {
+  const colon = line.indexOf(':');
+  if (colon <= 0) return null;
+  const key = line.slice(0, colon);
+  if (!/^[\w-]+$/.test(key)) return null;
+  return [key, line.slice(colon + 1).trim()];
+}
+
 /**
  * The subset of YAML that skill frontmatter uses: `key: value`, quoted strings, inline
  * lists, folded/literal blocks (`>` / `|`), `- item` lists and one level of nesting
@@ -112,14 +121,14 @@ export function parseFrontmatter(text: string): { data: Record<string, any>; bod
       for (let j = 0; j < block.length; j++) {
         const l = block[j];
         if (!l.trim() || indentOf(l) !== inner) continue;
-        const kv = /^([\w-]+):\s*(.*)$/.exec(l.trim());
+        const kv = splitKeyValue(l.trim());
         if (!kv) continue;
-        if (kv[2] === '') {
+        if (kv[1] === '') {
           const items: string[] = [];
           while (j + 1 < block.length && indentOf(block[j + 1]) > inner && block[j + 1].trim().startsWith('- ')) items.push(unquote(block[++j].trim().slice(2)));
-          map[kv[1]] = items;
+          map[kv[0]] = items;
         } else {
-          map[kv[1]] = parseScalar(kv[2]);
+          map[kv[0]] = parseScalar(kv[1]);
         }
       }
       return { value: map, next: i };
@@ -129,9 +138,9 @@ export function parseFrontmatter(text: string): { data: Record<string, any>; bod
 
   for (let i = 0; i < lines.length;) {
     const line = lines[i];
-    const kv = /^([\w-]+):\s*(.*)$/.exec(line);
-    if (!kv || indentOf(line) !== 0) { i++; continue; }
-    const [, key, raw] = kv;
+    const kv = indentOf(line) === 0 ? splitKeyValue(line) : null;
+    if (!kv) { i++; continue; }
+    const [key, raw] = kv;
     if (raw === '' || raw === '>' || raw === '|' || raw === '>-' || raw === '|-') {
       const { value, next } = readBlock(i + 1, 0);
       data[key] = value;
@@ -259,7 +268,6 @@ const OVERRIDE_PATTERNS: RegExp[] = [
 const CREDENTIAL_PATHS = /(\.ssh[\\/]|id_rsa|id_ed25519|keys\.json|\.aws[\\/]credentials|\.npmrc|\.git-credentials|%APPDATA%[\\/]hydraops|[\\/]\.env\b|wallet\.dat|Login Data|cookies\.sqlite)/i;
 const REMOTE_EXEC = /(curl|wget|iwr|Invoke-WebRequest|Invoke-Expression|iex)\b[^\n]{0,120}(\|\s*(ba|z)?sh\b|\|\s*iex\b|\|\s*python)|powershell[^\n]{0,40}-e(nc(odedcommand)?)?\s+[A-Za-z0-9+/=]{20,}|base64\s+(-d|--decode)/i;
 const HIDDEN_CHARS = /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF\u{E0000}-\u{E007F}]/u;
-const HTML_COMMENT = /<!--[\s\S]*?-->/;
 const BASE64_BLOB = /[A-Za-z0-9+/]{240,}={0,2}/;
 const URL_RE = /https?:\/\/([a-z0-9.-]+\.[a-z]{2,})/gi;
 
@@ -282,7 +290,12 @@ export function scanSkill(files: SkillFile[]): SkillFinding[] {
     { const m = CREDENTIAL_PATHS.exec(text); if (m) add('high', 'credentials_path', m[0]); }
     { const m = REMOTE_EXEC.exec(text); if (m) add('high', 'remote_exec', m[0]); }
     if (HIDDEN_CHARS.test(text)) add('high', 'hidden_text', 'invisible or direction-changing characters');
-    { const m = HTML_COMMENT.exec(text); if (m && m[0].length > 12) add('info', 'hidden_text', m[0]); }
+    {
+      // An HTML comment is invisible once rendered. indexOf, not a regex: see splitKeyValue.
+      const open = text.indexOf('<!--');
+      const close = open >= 0 ? text.indexOf('-->', open + 4) : -1;
+      if (close > open + 8) add('info', 'hidden_text', text.slice(open, close + 3));
+    }
     if (BASE64_BLOB.test(text)) add('high', 'encoded_blob', 'long encoded block');
     if (isScriptPath(f.path)) add('info', 'scripts', f.path);
     for (const m of text.matchAll(URL_RE)) domains.add(m[1].toLowerCase());
