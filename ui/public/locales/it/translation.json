@@ -2,7 +2,8 @@
   "llm": {
     "errors": {
       "malformed_model_response": "⚠️ Il modello ha restituito una risposta malformata (sintassi interna degli strumenti). Riprova o riformula la richiesta.",
-      "task_timed_out": "⚠️ Il task è scaduto: il worker non l'ha mai completato (potrebbe essersi riavviato a metà). Invialo di nuovo."
+      "task_timed_out": "⚠️ Il task è scaduto: il worker non l'ha mai completato (potrebbe essersi riavviato a metà). Invialo di nuovo.",
+      "llm_timeout": "⏱️ Il modello non ha finito in tempo: l'attività ha richiesto più del consentito (10 minuti nel cloud, 15 con il modello locale). Prova una richiesta più mirata o un modello più veloce per questo agente."
     }
   },
   "oneShot": {
@@ -485,6 +486,9 @@
       "voxel": "Voxel",
       "stylized": "Prop da gioco",
       "realistic": "Realistico"
-    }
+    },
+    "showMore": "Mostra tutto",
+    "showLess": "Mostra meno",
+    "usePrompt": "Usa questo prompt"
   }
 }

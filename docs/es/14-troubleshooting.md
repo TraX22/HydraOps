@@ -15,6 +15,10 @@ Los tres `LOCAL_LLM_*` viven en el `.env` — ver [Claves de API y modelos](./04
 
 El modelo del agente tiene que tener visión. Con modelo local, además, el servidor debe llevar el proyector multimodal cargado (en llama.cpp, el archivo `mmproj`); si el modelo es solo-texto, el agente inventará una descripción en vez de ver la imagen.
 
+## "El modelo no terminó a tiempo"
+
+Cada tarea puede tener al modelo trabajando hasta **10 minutos** con modelos en la nube y **15** con el modelo local, contando todas sus búsquedas y lecturas. Un análisis grande (decenas de páginas) con un modelo lento puede pasarse: la tarea se corta y el chat lo explica. Acotá el pedido (un país, un género, un período) o ponele a ese agente un modelo más rápido. En modo servidor, `HYDRA_LLM_TIMEOUT_MIN` en el `.env` cambia el límite (máximo 25 minutos).
+
 ## No arranca: NATS no se encuentra
 
 El binario `nats-server` tiene que estar en el `PATH`, en una carpeta `nats/` del repositorio, o apuntado con `NATS_SERVER_BIN` en el `.env` — ver [Instalación](./02-installation.md). El instalador de Windows lo trae dentro; esto solo aplica al modo desde el código.

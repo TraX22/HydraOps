@@ -2,7 +2,8 @@
   "llm": {
     "errors": {
       "malformed_model_response": "⚠️ The model returned a malformed response (internal tool syntax). Try again or rephrase your request.",
-      "task_timed_out": "⚠️ The task timed out: its worker never finished it (it may have restarted mid-task). Please send it again."
+      "task_timed_out": "⚠️ The task timed out: its worker never finished it (it may have restarted mid-task). Please send it again.",
+      "llm_timeout": "⏱️ The model did not finish in time: the task needed longer than allowed (10 minutes in the cloud, 15 with the local model). Try a narrower request or a faster model for this agent."
     }
   },
   "oneShot": {
@@ -485,6 +486,9 @@
       "voxel": "Voxel",
       "stylized": "Game prop",
       "realistic": "Realistic"
-    }
+    },
+    "showMore": "Show all",
+    "showLess": "Show less",
+    "usePrompt": "Use this prompt"
   }
 }

@@ -2,7 +2,8 @@
   "llm": {
     "errors": {
       "malformed_model_response": "⚠️ O modelo retornou uma resposta malformada (sintaxe interna de ferramentas). Tente novamente ou reformule o pedido.",
-      "task_timed_out": "⚠️ A tarefa expirou: o worker nunca a concluiu (pode ter reiniciado no meio). Envie-a novamente."
+      "task_timed_out": "⚠️ A tarefa expirou: o worker nunca a concluiu (pode ter reiniciado no meio). Envie-a novamente.",
+      "llm_timeout": "⏱️ O modelo não terminou a tempo: a tarefa precisou de mais do que o permitido (10 minutos na nuvem, 15 com o modelo local). Tente um pedido mais específico ou um modelo mais rápido para este agente."
     }
   },
   "oneShot": {
@@ -485,6 +486,9 @@
       "voxel": "Voxel",
       "stylized": "Prop de jogo",
       "realistic": "Realista"
-    }
+    },
+    "showMore": "Ver tudo",
+    "showLess": "Ver menos",
+    "usePrompt": "Usar este prompt"
   }
 }
