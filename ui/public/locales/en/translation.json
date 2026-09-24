@@ -2,7 +2,8 @@
   "llm": {
     "errors": {
       "malformed_model_response": "⚠️ The model returned a malformed response (internal tool syntax). Try again or rephrase your request.",
-      "task_timed_out": "⚠️ The task timed out: its worker never finished it (it may have restarted mid-task). Please send it again."
+      "task_timed_out": "⚠️ The task timed out: its worker never finished it (it may have restarted mid-task). Please send it again.",
+      "llm_timeout": "⏱️ The model did not finish in time: the task needed longer than allowed (10 minutes in the cloud, 15 with the local model). Try a narrower request or a faster model for this agent."
     }
   },
   "oneShot": {
@@ -192,6 +193,16 @@
       "trustedHint": "Run and only log, for every agent",
       "off": "Off",
       "offHint": "No marking, no log"
+    },
+    "network": {
+      "title": "Network access",
+      "open": "The API listens on {{host}}:{{port}}: other devices can get in with the token.",
+      "closed": "Only this computer can use HydraOps. To open it to your network or use it from your phone, see Server mode in the manual.",
+      "show": "Show",
+      "hide": "Hide",
+      "copy": "Copy",
+      "copied": "Copied",
+      "tokenHint": "This token only shows on this computer. Other devices ask for it once; keep it like a password."
     }
   },
   "cron": {
@@ -491,6 +502,9 @@
       "voxel": "Voxel",
       "stylized": "Game prop",
       "realistic": "Realistic"
-    }
+    },
+    "showMore": "Show all",
+    "showLess": "Show less",
+    "usePrompt": "Use this prompt"
   }
 }

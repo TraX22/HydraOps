@@ -2,7 +2,8 @@
   "llm": {
     "errors": {
       "malformed_model_response": "⚠️ Le modèle a renvoyé une réponse malformée (syntaxe interne des outils). Réessayez ou reformulez votre demande.",
-      "task_timed_out": "⚠️ La tâche a expiré : son worker ne l'a jamais terminée (il a peut-être redémarré en cours de route). Renvoyez-la."
+      "task_timed_out": "⚠️ La tâche a expiré : son worker ne l'a jamais terminée (il a peut-être redémarré en cours de route). Renvoyez-la.",
+      "llm_timeout": "⏱️ Le modèle n'a pas terminé à temps : la tâche a demandé plus que permis (10 minutes dans le cloud, 15 avec le modèle local). Essayez une demande plus ciblée ou un modèle plus rapide pour cet agent."
     }
   },
   "oneShot": {
@@ -192,6 +193,16 @@
       "trustedHint": "Exécuter et seulement journaliser, pour tous les agents",
       "off": "Désactivé",
       "offHint": "Ni marquage ni journal"
+    },
+    "network": {
+      "title": "Accès réseau",
+      "open": "L'API écoute sur {{host}}:{{port}} : d'autres appareils peuvent entrer avec le jeton.",
+      "closed": "Seul cet ordinateur peut utiliser HydraOps. Pour l'ouvrir à votre réseau ou l'utiliser depuis votre téléphone, voir Mode serveur dans le manuel.",
+      "show": "Afficher",
+      "hide": "Masquer",
+      "copy": "Copier",
+      "copied": "Copié",
+      "tokenHint": "Ce jeton ne s'affiche que sur cet ordinateur. Les autres appareils le demandent une fois ; gardez-le comme un mot de passe."
     }
   },
   "cron": {
@@ -491,6 +502,9 @@
       "voxel": "Voxel",
       "stylized": "Accessoire de jeu",
       "realistic": "Réaliste"
-    }
+    },
+    "showMore": "Tout afficher",
+    "showLess": "Afficher moins",
+    "usePrompt": "Utiliser ce prompt"
   }
 }

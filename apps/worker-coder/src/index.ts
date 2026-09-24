@@ -187,6 +187,16 @@ async function writeLocalResult(taskId: string, payload: unknown) {
 // --- TIMEOUT HELPER ---
 // onTimeout lets the caller abort the underlying work: rejecting alone leaves the
 // model call running (and billing) in the background.
+// How long one task may keep the model working (tool calls included). A research task
+// is dozens of searches and page reads; 2 minutes cut those off and lost all the work.
+// Still well under the API's 30-minute sweep of stuck tasks, and the Stop button ends
+// a run early. HYDRA_LLM_TIMEOUT_MIN overrides both (minutes).
+const LLM_TIMEOUT_MS = (provider: string) => {
+  const override = Number(process.env.HYDRA_LLM_TIMEOUT_MIN);
+  if (Number.isFinite(override) && override > 0) return Math.min(override, 25) * 60_000;
+  return provider === "local" ? 15 * 60_000 : 10 * 60_000;
+};
+
 function withWorkerTimeout<T>(promise: Promise<T>, ms: number, label: string, onTimeout?: () => void): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;
   const timeout = new Promise<T>((_, reject) => {
@@ -523,7 +533,7 @@ ${EXTERNAL_CONTENT_RULE}
         rawTools,
         { abortSignal: controller.signal }
       ),
-      llmConfig.provider === 'local' ? 300_000 : 120_000,
+      LLM_TIMEOUT_MS(llmConfig.provider),
       `LLM call (${llmConfig.provider}:${llmConfig.model})`,
       () => controller.abort(new Error("LLM call timed out")),
     );
@@ -624,7 +634,13 @@ ${EXTERNAL_CONTENT_RULE}
       } catch (e) { console.error(`[worker-coder] failed to publish task.failed`, e); }
       try {
         await (db as any).update(tasks)
-          .set({ status: "failed", updatedAt: new Date() })
+          .set({ status: "failed", resultMeta: {
+            success: false,
+            // A model call that ran out of time is the common case; the chat explains it.
+            errorCode: /Timeout of \d+ms: LLM call/.test(String(err?.message ?? "")) ? "llm_timeout" : undefined,
+            error: String(err?.message ?? err ?? "unknown error").replace(/^\[[\w-]+\] /, "").slice(0, 500),
+            completedAt: new Date().toISOString(),
+          }, updatedAt: new Date() })
           .where(eq(tasks.id, taskId));
       } catch { /* ignore */ }
     }
