@@ -20,6 +20,9 @@ export const tasks = sqliteTable("tasks", {
   workflowChain: text("workflow_chain", { mode: "json" }),
   workflowStep: integer("workflow_step").default(0),
   isRead: integer("is_read", { mode: "boolean" }).notNull().default(false),
+  // Prompt-injection defense: where the outside content came from when this task was
+  // delegated by one that had read some. The worker starts it tainted (provenance.ts).
+  inheritedTaint: text("inherited_taint", { mode: "json" }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
@@ -158,6 +161,8 @@ export const pendingActions = sqliteTable(
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
     expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
     decidedAt: integer("decided_at", { mode: "timestamp" }),
+    // When the Telegram bot sent this call with its Approve / Reject buttons.
+    notifiedAt: integer("notified_at", { mode: "timestamp" }),
   },
   (t) => ({
     channelIdx: index("pending_actions_channel_idx").on(t.channel),

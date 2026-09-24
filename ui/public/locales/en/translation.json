@@ -149,6 +149,20 @@
       "cta": "Update",
       "working": "Updating… the app will restart on its own",
       "done": "Updated. Reloading…"
+    },
+    "security": {
+      "title": "Security: outside content",
+      "hint": "Which tasks read third-party content, the sensitive calls made after that and the ones that were held. Held calls are decided from the chat or on Telegram.",
+      "pending": "{{n}} pending",
+      "refresh": "Refresh",
+      "held": "Held actions",
+      "events": "Log",
+      "empty": "No task has read outside content yet.",
+      "type": {
+        "tainted": "read outside content",
+        "sensitive_after_taint": "action after",
+        "held": "held"
+      }
     }
   },
   "config": {
@@ -318,7 +332,9 @@
       "allowlist": "Authorized users",
       "allowlistEmpty": "No users yet — share the pairing code, or add a Telegram ID.",
       "allowlistPlaceholder": "Telegram user ID",
-      "add": "Add"
+      "add": "Add",
+      "notifyHeld": "Held actions",
+      "notifyHeldHint": "When an agent read outside content and wants to act, you get it with Approve / Reject buttons."
     },
     "github": {
       "name": "GitHub",

@@ -43,6 +43,8 @@
     }
   </div>
 
+  <app-security-log />
+
   @if (showLogsModal()) {
     <div class="modal-overlay" (click)="showLogsModal.set(false)">
       <div class="modal logs-modal" (click)="$event.stopPropagation()">

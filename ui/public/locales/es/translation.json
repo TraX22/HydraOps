@@ -149,6 +149,20 @@
       "cta": "Actualizar",
       "working": "Actualizando… la app se reiniciará sola",
       "done": "Actualizado. Recargando…"
+    },
+    "security": {
+      "title": "Seguridad: contenido externo",
+      "hint": "Qué tareas leyeron contenido de terceros, las acciones sensibles que vinieron después y las que quedaron retenidas. Las retenidas se aprueban desde el chat o por Telegram.",
+      "pending": "{{n}} pendientes",
+      "refresh": "Actualizar",
+      "held": "Acciones retenidas",
+      "events": "Registro",
+      "empty": "Ninguna tarea leyó contenido externo todavía.",
+      "type": {
+        "tainted": "leyó contenido externo",
+        "sensitive_after_taint": "acción después",
+        "held": "retenida"
+      }
     }
   },
   "config": {
@@ -318,7 +332,9 @@
       "allowlist": "Usuarios autorizados",
       "allowlistEmpty": "Aún no hay usuarios: comparte el código o añade un ID de Telegram.",
       "allowlistPlaceholder": "ID de usuario de Telegram",
-      "add": "Añadir"
+      "add": "Añadir",
+      "notifyHeld": "Acciones retenidas",
+      "notifyHeldHint": "Cuando un agente leyó contenido externo y quiere actuar, te llega con botones Aprobar / Rechazar."
     },
     "github": {
       "name": "GitHub",

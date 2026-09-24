@@ -33,13 +33,20 @@ Una página web, un resultado de búsqueda, la transcripción de un video o un i
 
 Una vez que una tarea leyó contenido de afuera, una llamada sensible que el agente haga después —mandar un mensaje, escribir en GitHub, guardar en su memoria permanente, generar un video, cualquier herramienta MCP que actúe— **no se ejecuta**. Se guarda, el agente se entera (y te cuenta qué quería hacer) y debajo de su respuesta aparece una tarjeta con la herramienta, los argumentos exactos y de dónde salió el contenido externo. **Aprobar** ejecuta esa llamada tal cual quedó guardada, por el mismo guard que cualquier herramienta pero sin el modelo: la página que leyó no tiene una segunda oportunidad de cambiar el pedido. **Rechazar** la descarta. Las que nadie decide vencen a las 24 horas.
 
-Cuando no estás —una tarea programada de noche, el mini PC solo— las llamadas retenidas se acumulan y, si Telegram está configurado, un mensaje te lo avisa; aprobar se sigue haciendo desde el chat.
+Cuando no estás —una tarea programada de noche, el mini PC solo— las llamadas retenidas se acumulan. Si Telegram está configurado, cada una te llega al teléfono con botones **✅ Aprobar / ❌ Rechazar** (Herramientas → Telegram → *Acciones retenidas* lo apaga).
 
 Dos cosas no se retienen a propósito: una imagen (`generate_image`), porque una imagen por tarea es todo lo que un agente puede gastar, y las llamadas que el agente hizo *antes* de que llegara contenido externo.
 
 Qué tan estricto es:
 - **Por agente** (Agentes → ficha del agente → *Contenido externo*): **Pedir aprobación** (por defecto) o **Confiar** (ejecutar y solo registrar) para agentes en los que confiás con lo que leen.
 - **Global** (Config → *Contenido externo y acciones*): **Preguntar** deja elegir a cada agente; **Confiar** ejecuta todo y solo registra; **Apagado** desactiva también las marcas y el registro. El ajuste global manda sobre el de cada agente salvo cuando es *Preguntar*.
+
+El contenido externo también llega a una tarea por otros caminos, y la marca lo sigue:
+- **Memoria.** `remember` después de contenido externo queda retenido incluso en un agente de *Confianza*: una regla guardada ahí se leería en cada tarea futura. Solo el global *Apagado* lo deja pasar.
+- **Recall.** Cuando `recall` trae una respuesta vieja que se escribió después de leer contenido externo, ese texto le llega al modelo marcado como dato y la tarea actual queda marcada también.
+- **Delegación.** Una tarea que `delegate_task` crea desde una tarea marcada nace marcada: las llamadas sensibles del otro agente también quedan retenidas.
+
+**Sistema → Seguridad** muestra el registro: qué tareas leyeron contenido externo, las llamadas sensibles que vinieron después y cada llamada retenida con su resultado.
 
 La garantía no depende de que el modelo resista una orden inyectada —los modelos caen— sino de que esa orden nunca se ejecute sin vos.
 

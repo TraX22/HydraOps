@@ -82,6 +82,15 @@
               {{ (t.notifications?.cronFailures !== false) ? 'ON' : 'OFF' }}
             </button>
           </div>
+          <div class="notify-row">
+            <div class="notify-text">
+              <span class="tool-label">{{ 'herramientas.telegram.notifyHeld' | translate }}</span>
+              <p class="tool-hint">{{ 'herramientas.telegram.notifyHeldHint' | translate }}</p>
+            </div>
+            <button class="toggle-btn" [class.on]="t.notifications?.heldActions !== false" (click)="toggleNotifyHeldActions()">
+              {{ (t.notifications?.heldActions !== false) ? 'ON' : 'OFF' }}
+            </button>
+          </div>
         </div>
 
         <!-- Pairing code -->

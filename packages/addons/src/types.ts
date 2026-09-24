@@ -21,6 +21,8 @@ export interface PastTaskHit {
   date: string; // YYYY-MM-DD
   prompt: string;
   excerpt: string;
+  // That past task had read outside content: its text is third-party-influenced.
+  tainted?: boolean;
 }
 
 // Per-task context a worker binds to the tools it hands the model. The model
@@ -31,6 +33,12 @@ export interface ToolContext {
   // Full-text search over THIS agent's completed tasks. The worker binds the
   // agent identity into the closure, so the model only ever supplies keywords.
   searchPastTasks?: (query: string, limit?: number) => PastTaskHit[] | Promise<PastTaskHit[]>;
+  // Prompt-injection defense (see provenance.ts). `external` marks the task as having
+  // read third-party text that arrived by another road than a tool result, and returns
+  // that text wrapped as data; `taintOrigins` tells a tool (delegate_task) where the
+  // task's outside content came from, so it can pass the taint on.
+  external?: (toolName: string, ref: string | undefined, content: string) => string;
+  taintOrigins?: () => { tool: string; ref?: string }[];
 }
 
 export interface HydraTool {

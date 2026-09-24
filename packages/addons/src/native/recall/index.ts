@@ -30,9 +30,12 @@ async function recall(query: string, ctx?: ToolContext): Promise<string> {
     return `No past conversations matched "${q}". Try different or fewer keywords; only completed tasks are searchable.`;
   }
 
-  const blocks = hits.map(
-    (h) => `--- ${h.date} ---\nUser asked: ${h.prompt}\nYou answered (excerpt): ${h.excerpt || "(no text result)"}`,
-  );
+  // A past answer written after reading outside content carries that content's words:
+  // it reaches the model marked as data, and the current task becomes tainted too.
+  const blocks = hits.map((h) => {
+    const block = `--- ${h.date} ---\nUser asked: ${h.prompt}\nYou answered (excerpt): ${h.excerpt || "(no text result)"}`;
+    return h.tainted && ctx.external ? ctx.external("recall", q, block) : block;
+  });
   return `Found ${hits.length} past conversation(s) matching "${q}", best match first:\n\n${blocks.join("\n\n")}`;
 }
 

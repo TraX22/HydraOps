@@ -273,7 +273,13 @@ async function runApprovedAction(actionId: string): Promise<void> {
     args: action.args ?? {},
     requestedTools: await readAgentToolLines(agentId),
     nativeState: JSON.parse(getGlobalConfig("native_addons_state", "{}")),
-    context: { agentId, searchPastTasks: (query: string, limit?: number) => searchAgentTasks(sqliteClient, agentId, query, limit) },
+    context: {
+      agentId,
+      searchPastTasks: (query: string, limit?: number) => searchAgentTasks(sqliteClient, agentId, query, limit),
+      // The held call came from a task that had read outside content; a replayed
+      // delegate_task must hand that taint on.
+      taintOrigins: () => (Array.isArray(action.origins) ? action.origins : []),
+    },
   });
   await finishPendingAction(db, actionId, outcome.ok ? "executed" : "failed", outcome.result);
   console.log(`[${consumerName}] Approved ${action.toolName} (${actionId}): ${outcome.ok ? "executed" : "failed"}.`);
@@ -441,6 +447,10 @@ ${EXTERNAL_CONTENT_RULE}
       mode: resolveSecurityMode(getGlobalConfig("security_mode", "ask"), agentCfg?.securityMode),
       // One image per task is bound elsewhere; a video is held (it is the costly one).
       neverHold: ["generate_image"],
+      // The agent's permanent memory: an injected rule saved there would outlive the task.
+      alwaysHold: ["remember"],
+      // Delegated by a task that had read outside content (delegate_task passes it on).
+      inherited: Array.isArray(taskRows[0]?.inheritedTaint) ? taskRows[0].inheritedTaint : undefined,
       onHold: ({ toolName, args, origins }) => createPendingAction(db, { taskId: taskId!, agentId, channel, toolName, args, origins }),
     });
     // Bind the calling agent's identity so identity-aware tools (`remember`,
@@ -448,6 +458,10 @@ ${EXTERNAL_CONTENT_RULE}
     const toolContext = {
       agentId,
       searchPastTasks: (query: string, limit?: number) => searchAgentTasks(sqliteClient, agentId, query, limit),
+      // recall: a past answer written after reading outside content taints this task too.
+      external: (tool: string, ref: string | undefined, content: string) => taskSecurity.external(tool, ref, content),
+      // delegate_task: hand this task's taint on to the agent it delegates to.
+      taintOrigins: () => taskSecurity.origins(),
     };
     const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
     const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
