@@ -476,6 +476,9 @@
       "voxel": "Voxel",
       "stylized": "Game prop",
       "realistic": "Realistic"
-    }
+    },
+    "showMore": "Show all",
+    "showLess": "Show less",
+    "usePrompt": "Use this prompt"
   }
 }

@@ -183,6 +183,22 @@ body {
 .whatsnew-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; }
 .whatsnew-foot a { color: var(--accent); }
 .whatsnew-done { padding: 6px 14px; border: 1px solid var(--accent); border-radius: var(--radius-sm); background: var(--accent); color: #fff; cursor: pointer; font-family: inherit; font-size: 13px; }
+/* Markdown tables in replies. The CSS reset strips every table border, so a table an
+   agent writes came out as loose aligned text. Lines, a shaded header row, and a
+   horizontal scroll inside the bubble when the table is wider than the message. */
+.msg-bubble table {
+  display: block; max-width: 100%; overflow-x: auto;
+  border-collapse: collapse; margin: 8px 0 12px; font-size: 13px; line-height: 1.45;
+}
+.msg-bubble th, .msg-bubble td {
+  border: 1px solid var(--border-color); padding: 6px 10px; text-align: left; vertical-align: top;
+  min-width: 90px;
+}
+.msg-bubble th { background: var(--bg-surface-alt, var(--bg-hover)); font-weight: 600; white-space: nowrap; }
+.msg-bubble tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--bg-surface-alt, transparent) 45%, transparent); }
+.msg-row.user .msg-bubble th, .msg-row.user .msg-bubble td { border-color: rgba(255, 255, 255, 0.35); }
+.msg-row.user .msg-bubble th { background: rgba(255, 255, 255, 0.15); }
+
 /* Links inside replies read as links: blue, underlined on hover — on both bubbles and in both themes. */
 .msg-bubble a { color: #60a5fa; text-decoration: none; word-break: break-word; }
 .msg-bubble a:hover { text-decoration: underline; }

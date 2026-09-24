@@ -59,6 +59,18 @@ export class ThreeDComponent implements OnInit, OnDestroy {
   readonly code = signal('');
   readonly codeDraft = signal('');
   readonly history = signal<Iteration[]>([]);
+  // Iterations shown in full (by their timestamp); the rest are clamped to three lines.
+  readonly expanded = signal<ReadonlySet<string>>(new Set());
+
+  toggleIteration(at: string): void {
+    this.expanded.update(s => { const n = new Set(s); n.has(at) ? n.delete(at) : n.add(at); return n; });
+  }
+
+  // Put a past prompt (an improved brief, say) back in the box to edit it or generate again.
+  useIteration(h: Iteration): void {
+    this.prompt.set(h.prompt);
+    this.tab.set('prompt');
+  }
   readonly reference = signal<ChatAttachment | null>(null);
   readonly uploading = signal(false);
   readonly tab = signal<'prompt' | 'code'>('prompt');

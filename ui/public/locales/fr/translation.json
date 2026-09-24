@@ -476,6 +476,9 @@
       "voxel": "Voxel",
       "stylized": "Accessoire de jeu",
       "realistic": "Réaliste"
-    }
+    },
+    "showMore": "Tout afficher",
+    "showLess": "Afficher moins",
+    "usePrompt": "Utiliser ce prompt"
   }
 }
