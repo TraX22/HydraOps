@@ -179,6 +179,16 @@
       "trustedHint": "Ejecutar y solo registrar, para todos los agentes",
       "off": "Apagado",
       "offHint": "Sin marcas ni registro"
+    },
+    "network": {
+      "title": "Acceso por red",
+      "open": "La API escucha en {{host}}:{{port}}: otros equipos pueden entrar con el token.",
+      "closed": "Solo esta computadora puede usar HydraOps. Para abrirlo a tu red o usarlo desde el celular, mirá Modo servidor en el manual.",
+      "show": "Mostrar",
+      "hide": "Ocultar",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "tokenHint": "Este token se muestra solo en esta computadora. Los otros dispositivos te lo piden una vez; guardalo como una contraseña."
     }
   },
   "cron": {

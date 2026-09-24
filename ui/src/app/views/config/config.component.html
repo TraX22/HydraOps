@@ -52,6 +52,26 @@
       </div>
     </section>
 
+    <!-- Network access -->
+    @if (network(); as net) {
+      <section class="config-section">
+        <h3>{{ 'config.network.title' | translate }}</h3>
+        @if (net.open) {
+          <p class="hint">{{ 'config.network.open' | translate:{ host: net.host, port: net.port } }}</p>
+          @if (net.token) {
+            <div class="log-levels">
+              <code class="net-token">{{ showToken() ? net.token : '••••••••••••••••••••' }}</code>
+              <button class="level-btn" (click)="showToken.set(!showToken())">{{ (showToken() ? 'config.network.hide' : 'config.network.show') | translate }}</button>
+              <button class="level-btn" (click)="copyToken()">{{ (tokenCopied() ? 'config.network.copied' : 'config.network.copy') | translate }}</button>
+            </div>
+            <p class="hint">{{ 'config.network.tokenHint' | translate }}</p>
+          }
+        } @else {
+          <p class="hint">{{ 'config.network.closed' | translate }}</p>
+        }
+      </section>
+    }
+
     <!-- Prompt-injection defense -->
     <section class="config-section">
       <h3>{{ 'config.security.title' | translate }}</h3>

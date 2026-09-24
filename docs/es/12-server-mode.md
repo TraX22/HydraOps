@@ -16,26 +16,26 @@ Con eso ya tienes la aplicación en `http://127.0.0.1:3000` — pero solo desde 
 
 ## Abrirlo a tu red local
 
-Dos líneas en el `.env`:
+Una línea en el `.env`:
 
 ```bash
 HYDRA_HOST=0.0.0.0
-HYDRA_AUTH_TOKEN=un-token-largo-y-dificil
 ```
 
-Para generar un token decente:
+Reinicia `pnpm serve`. La primera vez, HydraOps ve que no hay token, **genera un `HYDRA_AUTH_TOKEN` largo y aleatorio, lo guarda en el `.env`** y lo imprime una vez en la salida, junto a las URLs de red (`http://192.168.x.x:3000`). También aparece en **Config → Acceso por red** en el propio servidor (nunca a otro equipo), con botones para mostrarlo y copiarlo. Si prefieres tu propio token, pon `HYDRA_AUTH_TOKEN=...` en el `.env` antes de reiniciar y se usa tal cual.
 
-```bash
-node -e "console.log(crypto.randomBytes(24).toString('base64url'))"
-```
-
-Reinicia `pnpm serve` y su salida imprimirá las URLs de red (`http://192.168.x.x:3000`). Desde otro equipo, el navegador te pedirá el token una vez (pantalla de login) y quedará una sesión de 30 días; "Cerrar sesión" está en la vista Perfil.
+Desde otro equipo, el navegador te pedirá el token una vez (pantalla de login) y quedará una sesión de 30 días; "Cerrar sesión" está en la vista Perfil.
 
 ![La pantalla de login que ve otro equipo de la red](../img/es/login.png)
 
-**Sin token definido, la API se niega a abrirse a la red** y se queda en `127.0.0.1`. Las conexiones desde la propia máquina del servidor nunca necesitan token.
+Las conexiones desde la propia máquina del servidor nunca necesitan token. Si el token no se puede guardar (el `.env` es de solo lectura), la API se niega a abrirse a la red y se queda en `127.0.0.1`.
 
-El token viaja en claro por HTTP: vale para tu red local, **no** para abrir el puerto a internet. Si quieres acceso desde fuera de casa, ponlo detrás de HTTPS (proxy inverso con certificado) o de una VPN (WireGuard, Tailscale) — y con proxy inverso delante, añade `HYDRA_AUTH_STRICT=1` al `.env`.
+### `0.0.0.0` o una dirección concreta
+
+`0.0.0.0` significa "escuchar en todas las interfaces de red": el cable y el Wi-Fi, o sea cualquier dispositivo que pueda llegar a la máquina. Detrás del router de casa eso es tu red local, y está bien. Dos cosas a tener en cuenta:
+
+- El token viaja en claro por HTTP: vale para la red de tu casa, **no** para abrir el puerto a internet ni para un Wi-Fi compartido.
+- Para entrar desde fuera de casa, no abras el puerto en el router. La forma segura más simple es **Tailscale** (una red privada gratuita entre tus dispositivos): instálalo en el servidor y en el celular, y pon en `HYDRA_HOST` la dirección de Tailscale del servidor (`100.x.y.z`, la muestra `tailscale ip -4`) en lugar de `0.0.0.0`. Así HydraOps escucha solo en esa red privada cifrada —invisible para tu LAN y para internet— y entras desde cualquier lado con `http://100.x.y.z:3000`. La alternativa es HTTPS con un proxy inverso y certificado; con proxy delante, añade `HYDRA_AUTH_STRICT=1` al `.env`.
 
 ## Arrancar solo al encender (Linux, systemd)
 

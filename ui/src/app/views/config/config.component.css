@@ -94,3 +94,7 @@
 .desktop-option span { display: flex; flex-direction: column; gap: 2px; }
 .desktop-option strong { font-size: 13px; font-weight: 500; color: var(--text-primary); }
 .desktop-option small { font-size: 12px; color: var(--text-secondary); }
+.net-token { font-family: ui-monospace, monospace; font-size: 12.5px; padding: 6px 10px; border-radius: 6px; background: var(--bg-surface-alt, var(--bg-surface)); border: 1px solid var(--border-color); }
+/* Explanatory text under a section title: smaller and quieter than the title, with room before the controls. */
+.config-section .hint { font-size: 13px; line-height: 1.5; color: var(--text-secondary); margin: -8px 0 14px; }
+.config-section .log-levels + .hint { margin: 12px 0 0; }
