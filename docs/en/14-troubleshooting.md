@@ -15,6 +15,10 @@ The three `LOCAL_LLM_*` variables live in the `.env` — see [API keys & models]
 
 The agent's model must have vision. With a local model, the server must also have the multimodal projector loaded (in llama.cpp, the `mmproj` file); if the model is text-only, the agent will invent a description instead of seeing the image.
 
+## "The model did not finish in time"
+
+Each task can keep the model working for up to **10 minutes** with cloud models and **15** with the local model, counting all its searches and page reads. A big analysis (dozens of pages) with a slow model can go over: the task is cut and the chat explains it. Narrow the request (one country, one genre, one period) or give that agent a faster model. In server mode, `HYDRA_LLM_TIMEOUT_MIN` in the `.env` changes the limit (25 minutes at most).
+
 ## It won't start: NATS not found
 
 The `nats-server` binary must be on the `PATH`, in a `nats/` folder inside the repository, or pointed to with `NATS_SERVER_BIN` in the `.env` — see [Installation](./02-installation.md). The Windows installer ships it inside; this only applies to running from source.
