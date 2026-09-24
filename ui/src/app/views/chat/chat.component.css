@@ -72,8 +72,8 @@
   max-width: 80%;
   animation: fadeIn 0.3s ease-out;
 }
-/* A reply that draws a diagram needs the room: a flowchart in a 60 % column is unreadable. */
-.msg-row.bot:has(.mermaid-block) { max-width: 100%; }
+/* A reply with a diagram or a table needs the room: either is unreadable in a narrow column. */
+.msg-row.bot:has(.mermaid-block), .msg-row.bot:has(.msg-bubble table) { max-width: 100%; }
 .msg-row.user {
   align-self: flex-end;
   flex-direction: row-reverse;
