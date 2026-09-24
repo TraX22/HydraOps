@@ -122,7 +122,15 @@
           <div class="td-list-head">{{ 'threeD.history' | translate }}</div>
           <ol class="td-hist">
             @for (h of history(); track h.at) {
-              <li><span class="td-hist-text" [title]="h.prompt">{{ h.prompt }}</span>@if (h.fixed) { <span class="td-fixed" [title]="'threeD.autoFixed' | translate">🛠 {{ h.fixed }}</span> }</li>
+              <li>
+                <span class="td-hist-text" [class.open]="expanded().has(h.at)" (click)="toggleIteration(h.at)"
+                      [title]="(expanded().has(h.at) ? 'threeD.showLess' : 'threeD.showMore') | translate">{{ h.prompt }}</span>
+                <span class="td-hist-actions">
+                  @if (h.fixed) { <span class="td-fixed" [title]="'threeD.autoFixed' | translate">🛠 {{ h.fixed }}</span> }
+                  <button class="td-link" (click)="toggleIteration(h.at)">{{ (expanded().has(h.at) ? 'threeD.showLess' : 'threeD.showMore') | translate }}</button>
+                  <button class="td-link" (click)="useIteration(h)" [disabled]="busy()">{{ 'threeD.usePrompt' | translate }}</button>
+                </span>
+              </li>
             }
           </ol>
         }
