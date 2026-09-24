@@ -199,6 +199,20 @@ body {
 .msg-row.user .msg-bubble th, .msg-row.user .msg-bubble td { border-color: rgba(255, 255, 255, 0.35); }
 .msg-row.user .msg-bubble th { background: rgba(255, 255, 255, 0.15); }
 
+/* Bullet and numbered lists in replies: the CSS reset removes their markers, so an
+   agent's "1. 2. 3." or "- item" lost the numbers and bullets. */
+.msg-bubble ul, .msg-bubble ol { padding-left: 1.4em; margin: 4px 0 8px; }
+.msg-bubble ul { list-style: disc; }
+.msg-bubble ol { list-style: decimal; }
+.msg-bubble ul ul { list-style: circle; }
+.msg-bubble li + li { margin-top: 2px; }
+.msg-bubble li::marker { color: var(--text-muted); }
+
+/* A link whose text names one site but whose address goes to another (see sanitize-html.ts):
+   warning colour and a ⚠ after it; the tooltip shows both hosts and the real address. */
+a.link-mismatch, .msg-row.bot .msg-bubble a.link-mismatch, :root[data-theme="light"] .msg-row.bot .msg-bubble a.link-mismatch { color: #d97706; text-decoration: underline wavy; }
+a.link-mismatch::after { content: ' ⚠'; }
+
 /* Links inside replies read as links: blue, underlined on hover — on both bubbles and in both themes. */
 .msg-bubble a { color: #60a5fa; text-decoration: none; word-break: break-word; }
 .msg-bubble a:hover { text-decoration: underline; }

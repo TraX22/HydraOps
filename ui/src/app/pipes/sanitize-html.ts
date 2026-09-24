@@ -38,6 +38,31 @@ let configured = false;
 function configure(): void {
   if (configured) return;
   configured = true;
+  // Where a link really goes. The hover tooltip always shows the full address, and a
+  // link whose visible text names one site while its address points to another
+  // ("unity.com" → hacker.example) is marked as deceptive: a model can be fooled into
+  // writing one, or a page it read can plant it.
+  const DOMAIN_IN_TEXT = /\b((?:[a-z0-9-]+\.)+[a-z]{2,})\b/i;
+  const bareHost = (h: string) => h.toLowerCase().replace(/^www\./, '');
+  const sameSite = (a: string, b: string) => a === b || a.endsWith('.' + b) || b.endsWith('.' + a);
+  function showDestination(el: Element, href: string): void {
+    if (/^mailto:/i.test(href)) {
+      el.setAttribute('title', href.slice(7));
+      return;
+    }
+    let host = '';
+    try { host = bareHost(new URL(href).hostname); } catch { return; }
+    const shown = href.length > 300 ? href.slice(0, 300) + '…' : href;
+    const named = (el.textContent ?? '').match(DOMAIN_IN_TEXT)?.[1];
+    if (named && !sameSite(bareHost(named), host)) {
+      el.classList.add('link-mismatch');
+      el.setAttribute('title', `⚠ ${bareHost(named)} → ${host}\n${shown}`);
+      return;
+    }
+    const authorTitle = el.getAttribute('title');
+    el.setAttribute('title', authorTitle ? `${authorTitle}\n${shown}` : shown);
+  }
+
   DOMPurify.addHook('afterSanitizeAttributes', (node) => {
     const el = node as Element;
     if (el.tagName === 'A') {
@@ -45,6 +70,7 @@ function configure(): void {
       if (/^(https?:|mailto:)/i.test(href)) {
         el.setAttribute('target', '_blank');
         el.setAttribute('rel', 'noopener noreferrer');
+        showDestination(el, href);
       } else if (!href.startsWith('#') && !/^(\.{1,2}\/)?[\w./-]+\.md(#[\w-]*)?$/i.test(href)) {
         // In-page anchors and the manual's own page links (./05-agents.md, handled by
         // the Docs view) stay; any other scheme or app-relative path loses its href,
