@@ -208,6 +208,50 @@ export interface GitHubIntegration {
   tokenConfigured: boolean;
 }
 
+// ── Skills (Herramientas → Skills) ──
+export interface InstalledSkill {
+  name: string;
+  description: string;
+  author: string;
+  version: string;
+  tools: string[];
+  source: 'catalog' | 'agent' | 'manual';
+  agentId?: string;
+  installedAt?: string;
+  files: string[];
+  hasScripts: boolean;
+  invalid?: string;
+}
+
+export interface CatalogSkill {
+  name: string;
+  description: string;
+  author: string;
+  version: string;
+  tools: string[];
+  fileCount: number;
+}
+
+export interface SkillsState {
+  enabled: boolean;
+  dir: string;
+  installed: InstalledSkill[];
+  agents: { id: string; name: string; canUse: boolean; canCreate: boolean }[];
+  pending: (HeldAction & { findings?: SkillFinding[] })[];
+}
+
+export interface SkillFinding {
+  severity: 'high' | 'info';
+  code: string;
+  file: string;
+  detail: string;
+}
+
+export interface SkillPreview {
+  files: { path: string; content: string }[];
+  findings: SkillFinding[];
+}
+
 // Tool usage tracking (Agents + Stats)
 export interface AgentToolGranted { name: string; source: string; description: string; }
 export interface ToolUsageStat { toolName: string; source: string; count: number; blocked: number; errors: number; lastUsedAt: number; }
@@ -598,6 +642,35 @@ export class ApiService {
 
   saveGitHubIntegration(cfg: Partial<GitHubIntegration>): Observable<void> {
     return this.http.post<void>(`${this.base}/system/integrations/github`, cfg);
+  }
+
+  // ── Skills ──
+  getSkills(): Observable<SkillsState> {
+    return this.http.get<SkillsState>(`${this.base}/skills`);
+  }
+
+  setSkillsEnabled(enabled: boolean): Observable<void> {
+    return this.http.post<void>(`${this.base}/skills/enabled`, { enabled });
+  }
+
+  getSkillsCatalog(refresh = false): Observable<{ source: string; skills: CatalogSkill[] }> {
+    return this.http.get<{ source: string; skills: CatalogSkill[] }>(`${this.base}/skills/catalog${refresh ? '?refresh=1' : ''}`);
+  }
+
+  previewCatalogSkill(name: string): Observable<SkillPreview> {
+    return this.http.get<SkillPreview>(`${this.base}/skills/catalog/${encodeURIComponent(name)}`);
+  }
+
+  installCatalogSkill(name: string): Observable<{ success: boolean }> {
+    return this.http.post<{ success: boolean }>(`${this.base}/skills/catalog/${encodeURIComponent(name)}/install`, {});
+  }
+
+  previewInstalledSkill(name: string): Observable<SkillPreview> {
+    return this.http.get<SkillPreview>(`${this.base}/skills/installed/${encodeURIComponent(name)}`);
+  }
+
+  deleteSkill(name: string): Observable<{ success: boolean }> {
+    return this.http.delete<{ success: boolean }>(`${this.base}/skills/installed/${encodeURIComponent(name)}`);
   }
 
   // ── User ──

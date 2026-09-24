@@ -2,12 +2,13 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import { IconComponent } from '../../components/icon/icon.component';
+import { SkillsCardComponent } from './skills-card/skills-card.component';
 import { ApiService, Agent, AppConfig, TelegramIntegration, GitHubIntegration } from '../../services/api.service';
 
 @Component({
   selector: 'app-herramientas',
   standalone: true,
-  imports: [FormsModule, TranslatePipe, IconComponent],
+  imports: [FormsModule, TranslatePipe, IconComponent, SkillsCardComponent],
   templateUrl: './herramientas.component.html',
   styleUrl: './herramientas.component.css',
 })

@@ -23,11 +23,14 @@ import {
   docsDir,
   envFile,
   keyStoreFile,
-  readLocalLlmEnv, scenesDir } from "@hydraops/config";
+  readLocalLlmEnv, scenesDir, skillsDir } from "@hydraops/config";
 
 loadDotenv({ path: envFile });
 
-import { createRegistry, rememberTool } from "@hydraops/addons";
+import {
+  createRegistry, rememberTool, listInstalledSkills, readSkillFile, scanSkill, writeSkillFolder, deleteSkill,
+  isValidSkillName, isAllowedSkillPath, skillFilePath, SKILL_LIMITS,
+} from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
 import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, searchAgentTasks } from "@hydraops/db";
 import { buildEnvelope } from "@hydraops/events";
@@ -2538,7 +2541,8 @@ const ADDON_DESCRIPTION_OVERRIDES: Record<string, string> = {
 // the github_* tools) are NOT shown in the Add-ons view: the integration's
 // connection (its token) and each agent's tools.md already govern them, so a
 // per-tool toggle here would just be noise.
-const isIntegrationTool = (name: string) => name.startsWith("github");
+// The skill tools are managed under Herramientas → Skills.
+const isIntegrationTool = (name: string) => name.startsWith("github") || name === "skills_view" || name === "create_skill";
 
 api.get("/system/addons", async (_req, res) => {
   try {
@@ -2573,7 +2577,7 @@ api.post("/system/addons", async (req, res) => {
     const existing = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, "native_addons_state")).limit(1);
     const state: Record<string, boolean> = existing[0] ? JSON.parse(existing[0].value) : {};
     for (const a of addonsRegistry.listNative()) {
-      if (isIntegrationTool(a.name)) continue; // github_* is managed in Herramientas
+      if (isIntegrationTool(a.name)) continue; // github_* and skills are managed in Herramientas
       if (typeof req.body?.[a.name] === "boolean") state[a.name] = req.body[a.name];
     }
     const value = JSON.stringify(state);
@@ -2751,6 +2755,202 @@ api.post("/system/integrations/github", async (req, res) => {
     res.json({ success: true });
   } catch (err: any) {
     console.error("[api] POST /system/integrations/github failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// --- Skills (Herramientas) ---
+// Global skills in skillsDir, used by the agents whose tools.md grants `skills` and
+// written by those granted `create_skill` (always held for the user's approval; the
+// pending ones are the create_skill rows of pending_actions). The catalog is the
+// public HydraOps-Skills repository: index.json lists every skill with each file's
+// sha256, and a download is checked against it before anything is written.
+const SKILL_TOOLS = ["skills_view", "create_skill"];
+const SKILLS_CATALOG_URL = (process.env.HYDRA_SKILLS_CATALOG || "https://raw.githubusercontent.com/TraX22/HydraOps-Skills/main").replace(/\/+$/, "");
+const SKILLS_CATALOG_TTL_MS = 10 * 60_000;
+const skillsLimiter = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false });
+
+interface CatalogFile { path: string; sha256: string; size: number }
+interface CatalogSkill { name: string; description: string; author: string; version: string; tools: string[]; files: CatalogFile[] }
+let skillsCatalogCache: { at: number; skills: CatalogSkill[] } | null = null;
+
+async function fetchCatalogText(rel: string, maxBytes: number): Promise<Buffer> {
+  const r = await fetch(`${SKILLS_CATALOG_URL}/${rel.split("/").map(encodeURIComponent).join("/")}`, { signal: AbortSignal.timeout(15_000) });
+  if (!r.ok) throw new Error(`catalog returned ${r.status} for ${rel}`);
+  const buf = Buffer.from(await r.arrayBuffer());
+  if (buf.length > maxBytes) throw new Error(`${rel} is too large`);
+  return buf;
+}
+
+async function loadSkillsCatalog(refresh = false): Promise<CatalogSkill[]> {
+  if (!refresh && skillsCatalogCache && Date.now() - skillsCatalogCache.at < SKILLS_CATALOG_TTL_MS) return skillsCatalogCache.skills;
+  const index = JSON.parse((await fetchCatalogText("index.json", 1024 * 1024)).toString("utf-8"));
+  if (!Array.isArray(index?.skills)) throw new Error("catalog index has no skills list");
+  const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+  const skills: CatalogSkill[] = [];
+  for (const s of index.skills.slice(0, 500)) {
+    if (!isValidSkillName(s?.name) || !Array.isArray(s?.files)) continue;
+    const files: CatalogFile[] = s.files
+      .filter((f: any) => typeof f?.path === "string" && /^[0-9a-f]{64}$/i.test(String(f?.sha256)) && isAllowedSkillPath(f.path) && skillFilePath(s.name, f.path))
+      .map((f: any) => ({ path: f.path, sha256: String(f.sha256).toLowerCase(), size: Number(f.size) || 0 }));
+    if (!files.some((f) => f.path === "SKILL.md") || files.length > SKILL_LIMITS.maxFiles) continue;
+    skills.push({
+      name: s.name, description: str(s.description, 1000), author: str(s.author, 80), version: str(s.version, 30),
+      tools: Array.isArray(s.tools) ? s.tools.map(String).slice(0, 12) : [], files,
+    });
+  }
+  skills.sort((a, b) => a.name.localeCompare(b.name));
+  skillsCatalogCache = { at: Date.now(), skills };
+  return skills;
+}
+
+/** Downloads every file of a catalog skill and checks it against the index's sha256. */
+async function downloadCatalogSkill(entry: CatalogSkill): Promise<{ path: string; content: string }[]> {
+  const out: { path: string; content: string }[] = [];
+  let total = 0;
+  for (const f of entry.files) {
+    const buf = await fetchCatalogText(`${entry.name}/${f.path}`, SKILL_LIMITS.maxFileBytes);
+    total += buf.length;
+    if (total > SKILL_LIMITS.maxTotalBytes) throw new Error("skill too large");
+    if (createHash("sha256").update(buf).digest("hex") !== f.sha256) throw new Error(`${f.path} does not match the catalog index`);
+    out.push({ path: f.path, content: buf.toString("utf-8") });
+  }
+  return out;
+}
+
+async function readInstalledSkillFiles(name: string): Promise<{ path: string; content: string }[]> {
+  const skill = (await listInstalledSkills()).find((s) => s.name === name);
+  if (!skill) return [];
+  const out: { path: string; content: string }[] = [];
+  for (const f of skill.files.slice(0, SKILL_LIMITS.maxFiles)) {
+    const r = await readSkillFile(name, f);
+    out.push({ path: f, content: r.ok ? r.content : `(${r.error})` });
+  }
+  return out;
+}
+
+async function skillsEnabled(): Promise<boolean> {
+  const state = await readNativeState();
+  return SKILL_TOOLS.every((n) => state[n] !== false);
+}
+
+api.get("/skills", skillsLimiter, async (_req, res) => {
+  try {
+    const installed = await listInstalledSkills();
+    // Which agents may use / create skills: the same gate the workers apply to tools.md.
+    const dirs = await readdir(agentsDir, { withFileTypes: true }).catch(() => []);
+    const agents = [];
+    for (const d of dirs) {
+      if (!d.isDirectory()) continue;
+      const allowed = addonsRegistry.resolveAllowedToolNames(await readAgentRequestedTools(d.name));
+      const canUse = allowed.includes("skills_view");
+      const canCreate = allowed.includes("create_skill");
+      if (canUse || canCreate) agents.push({ id: d.name, name: d.name.charAt(0).toUpperCase() + d.name.slice(1), canUse, canCreate });
+    }
+    const pendingRows = await (db as any).select().from(pendingActions)
+      .where(and(eq(pendingActions.toolName, "create_skill"), eq(pendingActions.status, "pending")))
+      .orderBy(desc(pendingActions.createdAt)).limit(50);
+    // A proposed skill is not on disk yet: scan what the agent asked to write, for the preview.
+    const pending = pendingRows.map((row: any) => {
+      const a = publicPendingAction(row);
+      const args: any = a.args ?? {};
+      const refs = Array.isArray(args.references) ? args.references : [];
+      const files = [
+        { path: "SKILL.md", content: `${String(args.description ?? "")}
+
+${String(args.instructions ?? "")}` },
+        ...refs.slice(0, 5).map((r: any) => ({ path: String(r?.path ?? "?"), content: String(r?.content ?? "") })),
+      ];
+      return { ...a, findings: scanSkill(files) };
+    });
+    res.json({ enabled: await skillsEnabled(), dir: skillsDir, installed, agents, pending });
+  } catch (err: any) {
+    console.error("[api] GET /skills failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+api.post("/skills/enabled", skillsLimiter, async (req, res) => {
+  try {
+    const enabled = req.body?.enabled === true;
+    const state = await readNativeState();
+    for (const n of SKILL_TOOLS) state[n] = enabled;
+    const value = JSON.stringify(state);
+    await (db as any).insert(systemConfigs)
+      .values({ key: "native_addons_state", value, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: systemConfigs.key, set: { value, updatedAt: new Date() } })
+      .run();
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("[api] POST /skills/enabled failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+api.get("/skills/catalog", skillsLimiter, async (req, res) => {
+  try {
+    const skills = await loadSkillsCatalog(req.query.refresh === "1");
+    res.json({ source: SKILLS_CATALOG_URL, skills: skills.map(({ files, ...s }) => ({ ...s, fileCount: files.length })) });
+  } catch (err: any) {
+    // Offline or the repository is unreachable: the panel says so and still shows what is installed.
+    res.status(502).json({ error: "catalog_unavailable", detail: String(err?.message ?? err).slice(0, 200) });
+  }
+});
+
+// Preview before installing: the files as they would be written, plus the safety scan.
+api.get("/skills/catalog/:name", skillsLimiter, async (req, res) => {
+  try {
+    const name = String(req.params.name);
+    if (!isValidSkillName(name)) return res.status(400).json({ error: "invalid_name" });
+    const entry = (await loadSkillsCatalog()).find((s) => s.name === name);
+    if (!entry) return res.status(404).json({ error: "not_found" });
+    const files = await downloadCatalogSkill(entry);
+    res.json({ files, findings: scanSkill(files) });
+  } catch (err: any) {
+    res.status(502).json({ error: "catalog_unavailable", detail: String(err?.message ?? err).slice(0, 200) });
+  }
+});
+
+api.post("/skills/catalog/:name/install", skillsLimiter, async (req, res) => {
+  try {
+    const name = String(req.params.name);
+    if (!isValidSkillName(name)) return res.status(400).json({ error: "invalid_name" });
+    const entry = (await loadSkillsCatalog()).find((s) => s.name === name);
+    if (!entry) return res.status(404).json({ error: "not_found" });
+    const existing = (await listInstalledSkills()).find((s) => s.name === name);
+    // Updating replaces a catalog skill; a skill the user copied by hand or an agent
+    // wrote with the same name is never overwritten from here.
+    if (existing && existing.source !== "catalog") return res.status(409).json({ error: "name_taken" });
+    const files = await downloadCatalogSkill(entry);
+    await writeSkillFolder(name, files, { source: "catalog", version: entry.version }, { replace: !!existing });
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("[api] POST /skills/catalog/:name/install failed", err);
+    res.status(502).json({ error: "install_failed", detail: String(err?.message ?? err).slice(0, 200) });
+  }
+});
+
+api.get("/skills/installed/:name", skillsLimiter, async (req, res) => {
+  try {
+    const name = String(req.params.name);
+    if (!isValidSkillName(name)) return res.status(400).json({ error: "invalid_name" });
+    const files = await readInstalledSkillFiles(name);
+    if (!files.length) return res.status(404).json({ error: "not_found" });
+    res.json({ files, findings: scanSkill(files) });
+  } catch (err: any) {
+    console.error("[api] GET /skills/installed/:name failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+api.delete("/skills/installed/:name", skillsLimiter, async (req, res) => {
+  try {
+    const name = String(req.params.name);
+    if (!isValidSkillName(name)) return res.status(400).json({ error: "invalid_name" });
+    if (!(await deleteSkill(name))) return res.status(404).json({ error: "not_found" });
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("[api] DELETE /skills/installed/:name failed", err);
     res.status(500).json({ error: "internal_error" });
   }
 });

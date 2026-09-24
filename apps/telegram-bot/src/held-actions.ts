@@ -31,7 +31,9 @@ function describe(a: any): string {
     : "";
   return [
     `⏸ Held action — ${a.agentId} wants to run ${a.toolName}`,
-    `It read outside content first${origins.length ? ` (${origins.join(", ")})` : ""}, so it was not run.`,
+    origins.length
+      ? `It read outside content first (${origins.join(", ")}), so it was not run.`
+      : "This action always waits for your approval, so it was not run.",
     args,
     "Expires in 24 h.",
   ].filter(Boolean).join("\n\n");

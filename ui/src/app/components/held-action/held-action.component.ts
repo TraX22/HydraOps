@@ -4,8 +4,9 @@ import { ApiService, HeldAction } from '../../services/api.service';
 import { IconComponent } from '../icon/icon.component';
 
 // A sensitive tool call an agent wanted to make on a task that had read outside
-// content. It was NOT run: the user approves or rejects it here (see the Security
-// page of the manual). The card is rendered under the reply that produced it.
+// content, or one that always asks (create_skill). It was NOT run: the user approves
+// or rejects it here (see the Security page of the manual). The card is rendered
+// under the reply that produced it.
 @Component({
   selector: 'app-held-action',
   standalone: true,
@@ -18,7 +19,7 @@ import { IconComponent } from '../icon/icon.component';
         <code class="held-tool">{{ action.toolName }}</code>
         <span class="held-status">{{ ('chat.held.status.' + action.status) | translate }}</span>
       </div>
-      <p class="held-why">{{ 'chat.held.why' | translate:{ from: origins } }}</p>
+      <p class="held-why">{{ (action.origins.length ? 'chat.held.why' : 'chat.held.whyAlways') | translate:{ from: origins } }}</p>
       @if (argLines.length) {
         <dl class="held-args">
           @for (a of argLines; track a.key) {

@@ -45,6 +45,7 @@ El contenido externo también llega a una tarea por otros caminos, y la marca lo
 - **Memoria.** `remember` después de contenido externo queda retenido incluso en un agente de *Confianza*: una regla guardada ahí se leería en cada tarea futura. Solo el global *Apagado* lo deja pasar.
 - **Recall.** Cuando `recall` trae una respuesta vieja que se escribió después de leer contenido externo, ese texto le llega al modelo marcado como dato y la tarea actual queda marcada también.
 - **Delegación.** Una tarea que `delegate_task` crea desde una tarea marcada nace marcada: las llamadas sensibles del otro agente también quedan retenidas.
+- **Skills.** `create_skill` queda retenido **siempre**, haya leído contenido externo o no y con cualquier ajuste (también *Apagado*): una skill se vuelve instrucciones para otros agentes. Ver [Skills](./09-tools.md#skills-habilidades-para-los-agentes).
 
 **Sistema → Seguridad** muestra el registro: qué tareas leyeron contenido externo, las llamadas sensibles que vinieron después y cada llamada retenida con su resultado.
 

@@ -16,7 +16,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection } from "@hydraops/addons";
 import { AckPolicy } from "nats";
 
 const WORKER_TYPE = "general";
@@ -389,6 +389,9 @@ ${EXTERNAL_CONTENT_RULE}
       // delegate_task: hand this task's taint on to the agent it delegates to.
       taintOrigins: () => taskSecurity.origins(),
     };
+    // Installed skills, by name and description, for an agent that may use them (the
+    // full text is opened on demand with skills_view; see @hydraops/addons skills.ts).
+    const skillsSection = await skillsPromptSection(allowedTools.filter((n: string) => nativeState[n] !== false)).catch(() => "");
     const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
     const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
 
@@ -409,7 +412,7 @@ ${EXTERNAL_CONTENT_RULE}
     console.log(`[${consumerName}] Processing task ${taskId} for agent ${agentId} (${llmConfig.provider}:${llmConfig.model})...`);
     const controller = cancels.track(taskId);
     const { text, usage, success, error, errorCode } = await withTimeout(
-      llmGenerateText(llmConfig, [...history, await buildUserMessage(userPrompt, rootDir)], systemPrompt + cronDedup, aiTools, rawTools, { abortSignal: controller.signal }),
+      llmGenerateText(llmConfig, [...history, await buildUserMessage(userPrompt, rootDir)], systemPrompt + skillsSection + cronDedup, aiTools, rawTools, { abortSignal: controller.signal }),
       LLM_TIMEOUT_MS(llmConfig.provider),
       `LLM call`,
       () => controller.abort(new Error("LLM call timed out")),

@@ -23,6 +23,10 @@ import { redactSecrets } from './guard.js';
 export interface ToolRisk {
   readsExternal?: boolean;
   sensitive?: boolean;
+  /** 'always': every call waits for the user's approval, whether or not the task read
+   *  outside content and whatever the security mode (create_skill: a new skill becomes
+   *  instructions for other agents). */
+  approval?: 'always';
   /** Why the tool is classified this way (shown in the security log). */
   basis?: 'declared' | 'annotations' | 'known-server' | 'unknown';
 }
@@ -191,6 +195,13 @@ export function resolveSecurityMode(global: unknown, agent: unknown): SecurityMo
 
 /** What the model is told instead of a result when a call is held. */
 export function heldMessage(toolName: string, actionId: string | null, origins: TaintOrigin[]): string {
+  if (!origins.length) {
+    return (
+      `⏸ ${toolName} was NOT run yet: it always waits for the user's approval. ` +
+      (actionId ? `The user can approve or reject it from this chat. ` : `It could not be stored either; ask the user to try again. `) +
+      `Tell the user briefly what you proposed and why, then continue. Do not retry the call, and do not say it was done.`
+    );
+  }
   const from = origins.map((o) => o.ref ?? o.tool).slice(0, 3).join(', ');
   return (
     `⏸ ${toolName} was NOT run: it is held for the user's approval, because this task read content from outside the app (${from}) and that content may have influenced the request. ` +
@@ -231,6 +242,7 @@ export function createTaskSecurity(options: TaskSecurityOptions = {}): TaskSecur
       record({ type: 'sensitive_after_taint', toolName, detail: describeArgs(args) });
     },
     shouldHold(toolName, risk) {
+      if (risk.approval === 'always') return true;
       if (!tainted || risk.sensitive !== true || mode === 'off') return false;
       if (alwaysHold.has(toolName)) return true;
       return mode === 'ask' && !neverHold.has(toolName);

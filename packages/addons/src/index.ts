@@ -11,6 +11,7 @@ import { sendToTelegramTool } from './native/send_to_telegram/index.js';
 import { delegateTaskTool } from './native/delegate_task/index.js';
 import { rememberTool } from './native/remember/index.js';
 import { recallTool } from './native/recall/index.js';
+import { skillsTools } from './native/skills/index.js';
 export * from './types.js';
 export { rememberTool };
 export { ToolRegistry };
@@ -31,6 +32,7 @@ export async function createRegistry(): Promise<ToolRegistry> {
   registry.registerNative({ ...rememberTool, source: 'native' });
   registry.registerNative({ ...recallTool, source: 'native' });
   for (const t of githubTools) registry.registerNative({ ...t, source: 'native' });
+  for (const t of skillsTools) registry.registerNative({ ...t, source: 'native' });
 
   const dir = process.env.MY_ADDONS_DIR ?? myAddonsDir;
   await loadDirectoryAddons(dir, 'my_addons', registry);
@@ -40,3 +42,4 @@ export async function createRegistry(): Promise<ToolRegistry> {
 export * from './sources.js';
 export * from './provenance.js';
 export * from './approvals.js';
+export * from './skills.js';

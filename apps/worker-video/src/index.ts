@@ -18,7 +18,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, generateVideo, resolveLLMConfig, buildUserMessage, GROK_VIDEO_ASPECTS, isGrokVideoEngine } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection } from "@hydraops/addons";
 import { tool } from "ai";
 import { z } from "zod";
 import { AckPolicy } from "nats";
@@ -484,6 +484,9 @@ ${EXTERNAL_CONTENT_RULE}
       // delegate_task: hand this task's taint on to the agent it delegates to.
       taintOrigins: () => taskSecurity.origins(),
     };
+    // Installed skills, by name and description, for an agent that may use them (the
+    // full text is opened on demand with skills_view; see @hydraops/addons skills.ts).
+    const skillsSection = await skillsPromptSection(allowedTools.filter((n: string) => nativeState[n] !== false)).catch(() => "");
     const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
     const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
 
@@ -549,7 +552,7 @@ ${EXTERNAL_CONTENT_RULE}
     const { text, usage, success, error, errorCode } = await llmGenerateText(
       llmConfig,
       [...history, await buildUserMessage(userPrompt, rootDir)],
-      systemPrompt,
+      systemPrompt + skillsSection,
       toolsForModel,
       rawToolsForModel,
       { abortSignal: controller.signal }
