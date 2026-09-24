@@ -34,6 +34,27 @@ function isLocalImage(src: string): boolean {
   }
 }
 
+/** Same address → same key: no hash, no trailing slash, host without www., lower-case host. */
+export function linkKey(href: string): string | null {
+  try {
+    const u = new URL(href);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    const path = u.pathname.replace(/\/+$/, '');
+    return `${u.hostname.toLowerCase().replace(/^www\./, '')}${path}${u.search}`;
+  } catch {
+    return null;
+  }
+}
+
+/** What the agent opened or saw in this conversation, and the tooltip for the rest. */
+export interface LinkCheck {
+  known: ReadonlySet<string>;
+  label: string;
+}
+
+// Set by sanitizeHtml for the duration of one (synchronous) sanitize call.
+let currentCheck: LinkCheck | null = null;
+
 let configured = false;
 function configure(): void {
   if (configured) return;
@@ -60,6 +81,14 @@ function configure(): void {
       return;
     }
     const authorTitle = el.getAttribute('title');
+    const key = linkKey(href);
+    if (currentCheck && key && !currentCheck.known.has(key)) {
+      // The agent never opened this address nor saw it in a tool result: it may be real,
+      // but it came from the model's memory (or was built from a pattern), not from a check.
+      el.classList.add('link-unverified');
+      el.setAttribute('title', `${currentCheck.label}\n${shown}`);
+      return;
+    }
     el.setAttribute('title', authorTitle ? `${authorTitle}\n${shown}` : shown);
   }
 
@@ -101,15 +130,21 @@ function configure(): void {
  */
 const COPY_BUTTON_CLASS = 'code-copy';
 
-export function sanitizeHtml(html: string): string {
+export function sanitizeHtml(html: string, check?: LinkCheck | null): string {
   configure();
-  const clean = DOMPurify.sanitize(html, {
+  currentCheck = check ?? null;
+  let clean: DocumentFragment;
+  try {
+  clean = DOMPurify.sanitize(html, {
     FORBID_TAGS: FORBID_TAGS.filter((t) => t !== 'button'),
     FORBID_ATTR: ['style', 'srcset', 'ping', 'formaction', 'action', 'background', 'poster'],
     ADD_ATTR: ['target'],
     ALLOW_DATA_ATTR: false,
     RETURN_DOM_FRAGMENT: true,
   }) as unknown as DocumentFragment;
+  } finally {
+    currentCheck = null;
+  }
 
   clean.querySelectorAll('button').forEach((b) => {
     const ours = b.className === COPY_BUTTON_CLASS && b.closest('.code-block') && !b.querySelector(':not(svg):not(svg *)');

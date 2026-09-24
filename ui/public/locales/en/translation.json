@@ -92,7 +92,8 @@
         "rejected": "rejected",
         "expired": "expired"
       }
-    }
+    },
+    "linkUnverified": "⚠ Not verified: the agent did not open or see this address in this conversation. It may exist, but it came from its memory, not from a lookup."
   },
   "agents": {
     "title": "Agents",

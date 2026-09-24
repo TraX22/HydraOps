@@ -8,6 +8,7 @@ import { AgentsService } from '../../services/agents.service';
 import { ApiService, ChatAttachment, ChatMessage } from '../../services/api.service';
 import { DatePipe } from '@angular/common';
 import { MarkdownPipe } from '../../pipes/markdown.pipe';
+import { linkKey, type LinkCheck } from '../../pipes/sanitize-html';
 import { watchMermaid } from '../../pipes/mermaid-render';
 import { IconComponent } from '../../components/icon/icon.component';
 import { HeldActionComponent } from '../../components/held-action/held-action.component';
@@ -403,6 +404,33 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   // URLs the agent's tools opened ("read") or were shown in search results ("found").
+  // Links an agent's reply gives, checked against what it actually opened or saw: its own
+  // task's sources and seen addresses, those of earlier replies in this chat, and any
+  // address the user wrote. Replies from before seenUrls existed are not checked.
+  private linkChecks = new WeakMap<ChatMessage[], Map<string, LinkCheck | null>>();
+  linkCheck(msg: ChatMessage): LinkCheck | null {
+    const meta = msg.resultMeta as Record<string, unknown> | undefined;
+    if (msg.role !== 'assistant' || !Array.isArray(meta?.['seenUrls'])) return null;
+    const all = this.messages;
+    let cache = this.linkChecks.get(all);
+    if (!cache) { cache = new Map(); this.linkChecks.set(all, cache); }
+    if (cache.has(msg.id)) return cache.get(msg.id)!;
+    const known = new Set<string>();
+    const add = (u: unknown) => { if (typeof u === 'string') { const k = linkKey(u); if (k) known.add(k); } };
+    for (const m of all) {
+      const mm = m.resultMeta as Record<string, unknown> | undefined;
+      if (m.role === 'user') for (const u of (m.content || '').match(/https?:\/\/[^\s<>"'`)\]}]+/g) ?? []) add(u);
+      if (m.role === 'assistant') {
+        for (const s of (Array.isArray(mm?.['sources']) ? mm!['sources'] as { url?: string }[] : [])) add(s?.url);
+        for (const u of (Array.isArray(mm?.['seenUrls']) ? mm!['seenUrls'] as string[] : [])) add(u);
+      }
+      if (m.id === msg.id) break;
+    }
+    const check: LinkCheck = { known, label: this.translate.instant('chat.linkUnverified') };
+    cache.set(msg.id, check);
+    return check;
+  }
+
   sources(msg: ChatMessage): { url: string; title?: string; kind: string; host: string }[] {
     const raw = (msg.resultMeta as Record<string, unknown> | undefined)?.['sources'];
     if (!Array.isArray(raw)) return [];

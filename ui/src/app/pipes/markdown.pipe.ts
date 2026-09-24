@@ -4,7 +4,7 @@ import { marked } from 'marked';
 // Must import first: puts Prism on the global so the language files below can
 // extend it (they reference a global `Prism`, which a bundler doesn't provide).
 import Prism from './prism-setup';
-import { sanitizeHtml } from './sanitize-html';
+import { sanitizeHtml, type LinkCheck } from './sanitize-html';
 
 // Prism language grammars (core already bundles markup/css/clike/javascript).
 import 'prismjs/components/prism-typescript';
@@ -95,12 +95,13 @@ marked.use({
 export class MarkdownPipe implements PipeTransform {
   constructor(private sanitizer: DomSanitizer) {}
 
-  transform(value: string): SafeHtml {
+  // `check`: for an agent's reply, what it opened or saw — links outside it are flagged.
+  transform(value: string, check?: LinkCheck | null): SafeHtml {
     if (!value) return '';
     // Markdown passes raw HTML through and an agent's text is not trusted input:
     // sanitize first (see sanitize-html.ts). The bypass below is then only telling
     // Angular not to strip the classes and attributes our own renderer relies on.
-    const html = sanitizeHtml(marked.parse(value) as string);
+    const html = sanitizeHtml(marked.parse(value) as string, check);
     return this.sanitizer.bypassSecurityTrustHtml(html);
   }
 }

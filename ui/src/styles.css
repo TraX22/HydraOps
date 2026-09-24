@@ -212,6 +212,9 @@ body {
    warning colour and a ⚠ after it; the tooltip shows both hosts and the real address. */
 a.link-mismatch, .msg-row.bot .msg-bubble a.link-mismatch, :root[data-theme="light"] .msg-row.bot .msg-bubble a.link-mismatch { color: #d97706; text-decoration: underline wavy; }
 a.link-mismatch::after { content: ' ⚠'; }
+/* A link the agent never opened nor saw in this conversation (see linkCheck in the chat). */
+.msg-bubble a.link-unverified { text-decoration: underline dotted; text-underline-offset: 3px; }
+.msg-bubble a.link-unverified::after { content: ' ?'; font-size: .75em; font-weight: 700; color: #d97706; vertical-align: super; }
 
 /* Links inside replies read as links: blue, underlined on hover — on both bubbles and in both themes. */
 .msg-bubble a { color: #60a5fa; text-decoration: none; word-break: break-word; }

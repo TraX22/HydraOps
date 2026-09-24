@@ -13,11 +13,15 @@ export interface ToolSource {
   via: string;
 }
 
-export type ToolSourceSink = (sources: ToolSource[]) => void;
+/** `seen`: every address that appeared anywhere in the tool's result (links inside a page
+ *  it read, for instance) — not listed as sources, but the model did see them. */
+export type ToolSourceSink = (sources: ToolSource[], seen?: string[]) => void;
 
 const MAX_PER_CALL = 12;
 export const MAX_SOURCES_READ = 10;
 export const MAX_SOURCES_FOUND = 15;
+const MAX_SEEN_PER_CALL = 200;
+export const MAX_SEEN = 300;
 
 // Tools whose plain-text output is worth scanning for URLs.
 const SCANNABLE = /search|perplexity|browse|crawl|scrape/i;
@@ -79,11 +83,29 @@ export function extractSources(toolName: string, args: any, result: unknown): To
   return out;
 }
 
+/** Every address in a tool result, cleaned the same way as sources. */
+export function extractSeenUrls(result: unknown): string[] {
+  let text = '';
+  if (typeof result === 'string') text = result;
+  else { try { text = JSON.stringify(result) ?? ''; } catch { text = ''; } }
+  const out = new Set<string>();
+  for (const m of text.slice(0, 60_000).matchAll(URL_SCAN)) {
+    const clean = cleanUrl(m[0]);
+    if (clean) out.add(clean);
+    if (out.size >= MAX_SEEN_PER_CALL) break;
+  }
+  return [...out];
+}
+
 /** Collects the sources of one task: deduplicated, capped, "read" wins over "found". */
 export function createSourceCollector() {
   const byUrl = new Map<string, ToolSource>();
+  const seenUrls = new Set<string>();
+  const addSeen = (url: string) => { if (seenUrls.size < MAX_SEEN) seenUrls.add(url); };
   return {
-    sink: ((sources: ToolSource[]) => {
+    sink: ((sources: ToolSource[], seen?: string[]) => {
+      for (const s of sources) addSeen(s.url);
+      for (const u of seen ?? []) addSeen(u);
       for (const s of sources) {
         const prev = byUrl.get(s.url);
         if (!prev) byUrl.set(s.url, s);
@@ -91,6 +113,10 @@ export function createSourceCollector() {
         else if (!prev.title && s.title) byUrl.set(s.url, { ...prev, title: s.title });
       }
     }) as ToolSourceSink,
+    /** Everything the task's tools opened, found or showed: the chat checks reply links against it. */
+    seen(): string[] {
+      return [...seenUrls];
+    },
     list(): ToolSource[] {
       const all = [...byUrl.values()];
       return [
