@@ -569,6 +569,12 @@
     },
     "showMore": "Ver todo",
     "showLess": "Ver menos",
-    "usePrompt": "Usar este prompt"
+    "usePrompt": "Usar este prompt",
+    "cleanView": "Vista limpia: sin grilla, con fondo suave y sombra (para capturas)",
+    "savePngHint": "Guardar la vista actual como imagen PNG",
+    "pngFailed": "No se pudo guardar la imagen",
+    "keptPrevious": "El cambio no funcionó: se mantiene tu versión anterior.",
+    "keepFixing": "Seguir corrigiendo",
+    "keepFixingHint": "Le vuelve a pedir al modelo que corrija el último código que falló"
   }
 }

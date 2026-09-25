@@ -24,6 +24,8 @@
 // no DOM, no network.
 (() => {
   let T = null, renderer, scene, camera, controls, root, grid, nonce = null, wire = false;
+  // Clean view: no grid, a soft gradient backdrop and a contact shadow, for pictures.
+  let bgColor = "#1b1b2f", clean = false, gridOn = true, shadow = null, backdrop = null;
   const msg = document.getElementById("msg");
   const post = (m, transfer) => parent.postMessage(m, "*", transfer || []);
 
@@ -41,6 +43,7 @@
     if (d.type === "run") run(d.code);
     else if (d.type === "export") exportGlb();
     else if (d.type === "snapshot") snapshot();
+    else if (d.type === "png") png();
     else if (d.type === "view") view(d.mode, d.value);
   });
 
@@ -57,7 +60,8 @@
     document.body.appendChild(renderer.domElement);
 
     scene = new T.Scene();
-    scene.background = new T.Color(bg || "#1b1b2f");
+    bgColor = bg || "#1b1b2f";
+    scene.background = new T.Color(bgColor);
     // Image-based lighting: without an environment, metallic materials render
     // black (nothing to reflect). RoomEnvironment is a small procedural studio.
     const pmrem = new T.PMREMGenerator(renderer);
@@ -74,8 +78,7 @@
     const sun = new T.DirectionalLight(0xffffff, 1.6);
     sun.position.set(5, 10, 6);
     scene.add(sun);
-    grid = new T.GridHelper(40, 40, 0x6366f1, 0x33365a);
-    scene.add(grid);
+    fitGrid(5);
 
     root = new T.Group();
     root.name = "generated";
@@ -106,18 +109,88 @@
     root.position.set(0, 0, 0); root.rotation.set(0, 0, 0); root.scale.set(1, 1, 1);
   }
 
+  // Frames the object whatever its size: the distance comes from its bounding sphere
+  // and the narrower field of view, so a 20 cm pot fills the view like a 10 m house.
   function fit() {
     const box = new T.Box3().setFromObject(root);
     if (box.isEmpty() || ![box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z].every(Number.isFinite)) return;
     const size = box.getSize(new T.Vector3());
     const center = box.getCenter(new T.Vector3());
-    const radius = Math.max(size.x, size.y, size.z, 0.5);
+    const radius = Math.max(box.getBoundingSphere(new T.Sphere()).radius, 0.01);
+    const vFov = (camera.fov * Math.PI) / 180;
+    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
+    const distance = (radius / Math.sin(Math.min(vFov, hFov) / 2)) * 1.1;
     controls.target.copy(center);
-    camera.position.copy(center).add(new T.Vector3(radius * 1.2, radius * 0.9, radius * 1.5));
-    camera.near = Math.max(radius / 200, 0.01);
-    camera.far = radius * 50;
+    camera.position.copy(center).addScaledVector(new T.Vector3(1.2, 0.9, 1.5).normalize(), distance);
+    camera.near = distance / 100;
+    camera.far = distance * 100;
     camera.updateProjectionMatrix();
     controls.update();
+    fitGrid(Math.max(size.x, size.y, size.z));
+    placeShadow(box, size);
+  }
+
+  // A grid in the object's own scale: 20 cells of a round step (5 cm for a pot, 5 m
+  // for a house), instead of fixed 1 m cells that dwarf small objects.
+  function fitGrid(maxDim) {
+    const step = Math.pow(10, Math.floor(Math.log10(Math.max(maxDim, 0.001)))) / 2;
+    if (grid && grid.userData.step === step) return;
+    if (grid) { scene.remove(grid); grid.geometry.dispose(); grid.material.dispose(); }
+    grid = new T.GridHelper(step * 20, 20, 0x6366f1, 0x33365a);
+    grid.userData.step = step;
+    grid.visible = gridOn && !clean;
+    scene.add(grid);
+  }
+
+  // Soft contact shadow under the object (a radial gradient on a plane): cheap, no
+  // shadow maps, and it grounds the object in the clean view.
+  function placeShadow(box, size) {
+    if (!shadow) {
+      const c = document.createElement("canvas");
+      c.width = c.height = 128;
+      const g = c.getContext("2d");
+      const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+      grad.addColorStop(0, "rgba(0,0,0,0.38)");
+      grad.addColorStop(0.55, "rgba(0,0,0,0.14)");
+      grad.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = grad;
+      g.fillRect(0, 0, 128, 128);
+      shadow = new T.Mesh(
+        new T.PlaneGeometry(1, 1),
+        new T.MeshBasicMaterial({ map: new T.CanvasTexture(c), transparent: true, depthWrite: false }),
+      );
+      shadow.rotation.x = -Math.PI / 2;
+      shadow.renderOrder = -1;
+      scene.add(shadow);
+    }
+    const footprint = Math.max(size.x, size.z) * 1.5;
+    shadow.scale.set(footprint, footprint, 1);
+    shadow.position.set((box.min.x + box.max.x) / 2, box.min.y + footprint * 0.002, (box.min.z + box.max.z) / 2);
+    shadow.visible = clean;
+  }
+
+  // Vertical gradient from a lighter tint of the theme colour down to the colour itself.
+  function gradientBackdrop() {
+    if (backdrop) backdrop.dispose();
+    const c = document.createElement("canvas");
+    c.width = 2; c.height = 256;
+    const g = c.getContext("2d");
+    const base = new T.Color(bgColor);
+    const top = base.clone().lerp(new T.Color(0xffffff), 0.35);
+    const grad = g.createLinearGradient(0, 0, 0, 256);
+    grad.addColorStop(0, "#" + top.getHexString());
+    grad.addColorStop(1, "#" + base.getHexString());
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 2, 256);
+    backdrop = new T.CanvasTexture(c);
+    backdrop.colorSpace = T.SRGBColorSpace;
+    return backdrop;
+  }
+
+  function applyClean() {
+    if (grid) grid.visible = gridOn && !clean;
+    if (shadow) shadow.visible = clean && root.children.length > 0;
+    scene.background = clean ? gradientBackdrop() : new T.Color(bgColor);
   }
 
   // The helper kit the generated code receives. Short constructors that return a
@@ -234,6 +307,7 @@
 
   function run(code) {
     clearRoot();
+    if (shadow) shadow.visible = false;
     msg.textContent = "";
     const helpers = makeHelpers();
     try {
@@ -270,6 +344,7 @@
       }
     });
     fit();
+    applyClean();
     msg.textContent = `${meshes} mesh${meshes === 1 ? "" : "es"} · ${triangles} tri`;
     post({ type: "ok", stats: { meshes, triangles } });
   }
@@ -281,6 +356,17 @@
       (err) => post({ type: "error", message: "Export failed: " + (err?.message || err) }),
       { binary: true },
     );
+  }
+
+  // The view as it is on screen, rendered at twice the pixel density, for "Save PNG".
+  function png() {
+    const ratio = renderer.getPixelRatio();
+    renderer.setPixelRatio(Math.max(2, ratio));
+    renderer.render(scene, camera);
+    const dataUrl = renderer.domElement.toDataURL("image/png");
+    renderer.setPixelRatio(ratio);
+    renderer.render(scene, camera);
+    post({ type: "png", dataUrl });
   }
 
   // Small PNG for the saved-scenes list (the full canvas would be ~100 kB+).
@@ -299,11 +385,16 @@
       wire = !!value;
       root.traverse((o) => { if (o.isMesh) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m) m.wireframe = wire; }); });
     } else if (mode === "grid") {
-      grid.visible = !!value;
+      gridOn = !!value;
+      applyClean();
+    } else if (mode === "clean") {
+      clean = !!value;
+      applyClean();
     } else if (mode === "reset") {
       fit();
     } else if (mode === "bg") {
-      scene.background = new T.Color(value);
+      bgColor = value;
+      applyClean();
     }
   }
 })();

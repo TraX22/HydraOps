@@ -20,6 +20,12 @@
       <button class="td-btn ghost" (click)="resetView()" [disabled]="!hasCode()" [title]="'threeD.resetView' | translate">
         <app-icon name="maximize" />
       </button>
+      <button class="td-btn ghost" (click)="toggleClean()" [class.active]="clean()" [title]="'threeD.cleanView' | translate">
+        <app-icon name="square" />
+      </button>
+      <button class="td-btn" (click)="savePng()" [disabled]="!hasCode() || busy()" [title]="'threeD.savePngHint' | translate">
+        <app-icon name="image" /> PNG
+      </button>
       <button class="td-btn" (click)="exportGlb()" [disabled]="!hasCode() || busy()">
         <app-icon name="download" /> {{ 'threeD.export' | translate }}
       </button>
@@ -116,6 +122,15 @@
         @if (status() === 'error' && error()) {
           <div class="td-error">
             <app-icon name="alert" /> {{ error() }}@if (errorLine()) { <span class="td-line">L{{ errorLine() }}</span> }
+            @if (keptPrevious()) { <div class="td-kept">{{ 'threeD.keptPrevious' | translate }}</div> }
+          </div>
+        }
+        @if (lastFailure() && !busy()) {
+          <div class="td-recover">
+            @if (keptPrevious() && status() !== 'error') { <span>{{ 'threeD.keptPrevious' | translate }}</span> }
+            <button class="td-btn small" (click)="keepFixing()" [disabled]="!ready()" [title]="'threeD.keepFixingHint' | translate">
+              <app-icon name="zap" /> {{ 'threeD.keepFixing' | translate }}
+            </button>
           </div>
         }
         @if (history().length) {
