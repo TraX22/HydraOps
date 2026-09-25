@@ -8,7 +8,7 @@ The **Statistics** view summarizes the system's real activity:
 - **Response Time** — how long a task takes on average.
 - **Tokens Used** — accumulated consumption; useful to watch spending on paid providers.
 - **CPU and RAM usage** — the machine's load.
-- **Per agent** — the same information broken down: tasks, completed, failed, tokens and average time for each agent.
+- **Per agent** — the same information broken down: tasks, completed, failed, tokens and average time for each agent. The **Skills** attribute on each card shows how much the agent leans on [skills](./09-tools.md#skills-know-how-for-the-agents): hover it to see how many times it used them and which ones.
 
 If an agent accumulates failures, its breakdown is the first place to look; the second is the logs, in the System view.
 

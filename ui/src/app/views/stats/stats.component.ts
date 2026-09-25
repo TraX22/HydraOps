@@ -130,6 +130,7 @@ export class StatsComponent {
     const maxTotal = Math.max(1, ...s.perAgent.map(a => a.total));
     const maxTokens = Math.max(1, ...s.perAgent.map(a => a.tokens));
     const maxCompleted = Math.max(1, ...s.perAgent.map(a => a.completed));
+    const maxSkillUses = Math.max(1, ...s.perAgent.map(a => a.skillUses ?? 0));
     const positiveMs = s.perAgent.map(a => a.avgMs).filter(ms => ms > 0);
     const minMs = positiveMs.length ? Math.min(...positiveMs) : 0;
 
@@ -153,6 +154,8 @@ export class StatsComponent {
         { labelKey: 'stats.attrSuccess', value: rateScore(successRate), title: `${label('stats.completed')} / ${label('stats.tasks')}: ${pct}%` },
         { labelKey: 'stats.attrReliability', value: rateScore(1 - failRate), title: `${label('stats.failed')}: ${a.failed}` },
         { labelKey: 'stats.attrLoad', value: scale(a.tokens, maxTokens), title: `${label('stats.tokens')}: ${this.formatCount(a.tokens)}` },
+        // Not part of OVR: using skills says what the agent leans on, not how good it is.
+        { labelKey: 'stats.attrSkills', value: scale(a.skillUses ?? 0, maxSkillUses), title: this.skillsTitle(a.skillUses ?? 0, a.skills ?? []) },
       ];
 
       // OVR leans on output and reliability, like a striker's rating.
@@ -179,6 +182,13 @@ export class StatsComponent {
       // Tier by ranking: 1st → gold, 2nd/3rd → platinum, the rest → bronze.
       .map((card, i) => ({ ...card, tier: i === 0 ? 'gold' : i <= 2 ? 'platinum' : 'bronze' } as AgentCard));
   });
+
+  private skillsTitle(uses: number, skills: { name: string; count: number }[]): string {
+    if (!uses) return this.t.instant('stats.skillsNone');
+    const top = skills.map(k => `${k.name} (${k.count})`).join(', ');
+    const count = uses === 1 ? this.t.instant('stats.skillsUseOne') : this.t.instant('stats.skillsUses', { n: uses });
+    return `${count} · ${top}`;
+  }
 
   private clamp99(n: number): number {
     return Math.max(0, Math.min(99, n));
