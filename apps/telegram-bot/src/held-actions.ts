@@ -7,7 +7,7 @@
 // decided, publishing action.approved); the bot only relays.
 
 import { pendingActions } from "@hydraops/db";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 
 export interface HeldActionsDeps {
   db: any;
@@ -22,6 +22,28 @@ const POLL_MS = 15_000;
 const CALLBACK = /^held:(a|r):([0-9a-f-]{36})$/i;
 
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n) + "…" : s);
+
+/**
+ * Messages sent for each still-undecided action, so that when it is decided somewhere
+ * else (the app, or another paired chat) the buttons can be taken off. In memory: after
+ * a bot restart an old message keeps its buttons, and pressing one only answers
+ * "Already decided".
+ */
+const sentNotices = new Map<string, { chatId: number; messageId: number; text: string }[]>();
+const MAX_TRACKED = 200;
+
+/** The line added under a notice once its action was decided. */
+function outcomeLine(status: string, result: unknown): string {
+  const detail = typeof result === "string" && result ? `\n${clip(result.replace(/\s+/g, " "), 200)}` : "";
+  switch (status) {
+    case "approved": return "✅ Approved — the agent's worker is running it.";
+    case "executed": return `✅ Approved and done.${detail}`;
+    case "failed": return `⚠️ Approved, but it failed.${detail}`;
+    case "rejected": return "❌ Rejected — it will not run.";
+    case "expired": return "⌛ Expired — it will not run.";
+    default: return `Decided (${status}).`;
+  }
+}
 
 function describe(a: any): string {
   const origins = (Array.isArray(a.origins) ? a.origins : []).map((o: any) => o?.ref ?? o?.tool).filter(Boolean).slice(0, 3);
@@ -55,9 +77,14 @@ async function notifyNew(deps: HeldActionsDeps): Promise<void> {
         { text: "❌ Reject", callback_data: `held:r:${a.id}` },
       ]],
     };
+    const text = describe(a);
     for (const chatId of cfg.allowlist) {
       try {
-        await deps.tg(token, "sendMessage", { chat_id: chatId, text: describe(a), reply_markup, disable_web_page_preview: true });
+        const sent = await deps.tg(token, "sendMessage", { chat_id: chatId, text, reply_markup, disable_web_page_preview: true });
+        if (sent?.message_id) {
+          if (!sentNotices.has(a.id) && sentNotices.size >= MAX_TRACKED) sentNotices.delete(sentNotices.keys().next().value!);
+          sentNotices.set(a.id, [...(sentNotices.get(a.id) ?? []), { chatId, messageId: sent.message_id, text }]);
+        }
       } catch (e) {
         console.error(`[telegram-bot] held-action notice to ${chatId} failed`, e);
       }
@@ -66,8 +93,28 @@ async function notifyNew(deps: HeldActionsDeps): Promise<void> {
   }
 }
 
+/** Takes the buttons off notices whose action was decided elsewhere (the app, or another chat). */
+async function syncDecided(deps: HeldActionsDeps): Promise<void> {
+  if (sentNotices.size === 0) return;
+  const token = await deps.getToken();
+  if (!token) return;
+  const rows = await deps.db.select().from(pendingActions).where(inArray(pendingActions.id, [...sentNotices.keys()]));
+  for (const a of rows) {
+    // "approved" is a moment: wait for the worker's executed/failed so the notice says how it went.
+    if (a.status === "pending" || a.status === "approved") continue;
+    const notices = sentNotices.get(a.id) ?? [];
+    sentNotices.delete(a.id);
+    for (const n of notices) {
+      await deps.tg(token, "editMessageText", {
+        chat_id: n.chatId, message_id: n.messageId,
+        text: `${n.text}\n\n${outcomeLine(a.status, a.result)}`, disable_web_page_preview: true,
+      }).catch(() => {});
+    }
+  }
+}
+
 export function startHeldActionsNotifier(deps: HeldActionsDeps): void {
-  const tick = () => notifyNew(deps).catch((e) => console.error("[telegram-bot] held actions poll failed", e));
+  const tick = () => Promise.all([notifyNew(deps), syncDecided(deps)]).catch((e) => console.error("[telegram-bot] held actions poll failed", e));
   setTimeout(tick, 5_000);
   setInterval(tick, POLL_MS);
 }
@@ -104,6 +151,11 @@ export async function handleHeldActionCallback(deps: HeldActionsDeps, token: str
   }
   await answer(outcome);
   const msg = cq.message;
+  const tracked = sentNotices.get(m[2]);
+  if (tracked && msg?.message_id) {
+    const rest = tracked.filter((n) => !(n.chatId === msg.chat?.id && n.messageId === msg.message_id));
+    if (rest.length) sentNotices.set(m[2], rest); else sentNotices.delete(m[2]);
+  }
   if (msg?.chat?.id && msg?.message_id) {
     await deps.tg(token, "editMessageText", {
       chat_id: msg.chat.id, message_id: msg.message_id,

@@ -295,16 +295,19 @@ approvalsSub.pull({ batch: 1, expires: 1000 });
 setInterval(() => approvalsSub.pull({ batch: 1, expires: 1000 }), 2000);
 (async () => {
   for await (const m of approvalsSub) {
+    let approvedId = "";
     try {
       const envlp = parseEnvelope(JSON.parse(new TextDecoder().decode(m.data)));
       const data = envlp.data as any;
       if (data.workerType === WORKER_TYPE) {
+        approvedId = String(data?.actionId ?? "");
         const inserted = await (db as any).insert(processedEvents).values({ consumerName, eventId: envlp.id })
           .onConflictDoNothing().returning({ eventId: processedEvents.eventId });
         if (inserted.length > 0) await runApprovedAction(String(data.actionId));
       }
     } catch (e: any) {
       console.error(`[${consumerName}] approved action failed: ${e?.message ?? e}`);
+      if (approvedId) await finishPendingAction(db, approvedId, "failed", String(e?.message ?? e)).catch(() => {});
     }
     m.ack();
   }
