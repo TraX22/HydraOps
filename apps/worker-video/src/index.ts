@@ -18,7 +18,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, generateVideo, resolveLLMConfig, buildUserMessage, GROK_VIDEO_ASPECTS, isGrokVideoEngine } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker } from "@hydraops/addons";
 import { tool } from "ai";
 import { z } from "zod";
 import { AckPolicy } from "nats";
@@ -473,6 +473,8 @@ ${EXTERNAL_CONTENT_RULE}
     // Prompt-injection state of this task: set when a tool brings in third-party
     // content, which then reaches the model marked as data (see provenance.ts).
     // From then on a sensitive call is HELD for the user's approval (mode 'ask').
+    // What the agent is doing, shown under the chat's typing dots (see @hydraops/addons progress.ts).
+    const progress = createProgressTracker((p) => (db as any).update(tasks).set({ progress: p }).where(eq(tasks.id, taskId!)).run());
     const taskSecurity = createTaskSecurity({
       mode: resolveSecurityMode(getGlobalConfig("security_mode", "ask"), agentCfg?.securityMode),
       // One image per task is bound elsewhere; a video is held (it is the costly one).
@@ -496,8 +498,8 @@ ${EXTERNAL_CONTENT_RULE}
     // Installed skills, by name and description, for an agent that may use them (the
     // full text is opened on demand with skills_view; see @hydraops/addons skills.ts).
     const skillsSection = await skillsPromptSection(allowedTools.filter((n: string) => nativeState[n] !== false)).catch(() => "");
-    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
-    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
+    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink);
+    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink);
 
 
     // The rendering tool. It stores the MP4 where the chat serves it from and
@@ -511,14 +513,15 @@ ${EXTERNAL_CONTENT_RULE}
     let renderAttempts = 0;
     const render = async (prompt: string): Promise<string> => {
       // The page the agent read may have shaped this request: hold it for the user.
-      if (taskSecurity.shouldHold("generate_video", { sensitive: true })) return taskSecurity.hold("generate_video", { prompt });
+      if (taskSecurity.shouldHold("generate_video", { sensitive: true })) { progress.sink("held", "generate_video", { prompt }); return taskSecurity.hold("generate_video", { prompt }); }
       if (++renderAttempts > 1) {
         // Counted before any await, so parallel calls from the model cannot all be paid.
         return rendered.error
           ? "Video generation already failed in this task. Tell the user briefly and suggest retrying or changing the engine."
           : "A video is already being made in this task, and only one is made per task. Describe it to the user; they can ask for another one in a new message.";
       }
-      const r = await renderToStorage(taskId!, agentCfg, getGlobalConfig, prompt, controller.signal);
+      progress.sink("start", "generate_video", { prompt });
+      const r = await renderToStorage(taskId!, agentCfg, getGlobalConfig, prompt, controller.signal).finally(() => progress.sink("end", "generate_video"));
       if (r.videoUrl) {
         rendered.video = { videoUrl: r.videoUrl, relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
         usageSink("generate_video", "native", "ok");
@@ -594,6 +597,7 @@ ${EXTERNAL_CONTENT_RULE}
       finalText = stripToolNarration(text, "generate_video");
     }
 
+    progress.stop();
     const installedSkillNames = skillsOpened.size ? new Set((await listInstalledSkills().catch(() => [])).map((k) => k.name)) : new Set<string>();
     const skillsUsed = [...skillsOpened].filter((n) => installedSkillNames.has(n));
     resultMeta = { text: finalText, usage, success, error, errorCode, modelUsed: llmConfig.model, ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), seenUrls: sourceCollector.seen(), ...(skillsUsed.length ? { skillsUsed } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) };

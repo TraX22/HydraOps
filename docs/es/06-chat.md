@@ -32,6 +32,10 @@ Los resultados de los agentes de imagen y vídeo aparecen en línea en el chat. 
 
 El historial del canal se conserva entre sesiones, con sus adjuntos y resultados. Los archivos generados y subidos viven en la carpeta de datos (`storage/`), así que también puedes llegar a ellos desde el explorador de archivos.
 
+## Qué está haciendo el agente
+
+Mientras un agente trabaja, debajo de los puntitos se ve **lo que está haciendo** y cuánto tiempo lleva: "Buscando «…»", "Leyendo cppreference.com/…", "Abriendo la skill deep-research", "Esperando tu aprobación"… Entre herramienta y herramienta dice "Pensando…". **ver pasos** despliega todo lo que hizo en esa tarea hasta ahora, útil en investigaciones largas para saber qué buscó y qué leyó. El texto de la respuesta aparece recién cuando termina.
+
 ## Detener una tarea
 
 Mientras un agente trabaja, al lado de los puntitos de "escribiendo" aparece el botón **Detener**. Al pulsarlo la tarea queda **Cancelada** en el acto: el worker corta la llamada al modelo (en la nube deja de generar y de facturar salida; tu modelo local libera la GPU), no se guarda ninguna respuesta y el agente vuelve a estar disponible. También sirve para tareas que todavía están en cola detrás de otra: se saltean cuando les llega el turno. El comando `/cancel` (o `/cancelar`, `/stop`) detiene todo lo que esté corriendo en el chat donde lo escribas, y funciona igual desde Telegram.

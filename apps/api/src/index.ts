@@ -2316,6 +2316,8 @@ api.get("/tasks", async (req, res) => {
           isTyping: true,
           timestamp: created,
           taskId: row.id,
+          // What the agent is doing right now (written by its worker): shown under the dots.
+          ...(row.progress && Array.isArray(row.progress.steps) ? { progress: row.progress } : {}),
         });
       }
     }

@@ -5,7 +5,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ChatService, ChatTab, WHATS_NEW_TAB } from '../../services/chat.service';
 import { WhatsNewService } from '../../services/whats-new.service';
 import { AgentsService } from '../../services/agents.service';
-import { ApiService, ChatAttachment, ChatMessage } from '../../services/api.service';
+import { ApiService, ChatAttachment, ChatMessage, ProgressStep } from '../../services/api.service';
 import { DatePipe } from '@angular/common';
 import { MarkdownPipe } from '../../pipes/markdown.pipe';
 import { linkKey, type LinkCheck } from '../../pipes/sanitize-html';
@@ -32,6 +32,11 @@ export class ChatComponent implements OnInit, OnDestroy {
   readonly isWhatsNew = computed(() => this.chat.activeTab() === WHATS_NEW_TAB);
   private router = inject(Router);
   private translate = inject(TranslateService);
+
+  // Working row: which tasks have their step list open, and a clock for the elapsed time.
+  private openSteps = signal<ReadonlySet<string>>(new Set());
+  readonly now = signal(Date.now());
+  private clock?: ReturnType<typeof setInterval>;
 
   // Mirrors the active chat's draft (ChatService keeps the real thing).
   inputValue = signal('');
@@ -114,6 +119,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.clock = setInterval(() => this.now.set(Date.now()), 1000);
     if (this.chat.activeTab() !== WHATS_NEW_TAB) {
       this.chat.fetchHistory(this.chat.activeTab());
       this.chat.startPolling(this.chat.activeTab());
@@ -129,6 +135,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.clock) clearInterval(this.clock);
     this.resizeObs?.disconnect();
     this.chat.stopPolling();
     this.stopMermaid?.();
@@ -401,6 +408,66 @@ export class ChatComponent implements OnInit, OnDestroy {
     if (output != null) parts.push(`↓ ${output}`);
     parts.push(`Σ ${this.tokensUsed(msg)}`);
     return parts.join(' · ');
+  }
+
+  // ── What the agent is doing (working row) ──
+  currentStep(msg: ChatMessage): ProgressStep | null {
+    return msg.progress?.steps?.at(-1) ?? null;
+  }
+
+  stepsOpen(taskId?: string): boolean {
+    return !!taskId && this.openSteps().has(taskId);
+  }
+
+  toggleSteps(taskId?: string): void {
+    if (!taskId) return;
+    const next = new Set(this.openSteps());
+    if (next.has(taskId)) next.delete(taskId); else next.add(taskId);
+    this.openSteps.set(next);
+  }
+
+  /** Elapsed time since the task started (m:ss), ticking with the clock. */
+  elapsed(msg: ChatMessage): string {
+    const start = new Date(msg.progress?.startedAt ?? msg.timestamp).getTime();
+    const sec = Math.max(0, Math.floor((this.now() - start) / 1000));
+    return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+  }
+
+  private stepKind(step: ProgressStep): string {
+    if (step.kind === 'thinking') return 'thinking';
+    if (step.kind === 'held') return 'held';
+    const t = (step.tool ?? '').toLowerCase();
+    if (t === 'skills_view') return 'skill';
+    if (t === 'create_skill') return 'createSkill';
+    if (t.startsWith('github')) return 'github';
+    if (t === 'youtube_transcript') return 'youtube';
+    if (t === 'send_to_telegram') return 'telegram';
+    if (t === 'remember') return 'remember';
+    if (t === 'recall') return 'recall';
+    if (t === 'delegate_task') return 'delegate';
+    if (t === 'generate_image') return 'image';
+    if (t === 'generate_video') return 'video';
+    if (t.includes('search') || t.includes('duckduckgo') || t.includes('perplexity')) return 'search';
+    if (t.includes('fetch') || t.includes('markdownify') || t.includes('browse') || t.includes('read')) return 'read';
+    return 'tool';
+  }
+
+  private static readonly STEP_ICONS: Record<string, string> = {
+    thinking: '💭', held: '⏸', skill: '🧩', createSkill: '✨', github: '🐙', youtube: '▶️', telegram: '📨',
+    remember: '🧠', recall: '🗂️', delegate: '🤝', image: '🎨', video: '🎬', search: '🔎', read: '📄', tool: '🛠️',
+  };
+
+  stepIcon(step: ProgressStep): string {
+    return ChatComponent.STEP_ICONS[this.stepKind(step)] ?? '🛠️';
+  }
+
+  stepText(step: ProgressStep): string {
+    const kind = this.stepKind(step);
+    const params = { ref: step.ref ?? '', tool: step.tool ?? '' };
+    // Steps that name what they work on have a plain variant for when there is nothing to name.
+    const withRef = ['search', 'read', 'skill', 'createSkill', 'github', 'recall', 'delegate', 'youtube'];
+    const key = withRef.includes(kind) && !step.ref ? `chat.progress.${kind}NoRef` : `chat.progress.${kind}`;
+    return this.translate.instant(key, params);
   }
 
   scrollToBottom(behavior: ScrollBehavior = 'smooth'): void {

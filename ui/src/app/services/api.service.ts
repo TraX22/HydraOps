@@ -67,6 +67,20 @@ export interface ChatMessage {
   resultMeta?: Record<string, unknown>;
   /** Sensitive calls this reply wanted to make after reading outside content (held for approval). */
   pendingActions?: HeldAction[];
+  /** While the agent works: its steps so far (thinking, a tool and what it works on, a held call). */
+  progress?: TaskProgress;
+}
+
+export interface ProgressStep {
+  kind: 'thinking' | 'tool' | 'held';
+  tool?: string;
+  ref?: string;
+  at: string;
+}
+
+export interface TaskProgress {
+  startedAt: string;
+  steps: ProgressStep[];
 }
 
 // One line of the prompt-injection log (GET /api/security/events).

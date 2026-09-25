@@ -90,6 +90,31 @@
                   </button>
                 }
               </div>
+              <!-- What the agent is doing: the current step, and on demand every step so far -->
+              <div class="work-step">
+                @if (currentStep(msg); as st) {
+                  <span class="ws-icon">{{ stepIcon(st) }}</span>
+                  <span class="ws-text" [class.held]="st.kind === 'held'">{{ stepText(st) }}</span>
+                } @else {
+                  <span class="ws-icon">⏳</span>
+                  <span class="ws-text">{{ 'chat.progress.queued' | translate }}</span>
+                }
+                <span class="ws-time">{{ elapsed(msg) }}</span>
+              </div>
+              @if ((msg.progress?.steps?.length ?? 0) > 1) {
+                <button class="ws-toggle" (click)="toggleSteps(msg.taskId)">
+                  {{ (stepsOpen(msg.taskId) ? 'chat.progress.hideSteps' : 'chat.progress.showSteps') | translate: { n: msg.progress?.steps?.length } }}
+                </button>
+                @if (stepsOpen(msg.taskId)) {
+                  <ul class="ws-list">
+                    @for (s of msg.progress?.steps ?? []; track $index) {
+                      <li [class.done]="!$last" [class.now]="$last" [class.held]="s.kind === 'held'">
+                        <span class="ws-icon">{{ stepIcon(s) }}</span><span class="ws-text">{{ stepText(s) }}</span>
+                      </li>
+                    }
+                  </ul>
+                }
+              }
             } @else if (msg.cancelled) {
               <div class="msg-cancelled"><app-icon name="square" /> {{ 'chat.cancelled' | translate }}</div>
             } @else if (editingMsgId() === msg.id) {
