@@ -9,6 +9,9 @@ db.sqlite3.bak-*
 users/
 storage/
 .env
+# Installed skills are the user's own (catalog downloads, manual copies, the ones
+# their agents wrote): they never go to the repository.
+/skills/
 
 # Los agentes son a la vez la semilla que viaja con la aplicación y los datos
 # vivos del usuario en desarrollo (en dev, dataRoot es la raíz del repositorio).

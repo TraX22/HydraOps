@@ -34,9 +34,9 @@ export const dataRoot = process.env.HYDRA_DATA_DIR
   ? path.resolve(process.env.HYDRA_DATA_DIR)
   : appRoot;
 
-/** Los 5 (o los que haya) agentes, cada uno con sus .md y su avatar. */
+/** The agents, each with its .md files and its avatar. */
 export const agentsDir = path.join(dataRoot, "agents");
-/** profile.json y avatar.png del usuario. */
+/** The user's profile.json and avatar.png. */
 export const usersDir = path.join(dataRoot, "users");
 export const storageDir = path.join(dataRoot, "storage");
 export const logsDir = path.join(storageDir, "logs");
@@ -44,8 +44,11 @@ export const uploadsDir = path.join(storageDir, "uploads");
 export const resultsDir = path.join(storageDir, "results");
 /** Saved scenes of the 3D plugin (<id>.json + <id>.png thumbnail). */
 export const scenesDir = path.join(storageDir, "scenes");
-/** Herramientas que escribe el usuario, cargadas en caliente por @hydraops/addons. */
+/** Tools the user writes, hot-loaded by @hydraops/addons. */
 export const myAddonsDir = path.join(dataRoot, "my_addons");
+/** Installed skills (one folder per skill, each with a SKILL.md): from the catalog,
+ *  copied in by hand, or written by an agent and approved by the user. */
+export const skillsDir = path.join(dataRoot, "skills");
 export const dbFile = path.join(dataRoot, "db.sqlite3");
 export const envFile = path.join(dataRoot, ".env");
 
@@ -96,4 +99,5 @@ export const writableDirs = [
   uploadsDir,
   resultsDir,
   scenesDir,
+  skillsDir,
 ];

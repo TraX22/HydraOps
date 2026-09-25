@@ -1,0 +1,181 @@
+@if (state(); as s) {
+  <div class="tool-card">
+    <div class="tool-head">
+      <div class="tool-title">
+        <app-icon name="skill" class="tool-icon" />
+        <div class="tool-title-text">
+          <span class="addon-name">{{ 'herramientas.skills.name' | translate }}</span>
+          <span class="addon-type">{{ 'herramientas.skills.description' | translate }}</span>
+        </div>
+      </div>
+      <button class="toggle-btn" [class.on]="s.enabled" (click)="toggleEnabled()">{{ s.enabled ? 'ON' : 'OFF' }}</button>
+    </div>
+
+    <!-- Who may use / create skills: the agents' tools.md -->
+    <div class="perm">
+      <div class="perm-row">
+        <span class="perm-label">{{ 'herramientas.skills.canUse' | translate }}</span>
+        @for (a of users(); track a.id) { <span class="chip agent">{{ a.name }}</span> }
+        @if (!users().length) { <span class="perm-none">{{ 'herramientas.skills.nobody' | translate }}</span> }
+      </div>
+      <div class="perm-row">
+        <span class="perm-label">{{ 'herramientas.skills.canCreate' | translate }}</span>
+        @for (a of creators(); track a.id) { <span class="chip agent">{{ a.name }}</span> }
+        @if (!creators().length) { <span class="perm-none">{{ 'herramientas.skills.nobody' | translate }}</span> }
+      </div>
+      <p class="tool-hint">{{ 'herramientas.skills.permHint' | translate }}</p>
+    </div>
+
+    <!-- Available: the catalog -->
+    <div class="sec">
+      <h3>{{ 'herramientas.skills.available' | translate }} <span class="count">{{ catalog().length }}</span></h3>
+      <input class="search" type="search" [placeholder]="'herramientas.skills.search' | translate"
+             [value]="filter()" (input)="filter.set($any($event.target).value)" />
+      <button class="link-btn" [disabled]="catalogLoading()" (click)="loadCatalog(true)">
+        {{ (catalogLoading() ? 'herramientas.skills.checking' : 'herramientas.skills.checkUpdates') | translate }}
+      </button>
+    </div>
+    @if (catalogError()) {
+      <p class="notice">{{ 'herramientas.skills.catalogError' | translate }}</p>
+    } @else {
+      <div class="tscroll">
+        <table>
+          <thead><tr><th>{{ 'herramientas.skills.colSkill' | translate }}</th><th>{{ 'herramientas.skills.colAuthor' | translate }}</th><th>{{ 'herramientas.skills.colVersion' | translate }}</th><th></th></tr></thead>
+          <tbody>
+            @for (r of available(); track r.skill.name) {
+              <tr>
+                <td>
+                  <div class="name">{{ r.skill.name }}</div>
+                  <div class="desc" [title]="r.skill.description">{{ r.skill.description }}</div>
+                  @if (r.skill.tools.length) {
+                    <div class="chips"><span class="chip req">{{ 'herramientas.skills.uses' | translate }}: {{ r.skill.tools.join(', ') }}</span></div>
+                  }
+                </td>
+                <td class="author">{{ r.skill.author }}</td>
+                <td class="ver">{{ r.skill.version }}</td>
+                <td class="actions">
+                  <button class="ibtn" (click)="previewCatalog(r)">{{ 'herramientas.skills.view' | translate }}</button>
+                  @switch (r.state) {
+                    @case ('installed') { <span class="installed-tag"><app-icon name="check" /> {{ 'herramientas.skills.installed' | translate }}</span> }
+                    @case ('taken') { <span class="taken-tag" [title]="'herramientas.skills.nameTaken' | translate:{ name: r.skill.name }">{{ 'herramientas.skills.taken' | translate }}</span> }
+                    @case ('update') { <button class="ibtn ok" [disabled]="!!busy()" (click)="install(r.skill.name)">{{ 'herramientas.skills.update' | translate }}</button> }
+                    @default { <button class="ibtn primary" [disabled]="!!busy()" (click)="install(r.skill.name)"><app-icon name="download" /> {{ 'herramientas.skills.install' | translate }}</button> }
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="4" class="empty-cell">{{ (catalogLoading() ? 'herramientas.skills.checking' : 'herramientas.skills.noneAvailable') | translate }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <!-- Installed on this computer (and the ones agents proposed) -->
+    <div class="sec">
+      <h3>{{ 'herramientas.skills.installedTitle' | translate }} <span class="count">{{ s.installed.length }}</span></h3>
+      @if (s.pending.length) { <span class="pending-count">{{ 'herramientas.skills.pendingCount' | translate:{ n: s.pending.length } }}</span> }
+    </div>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>{{ 'herramientas.skills.colSkill' | translate }}</th><th>{{ 'herramientas.skills.colAuthor' | translate }}</th><th>{{ 'herramientas.skills.colVersion' | translate }}</th><th></th></tr></thead>
+        <tbody>
+          @for (a of s.pending; track a.id) {
+            <tr class="pending">
+              <td>
+                <div class="name">{{ pendingName(a) }} <span class="state">{{ 'herramientas.skills.pending' | translate }}</span></div>
+                <div class="desc" [title]="pendingDescription(a)">{{ pendingDescription(a) }}</div>
+                <div class="chips"><span class="chip agent">{{ 'herramientas.skills.proposedBy' | translate:{ agent: agentName(a.agentId) } }}</span></div>
+              </td>
+              <td class="author">{{ agentName(a.agentId) }}</td>
+              <td class="ver">—</td>
+              <td class="actions">
+                <button class="ibtn" (click)="previewPending(a)">{{ 'herramientas.skills.view' | translate }}</button>
+                <button class="ibtn ok" [disabled]="!!busy()" (click)="decide(a, 'approve')"><app-icon name="check" /> {{ 'chat.held.approve' | translate }}</button>
+                <button class="ibtn danger" [disabled]="!!busy()" (click)="decide(a, 'reject')"><app-icon name="x" /> {{ 'chat.held.reject' | translate }}</button>
+              </td>
+            </tr>
+          }
+          @for (k of s.installed; track k.name) {
+            <tr>
+              <td>
+                <div class="name">{{ k.name }}</div>
+                <div class="desc" [title]="k.description">{{ k.description }}</div>
+                <div class="chips">
+                  <span class="chip" [class.agent]="k.source === 'agent'">{{ sourceLabel(k) }}</span>
+                  @if (newerVersion(k); as v) { <span class="chip ok">{{ 'herramientas.skills.newVersion' | translate:{ v } }}</span> }
+                  @if (k.hasScripts) { <span class="chip warn">{{ 'herramientas.skills.hasScripts' | translate }}</span> }
+                  @if (k.invalid) { <span class="chip bad">{{ 'herramientas.skills.invalid' | translate }}: {{ k.invalid }}</span> }
+                </div>
+              </td>
+              <td class="author">{{ k.author || '—' }}</td>
+              <td class="ver">{{ k.version || '—' }}</td>
+              <td class="actions">
+                <button class="ibtn" (click)="previewInstalled(k)">{{ 'herramientas.skills.view' | translate }}</button>
+                <button class="ibtn danger" [disabled]="!!busy()" (click)="remove(k)"><app-icon name="trash" /> {{ 'herramientas.skills.delete' | translate }}</button>
+              </td>
+            </tr>
+          }
+          @if (!s.installed.length && !s.pending.length) {
+            <tr><td colspan="4" class="empty-cell">{{ 'herramientas.skills.noneInstalled' | translate }}</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="tool-hint manual">{{ 'herramientas.skills.manualHint' | translate }} <code>{{ s.dir }}</code></p>
+    @if (error()) { <p class="notice bad">{{ error() }}</p> }
+  </div>
+}
+
+<!-- Preview: the files, and the safety scan, before a decision -->
+@if (preview(); as p) {
+  <div class="backdrop" (click)="closePreview()"></div>
+  <aside class="drawer" role="dialog" [attr.aria-label]="p.title">
+    <div class="drawer-head">
+      <h3>{{ p.title }}</h3>
+      <span class="ver">{{ p.version }}{{ p.version && p.author ? ' · ' : '' }}{{ p.author }}</span>
+      <button class="icon-btn" (click)="closePreview()" [attr.aria-label]="'common.close' | translate"><app-icon name="x" /></button>
+    </div>
+    @if (p.loading) {
+      <p class="tool-hint">{{ 'herramientas.skills.loading' | translate }}</p>
+    } @else if (p.error) {
+      <p class="notice bad">{{ p.error }}</p>
+    } @else if (p.data; as d) {
+      @if (p.action?.kind === 'pending') {
+        <div class="scan warn">{{ 'herramientas.skills.pendingHint' | translate }}</div>
+      }
+      @if (highFindings(p).length) {
+        <div class="scan warn">
+          <strong>{{ 'herramientas.skills.scanWarn' | translate }}</strong>
+          <ul>
+            @for (f of highFindings(p); track f.code + f.file) { <li>{{ findingText(f.code) }} <code>{{ f.file }}</code>: “{{ f.detail }}”</li> }
+          </ul>
+        </div>
+      } @else {
+        <div class="scan ok">{{ 'herramientas.skills.scanOk' | translate }}</div>
+      }
+      @for (f of infoFindings(p); track f.code + f.file) {
+        <p class="tool-hint">{{ findingText(f.code) }}: {{ f.detail }}</p>
+      }
+      <div class="files">
+        @for (f of d.files; track f.path) {
+          <button class="file-tab" [class.on]="f.path === p.file" (click)="selectFile(f.path)">{{ f.path }}</button>
+        }
+      </div>
+      <pre class="content">{{ currentContent(p) }}</pre>
+    }
+    <div class="drawer-foot">
+      <button class="ibtn" (click)="closePreview()">{{ 'common.close' | translate }}</button>
+      @if (p.action; as act) {
+        @if (act.kind === 'pending') {
+          <button class="ibtn danger" [disabled]="!!busy()" (click)="decide(act.held, 'reject')">{{ 'chat.held.reject' | translate }}</button>
+          <button class="ibtn ok" [disabled]="!!busy()" (click)="decide(act.held, 'approve')">{{ 'chat.held.approve' | translate }}</button>
+        } @else if (!p.loading && !p.error) {
+          <button class="ibtn primary" [disabled]="!!busy()" (click)="install(act.name)">
+            {{ (act.kind === 'update' ? 'herramientas.skills.update' : 'herramientas.skills.install') | translate }}
+          </button>
+        }
+      }
+    </div>
+  </aside>
+}
