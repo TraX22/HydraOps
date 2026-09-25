@@ -50,7 +50,11 @@ Mientras el modelo trabaja, el cartel de arriba a la izquierda muestra el tiempo
 
 ### Iterar y corregir
 
-Con la escena en pantalla, escribís el cambio ("hacé el techo rojo y agregale una chimenea") y **Aplicar cambio**: el modelo recibe el código anterior y lo modifica. Si el código que escribe falla al ejecutarse, el visor le devuelve el error y le pide la corrección **hasta dos veces solo**, sin que hagas nada; el panel muestra "pidiendo corrección (1/2)". Si aun así falla, ves el error con la línea, y podés retocar el código a mano en la pestaña **Código** y **Aplicar**.
+Con la escena en pantalla, escribís el cambio ("hacé el techo rojo y agregale una chimenea") y **Aplicar cambio**: el modelo recibe el código anterior y lo modifica. Si el código que escribe falla al ejecutarse, el visor le devuelve el error y le pide la corrección **hasta dos veces solo**, sin que hagas nada; el panel muestra "pidiendo corrección (1/2)". Si aun así falla, ves el error con la línea, y podés retocar el código a mano en la pestaña **Código** y **Aplicar**. Un cambio que no se pudo hacer andar **no te cuesta lo que ya tenías**: vuelve a quedar en pantalla la última versión que funcionaba. Y si el modelo se quedó sin tiempo o sin intentos mientras corregía, **Seguir corrigiendo** retoma desde el último código que falló, con su error.
+
+### Vista limpia y PNG
+
+El visor encuadra solo cada objeto, sea una maceta de 20 cm o una casa de 10 m, y la grilla se adapta a su escala. El botón del cuadrado activa la **vista limpia**: sin grilla, con un fondo suave y una sombra debajo del objeto, pensada para capturas. **PNG** guarda lo que ves, al doble de resolución, con el nombre de la escena. La vista limpia se recuerda para la próxima vez.
 
 ### Exportar a Unity, Unreal, Blender…
 

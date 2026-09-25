@@ -562,6 +562,12 @@
     },
     "showMore": "Show all",
     "showLess": "Show less",
-    "usePrompt": "Use this prompt"
+    "usePrompt": "Use this prompt",
+    "cleanView": "Clean view: no grid, soft backdrop and shadow (for pictures)",
+    "savePngHint": "Save the current view as a PNG image",
+    "pngFailed": "Could not save the image",
+    "keptPrevious": "The change did not work: your previous version is kept.",
+    "keepFixing": "Keep fixing",
+    "keepFixingHint": "Asks the model again to fix the last code that failed"
   }
 }

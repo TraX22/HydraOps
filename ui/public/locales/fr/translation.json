@@ -562,6 +562,12 @@
     },
     "showMore": "Tout afficher",
     "showLess": "Afficher moins",
-    "usePrompt": "Utiliser ce prompt"
+    "usePrompt": "Utiliser ce prompt",
+    "cleanView": "Vue épurée : sans grille, fond doux et ombre (pour les images)",
+    "savePngHint": "Enregistrer la vue actuelle en image PNG",
+    "pngFailed": "Impossible d'enregistrer l'image",
+    "keptPrevious": "La modification n'a pas marché : ta version précédente est conservée.",
+    "keepFixing": "Continuer à corriger",
+    "keepFixingHint": "Redemande au modèle de corriger le dernier code qui a échoué"
   }
 }

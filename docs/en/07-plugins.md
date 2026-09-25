@@ -50,7 +50,11 @@ While the model works, the badge in the top-left corner shows the elapsed time a
 
 ### Iterate and fix
 
-With the scene on screen, type the change ("make the roof red and add a chimney") and **Apply change**: the model gets the previous code and modifies it. If the code it writes fails at runtime, the viewer hands the error back and asks for a fix **up to twice on its own**; the panel shows "asking for a fix (1/2)". If it still fails, you see the error with its line, and you can edit the code by hand in the **Code** tab and **Apply**.
+With the scene on screen, type the change ("make the roof red and add a chimney") and **Apply change**: the model gets the previous code and modifies it. If the code it writes fails at runtime, the viewer hands the error back and asks for a fix **up to twice on its own**; the panel shows "asking for a fix (1/2)". If it still fails, you see the error with its line, and you can edit the code by hand in the **Code** tab and **Apply**. A change that could not be made to work **does not cost you what you had**: the last working version comes back on screen. And if the model ran out of time or attempts while fixing, **Keep fixing** resumes from the last failing code and its error.
+
+### Clean view and PNG
+
+The viewer frames each object on its own, whether it is a 20 cm flower pot or a 10 m house, and the grid follows its scale. The square button turns on the **clean view**: no grid, a soft backdrop and a shadow under the object, made for pictures. **PNG** saves what you see, at twice the resolution, named after the scene. The clean view is remembered for next time.
 
 ### Export to Unity, Unreal, Blender…
 

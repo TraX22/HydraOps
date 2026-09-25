@@ -562,6 +562,12 @@
     },
     "showMore": "Mostra tutto",
     "showLess": "Mostra meno",
-    "usePrompt": "Usa questo prompt"
+    "usePrompt": "Usa questo prompt",
+    "cleanView": "Vista pulita: senza griglia, con sfondo morbido e ombra (per le immagini)",
+    "savePngHint": "Salva la vista attuale come immagine PNG",
+    "pngFailed": "Impossibile salvare l'immagine",
+    "keptPrevious": "La modifica non ha funzionato: resta la versione precedente.",
+    "keepFixing": "Continua a correggere",
+    "keepFixingHint": "Chiede di nuovo al modello di correggere l'ultimo codice che ha fallito"
   }
 }

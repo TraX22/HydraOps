@@ -30,6 +30,7 @@ const MAX_AUTO_FIX = 2;
 const CANCELLED = Symbol('cancelled');
 const MODEL_KEY = 'hydra_threed_model';
 const STYLE_KEY = 'hydra_threed_style';
+const CLEAN_KEY = 'hydra_threed_clean';
 // Style presets; the directives live in the API (THREED_STYLES). '' = none.
 const STYLES = ['', 'lowpoly', 'voxel', 'stylized', 'realistic'] as const;
 
@@ -76,6 +77,13 @@ export class ThreeDComponent implements OnInit, OnDestroy {
   readonly tab = signal<'prompt' | 'code'>('prompt');
   readonly copied = signal(false);
   readonly wire = signal(false);
+  /** Clean view: no grid, gradient backdrop, contact shadow (for pictures). */
+  readonly clean = signal(false);
+  /** The last code that failed and the error it threw, so "Keep fixing" can pick it up
+   *  after the automatic attempts ran out or a fix request timed out. */
+  readonly lastFailure = signal<{ prompt: string; code: string; error: string } | null>(null);
+  /** Set when a failed change was rolled back to the previous working version. */
+  readonly keptPrevious = signal(false);
 
   readonly models = signal<ModelOption[]>([]);
   readonly model = signal<string>('');
@@ -121,6 +129,7 @@ export class ThreeDComponent implements OnInit, OnDestroy {
   private pendingRun: { resolve: (r: { ok: boolean; message?: string; line?: number | null }) => void } | null = null;
   private pendingExport: { resolve: (b: ArrayBuffer | null) => void } | null = null;
   private pendingSnapshot: { resolve: (d: string | null) => void } | null = null;
+  private pendingPng: { resolve: (d: string | null) => void } | null = null;
   private frameLoaded = false;
   private onMessage = (e: MessageEvent) => this.handleMessage(e);
 
@@ -138,6 +147,7 @@ export class ThreeDComponent implements OnInit, OnDestroy {
     try {
       const savedStyle = localStorage.getItem(STYLE_KEY) ?? '';
       if ((STYLES as readonly string[]).includes(savedStyle)) this.style.set(savedStyle);
+      this.clean.set(localStorage.getItem(CLEAN_KEY) === '1');
     } catch { /* storage unavailable */ }
     this.api.getModelsShared().subscribe({
       next: all => {
@@ -186,6 +196,7 @@ export class ThreeDComponent implements OnInit, OnDestroy {
       case 'ready':
         this.ready.set(true);
         if (this.status() === 'loading') this.status.set('idle');
+        if (this.clean()) this.send({ type: 'view', mode: 'clean', value: true });
         if (this.code()) this.runCode(this.code());
         break;
       case 'fatal':
@@ -208,6 +219,10 @@ export class ThreeDComponent implements OnInit, OnDestroy {
       case 'snapshot':
         this.pendingSnapshot?.resolve(d.dataUrl ?? null);
         this.pendingSnapshot = null;
+        break;
+      case 'png':
+        this.pendingPng?.resolve(d.dataUrl ?? null);
+        this.pendingPng = null;
         break;
     }
   }
@@ -293,6 +308,8 @@ export class ThreeDComponent implements OnInit, OnDestroy {
     this.error.set('');
     this.errorLine.set(null);
     this.fixAttempt.set(0);
+    this.lastFailure.set(null);
+    this.keptPrevious.set(false);
     let code: string;
     try {
       code = await this.requestCode({ prompt, code: iterating ? this.code() : undefined });
@@ -324,15 +341,20 @@ export class ThreeDComponent implements OnInit, OnDestroy {
         return;
       }
       const message = r.message ?? 'error';
-      if (attempt === MAX_AUTO_FIX) { this.fail(message, r.line ?? null); return; }
+      const runtimeError = r.line ? `${message} (line ${r.line})` : message;
+      if (attempt === MAX_AUTO_FIX) {
+        await this.failWithRecovery(message, r.line ?? null, { prompt, code: current, error: runtimeError });
+        return;
+      }
       this.status.set('fixing');
       this.fixAttempt.set(attempt + 1);
       this.error.set(message);
       this.errorLine.set(r.line ?? null);
       try {
-        current = await this.requestCode({ prompt, code: current, error: r.line ? `${message} (line ${r.line})` : message });
+        current = await this.requestCode({ prompt, code: current, error: runtimeError });
       } catch (err: unknown) {
-        if (err !== CANCELLED) this.fail(this.describe(err));
+        // A fix that timed out or was cancelled must not cost the work done so far.
+        await this.failWithRecovery(err === CANCELLED ? null : this.describe(err), null, { prompt, code: current, error: runtimeError });
         return;
       }
     }
@@ -351,6 +373,56 @@ export class ThreeDComponent implements OnInit, OnDestroy {
   private describe(err: unknown): string {
     const e = err as { error?: { error?: string }; message?: string };
     return e?.error?.error || e?.message || 'error';
+  }
+
+  /**
+   * A change that could not be made to work: keep what the user had. With a previous
+   * working version (an iteration), that version runs again; on a first generation the
+   * partial render stays. Either way "Keep fixing" can resume from the failing code.
+   * message = null: cancelled by the user (no error to show).
+   */
+  private async failWithRecovery(message: string | null, line: number | null, failure: { prompt: string; code: string; error: string }): Promise<void> {
+    this.lastFailure.set(failure);
+    const previous = this.history().at(-1)?.code;
+    if (previous) {
+      this.code.set(previous);
+      this.codeDraft.set(previous);
+      await this.runCode(previous);
+      this.keptPrevious.set(true);
+    }
+    if (message === null) {
+      this.status.set(previous ? 'ok' : 'error');
+      this.error.set(previous ? '' : failure.error);
+      this.errorLine.set(null);
+      return;
+    }
+    this.status.set('error');
+    this.error.set(message);
+    this.errorLine.set(line);
+    if (!previous) this.stats.set(null);
+  }
+
+  // Resumes the self-heal loop from the last failing code (after the automatic
+  // attempts ran out, a fix request timed out, or the user cancelled one).
+  async keepFixing(): Promise<void> {
+    const f = this.lastFailure();
+    if (!f || this.busy() || !this.ready()) return;
+    this.busySince = Date.now();
+    this.elapsed.set('0:00');
+    this.status.set('fixing');
+    this.fixAttempt.set(1);
+    this.error.set('');
+    this.errorLine.set(null);
+    this.keptPrevious.set(false);
+    let code: string;
+    try {
+      code = await this.requestCode({ prompt: f.prompt, code: f.code, error: f.error });
+    } catch (err: unknown) {
+      await this.failWithRecovery(err === CANCELLED ? null : this.describe(err), null, f);
+      return;
+    }
+    this.lastFailure.set(null);
+    await this.applyGenerated(code, f.prompt);
   }
 
   private fail(message: string, line: number | null = null): void {
@@ -383,6 +455,8 @@ export class ThreeDComponent implements OnInit, OnDestroy {
     this.beforeEnhance.set('');
     this.stats.set(null);
     this.error.set('');
+    this.lastFailure.set(null);
+    this.keptPrevious.set(false);
     this.dirty.set(false);
     this.status.set(this.ready() ? 'idle' : 'loading');
     this.send({ type: 'run', code: '' });
@@ -411,6 +485,26 @@ export class ThreeDComponent implements OnInit, OnDestroy {
   // ── View ──
   toggleWire(): void { this.wire.update(v => !v); this.send({ type: 'view', mode: 'wireframe', value: this.wire() }); }
   resetView(): void { this.send({ type: 'view', mode: 'reset' }); }
+  toggleClean(): void {
+    this.clean.update(v => !v);
+    this.send({ type: 'view', mode: 'clean', value: this.clean() });
+    try { localStorage.setItem(CLEAN_KEY, this.clean() ? '1' : '0'); } catch { /* storage unavailable */ }
+  }
+
+  // The canvas as shown (clean view or not), full size, as <scene name>.png.
+  async savePng(): Promise<void> {
+    if (!this.hasCode() || this.busy()) return;
+    const dataUrl = await new Promise<string | null>(resolve => {
+      this.pendingPng = { resolve };
+      this.send({ type: 'png' });
+      setTimeout(() => { if (this.pendingPng?.resolve === resolve) { this.pendingPng = null; resolve(null); } }, 10_000);
+    });
+    if (!dataUrl) { this.fail(this.i18n.instant('threeD.pngFailed')); return; }
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `${(this.sceneName() || 'hydraops-3d').replace(/[^\w\-]+/g, '_')}.png`;
+    a.click();
+  }
 
   // ── Export ──
   async exportGlb(): Promise<void> {
