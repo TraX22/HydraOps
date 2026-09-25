@@ -57,6 +57,7 @@
                   <button class="ibtn" (click)="previewCatalog(r)">{{ 'herramientas.skills.view' | translate }}</button>
                   @switch (r.state) {
                     @case ('installed') { <span class="installed-tag"><app-icon name="check" /> {{ 'herramientas.skills.installed' | translate }}</span> }
+                    @case ('builtin') { <span class="installed-tag" [title]="'herramientas.skills.builtinHint' | translate"><app-icon name="check" /> {{ 'herramientas.skills.included' | translate }}</span> }
                     @case ('taken') { <span class="taken-tag" [title]="'herramientas.skills.nameTaken' | translate:{ name: r.skill.name }">{{ 'herramientas.skills.taken' | translate }}</span> }
                     @case ('update') { <button class="ibtn ok" [disabled]="!!busy()" (click)="install(r.skill.name)">{{ 'herramientas.skills.update' | translate }}</button> }
                     @default { <button class="ibtn primary" [disabled]="!!busy()" (click)="install(r.skill.name)"><app-icon name="download" /> {{ 'herramientas.skills.install' | translate }}</button> }
@@ -102,7 +103,7 @@
                 <div class="name">{{ k.name }}</div>
                 <div class="desc" [title]="k.description">{{ k.description }}</div>
                 <div class="chips">
-                  <span class="chip" [class.agent]="k.source === 'agent'">{{ sourceLabel(k) }}</span>
+                  <span class="chip" [class.agent]="k.source === 'agent'" [class.ok]="k.source === 'builtin'" [title]="k.source === 'builtin' ? ('herramientas.skills.builtinHint' | translate) : ''">{{ sourceLabel(k) }}</span>
                   @if (newerVersion(k); as v) { <span class="chip ok">{{ 'herramientas.skills.newVersion' | translate:{ v } }}</span> }
                   @if (k.hasScripts) { <span class="chip warn">{{ 'herramientas.skills.hasScripts' | translate }}</span> }
                   @if (k.invalid) { <span class="chip bad">{{ 'herramientas.skills.invalid' | translate }}: {{ k.invalid }}</span> }
@@ -112,7 +113,9 @@
               <td class="ver">{{ k.version || '—' }}</td>
               <td class="actions">
                 <button class="ibtn" (click)="previewInstalled(k)">{{ 'herramientas.skills.view' | translate }}</button>
-                <button class="ibtn danger" [disabled]="!!busy()" (click)="remove(k)"><app-icon name="trash" /> {{ 'herramientas.skills.delete' | translate }}</button>
+                @if (k.source !== 'builtin') {
+                  <button class="ibtn danger" [disabled]="!!busy()" (click)="remove(k)"><app-icon name="trash" /> {{ 'herramientas.skills.delete' | translate }}</button>
+                }
               </td>
             </tr>
           }

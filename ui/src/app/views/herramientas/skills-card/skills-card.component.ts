@@ -6,7 +6,7 @@ import { ApiService, CatalogSkill, HeldAction, InstalledSkill, SkillPreview, Ski
 // One row of the "Available" table: a catalog skill and what installing it would do.
 interface AvailableRow {
   skill: CatalogSkill;
-  state: 'install' | 'installed' | 'update' | 'taken';
+  state: 'install' | 'installed' | 'update' | 'taken' | 'builtin';
 }
 
 // The side panel that shows a skill's files (and the safety scan) before a decision.
@@ -59,7 +59,7 @@ export class SkillsCardComponent implements OnInit {
       .map(skill => {
         const mine = installed.get(skill.name);
         let state: AvailableRow['state'] = 'install';
-        if (mine) state = mine.source !== 'catalog' ? 'taken' : mine.version === skill.version ? 'installed' : 'update';
+        if (mine) state = mine.source === 'builtin' ? 'builtin' : mine.source !== 'catalog' ? 'taken' : mine.version === skill.version ? 'installed' : 'update';
         return { skill, state };
       });
   });
@@ -99,6 +99,7 @@ export class SkillsCardComponent implements OnInit {
 
   sourceLabel(s: InstalledSkill): string {
     if (s.source === 'agent') return this.translate.instant('herramientas.skills.byAgent', { agent: this.agentName(s.agentId) });
+    if (s.source === 'builtin') return this.translate.instant('herramientas.skills.builtin');
     return this.translate.instant(s.source === 'catalog' ? 'herramientas.skills.fromCatalog' : 'herramientas.skills.manual');
   }
 

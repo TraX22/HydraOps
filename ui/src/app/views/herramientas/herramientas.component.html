@@ -3,6 +3,9 @@
   <p class="addons-desc">{{ 'herramientas.description' | translate }}</p>
 
   <section class="addons-section tools-section">
+    <!-- Skills first: it is what people come to this view for -->
+    <app-skills-card />
+
     <!-- Telegram -->
     @if (telegram(); as t) {
       <div class="tool-card">
@@ -193,9 +196,6 @@
         </div>
       </div>
     }
-
-    <!-- Skills -->
-    <app-skills-card />
 
     <!-- Future connectors -->
     <h3 class="coming-title">{{ 'herramientas.comingSoon' | translate }}</h3>

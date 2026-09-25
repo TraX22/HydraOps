@@ -73,7 +73,7 @@ Granted in each agent's **Agents → Tools**, like Telegram or web search:
 | `skills` | Seeing and using the installed skills. |
 | `create_skill` | Proposing new skills. |
 
-An agent without `create_skill` cannot create skills, even if it uses the existing ones. The **Skills** card shows which agents have each permission, and its **ON/OFF** button turns skills off for everyone.
+An agent without `create_skill` cannot create skills, even if it uses the existing ones. Agents with `create_skill` always get the **skill-creator** guide, which is included with HydraOps: it needs no install, cannot be deleted, and teaches them to write a skill in the right format. The **Skills** card shows which agents have each permission, and its **ON/OFF** button turns skills off for everyone.
 
 ### Installing from the catalog
 

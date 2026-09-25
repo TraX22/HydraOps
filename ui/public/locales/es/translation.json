@@ -303,7 +303,7 @@
   },
   "herramientas": {
     "title": "Herramientas",
-    "description": "Conecta HydraOps con servicios externos. Maneja los agentes desde apps como Telegram.",
+    "description": "Skills para tus agentes y conexiones con servicios externos, como Telegram y GitHub.",
     "comingSoon": "Próximamente",
     "comingSoonDesc": "Conector previsto",
     "soonBadge": "Pronto",
@@ -401,7 +401,10 @@
         "encoded_blob": "Bloque codificado largo",
         "scripts": "Incluye un script (HydraOps no lo ejecuta)",
         "links": "Enlaces a"
-      }
+      },
+      "builtin": "incluida con HydraOps",
+      "included": "Incluida",
+      "builtinHint": "Viene con la app y no se puede borrar: es la guía que siguen los agentes con create_skill para escribir skills nuevas."
     }
   },
   "addons": {

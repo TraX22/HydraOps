@@ -210,6 +210,10 @@ async function main() {
   fs.cpSync(path.join(REPO, "craft"), path.join(OUT, "craft"), { recursive: true });
   log("copiado el oficio de los workers (craft/)");
 
+  // Skills that ship with the app (read-only, e.g. skill-creator): appRoot/skills-builtin.
+  fs.cpSync(path.join(REPO, "skills-builtin"), path.join(OUT, "skills-builtin"), { recursive: true });
+  log("copied the built-in skills (skills-builtin/)");
+
   for (const name of [...NATIVE, ...ADDON_RUNTIME]) copyPackage(name);
 
   // Un package.json mínimo para que Node trate los bundles como ESM.
