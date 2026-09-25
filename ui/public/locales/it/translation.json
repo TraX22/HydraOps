@@ -93,7 +93,8 @@
         "rejected": "rifiutata",
         "expired": "scaduta"
       }
-    }
+    },
+    "linkUnverified": "⚠ Non verificato: l'agente non ha aperto né visto questo indirizzo in questa conversazione. Può esistere, ma viene dalla sua memoria, non da una consultazione."
   },
   "agents": {
     "title": "Agenti",

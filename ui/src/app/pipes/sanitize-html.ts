@@ -34,10 +34,64 @@ function isLocalImage(src: string): boolean {
   }
 }
 
+/** Same address → same key: no hash, no trailing slash, host without www., lower-case host. */
+export function linkKey(href: string): string | null {
+  try {
+    const u = new URL(href);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    const path = u.pathname.replace(/\/+$/, '');
+    return `${u.hostname.toLowerCase().replace(/^www\./, '')}${path}${u.search}`;
+  } catch {
+    return null;
+  }
+}
+
+/** What the agent opened or saw in this conversation, and the tooltip for the rest. */
+export interface LinkCheck {
+  known: ReadonlySet<string>;
+  label: string;
+}
+
+// Set by sanitizeHtml for the duration of one (synchronous) sanitize call.
+let currentCheck: LinkCheck | null = null;
+
 let configured = false;
 function configure(): void {
   if (configured) return;
   configured = true;
+  // Where a link really goes. The hover tooltip always shows the full address, and a
+  // link whose visible text names one site while its address points to another
+  // ("unity.com" → hacker.example) is marked as deceptive: a model can be fooled into
+  // writing one, or a page it read can plant it.
+  const DOMAIN_IN_TEXT = /\b((?:[a-z0-9-]+\.)+[a-z]{2,})\b/i;
+  const bareHost = (h: string) => h.toLowerCase().replace(/^www\./, '');
+  const sameSite = (a: string, b: string) => a === b || a.endsWith('.' + b) || b.endsWith('.' + a);
+  function showDestination(el: Element, href: string): void {
+    if (/^mailto:/i.test(href)) {
+      el.setAttribute('title', href.slice(7));
+      return;
+    }
+    let host = '';
+    try { host = bareHost(new URL(href).hostname); } catch { return; }
+    const shown = href.length > 300 ? href.slice(0, 300) + '…' : href;
+    const named = (el.textContent ?? '').match(DOMAIN_IN_TEXT)?.[1];
+    if (named && !sameSite(bareHost(named), host)) {
+      el.classList.add('link-mismatch');
+      el.setAttribute('title', `⚠ ${bareHost(named)} → ${host}\n${shown}`);
+      return;
+    }
+    const authorTitle = el.getAttribute('title');
+    const key = linkKey(href);
+    if (currentCheck && key && !currentCheck.known.has(key)) {
+      // The agent never opened this address nor saw it in a tool result: it may be real,
+      // but it came from the model's memory (or was built from a pattern), not from a check.
+      el.classList.add('link-unverified');
+      el.setAttribute('title', `${currentCheck.label}\n${shown}`);
+      return;
+    }
+    el.setAttribute('title', authorTitle ? `${authorTitle}\n${shown}` : shown);
+  }
+
   DOMPurify.addHook('afterSanitizeAttributes', (node) => {
     const el = node as Element;
     if (el.tagName === 'A') {
@@ -45,6 +99,7 @@ function configure(): void {
       if (/^(https?:|mailto:)/i.test(href)) {
         el.setAttribute('target', '_blank');
         el.setAttribute('rel', 'noopener noreferrer');
+        showDestination(el, href);
       } else if (!href.startsWith('#') && !/^(\.{1,2}\/)?[\w./-]+\.md(#[\w-]*)?$/i.test(href)) {
         // In-page anchors and the manual's own page links (./05-agents.md, handled by
         // the Docs view) stay; any other scheme or app-relative path loses its href,
@@ -75,15 +130,21 @@ function configure(): void {
  */
 const COPY_BUTTON_CLASS = 'code-copy';
 
-export function sanitizeHtml(html: string): string {
+export function sanitizeHtml(html: string, check?: LinkCheck | null): string {
   configure();
-  const clean = DOMPurify.sanitize(html, {
+  currentCheck = check ?? null;
+  let clean: DocumentFragment;
+  try {
+  clean = DOMPurify.sanitize(html, {
     FORBID_TAGS: FORBID_TAGS.filter((t) => t !== 'button'),
     FORBID_ATTR: ['style', 'srcset', 'ping', 'formaction', 'action', 'background', 'poster'],
     ADD_ATTR: ['target'],
     ALLOW_DATA_ATTR: false,
     RETURN_DOM_FRAGMENT: true,
   }) as unknown as DocumentFragment;
+  } finally {
+    currentCheck = null;
+  }
 
   clean.querySelectorAll('button').forEach((b) => {
     const ours = b.className === COPY_BUTTON_CLASS && b.closest('.code-block') && !b.querySelector(':not(svg):not(svg *)');

@@ -184,20 +184,64 @@ body {
 .whatsnew-foot a { color: var(--accent); }
 .whatsnew-done { padding: 6px 14px; border: 1px solid var(--accent); border-radius: var(--radius-sm); background: var(--accent); color: #fff; cursor: pointer; font-family: inherit; font-size: 13px; }
 /* Markdown tables in replies. The CSS reset strips every table border, so a table an
-   agent writes came out as loose aligned text. Lines, a shaded header row, and a
+   agent writes came out as loose aligned text. A rounded card with a faint touch of the
+   accent colour (header, lines, alternate rows) that reads well in both themes, and a
    horizontal scroll inside the bubble when the table is wider than the message. */
 .msg-bubble table {
-  display: block; max-width: 100%; overflow-x: auto;
-  border-collapse: collapse; margin: 8px 0 12px; font-size: 13px; line-height: 1.45;
+  --tbl-line: color-mix(in srgb, var(--accent) 16%, var(--border-color));
+  display: block; width: fit-content; max-width: 100%; overflow-x: auto;
+  border: 1px solid var(--tbl-line); border-radius: var(--radius-md, 10px);
+  border-collapse: separate; border-spacing: 0;
+  margin: 8px 0 12px; font-size: 13px; line-height: 1.45;
 }
 .msg-bubble th, .msg-bubble td {
-  border: 1px solid var(--border-color); padding: 6px 10px; text-align: left; vertical-align: top;
-  min-width: 90px;
+  border: 0; border-right: 1px solid var(--tbl-line); border-bottom: 1px solid var(--tbl-line);
+  padding: 6px 10px; text-align: left; vertical-align: top; min-width: 90px;
 }
-.msg-bubble th { background: var(--bg-surface-alt, var(--bg-hover)); font-weight: 600; white-space: nowrap; }
-.msg-bubble tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--bg-surface-alt, transparent) 45%, transparent); }
-.msg-row.user .msg-bubble th, .msg-row.user .msg-bubble td { border-color: rgba(255, 255, 255, 0.35); }
-.msg-row.user .msg-bubble th { background: rgba(255, 255, 255, 0.15); }
+.msg-bubble tr > :last-child { border-right: 0; }
+.msg-bubble tbody tr:last-child td { border-bottom: 0; }
+.msg-bubble th {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: color-mix(in srgb, var(--accent) 55%, var(--text-primary));
+  font-weight: 600; white-space: nowrap;
+}
+.msg-bubble tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--accent) 3%, transparent); }
+/* On the user's own (accent-coloured) bubble the tint would vanish: plain light lines instead. */
+.msg-row.user .msg-bubble table { --tbl-line: rgba(255, 255, 255, 0.35); }
+.msg-row.user .msg-bubble th { background: rgba(255, 255, 255, 0.15); color: inherit; }
+.msg-row.user .msg-bubble tbody tr:nth-child(even) td { background: rgba(255, 255, 255, 0.06); }
+
+/* Headings, paragraphs, quotes and rules in replies: the CSS reset flattens them all, so a
+   report an agent structured with ## titles read as one wall of text. Sizes stay modest:
+   it is a chat bubble, not a page. */
+.msg-bubble p { margin: 0 0 8px; }
+.msg-bubble h1, .msg-bubble h2, .msg-bubble h3, .msg-bubble h4 { font-weight: 700; line-height: 1.3; margin: 14px 0 6px; }
+.msg-bubble h1 { font-size: 1.25em; }
+.msg-bubble h2 { font-size: 1.12em; }
+.msg-bubble h3 { font-size: 1.02em; }
+.msg-bubble h4 { font-size: 1em; font-weight: 600; color: var(--text-muted); }
+.msg-bubble > :first-child { margin-top: 0; }
+.msg-bubble > :last-child { margin-bottom: 0; }
+.msg-bubble blockquote { margin: 8px 0; padding: 4px 12px; border-left: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); color: var(--text-muted); }
+.msg-bubble hr { border: 0; border-top: 1px solid var(--border-color); margin: 12px 0; }
+.msg-row.user .msg-bubble blockquote { border-left-color: rgba(255, 255, 255, 0.5); color: inherit; }
+
+/* Bullet and numbered lists in replies: the CSS reset removes their markers, so an
+   agent's "1. 2. 3." or "- item" lost the numbers and bullets. */
+.msg-bubble ul, .msg-bubble ol { padding-left: 1.4em; margin: 4px 0 8px; }
+.msg-bubble ul { list-style: disc; }
+.msg-bubble ol { list-style: decimal; }
+.msg-bubble ul ul { list-style: circle; }
+.msg-bubble li + li { margin-top: 2px; }
+.msg-bubble li::marker { color: var(--text-muted); }
+
+/* A link whose text names one site but whose address goes to another (see sanitize-html.ts):
+   warning colour and a ⚠ after it; the tooltip shows both hosts and the real address. */
+a.link-mismatch, .msg-row.bot .msg-bubble a.link-mismatch, :root[data-theme="light"] .msg-row.bot .msg-bubble a.link-mismatch { color: #d97706; text-decoration: underline wavy; }
+a.link-mismatch::after { content: ' ⚠'; }
+/* A link the agent never opened nor saw in this conversation (see linkCheck in the chat). */
+.msg-bubble a.link-unverified { text-decoration: underline dotted; text-underline-offset: 3px; }
+.msg-bubble a.link-unverified::after { content: ' ?'; font-size: .75em; font-weight: 700; color: #d97706; vertical-align: super; }
 
 /* Links inside replies read as links: blue, underlined on hover — on both bubbles and in both themes. */
 .msg-bubble a { color: #60a5fa; text-decoration: none; word-break: break-word; }

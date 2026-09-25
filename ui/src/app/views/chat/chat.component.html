@@ -102,7 +102,7 @@
               </div>
             } @else {
               @if (displayContent(msg)) {
-                <div class="msg-bubble" [innerHTML]="displayContent(msg) | markdown"></div>
+                <div class="msg-bubble" [innerHTML]="displayContent(msg) | markdown: linkCheck(msg)"></div>
               }
 
               @if (msgAttachments(msg); as atts) {

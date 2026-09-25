@@ -2,7 +2,7 @@ import { tool } from 'ai';
 import { HydraTool, ToolContext, ToolKeyRequirement } from './types.js';
 import { McpClientManager, McpServerStatus } from './mcp.js';
 import { guardTool } from './guard.js';
-import { extractSources, type ToolSourceSink } from './sources.js';
+import { extractSources, extractSeenUrls, type ToolSourceSink } from './sources.js';
 import { resolveToolRisk, type TaskSecurity, type ToolRisk } from './provenance.js';
 
 /**
@@ -41,7 +41,11 @@ function instrumentTool(t: HydraTool, source: string, sink?: ToolUsageSink, sour
         try { sink?.(t.name, source, blocked ? 'blocked' : 'ok'); } catch { /* tracking never breaks a call */ }
         // Which addresses did this call open or surface? (see sources.ts)
         if (sourceSink && !blocked) {
-          try { const found = extractSources(t.name, args, result); if (found.length) sourceSink(found); } catch { /* best-effort */ }
+          try {
+            const found = extractSources(t.name, args, result);
+            const seen = extractSeenUrls(result);
+            if (found.length || seen.length) sourceSink(found, seen);
+          } catch { /* best-effort */ }
         }
         // Last, so usage and sources above still see the tool's own output.
         return security ? security.afterCall(t.name, risk, args, result) : result;
