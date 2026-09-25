@@ -462,7 +462,7 @@ ${EXTERNAL_CONTENT_RULE}
     await (db as any).update(tasks)
       .set({
         status: "completed",
-        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, completedAt: new Date().toISOString(), ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) },
+        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, completedAt: new Date().toISOString(), ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), seenUrls: sourceCollector.seen(), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) },
         updatedAt: new Date(),
       })
       .where(and(eq(tasks.id, taskId), ne(tasks.status, "cancelled")));

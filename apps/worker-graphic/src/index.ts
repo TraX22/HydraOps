@@ -560,7 +560,7 @@ ${EXTERNAL_CONTENT_RULE}
       finalText = stripToolNarration(text, "generate_image");
     }
 
-    resultMeta = { text: finalText, usage, success, error, errorCode, modelUsed: llmConfig.model, ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) };
+    resultMeta = { text: finalText, usage, success, error, errorCode, modelUsed: llmConfig.model, ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), seenUrls: sourceCollector.seen(), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) };
     if (drawn.image) {
       Object.assign(resultMeta, {
         imagePath: drawn.image.relPath,
