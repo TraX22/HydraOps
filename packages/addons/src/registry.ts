@@ -10,7 +10,7 @@ import { resolveToolRisk, type TaskSecurity, type ToolRisk } from './provenance.
  * my_addons | mcp; `status` is ok | blocked (by the security guard) | error.
  * Wired by the workers so we can record what each agent actually uses.
  */
-export type ToolUsageSink = (toolName: string, source: string, status: 'ok' | 'blocked' | 'error' | 'held') => void;
+export type ToolUsageSink = (toolName: string, source: string, status: 'ok' | 'blocked' | 'error' | 'held', args?: unknown) => void;
 
 /**
  * Wraps an already-guarded tool so every call is reported to the sink, without
@@ -38,7 +38,7 @@ function instrumentTool(t: HydraTool, source: string, sink?: ToolUsageSink, sour
         security?.beforeCall(t.name, risk, args);
         const result = await t.execute(args);
         const blocked = typeof result === 'string' && result.startsWith('⛔ Blocked by HydraOps security guard');
-        try { sink?.(t.name, source, blocked ? 'blocked' : 'ok'); } catch { /* tracking never breaks a call */ }
+        try { sink?.(t.name, source, blocked ? 'blocked' : 'ok', args); } catch { /* tracking never breaks a call */ }
         // Which addresses did this call open or surface? (see sources.ts)
         if (sourceSink && !blocked) {
           try {

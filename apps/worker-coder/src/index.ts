@@ -14,7 +14,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills } from "@hydraops/addons";
 
 const env = loadEnv({ ...process.env, SERVICE_NAME: process.env.SERVICE_NAME ?? "worker-coder" });
 const consumerName = env.SERVICE_NAME;
@@ -471,7 +471,13 @@ ${EXTERNAL_CONTENT_RULE}
     // Usage tracking: the sink collects every tool call this turn; flushed to DB
     // after the LLM finishes so we can report what each agent actually uses.
     const toolUsageLog: { toolName: string; source: string; status: string }[] = [];
-    const usageSink = (toolName: string, source: string, status: 'ok' | 'blocked' | 'error' | 'held') => { toolUsageLog.push({ toolName, source, status }); };
+    // Skills this task opened (skills_view), by name: stored with the result for Statistics.
+    const skillsOpened = new Set<string>();
+    const usageSink = (toolName: string, source: string, status: 'ok' | 'blocked' | 'error' | 'held', args?: unknown) => {
+      toolUsageLog.push({ toolName, source, status });
+      const skill = (args as { name?: unknown } | undefined)?.name;
+      if (toolName === 'skills_view' && status === 'ok' && isValidSkillName(skill)) skillsOpened.add(skill);
+    };
     // URLs the tools open or surface while answering: stored with the result, shown as
     // "Sources" and replayed in the history (see @hydraops/addons sources.ts).
     const sourceCollector = createSourceCollector();
@@ -600,10 +606,12 @@ ${EXTERNAL_CONTENT_RULE}
     console.log(`[worker-coder] Generated result event ${eventId}`);
     await publishJson(js, subjectForType(generated.type), generated);
 
+    const installedSkillNames = skillsOpened.size ? new Set((await listInstalledSkills().catch(() => [])).map((k) => k.name)) : new Set<string>();
+    const skillsUsed = [...skillsOpened].filter((n) => installedSkillNames.has(n));
     await (db as any).update(tasks)
       .set({ 
         status: "completed",
-        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, completedAt: new Date().toISOString(), ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), seenUrls: sourceCollector.seen(), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) },
+        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, completedAt: new Date().toISOString(), ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), seenUrls: sourceCollector.seen(), ...(skillsUsed.length ? { skillsUsed } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) },
         updatedAt: new Date()
       })
       .where(and(eq(tasks.id, taskId), ne(tasks.status, "cancelled")));

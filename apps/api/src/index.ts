@@ -3201,7 +3201,7 @@ api.get("/stats", async (_req, res) => {
     // don't report usage); duration is created→finished of completed tasks.
     let totalTokens = 0;
     const durations: number[] = [];
-    const perAgentMap = new Map<string, { tokens: number; durations: number[] }>();
+    const perAgentMap = new Map<string, { tokens: number; durations: number[]; skills: Map<string, number> }>();
     for (const t of allTasks) {
       if (t.status !== "completed") continue;
       const meta = typeof t.resultMeta === "string" ? JSON.parse(t.resultMeta) : t.resultMeta;
@@ -3213,9 +3213,13 @@ api.get("/stats", async (_req, res) => {
       totalTokens += tokens;
       if (durationMs > 0) durations.push(durationMs);
       if (t.assignedAgent) {
-        const entry = perAgentMap.get(t.assignedAgent) ?? { tokens: 0, durations: [] };
+        const entry = perAgentMap.get(t.assignedAgent) ?? { tokens: 0, durations: [], skills: new Map<string, number>() };
         entry.tokens += tokens;
         if (durationMs > 0) entry.durations.push(durationMs);
+        // Skills the task opened (resultMeta.skillsUsed, written by the workers).
+        for (const name of Array.isArray(meta?.skillsUsed) ? meta.skillsUsed.slice(0, 50) : []) {
+          if (typeof name === "string" && name) entry.skills.set(name, (entry.skills.get(name) ?? 0) + 1);
+        }
         perAgentMap.set(t.assignedAgent, entry);
       }
     }
@@ -3237,6 +3241,8 @@ api.get("/stats", async (_req, res) => {
         failed: agentTasks.filter((t: any) => t.status === "failed").length,
         tokens: stats?.tokens ?? 0,
         avgMs: avg(stats?.durations ?? []),
+        skillUses: [...(stats?.skills.values() ?? [])].reduce((a, b) => a + b, 0),
+        skills: [...(stats?.skills.entries() ?? [])].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, count]) => ({ name, count })),
       };
     }).sort((a: any, b: any) => b.total - a.total);
 

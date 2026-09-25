@@ -340,6 +340,9 @@ export interface StatsData {
     failed: number;
     tokens: number;
     avgMs: number;
+    /** Times a completed task of this agent opened a skill, and the most used ones. */
+    skillUses: number;
+    skills: { name: string; count: number }[];
   }[];
   tasksPerDay: { date: string; count: number }[];
 }

@@ -282,6 +282,7 @@
     "attrSuccess": "Éxito",
     "attrReliability": "Fiabilidad",
     "attrLoad": "Carga",
+    "attrSkills": "Skills",
     "toolUsage": {
       "title": "Uso de herramientas",
       "window": "últimos 7 días",
@@ -294,7 +295,10 @@
       "byAgent": "Por agente",
       "distinct": "distintas",
       "days": "{{count}} días"
-    }
+    },
+    "skillsNone": "Todavía no usó skills",
+    "skillsUses": "{{n}} usos",
+    "skillsUseOne": "1 uso"
   },
   "docs": {
     "title": "Documentación",

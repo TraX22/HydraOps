@@ -8,7 +8,7 @@ La vista **Estadísticas** resume la actividad real del sistema:
 - **Tiempo de Respuesta** — cuánto tarda una tarea de media.
 - **Tokens Usados** — el consumo acumulado; útil para vigilar el gasto en proveedores de pago.
 - **Uso de CPU y RAM** — la carga de la máquina.
-- **Por agente** — la misma información desglosada: tareas, completadas, fallidas, tokens y tiempo medio de cada agente.
+- **Por agente** — la misma información desglosada: tareas, completadas, fallidas, tokens y tiempo medio de cada agente. El atributo **Skills** de cada tarjeta muestra cuánto se apoya en las [skills](./09-tools.md#skills-habilidades-para-los-agentes): al pasar el mouse, cuántas veces las usó y cuáles.
 
 Si un agente acumula fallos, su desglose es el primer sitio donde mirar; el segundo son los logs, en la vista Sistema.
 
