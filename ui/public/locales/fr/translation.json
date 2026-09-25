@@ -401,7 +401,10 @@
         "encoded_blob": "Long bloc encodé",
         "scripts": "Contient un script (HydraOps ne l'exécute jamais)",
         "links": "Liens vers"
-      }
+      },
+      "builtin": "incluse avec HydraOps",
+      "included": "Incluse",
+      "builtinHint": "Fournie avec l'application et impossible à supprimer : c'est le guide que suivent les agents avec create_skill pour écrire de nouvelles skills."
     }
   },
   "addons": {

@@ -401,7 +401,10 @@
         "encoded_blob": "Lungo blocco codificato",
         "scripts": "Include uno script (HydraOps non lo esegue)",
         "links": "Link a"
-      }
+      },
+      "builtin": "inclusa in HydraOps",
+      "included": "Inclusa",
+      "builtinHint": "Viene con l'app e non si può eliminare: è la guida che seguono gli agenti con create_skill per scrivere nuove skill."
     }
   },
   "addons": {

@@ -29,7 +29,7 @@ loadDotenv({ path: envFile });
 
 import {
   createRegistry, rememberTool, listInstalledSkills, readSkillFile, scanSkill, writeSkillFolder, deleteSkill,
-  isValidSkillName, isAllowedSkillPath, skillFilePath, SKILL_LIMITS,
+  isValidSkillName, isAllowedSkillPath, skillFilePath, SKILL_LIMITS, builtinSkillNames,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
 import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, searchAgentTasks } from "@hydraops/db";
@@ -2947,6 +2947,7 @@ api.delete("/skills/installed/:name", skillsLimiter, async (req, res) => {
   try {
     const name = String(req.params.name);
     if (!isValidSkillName(name)) return res.status(400).json({ error: "invalid_name" });
+    if ((await builtinSkillNames()).includes(name)) return res.status(403).json({ error: "builtin" });
     if (!(await deleteSkill(name))) return res.status(404).json({ error: "not_found" });
     res.json({ success: true });
   } catch (err: any) {

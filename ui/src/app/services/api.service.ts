@@ -215,7 +215,7 @@ export interface InstalledSkill {
   author: string;
   version: string;
   tools: string[];
-  source: 'catalog' | 'agent' | 'manual';
+  source: 'catalog' | 'agent' | 'manual' | 'builtin';
   agentId?: string;
   installedAt?: string;
   files: string[];

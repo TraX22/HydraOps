@@ -73,7 +73,7 @@ Se asignan en **Agentes → Herramientas** de cada agente, como Telegram o la b�
 | `skills` | Ver y usar las skills instaladas. |
 | `create_skill` | Proponer skills nuevas. |
 
-Un agente sin `create_skill` no puede crear skills, aunque use las que hay. La tarjeta **Skills** muestra qué agentes tienen cada permiso, y su botón **ON/OFF** apaga las skills para todos.
+Un agente sin `create_skill` no puede crear skills, aunque use las que hay. Los que tienen `create_skill` reciben siempre la guía **skill-creator**, que viene incluida con HydraOps: no se instala ni se puede borrar, y es la que les enseña a escribir una skill en el formato correcto. La tarjeta **Skills** muestra qué agentes tienen cada permiso, y su botón **ON/OFF** apaga las skills para todos.
 
 ### Instalar desde el catálogo
 

@@ -85,6 +85,9 @@ export const docsDir = path.join(appRoot, "docs");
 /** El oficio de cada tipo de worker (coder/general/graphic/video.md): la
  * teoría del rol, inyectada en el prompt junto a los .md del agente. */
 export const craftDir = path.join(appRoot, "craft");
+/** Skills that ship with the app (read-only, cannot be deleted): skill-creator, the guide
+ *  every agent allowed to create skills follows. */
+export const builtinSkillsDir = path.join(appRoot, "skills-builtin");
 export const migrationsDir = path.join(appRoot, "packages", "db", "drizzle");
 /** Solo lo usa la API para enumerar servicios; no existe en una instalación. */
 export const appsDir = path.join(appRoot, "apps");

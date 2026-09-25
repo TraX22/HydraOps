@@ -20,7 +20,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { skillsDir } from '@hydraops/config';
+import { builtinSkillsDir, skillsDir } from '@hydraops/config';
 import { redactSecrets } from './guard.js';
 
 export const SKILL_FILE = 'SKILL.md';
@@ -56,8 +56,9 @@ export interface SkillMeta {
 
 export interface InstalledSkill extends SkillMeta {
   /** catalog = downloaded from the skills repository; agent = written by an agent and
-   *  approved; manual = copied into the folder by hand. */
-  source: 'catalog' | 'agent' | 'manual';
+   *  approved; manual = copied into the folder by hand; builtin = ships with the app
+   *  (read-only, cannot be deleted or shadowed). */
+  source: 'catalog' | 'agent' | 'manual' | 'builtin';
   agentId?: string;
   installedAt?: string;
   files: string[];
@@ -199,12 +200,14 @@ async function listFilesRec(dir: string, prefix = ''): Promise<string[]> {
 
 // ── Reading installed skills ─────────────────────────────────────────────────
 
-async function readInstalled(name: string, root: string): Promise<InstalledSkill> {
+async function readInstalled(name: string, root: string, builtin = false): Promise<InstalledSkill> {
   const dir = path.join(root, name);
   const files = await listFilesRec(dir);
   let sidecar: any = {};
-  try { sidecar = JSON.parse(await readFile(path.join(dir, SKILL_SIDECAR), 'utf-8')); } catch { /* manual copy */ }
-  const source: InstalledSkill['source'] = sidecar.source === 'catalog' || sidecar.source === 'agent' ? sidecar.source : 'manual';
+  if (!builtin) {
+    try { sidecar = JSON.parse(await readFile(path.join(dir, SKILL_SIDECAR), 'utf-8')); } catch { /* manual copy */ }
+  }
+  const source: InstalledSkill['source'] = builtin ? 'builtin' : sidecar.source === 'catalog' || sidecar.source === 'agent' ? sidecar.source : 'manual';
   const base = {
     source,
     ...(typeof sidecar.agentId === 'string' ? { agentId: sidecar.agentId } : {}),
@@ -222,21 +225,40 @@ async function readInstalled(name: string, root: string): Promise<InstalledSkill
   }
 }
 
-/** Every skill folder, sorted by name (stable order keeps local-model prompt caches warm). */
-export async function listInstalledSkills(root = skillsDir): Promise<InstalledSkill[]> {
+async function skillFolderNames(root: string): Promise<string[]> {
   let entries: import('node:fs').Dirent[];
   try { entries = await readdir(root, { withFileTypes: true }); } catch { return []; }
-  const names = entries.filter((e) => e.isDirectory() && isValidSkillName(e.name)).map((e) => e.name).sort();
-  return Promise.all(names.map((n) => readInstalled(n, root)));
+  return entries.filter((e) => e.isDirectory() && isValidSkillName(e.name)).map((e) => e.name).sort();
 }
 
-export async function skillExists(name: string, root = skillsDir): Promise<boolean> {
+/** Names of the skills that ship with the app: reserved, never written or deleted. */
+export async function builtinSkillNames(builtinRoot = builtinSkillsDir): Promise<string[]> {
+  return skillFolderNames(builtinRoot);
+}
+
+/**
+ * Every skill: the built-in ones plus the user's folder, sorted by name (a stable order
+ * keeps local-model prompt caches warm). A user folder with a built-in's name is ignored.
+ */
+export async function listInstalledSkills(root = skillsDir, builtinRoot = builtinSkillsDir): Promise<InstalledSkill[]> {
+  const builtin = await skillFolderNames(builtinRoot);
+  const user = (await skillFolderNames(root)).filter((n) => !builtin.includes(n));
+  const all = await Promise.all([
+    ...builtin.map((n) => readInstalled(n, builtinRoot, true)),
+    ...user.map((n) => readInstalled(n, root)),
+  ]);
+  return all.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function skillExists(name: string, root = skillsDir, builtinRoot = builtinSkillsDir): Promise<boolean> {
   if (!isValidSkillName(name)) return false;
-  return stat(path.join(root, name)).then((s) => s.isDirectory()).catch(() => false);
+  const isDir = (dir: string) => stat(path.join(dir, name)).then((s) => s.isDirectory()).catch(() => false);
+  return (await isDir(builtinRoot)) || (await isDir(root));
 }
 
 /** One file of an installed skill as text (SKILL.md by default), or an error message. */
-export async function readSkillFile(name: string, relPath = SKILL_FILE, root = skillsDir): Promise<{ ok: true; content: string } | { ok: false; error: string }> {
+export async function readSkillFile(name: string, relPath = SKILL_FILE, root = skillsDir, builtinRoot = builtinSkillsDir): Promise<{ ok: true; content: string } | { ok: false; error: string }> {
+  if ((await builtinSkillNames(builtinRoot)).includes(name)) root = builtinRoot;
   const full = skillFilePath(name, relPath, root);
   if (!full) return { ok: false, error: 'invalid skill name or file path' };
   try {
@@ -338,11 +360,12 @@ export async function writeSkillFolder(
   name: string,
   files: SkillFile[],
   sidecar: Record<string, unknown>,
-  opts: { replace?: boolean; root?: string } = {},
+  opts: { replace?: boolean; root?: string; builtinRoot?: string } = {},
 ): Promise<void> {
   const root = opts.root ?? skillsDir;
   const problem = validateSkillFiles(name, files);
   if (problem) throw new Error(problem);
+  if ((await builtinSkillNames(opts.builtinRoot)).includes(name)) throw new Error(`"${name}" is a skill that ships with HydraOps`);
   await mkdir(root, { recursive: true });
   const final = path.join(root, name);
   const exists = await stat(final).then(() => true).catch(() => false);
@@ -369,8 +392,10 @@ export async function writeSkillFolder(
   }
 }
 
-export async function deleteSkill(name: string, root = skillsDir): Promise<boolean> {
-  if (!isValidSkillName(name) || !(await skillExists(name, root))) return false;
+/** Deletes a skill from the user's folder. Built-in skills are never deleted. */
+export async function deleteSkill(name: string, root = skillsDir, builtinRoot = builtinSkillsDir): Promise<boolean> {
+  if (!isValidSkillName(name) || (await builtinSkillNames(builtinRoot)).includes(name)) return false;
+  if (!(await stat(path.join(root, name)).then((s) => s.isDirectory()).catch(() => false))) return false;
   await rm(path.join(root, name), { recursive: true, force: true });
   return true;
 }
@@ -379,16 +404,31 @@ export const sha256 = (text: string) => createHash('sha256').update(text, 'utf-8
 
 // ── System prompt ─────────────────────────────────────────────────────────────
 
+/** The skill every agent allowed to create skills follows; it ships with the app. */
+export const SKILL_CREATOR = 'skill-creator';
+
+/** skill-creator's instructions and its template, for the prompt of an agent that may create skills. */
+async function creatorGuide(builtinRoot: string): Promise<string> {
+  const main = await readSkillFile(SKILL_CREATOR, SKILL_FILE, builtinRoot, builtinRoot);
+  if (!main.ok) return '';
+  let guide = parseFrontmatter(main.content).body.trim();
+  const template = await readSkillFile(SKILL_CREATOR, 'templates/SKILL.template.md', builtinRoot, builtinRoot);
+  if (template.ok) guide += `\n\n### templates/SKILL.template.md\n\n${template.content.trim()}`;
+  return guide;
+}
+
 /**
- * The block appended to an agent's system prompt when it may use skills: one line per
- * installed skill. Empty when the agent has no skill tools, so other agents' prompts
- * (and their KV caches) do not change when skills are installed.
+ * The block appended to an agent's system prompt when it may use or create skills: one
+ * line per installed skill for `skills`, and the skill-creator guide itself for
+ * `create_skill` (so an agent that creates always knows the format, even without
+ * `skills`). Empty for other agents, so their prompts (and KV caches) do not change.
  */
-export async function skillsPromptSection(allowedTools: string[], root = skillsDir): Promise<string> {
+export async function skillsPromptSection(allowedTools: string[], root = skillsDir, builtinRoot = builtinSkillsDir): Promise<string> {
   const canView = allowedTools.includes('skills_view');
   const canCreate = allowedTools.includes('create_skill');
   if (!canView && !canCreate) return '';
-  const skills = canView ? (await listInstalledSkills(root)).filter((s) => !s.invalid) : [];
+  // skill-creator is about writing skills: it reaches creators inline, never the list.
+  const skills = canView ? (await listInstalledSkills(root, builtinRoot)).filter((s) => !s.invalid && s.name !== SKILL_CREATOR) : [];
   const lines: string[] = ['', '---', '[SKILLS]'];
   if (canView) {
     if (skills.length) {
@@ -402,10 +442,11 @@ export async function skillsPromptSection(allowedTools: string[], root = skillsD
   }
   if (canCreate) {
     lines.push(
-      'You may propose a new skill with create_skill when you have worked out a repeatable procedure worth reusing (not one-off facts: those go to memory).' +
-      (skills.some((s) => s.name === 'skill-creator') ? ' Read the skill-creator skill first.' : '') +
-      ' Every new skill waits for the user\'s approval, and existing skills cannot be changed.',
+      'You may propose a new skill with create_skill when you have worked out a repeatable procedure worth reusing (not one-off facts: those go to memory). ' +
+      'Every new skill waits for the user\'s approval, and existing skills cannot be changed. Follow this guide when you write one:',
     );
+    const guide = await creatorGuide(builtinRoot);
+    if (guide) lines.push('', '[SKILL-CREATOR GUIDE]', guide, '[END SKILL-CREATOR GUIDE]');
   }
   return lines.join('\n');
 }
