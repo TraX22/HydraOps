@@ -303,7 +303,7 @@
   },
   "herramientas": {
     "title": "Ferramentas",
-    "description": "Conecte o HydraOps a serviços externos. Gerencie os agentes por apps como o Telegram.",
+    "description": "Skills para seus agentes e conexões com serviços externos, como Telegram e GitHub.",
     "comingSoon": "Em breve",
     "comingSoonDesc": "Conector planejado",
     "soonBadge": "Em breve",
