@@ -41,17 +41,6 @@ export class ChatComponent implements OnInit, OnDestroy {
 
   messagesEnd = viewChild<ElementRef>('messagesEnd');
   messagesArea = viewChild<ElementRef<HTMLElement>>('messagesArea');
-  messagesList = viewChild<ElementRef<HTMLElement>>('messagesList');
-
-  // Stick to the bottom: while the user is at the latest message, content that grows
-  // after it arrived (a reply filling in, an approval card, a diagram, an image) keeps
-  // the view at the end. Scrolling up to read releases it.
-  private pinned = true;
-  private resizeObs?: ResizeObserver;
-  // Approval cards already seen in the current chat: a NEW pending one is brought into
-  // view (its buttons are waiting for the user) unless the user is reading far above.
-  private seenHeld = new Set<string>();
-  private heldBaseline = '';
 
   // Floating "scroll to bottom" button: shown once the user has scrolled up
   // far enough from the latest message.
@@ -68,27 +57,6 @@ export class ChatComponent implements OnInit, OnDestroy {
     afterNextRender(() => {
       const area = this.messagesArea()?.nativeElement;
       if (area) this.stopMermaid = watchMermaid(area);
-      const list = this.messagesList()?.nativeElement;
-      if (list && typeof ResizeObserver !== 'undefined') {
-        this.resizeObs = new ResizeObserver(() => { if (this.pinned) this.jumpToBottom(); });
-        this.resizeObs.observe(list);
-      }
-    });
-    effect(() => {
-      const tab = this.chat.activeTab();
-      const msgs = this.chat.messagesByChannel()[tab] ?? [];
-      const pending = msgs.flatMap(m => (m.pendingActions ?? []).filter(a => a.status === 'pending').map(a => a.id));
-      // The first loaded history of a chat is the baseline: opening it already jumps to the end.
-      if (this.heldBaseline !== tab) {
-        if (!msgs.length) return;
-        this.heldBaseline = tab;
-        this.seenHeld = new Set(pending);
-        return;
-      }
-      const fresh = pending.filter(id => !this.seenHeld.has(id));
-      if (!fresh.length) return;
-      fresh.forEach(id => this.seenHeld.add(id));
-      setTimeout(() => this.revealHeld(fresh[fresh.length - 1]), 150);
     });
     // Each chat keeps its own unsent text and attachments.
     effect(() => {
@@ -106,10 +74,8 @@ export class ChatComponent implements OnInit, OnDestroy {
       const opened = tab !== this.lastScrolledTab;
       this.lastScrolledTab = tab;
       if (!opened && count === 0) return;
-      if (opened) this.pinned = true;
-      if (opened || this.isNearBottom()) {
-        this.scrollToBottom(opened ? 'auto' : 'smooth');
-      }
+      if (opened) this.scrollToBottom('auto');
+      else if (this.isNearBottom()) this.scrollToLatest();
     });
   }
 
@@ -129,7 +95,6 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.resizeObs?.disconnect();
     this.chat.stopPolling();
     this.stopMermaid?.();
   }
@@ -409,24 +374,20 @@ export class ChatComponent implements OnInit, OnDestroy {
     }, 100);
   }
 
-  // Instant jump (no smooth animation to fight while content is still growing).
-  private jumpToBottom(): void {
-    const el = this.messagesArea()?.nativeElement;
-    if (el) el.scrollTop = el.scrollHeight;
-  }
-
-  // Scrolls a new approval card fully into view when it is at or near the visible part
-  // of the chat and cut off at the bottom. Far below (the user is reading older
-  // messages) it is left alone: the scroll-down button is there.
-  private revealHeld(id: string): void {
-    const area = this.messagesArea()?.nativeElement;
-    const card = area?.querySelector(`app-held-action[data-held-id="${CSS.escape(id)}"]`) as HTMLElement | null;
-    if (!area || !card) return;
-    const view = area.getBoundingClientRect();
-    const box = card.getBoundingClientRect();
-    const cutOff = box.bottom > view.bottom;
-    const near = box.top < view.bottom + 200;
-    if (cutOff && near) card.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  // A new message while the user is at the bottom: show it, but never scroll past the
+  // start of a reply taller than the window (a long answer, an approval card): the view
+  // stops at the agent's avatar and the user scrolls on from there.
+  private scrollToLatest(): void {
+    setTimeout(() => {
+      const area = this.messagesArea()?.nativeElement;
+      const rows = area?.querySelectorAll('.msg-row');
+      const last = rows?.[rows.length - 1] as HTMLElement | undefined;
+      if (area && last && last.getBoundingClientRect().height > area.clientHeight) {
+        last.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        this.messagesEnd()?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }
+    }, 100);
   }
 
   // Whether the message list is scrolled close to the latest message.
@@ -442,7 +403,6 @@ export class ChatComponent implements OnInit, OnDestroy {
     if (!el) return;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     this.showScrollDown.set(distanceFromBottom > 240);
-    this.pinned = distanceFromBottom < 80;
   }
 
   // Copy button on rendered code blocks (event delegation: the code HTML is
