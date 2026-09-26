@@ -46,7 +46,7 @@
 
   <!-- Messages -->
   <div class="messages-area" #messagesArea (scroll)="onMessagesScroll()" (click)="onMessagesClick($event)">
-    <div class="messages" #messagesList>
+    <div class="messages">
       @for (msg of messages; track trackMsg($index, msg)) {
         @if (msg.role === 'system') {
           <!-- Command echo / result: local, never stored, never sent to an agent -->
@@ -150,7 +150,7 @@
               }
 
               @for (held of msg.pendingActions ?? []; track held.id) {
-                <app-held-action [action]="held" [attr.data-held-id]="held.id" (decided)="chat.fetchHistory(chat.activeTab())" />
+                <app-held-action [action]="held" (decided)="chat.fetchHistory(chat.activeTab())" />
               }
               @if (msg.role === 'assistant' && sources(msg).length) {
                 <details class="msg-sources">
