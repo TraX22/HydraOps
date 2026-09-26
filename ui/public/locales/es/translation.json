@@ -122,6 +122,38 @@
       "tool": "Usando {{tool}}",
       "showSteps": "ver pasos ({{n}})",
       "hideSteps": "ocultar pasos"
+    },
+    "plan": {
+      "title": "Plan",
+      "status": {
+        "pending": "esperando tu OK",
+        "approved": "aprobado",
+        "discarded": "descartado",
+        "superseded": "reemplazado"
+      },
+      "approve": "Aprobar y ejecutar",
+      "approveThis": "Aprobar esta versión",
+      "edit": "Editar",
+      "revise": "Pedir revisión",
+      "discard": "Descartar",
+      "editHint": "Es texto: sacá pasos, cambiá el orden o agregá detalles. Lo que apruebes es lo que se ejecuta.",
+      "revisePlaceholder": "¿Qué cambiarías? Ej.: en vez del video, 3 imágenes para Instagram",
+      "reviseHint": "El agente evalúa tu idea contra el resto del plan y devuelve la versión siguiente con los cambios marcados y qué implican.",
+      "sendRevision": "Enviar para revisar",
+      "questions": "Antes de empezar",
+      "implications": "Qué implica el cambio",
+      "change": {
+        "added": "nuevo",
+        "changed": "cambiado",
+        "removed": "quitado"
+      },
+      "executing": "Ejecutando el plan aprobado",
+      "showApproved": "ver el plan",
+      "approvedTextLabel": "Texto aprobado",
+      "discardConfirm": "¿Descartar este plan? No se ejecuta nada.",
+      "alreadyDecided": "Este plan ya fue decidido.",
+      "revisingHint": "Tu mensaje va al agente como revisión del plan v{{n}}.",
+      "sendAsNew": "Enviar como pedido nuevo"
     }
   },
   "agents": {
@@ -517,6 +549,7 @@
     "main": "Volver al chat principal",
     "close": "Cerrar la pestaña actual",
     "delegate": "Crea una tarea para otro agente desde donde estés",
+    "plan": "Pedile al agente un plan primero: solo lee y propone los pasos; vos lo aprobás, editás o revisás antes de que haga nada",
     "tasks": "Últimas tareas de este chat con su estado",
     "status": "Salud del sistema: versión, servicios y proveedores con clave",
     "keys": "Qué proveedores tienen clave configurada",

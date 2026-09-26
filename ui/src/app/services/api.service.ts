@@ -69,6 +69,33 @@ export interface ChatMessage {
   pendingActions?: HeldAction[];
   /** While the agent works: its steps so far (thinking, a tool and what it works on, a held call). */
   progress?: TaskProgress;
+  /** /plan: the plan this reply proposed, with its state. */
+  plan?: Plan;
+  /** This task carries out that approved plan (the user message is the approved plan). */
+  planOf?: string;
+}
+
+// ── /plan (see @hydraops/addons plan.ts) ──
+export interface PlanStep {
+  title: string;
+  detail?: string;
+  tools?: string[];
+  agent?: string;
+  change?: 'added' | 'changed' | 'removed';
+}
+
+export interface Plan {
+  version: number;
+  status: 'pending' | 'approved' | 'discarded' | 'superseded';
+  goal: string;
+  steps: PlanStep[];
+  questions: string[];
+  implications?: string;
+  request: string;
+  parentTaskId?: string;
+  executionTaskId?: string;
+  approvedText?: string;
+  decidedAt?: string;
 }
 
 export interface ProgressStep {
@@ -484,8 +511,21 @@ export class ApiService {
     return this.http.get<ChatMessage[]>(`${this.base}/tasks`, { params });
   }
 
-  createTask(prompt: string, channel: string): Observable<Task> {
-    return this.http.post<Task>(`${this.base}/tasks`, { prompt, channel });
+  createTask(prompt: string, channel: string, opts?: { mode?: 'plan' }): Observable<Task> {
+    return this.http.post<Task>(`${this.base}/tasks`, { prompt, channel, ...(opts?.mode ? { mode: opts.mode } : {}) });
+  }
+
+  // ── /plan ──
+  approvePlan(taskId: string, text?: string): Observable<{ plan: Plan; executionTaskId: string }> {
+    return this.http.post<{ plan: Plan; executionTaskId: string }>(`${this.base}/plans/${taskId}/approve`, text ? { text } : {});
+  }
+
+  discardPlan(taskId: string): Observable<{ plan: Plan }> {
+    return this.http.post<{ plan: Plan }>(`${this.base}/plans/${taskId}/discard`, {});
+  }
+
+  revisePlan(taskId: string, text: string): Observable<{ taskId: string; version: number }> {
+    return this.http.post<{ taskId: string; version: number }>(`${this.base}/plans/${taskId}/revise`, { text });
   }
 
   listCommands(): Observable<CommandSpec[]> {

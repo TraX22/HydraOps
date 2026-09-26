@@ -122,6 +122,21 @@ export const COMMANDS: Command[] = [
     },
   },
   {
+    name: "plan",
+    aliases: ["planear", "planificar"],
+    usage: "/plan <task>",
+    description: "Ask the agent for a plan first: it only reads and proposes the steps; you approve, edit or revise them before anything runs",
+    handler: async (ctx, args) => {
+      const task = args.trim();
+      if (!task) return err("Usage: /plan <task>. Example: /plan research the idle game market and draft a post about it.");
+      // In the app the chat is the agent's conversation; the main chat has no agent to plan with.
+      const agentId = ctx.transport === "app" ? (ctx.activeAgent ?? "") : (ctx.activeAgent ?? "");
+      if (!agentId) return err("Open an agent's chat first (or /use <agent> on Telegram): the plan is made by that agent.");
+      const { taskId } = await ctx.api.createTask(agentId, task, { isRead: ctx.transport === "app", mode: "plan" });
+      return ok("Planning… the plan will appear here for you to approve, edit or revise.", { type: "await_task", taskId, agentId });
+    },
+  },
+  {
     name: "cancel",
     aliases: ["cancelar", "stop", "detener"],
     description: "Stop the task this chat's agent is working on",

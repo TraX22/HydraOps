@@ -16,7 +16,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
 import { AckPolicy } from "nats";
 
 const WORKER_TYPE = "general";
@@ -361,7 +361,15 @@ ${EXTERNAL_CONTENT_RULE}
       .map((l: string) => l.substring(1).trim());
     // Strict per-agent gating: a tool (native or MCP) runs only if this agent's
     // tools.md names it. Identical rule across all workers (see registry).
-    const allowedTools = globalRegistry.resolveAllowedToolNames(agentRequestedTools, enabledMcpServers);
+    // /plan: this task only reads and proposes (see @hydraops/addons plan.ts). The
+    // read-only cut of the agent's tools, plus propose_plan; the plan lands on the task.
+    const planMode = taskRows[0]?.mode === "plan";
+    const planSeed: Plan | null = planMode && taskRows[0]?.plan && typeof taskRows[0].plan === "object" ? (taskRows[0].plan as Plan) : null;
+    const planParentRows = planSeed?.parentTaskId ? await (db as any).select({ plan: tasks.plan }).from(tasks).where(eq(tasks.id, planSeed.parentTaskId)).limit(1) : [];
+    const planPrevious: Plan | null = planParentRows[0]?.plan && typeof planParentRows[0].plan === "object" ? (planParentRows[0].plan as Plan) : null;
+    const planVersion = planSeed?.version ?? 1;
+    const allowedToolsAll = globalRegistry.resolveAllowedToolNames(agentRequestedTools, enabledMcpServers);
+    const allowedTools = planMode ? globalRegistry.readOnlyToolNames(allowedToolsAll) : allowedToolsAll;
     // Usage tracking: the sink collects every tool call this turn; flushed to DB
     // after the LLM finishes so we can report what each agent actually uses.
     const toolUsageLog: { toolName: string; source: string; status: string }[] = [];
@@ -405,6 +413,9 @@ ${EXTERNAL_CONTENT_RULE}
     const skillsSection = await skillsPromptSection(allowedTools.filter((n: string) => nativeState[n] !== false)).catch(() => "");
     const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink);
     const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink);
+    let proposedPlan: unknown = null;
+    const planTools = planMode ? createPlanTools((proposal) => { proposedPlan = proposal; }) : null;
+    const planSection = planMode ? planModePrompt({ toolNames: allowedTools, previous: planPrevious ?? undefined, userNotes: planPrevious ? userPrompt : undefined, version: planVersion }) : "";
 
     // Last 24h of the channel; empty for cron-fired tasks (see loadRecentChannelHistory).
     const historyRows = await loadRecentChannelHistory(db, channel, taskId);
@@ -423,7 +434,7 @@ ${EXTERNAL_CONTENT_RULE}
     console.log(`[${consumerName}] Processing task ${taskId} for agent ${agentId} (${llmConfig.provider}:${llmConfig.model})...`);
     const controller = cancels.track(taskId);
     const { text, usage, success, error, errorCode } = await withTimeout(
-      llmGenerateText(llmConfig, [...history, await buildUserMessage(userPrompt, rootDir)], systemPrompt + skillsSection + cronDedup, aiTools, rawTools, { abortSignal: controller.signal }),
+      llmGenerateText(llmConfig, [...history, await buildUserMessage(userPrompt, rootDir)], systemPrompt + skillsSection + planSection + cronDedup, planTools ? { ...aiTools, ...planTools.ai } : aiTools, planTools ? [...rawTools, ...planTools.raw] : rawTools, { abortSignal: controller.signal }),
       LLM_TIMEOUT_MS(llmConfig.provider),
       `LLM call`,
       () => controller.abort(new Error("LLM call timed out")),
@@ -476,10 +487,12 @@ ${EXTERNAL_CONTENT_RULE}
     progress.stop();
     const installedSkillNames = skillsOpened.size ? new Set((await listInstalledSkills().catch(() => [])).map((k) => k.name)) : new Set<string>();
     const skillsUsed = [...skillsOpened].filter((n) => installedSkillNames.has(n));
+    const plan = planMode ? (proposedPlan ? planFromProposal(proposedPlan, { version: planVersion, request: planSeed?.request ?? userPrompt, parentTaskId: planSeed?.parentTaskId }) : planFromText(text ?? "", { version: planVersion, request: planSeed?.request ?? userPrompt, parentTaskId: planSeed?.parentTaskId })) : null;
     await (db as any).update(tasks)
       .set({
         status: "completed",
-        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, completedAt: new Date().toISOString(), ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), seenUrls: sourceCollector.seen(), ...(skillsUsed.length ? { skillsUsed } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) },
+        ...(plan ? { plan } : {}),
+        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, completedAt: new Date().toISOString(), ...(plan ? { plan } : {}), ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), seenUrls: sourceCollector.seen(), ...(skillsUsed.length ? { skillsUsed } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) },
         updatedAt: new Date(),
       })
       .where(and(eq(tasks.id, taskId), ne(tasks.status, "cancelled")));

@@ -17,7 +17,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, generateImage, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
 import { tool } from "ai";
 import { z } from "zod";
 import { AckPolicy } from "nats";
@@ -435,7 +435,15 @@ ${EXTERNAL_CONTENT_RULE}
       .map((l: string) => l.substring(1).trim());
     // Strict per-agent gating: a tool (native or MCP) runs only if this agent's
     // tools.md names it. Identical rule across all workers (see registry).
-    const allowedTools = globalRegistry.resolveAllowedToolNames(agentRequestedTools, enabledMcpServers);
+    // /plan: this task only reads and proposes (see @hydraops/addons plan.ts). The
+    // read-only cut of the agent's tools, plus propose_plan; the plan lands on the task.
+    const planMode = taskRows[0]?.mode === "plan";
+    const planSeed: Plan | null = planMode && taskRows[0]?.plan && typeof taskRows[0].plan === "object" ? (taskRows[0].plan as Plan) : null;
+    const planParentRows = planSeed?.parentTaskId ? await (db as any).select({ plan: tasks.plan }).from(tasks).where(eq(tasks.id, planSeed.parentTaskId)).limit(1) : [];
+    const planPrevious: Plan | null = planParentRows[0]?.plan && typeof planParentRows[0].plan === "object" ? (planParentRows[0].plan as Plan) : null;
+    const planVersion = planSeed?.version ?? 1;
+    const allowedToolsAll = globalRegistry.resolveAllowedToolNames(agentRequestedTools, enabledMcpServers);
+    const allowedTools = planMode ? globalRegistry.readOnlyToolNames(allowedToolsAll) : allowedToolsAll;
     // Usage tracking: the sink collects every tool call this turn; flushed to
     // DB after the LLM finishes so we can report what each agent actually uses.
     const toolUsageLog: { toolName: string; source: string; status: string }[] = [];
@@ -479,6 +487,9 @@ ${EXTERNAL_CONTENT_RULE}
     const skillsSection = await skillsPromptSection(allowedTools.filter((n: string) => nativeState[n] !== false)).catch(() => "");
     const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink);
     const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink);
+    let proposedPlan: unknown = null;
+    const planTools = planMode ? createPlanTools((proposal) => { proposedPlan = proposal; }) : null;
+    const planSection = planMode ? planModePrompt({ toolNames: allowedTools, previous: planPrevious ?? undefined, userNotes: planPrevious ? userPrompt : undefined, version: planVersion }) : "";
 
 
     // The drawing tool. It stores the file where the chat serves it from and
@@ -515,7 +526,7 @@ ${EXTERNAL_CONTENT_RULE}
     const generateImageSchema = z.object({
       prompt: z.string().describe("Self-contained English image prompt: subject, style, palette, composition, background, lighting. Add 'transparent background' for sprites and UI assets."),
     });
-    const toolsForModel = {
+    const toolsForModel = planTools ? { ...aiTools, ...planTools.ai } : {
       ...(aiTools ?? {}),
       generate_image: tool({
         description: generateImageDescription,
@@ -523,7 +534,7 @@ ${EXTERNAL_CONTENT_RULE}
         execute: ({ prompt }: { prompt: string }) => { taskSecurity.beforeCall("generate_image", { sensitive: true }, { prompt }); return draw(prompt); },
       }),
     };
-    const rawToolsForModel = [
+    const rawToolsForModel = planTools ? [...rawTools, ...planTools.raw] : [
       ...rawTools,
       { name: "generate_image", description: generateImageDescription, schema: generateImageSchema, execute: (args: any) => { taskSecurity.beforeCall("generate_image", { sensitive: true }, args); return draw(String(args?.prompt ?? "")); } },
     ];
@@ -543,7 +554,7 @@ ${EXTERNAL_CONTENT_RULE}
     const { text, usage, success, error, errorCode } = await llmGenerateText(
       llmConfig,
       [...history, await buildUserMessage(userPrompt, rootDir)],
-      systemPrompt + skillsSection,
+      systemPrompt + skillsSection + planSection,
       toolsForModel,
       rawToolsForModel,
       { abortSignal: controller.signal }
@@ -551,7 +562,7 @@ ${EXTERNAL_CONTENT_RULE}
 
     // Explicit request but the model never drew (weak/local models): fall back
     // to the engine with the raw prompt, as the old draw path did.
-    if (explicitDraw && !drawn.image && !drawn.error && !controller.signal.aborted) {
+    if (explicitDraw && !planMode && !drawn.image && !drawn.error && !controller.signal.aborted) {
       taskSecurity.beforeCall("generate_image", { sensitive: true }, { prompt: userPrompt, via: "explicit request" });
       const r = await drawToStorage(taskId!, agentCfg, getGlobalConfig, userPrompt);
       if (r.relPath) drawn.image = { relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
@@ -636,11 +647,13 @@ ${EXTERNAL_CONTENT_RULE}
     });
     await publishJson(js, subjectForType(generated.type), generated);
 
+    const plan = planMode ? (proposedPlan ? planFromProposal(proposedPlan, { version: planVersion, request: planSeed?.request ?? userPrompt, parentTaskId: planSeed?.parentTaskId }) : planFromText(String(resultMeta.text ?? ""), { version: planVersion, request: planSeed?.request ?? userPrompt, parentTaskId: planSeed?.parentTaskId })) : null;
     await (db as any).update(tasks)
       .set({
         status: "completed",
+        ...(plan ? { plan } : {}),
         resultRef: `results/${taskId}/result.json`,
-        resultMeta: { ...resultMeta, completedAt: new Date().toISOString() },
+        resultMeta: { ...resultMeta, ...(plan ? { plan } : {}), completedAt: new Date().toISOString() },
         updatedAt: new Date(),
       })
       .where(and(eq(tasks.id, taskId), ne(tasks.status, "cancelled")));

@@ -122,6 +122,38 @@
       "tool": "Usando {{tool}}",
       "showSteps": "ver etapas ({{n}})",
       "hideSteps": "ocultar etapas"
+    },
+    "plan": {
+      "title": "Plano",
+      "status": {
+        "pending": "aguardando seu OK",
+        "approved": "aprovado",
+        "discarded": "descartado",
+        "superseded": "substituído"
+      },
+      "approve": "Aprovar e executar",
+      "approveThis": "Aprovar esta versão",
+      "edit": "Editar",
+      "revise": "Pedir revisão",
+      "discard": "Descartar",
+      "editHint": "É texto: tire passos, mude a ordem ou acrescente detalhes. O que você aprovar é o que roda.",
+      "revisePlaceholder": "O que você mudaria? Ex.: em vez do vídeo, 3 imagens para o Instagram",
+      "reviseHint": "O agente avalia sua ideia contra o resto do plano e volta com a próxima versão, com as mudanças marcadas e o que implicam.",
+      "sendRevision": "Enviar para revisão",
+      "questions": "Antes de começar",
+      "implications": "O que a mudança implica",
+      "change": {
+        "added": "novo",
+        "changed": "alterado",
+        "removed": "removido"
+      },
+      "executing": "Executando o plano aprovado",
+      "showApproved": "ver o plano",
+      "approvedTextLabel": "Texto aprovado",
+      "discardConfirm": "Descartar este plano? Nada será executado.",
+      "alreadyDecided": "Este plano já foi decidido.",
+      "revisingHint": "Sua mensagem vai ao agente como revisão do plano v{{n}}.",
+      "sendAsNew": "Enviar como pedido novo"
     }
   },
   "agents": {
@@ -517,6 +549,7 @@
     "main": "Voltar ao chat principal",
     "close": "Fechar a aba atual",
     "delegate": "Cria uma tarefa para outro agente, de onde você estiver",
+    "plan": "Peça um plano ao agente primeiro: ele só lê e propõe os passos; você aprova, edita ou revisa antes de qualquer coisa rodar",
     "tasks": "Últimas tarefas deste chat com seu status",
     "status": "Saúde do sistema: versão, serviços e provedores com chave",
     "keys": "Quais provedores têm chave configurada",
