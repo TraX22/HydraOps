@@ -22,7 +22,7 @@
     "diagram": "Diagram",
     "namePlaceholder": "Name",
     "noDiagrams": "No saved diagrams",
-    "nodePlaceholder": "Describe this step…",
+    "nodePlaceholder": "What should this step do…",
     "emptyCanvas": "Add nodes and connect them to describe the task, then hit Compile.",
     "agent": "Agent",
     "compile": "Compile",
@@ -549,7 +549,7 @@
     "cancel": "Stop the task this chat's agent is working on"
   },
   "threeD": {
-    "tagline": "Describe an object, the model writes Three.js and you watch it spin. Export .glb for Unity, Unreal, Blender or your favorite 3D app.",
+    "tagline": "Say what you want built, the model writes Three.js and you watch it spin. Export .glb for Unity, Unreal, Blender or your favorite 3D app.",
     "back": "Plugins",
     "model": "Model",
     "prompt": "Prompt",
@@ -563,7 +563,7 @@
     "localHint": "A local model takes 1–2 minutes.",
     "rendering": "Rendering…",
     "fixing": "The code failed; asking for a fix ({{n}}/2)…",
-    "empty": "Describe what you want to see and press Generate. Drag to orbit, scroll to zoom.",
+    "empty": "Tell it what you want to see and press Generate. Drag to orbit, scroll to zoom.",
     "export": "Export .glb",
     "exportFailed": "The scene could not be exported.",
     "save": "Save",
