@@ -8,6 +8,7 @@ import type { CommandResult } from "@hydraops/commands";
 import { toTelegramHtml } from "./format.js";
 import { startNotifier } from "./notifications.js";
 import { startHeldActionsNotifier, handleHeldActionCallback, type HeldActionsDeps } from "./held-actions.js";
+import { startPlansNotifier, handlePlanCallback } from "./plans.js";
 
 loadDotenv({ path: envFile });
 
@@ -238,9 +239,11 @@ async function drainBacklog(token: string): Promise<void> {
 }
 
 async function handleUpdate(token: string, cfg: TelegramConfig, update: any): Promise<void> {
-  // A press on a held action's Approve / Reject button.
+  // A press on a button: a plan's Approve / Discard, or a held action's Approve / Reject.
   if (update.callback_query) {
-    await handleHeldActionCallback(heldDeps, token, cfg.allowlist, update.callback_query);
+    if (!(await handlePlanCallback(heldDeps, token, cfg.allowlist, update.callback_query))) {
+      await handleHeldActionCallback(heldDeps, token, cfg.allowlist, update.callback_query);
+    }
     return;
   }
   const msg = update.message;
@@ -365,6 +368,8 @@ const heldDeps: HeldActionsDeps = {
   tg: (token, method, params) => tg(token, method, params),
 };
 startHeldActionsNotifier(heldDeps);
+// /plan: proposed plans reach the phone with Approve / Discard buttons (same deps).
+startPlansNotifier(heldDeps);
 
 loop();
 

@@ -58,7 +58,7 @@
             }
           </div>
         } @else {
-        <div class="msg-row" [class.user]="msg.role === 'user'" [class.bot]="msg.role === 'assistant'">
+        <div class="msg-row" [class.user]="msg.role === 'user'" [class.bot]="msg.role === 'assistant'" [attr.data-task-id]="msg.taskId">
           <!-- Doble clic en el avatar → ficha del agente (camino inverso al 💬 de esa vista) -->
           <div class="msg-avatar" [class.clickable]="!!agentIdFor(msg)"
                (dblclick)="openProfile(msg)"
@@ -126,7 +126,13 @@
                 </div>
               </div>
             } @else {
-              @if (displayContent(msg)) {
+              @if (msg.role === 'user' && msg.planOf) {
+                <!-- The approved plan being carried out: a short label, the full text on demand -->
+                <div class="msg-bubble plan-exec">
+                  <span>▶ {{ 'chat.plan.executing' | translate }}</span>
+                  <details><summary>{{ 'chat.plan.showApproved' | translate }}</summary><pre>{{ msg.content }}</pre></details>
+                </div>
+              } @else if (displayContent(msg)) {
                 <div class="msg-bubble" [innerHTML]="displayContent(msg) | markdown: linkCheck(msg)"></div>
               }
 
@@ -151,6 +157,10 @@
 
               @for (held of msg.pendingActions ?? []; track held.id) {
                 <app-held-action [action]="held" (decided)="chat.fetchHistory(chat.activeTab())" />
+              }
+              @if (msg.plan && msg.taskId) {
+                <app-plan-card [plan]="msg.plan" [taskId]="msg.taskId" [versions]="planVersions(msg)"
+                               (decided)="chat.fetchHistory(chat.activeTab())" (revise)="revisePlan(msg, $event)" (jump)="jumpToTask($event)" />
               }
               @if (msg.role === 'assistant' && sources(msg).length) {
                 <details class="msg-sources">
@@ -245,6 +255,12 @@
             <span class="cmd-desc">{{ item.descriptionKey | translate: { name: item.agentName } }}</span>
           </button>
         }
+      </div>
+    }
+    @if (revisingPlan(); as rp) {
+      <div class="revising-hint">
+        <span>✏️ {{ 'chat.plan.revisingHint' | translate: { n: rp.plan?.version } }}</span>
+        <button type="button" class="revising-link" (click)="sendAsNew.set(true)">{{ 'chat.plan.sendAsNew' | translate }}</button>
       </div>
     }
     <textarea

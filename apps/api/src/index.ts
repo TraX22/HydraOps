@@ -30,6 +30,7 @@ loadDotenv({ path: envFile });
 import {
   createRegistry, rememberTool, listInstalledSkills, readSkillFile, scanSkill, writeSkillFolder, deleteSkill,
   isValidSkillName, isAllowedSkillPath, skillFilePath, SKILL_LIMITS, builtinSkillNames,
+  renderPlanText, executionPrompt, type Plan,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
 import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, searchAgentTasks } from "@hydraops/db";
@@ -2162,12 +2163,55 @@ api.post("/config", async (req, res) => {
 
 // --- Task endpoints ---
 
+// One task row + its task.created event, in one transaction (the chat, the commands,
+// /plan approvals and revisions all create tasks this way).
+async function insertTask(opts: {
+  prompt: string; channel: string; userId?: string; priority?: string; isRead?: boolean;
+  inheritedTaint?: { tool: string; ref?: string }[];
+  /** "plan": the agent only reads and proposes (see @hydraops/addons plan.ts). */
+  mode?: "plan"; plan?: Plan; planOf?: string;
+}): Promise<string> {
+  const taskId = randomUUID();
+  const eventId = randomUUID();
+  const occurredAt = new Date().toISOString();
+  const envelope = buildEnvelope({
+    id: eventId,
+    type: "task.created",
+    version: 1,
+    occurredAt,
+    producer: env.SERVICE_NAME,
+    subject: { entity: "task", id: taskId },
+    data: { taskId, prompt: opts.prompt, userId: opts.userId ?? "system-admin", channel: opts.channel, priority: opts.priority ?? "normal", date: occurredAt },
+  });
+  await (db as any).transaction((tx: any) => {
+    tx.insert(tasks).values({
+      id: taskId,
+      prompt: opts.prompt,
+      channel: opts.channel,
+      status: "pending",
+      isRead: opts.isRead !== false,
+      ...(opts.inheritedTaint?.length ? { inheritedTaint: opts.inheritedTaint } : {}),
+      ...(opts.mode ? { mode: opts.mode } : {}),
+      ...(opts.plan ? { plan: opts.plan } : {}),
+      ...(opts.planOf ? { planOf: opts.planOf } : {}),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).run();
+    tx.insert(eventsTable).values({
+      id: eventId, type: envelope.type, version: envelope.version, occurredAt: new Date(envelope.occurredAt),
+      producer: envelope.producer, subjectEntity: envelope.subject.entity, subjectId: envelope.subject.id, payload: envelope,
+    }).run();
+    tx.insert(outboxTable).values({ eventId, status: "pending", nextAttemptAt: new Date() }).run();
+  });
+  return taskId;
+}
+
 api.post("/tasks", async (req, res) => {
   try {
     const prompt = String(req.body?.prompt ?? "");
     let userId = String(req.body?.userId ?? "").trim();
     if (!userId || userId === "undefined") userId = "system-admin";
-    const priority = String(req.body?.priority ?? "normal").toLowerCase() as any;
+    const priority = String(req.body?.priority ?? "normal").toLowerCase();
 
     if (!prompt) return res.status(400).json({ error: "prompt is required" });
     const channel = String(req.body?.channel ?? "main");
@@ -2182,58 +2226,11 @@ api.post("/tasks", async (req, res) => {
           .slice(0, 12)
           .map((o: any) => ({ tool: String(o.tool).slice(0, 80), ...(typeof o.ref === "string" ? { ref: o.ref.slice(0, 200) } : {}) }))
       : [];
+    // /plan: the task starts with a seed plan (version 1, the request) the worker fills in.
+    const mode = req.body?.mode === "plan" ? "plan" as const : undefined;
+    const plan: Plan | undefined = mode ? { version: 1, status: "pending", goal: "", steps: [], questions: [], request: prompt } : undefined;
 
-    const taskId = randomUUID();
-    const eventId = randomUUID();
-    const occurredAt = new Date().toISOString();
-
-    const envelope = buildEnvelope({
-      id: eventId,
-      type: "task.created",
-      version: 1,
-      occurredAt,
-      producer: env.SERVICE_NAME,
-      subject: { entity: "task", id: taskId },
-      data: {
-        taskId,
-        prompt,
-        userId,
-        channel,
-        priority,
-        date: occurredAt,
-      },
-    });
-
-    await (db as any).transaction((tx: any) => {
-      tx.insert(tasks).values({
-        id: taskId,
-        prompt,
-        channel,
-        status: "pending",
-        isRead, // user's own UI message starts read; external transports pass false
-        ...(inheritedTaint.length ? { inheritedTaint } : {}),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }).run();
-
-      tx.insert(eventsTable).values({
-        id: eventId,
-        type: envelope.type,
-        version: envelope.version,
-        occurredAt: new Date(envelope.occurredAt),
-        producer: envelope.producer,
-        subjectEntity: envelope.subject.entity,
-        subjectId: envelope.subject.id,
-        payload: envelope,
-      }).run();
-
-      tx.insert(outboxTable).values({
-        eventId,
-        status: "pending",
-        nextAttemptAt: new Date(),
-      }).run();
-    });
-
+    const taskId = await insertTask({ prompt, channel, userId, priority, isRead, inheritedTaint, mode, plan });
     res.status(201).json({ id: taskId, taskId, status: "pending" });
   } catch (err: any) {
     console.error("[api] POST /tasks failed:", err?.message ?? err);
@@ -2270,6 +2267,7 @@ api.get("/tasks", async (req, res) => {
       messages.push({
         id: `${row.id}-u`,
         role: "user",
+        ...(row.planOf ? { planOf: row.planOf } : {}),
         content: row.prompt,
         timestamp: created,
         taskId: row.id,
@@ -2305,6 +2303,9 @@ api.get("/tasks", async (req, res) => {
           taskId: row.id,
           resultMeta: meta,
           ...(heldByTask.has(row.id) ? { pendingActions: heldByTask.get(row.id) } : {}),
+          // /plan: the proposal and its state (approved, discarded, superseded…) live on the row.
+          ...(row.mode === "plan" && row.plan && typeof row.plan === "object" ? { plan: row.plan } : {}),
+          ...(row.planOf ? { planOf: row.planOf } : {}),
         });
       } else {
         messages.push({
@@ -2958,6 +2959,81 @@ api.delete("/skills/installed/:name", skillsLimiter, async (req, res) => {
   }
 });
 
+// --- /plan: approve, discard or revise a proposed plan (see @hydraops/addons plan.ts) ---
+const plansLimiter = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false });
+
+async function loadPlanTask(id: string): Promise<{ row: any; plan: Plan } | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const [row] = await (db as any).select().from(tasks).where(eq(tasks.id, id)).limit(1);
+  if (!row || row.mode !== "plan" || !row.plan || typeof row.plan !== "object") return null;
+  return { row, plan: row.plan as Plan };
+}
+
+async function savePlan(id: string, plan: Plan): Promise<void> {
+  await (db as any).update(tasks).set({ plan, updatedAt: new Date() }).where(eq(tasks.id, id)).run();
+}
+
+api.get("/plans/:id", plansLimiter, async (req, res) => {
+  const found = await loadPlanTask(String(req.params.id));
+  if (!found) return res.status(404).json({ error: "not_found" });
+  res.json({ taskId: found.row.id, channel: found.row.channel, agentId: found.row.assignedAgent, plan: found.plan, text: renderPlanText(found.plan) });
+});
+
+// Approve: a normal task carries the plan out. `text` is the plan as the user edited it.
+api.post("/plans/:id/approve", plansLimiter, async (req, res) => {
+  try {
+    const found = await loadPlanTask(String(req.params.id));
+    if (!found) return res.status(404).json({ error: "not_found" });
+    if (found.plan.status !== "pending") return res.status(409).json({ error: "already_decided", status: found.plan.status });
+    const edited = typeof req.body?.text === "string" && req.body.text.trim() ? String(req.body.text).slice(0, 20_000) : undefined;
+    const executionTaskId = await insertTask({
+      prompt: executionPrompt(found.plan, edited),
+      channel: found.row.channel,
+      isRead: true,
+      planOf: found.row.id,
+    });
+    const plan: Plan = { ...found.plan, status: "approved", executionTaskId, decidedAt: new Date().toISOString(), ...(edited ? { approvedText: edited } : {}) };
+    await savePlan(found.row.id, plan);
+    res.json({ plan, executionTaskId });
+  } catch (err: any) {
+    console.error("[api] POST /plans/:id/approve failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+api.post("/plans/:id/discard", plansLimiter, async (req, res) => {
+  try {
+    const found = await loadPlanTask(String(req.params.id));
+    if (!found) return res.status(404).json({ error: "not_found" });
+    if (found.plan.status !== "pending") return res.status(409).json({ error: "already_decided", status: found.plan.status });
+    const plan: Plan = { ...found.plan, status: "discarded", decidedAt: new Date().toISOString() };
+    await savePlan(found.row.id, plan);
+    res.json({ plan });
+  } catch (err: any) {
+    console.error("[api] POST /plans/:id/discard failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// Revise: the user's notes (or edited text) go to the agent, still in plan mode; the
+// next version replaces this one (superseded) and points back to it.
+api.post("/plans/:id/revise", plansLimiter, async (req, res) => {
+  try {
+    const found = await loadPlanTask(String(req.params.id));
+    if (!found) return res.status(404).json({ error: "not_found" });
+    if (found.plan.status !== "pending") return res.status(409).json({ error: "already_decided", status: found.plan.status });
+    const notes = String(req.body?.text ?? "").trim().slice(0, 20_000);
+    if (!notes) return res.status(400).json({ error: "text_required" });
+    const seed: Plan = { version: found.plan.version + 1, status: "pending", goal: "", steps: [], questions: [], request: found.plan.request, parentTaskId: found.row.id };
+    const taskId = await insertTask({ prompt: notes, channel: found.row.channel, isRead: true, mode: "plan", plan: seed });
+    await savePlan(found.row.id, { ...found.plan, status: "superseded", decidedAt: new Date().toISOString() });
+    res.status(201).json({ taskId, version: seed.version });
+  } catch (err: any) {
+    console.error("[api] POST /plans/:id/revise failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
 // --- Tool usage tracking (Agents + Stats) ---
 // Two questions, one dataset. "Granted" (capabilities) is derived from the
 // agent's tools.md through the SAME gate the workers use (resolveAllowedToolNames),
@@ -3352,7 +3428,7 @@ const commandApi: CommandApi = {
     const r = await fetch(`${selfUrl()}/api/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, channel: agentId, isRead: opts?.isRead !== false }),
+      body: JSON.stringify({ prompt, channel: agentId, isRead: opts?.isRead !== false, ...(opts?.mode ? { mode: opts.mode } : {}) }),
       signal: AbortSignal.timeout(10_000),
     });
     const data: any = await r.json().catch(() => ({}));
