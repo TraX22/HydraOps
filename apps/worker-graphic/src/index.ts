@@ -17,7 +17,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, generateImage, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker } from "@hydraops/addons";
 import { tool } from "ai";
 import { z } from "zod";
 import { AckPolicy } from "nats";
@@ -452,6 +452,8 @@ ${EXTERNAL_CONTENT_RULE}
     // Prompt-injection state of this task: set when a tool brings in third-party
     // content, which then reaches the model marked as data (see provenance.ts).
     // From then on a sensitive call is HELD for the user's approval (mode 'ask').
+    // What the agent is doing, shown under the chat's typing dots (see @hydraops/addons progress.ts).
+    const progress = createProgressTracker((p) => (db as any).update(tasks).set({ progress: p }).where(eq(tasks.id, taskId!)).run());
     const taskSecurity = createTaskSecurity({
       mode: resolveSecurityMode(getGlobalConfig("security_mode", "ask"), agentCfg?.securityMode),
       // One image per task is bound elsewhere; a video is held (it is the costly one).
@@ -475,8 +477,8 @@ ${EXTERNAL_CONTENT_RULE}
     // Installed skills, by name and description, for an agent that may use them (the
     // full text is opened on demand with skills_view; see @hydraops/addons skills.ts).
     const skillsSection = await skillsPromptSection(allowedTools.filter((n: string) => nativeState[n] !== false)).catch(() => "");
-    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
-    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
+    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink);
+    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink);
 
 
     // The drawing tool. It stores the file where the chat serves it from and
@@ -496,7 +498,8 @@ ${EXTERNAL_CONTENT_RULE}
       if (drawn.image || drawing) return "An image is already being made in this task, and only one is made per task. Describe it to the user; they can ask for another one in a new message.";
       if (++drawAttempts > 2) return "Image generation already failed twice in this task. Tell the user briefly and suggest retrying or changing the engine.";
       drawing = true;
-      const r = await drawToStorage(taskId!, agentCfg, getGlobalConfig, prompt, controller.signal).finally(() => { drawing = false; });
+      progress.sink("start", "generate_image", { prompt });
+      const r = await drawToStorage(taskId!, agentCfg, getGlobalConfig, prompt, controller.signal).finally(() => { drawing = false; progress.sink("end", "generate_image"); });
       if (r.relPath) {
         drawn.image = { relPath: r.relPath, sourceUrl: r.sourceUrl, engine: r.engine };
         drawn.error = null;
@@ -572,6 +575,7 @@ ${EXTERNAL_CONTENT_RULE}
       finalText = stripToolNarration(text, "generate_image");
     }
 
+    progress.stop();
     const installedSkillNames = skillsOpened.size ? new Set((await listInstalledSkills().catch(() => [])).map((k) => k.name)) : new Set<string>();
     const skillsUsed = [...skillsOpened].filter((n) => installedSkillNames.has(n));
     resultMeta = { text: finalText, usage, success, error, errorCode, modelUsed: llmConfig.model, ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), seenUrls: sourceCollector.seen(), ...(skillsUsed.length ? { skillsUsed } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) };

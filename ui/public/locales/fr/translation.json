@@ -94,7 +94,35 @@
         "expired": "expirée"
       }
     },
-    "linkUnverified": "⚠ Non vérifié : l'agent n'a ni ouvert ni vu cette adresse dans cette conversation. Elle peut exister, mais elle vient de sa mémoire, pas d'une consultation."
+    "linkUnverified": "⚠ Non vérifié : l'agent n'a ni ouvert ni vu cette adresse dans cette conversation. Elle peut exister, mais elle vient de sa mémoire, pas d'une consultation.",
+    "progress": {
+      "queued": "Préparation…",
+      "thinking": "Réflexion…",
+      "held": "En attente de votre approbation ({{tool}})",
+      "search": "Recherche « {{ref}} »",
+      "searchNoRef": "Recherche sur le web",
+      "read": "Lecture de {{ref}}",
+      "readNoRef": "Lecture d'une page",
+      "youtube": "Lecture de la transcription de {{ref}}",
+      "youtubeNoRef": "Lecture d'une transcription YouTube",
+      "skill": "Ouverture de la skill {{ref}}",
+      "skillNoRef": "Ouverture d'une skill",
+      "createSkill": "Proposition de la skill {{ref}}",
+      "createSkillNoRef": "Proposition d'une skill",
+      "github": "Consultation de GitHub : {{ref}}",
+      "githubNoRef": "Consultation de GitHub",
+      "telegram": "Envoi sur Telegram",
+      "remember": "Enregistrement dans sa mémoire",
+      "recall": "Recherche dans les conversations passées : « {{ref}} »",
+      "recallNoRef": "Recherche dans les conversations passées",
+      "delegate": "Délégation à {{ref}}",
+      "delegateNoRef": "Délégation à un autre agent",
+      "image": "Génération de l'image",
+      "video": "Génération de la vidéo (cela peut prendre quelques minutes)",
+      "tool": "Utilise {{tool}}",
+      "showSteps": "voir les étapes ({{n}})",
+      "hideSteps": "masquer les étapes"
+    }
   },
   "agents": {
     "title": "Agents",

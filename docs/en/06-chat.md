@@ -32,6 +32,10 @@ Results from image and video agents appear inline in the chat. Click an image to
 
 The channel history is kept across sessions, with its attachments and results. Generated and uploaded files live in the data folder (`storage/`), so you can also reach them from your file explorer.
 
+## What the agent is doing
+
+While an agent works, the line under the dots shows **what it is doing** and for how long: "Searching “…”", "Reading cppreference.com/…", "Opening the skill deep-research", "Waiting for your approval"… Between tools it says "Thinking…". **show steps** lists everything it has done in that task so far, handy in long research to see what it searched and read. The reply's text appears when it is done.
+
 ## Stopping a task
 
 While an agent is working, a **Stop** button sits next to the "typing" dots. Press it and the task is **Cancelled** at once: the worker aborts the model call (a cloud model stops generating and billing output; your local model frees the GPU), no reply is saved and the agent is available again. It also works on tasks still queued behind another one: they are skipped when their turn comes. The `/cancel` command (or `/stop`) stops whatever is running in the chat where you type it, and works the same from Telegram.

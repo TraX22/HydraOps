@@ -94,7 +94,35 @@
         "expired": "expired"
       }
     },
-    "linkUnverified": "⚠ Not verified: the agent did not open or see this address in this conversation. It may exist, but it came from its memory, not from a lookup."
+    "linkUnverified": "⚠ Not verified: the agent did not open or see this address in this conversation. It may exist, but it came from its memory, not from a lookup.",
+    "progress": {
+      "queued": "Getting ready…",
+      "thinking": "Thinking…",
+      "held": "Waiting for your approval ({{tool}})",
+      "search": "Searching “{{ref}}”",
+      "searchNoRef": "Searching the web",
+      "read": "Reading {{ref}}",
+      "readNoRef": "Reading a page",
+      "youtube": "Reading the transcript of {{ref}}",
+      "youtubeNoRef": "Reading a YouTube transcript",
+      "skill": "Opening the skill {{ref}}",
+      "skillNoRef": "Opening a skill",
+      "createSkill": "Proposing the skill {{ref}}",
+      "createSkillNoRef": "Proposing a skill",
+      "github": "Checking GitHub: {{ref}}",
+      "githubNoRef": "Checking GitHub",
+      "telegram": "Sending to Telegram",
+      "remember": "Saving to its memory",
+      "recall": "Searching past conversations: “{{ref}}”",
+      "recallNoRef": "Searching past conversations",
+      "delegate": "Delegating to {{ref}}",
+      "delegateNoRef": "Delegating to another agent",
+      "image": "Generating the image",
+      "video": "Generating the video (this can take a few minutes)",
+      "tool": "Using {{tool}}",
+      "showSteps": "show steps ({{n}})",
+      "hideSteps": "hide steps"
+    }
   },
   "agents": {
     "title": "Agents",

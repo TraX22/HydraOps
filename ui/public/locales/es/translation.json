@@ -94,7 +94,35 @@
         "expired": "vencida"
       }
     },
-    "linkUnverified": "⚠ No verificado: el agente no abrió ni vio esta dirección en esta conversación. Puede existir, pero salió de su memoria, no de una consulta."
+    "linkUnverified": "⚠ No verificado: el agente no abrió ni vio esta dirección en esta conversación. Puede existir, pero salió de su memoria, no de una consulta.",
+    "progress": {
+      "queued": "Preparando…",
+      "thinking": "Pensando…",
+      "held": "Esperando tu aprobación ({{tool}})",
+      "search": "Buscando «{{ref}}»",
+      "searchNoRef": "Buscando en la web",
+      "read": "Leyendo {{ref}}",
+      "readNoRef": "Leyendo una página",
+      "youtube": "Leyendo la transcripción de {{ref}}",
+      "youtubeNoRef": "Leyendo una transcripción de YouTube",
+      "skill": "Abriendo la skill {{ref}}",
+      "skillNoRef": "Abriendo una skill",
+      "createSkill": "Proponiendo la skill {{ref}}",
+      "createSkillNoRef": "Proponiendo una skill",
+      "github": "Consultando GitHub: {{ref}}",
+      "githubNoRef": "Consultando GitHub",
+      "telegram": "Enviando a Telegram",
+      "remember": "Guardando en su memoria",
+      "recall": "Buscando en conversaciones anteriores: «{{ref}}»",
+      "recallNoRef": "Buscando en conversaciones anteriores",
+      "delegate": "Delegando a {{ref}}",
+      "delegateNoRef": "Delegando a otro agente",
+      "image": "Generando la imagen",
+      "video": "Generando el video (puede tardar unos minutos)",
+      "tool": "Usando {{tool}}",
+      "showSteps": "ver pasos ({{n}})",
+      "hideSteps": "ocultar pasos"
+    }
   },
   "agents": {
     "title": "Agentes",

@@ -14,7 +14,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker } from "@hydraops/addons";
 
 const env = loadEnv({ ...process.env, SERVICE_NAME: process.env.SERVICE_NAME ?? "worker-coder" });
 const consumerName = env.SERVICE_NAME;
@@ -487,6 +487,8 @@ ${EXTERNAL_CONTENT_RULE}
     // Prompt-injection state of this task: set when a tool brings in third-party
     // content, which then reaches the model marked as data (see provenance.ts).
     // From then on a sensitive call is HELD for the user's approval (mode 'ask').
+    // What the agent is doing, shown under the chat's typing dots (see @hydraops/addons progress.ts).
+    const progress = createProgressTracker((p) => (db as any).update(tasks).set({ progress: p }).where(eq(tasks.id, taskId!)).run());
     const taskSecurity = createTaskSecurity({
       mode: resolveSecurityMode(getGlobalConfig("security_mode", "ask"), cfgRows[0]?.securityMode),
       // One image per task is bound elsewhere; a video is held (it is the costly one).
@@ -510,8 +512,8 @@ ${EXTERNAL_CONTENT_RULE}
     // Installed skills, by name and description, for an agent that may use them (the
     // full text is opened on demand with skills_view; see @hydraops/addons skills.ts).
     const skillsSection = await skillsPromptSection(allowedTools.filter((n: string) => globalNativeState[n] !== false)).catch(() => "");
-    const aiTools = globalRegistry.getAiSdkTools(allowedTools, globalNativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
-    const rawTools = globalRegistry.getRawTools(allowedTools, globalNativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity);
+    const aiTools = globalRegistry.getAiSdkTools(allowedTools, globalNativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink);
+    const rawTools = globalRegistry.getRawTools(allowedTools, globalNativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink);
 
     // Fetch conversation history (last 10 completed tasks in this channel)
     // Last 24h of the channel; empty for cron-fired tasks (see loadRecentChannelHistory).
@@ -609,6 +611,7 @@ ${EXTERNAL_CONTENT_RULE}
     console.log(`[worker-coder] Generated result event ${eventId}`);
     await publishJson(js, subjectForType(generated.type), generated);
 
+    progress.stop();
     const installedSkillNames = skillsOpened.size ? new Set((await listInstalledSkills().catch(() => [])).map((k) => k.name)) : new Set<string>();
     const skillsUsed = [...skillsOpened].filter((n) => installedSkillNames.has(n));
     await (db as any).update(tasks)

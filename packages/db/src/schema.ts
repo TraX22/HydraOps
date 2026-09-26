@@ -23,6 +23,9 @@ export const tasks = sqliteTable("tasks", {
   // Prompt-injection defense: where the outside content came from when this task was
   // delegated by one that had read some. The worker starts it tainted (provenance.ts).
   inheritedTaint: text("inherited_taint", { mode: "json" }),
+  // What the agent is doing while the task runs (steps: thinking, a tool with what it is
+  // working on, a held action), written by the worker and shown under the typing dots.
+  progress: text("progress", { mode: "json" }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });

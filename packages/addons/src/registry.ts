@@ -4,6 +4,7 @@ import { McpClientManager, McpServerStatus } from './mcp.js';
 import { guardTool } from './guard.js';
 import { extractSources, extractSeenUrls, type ToolSourceSink } from './sources.js';
 import { resolveToolRisk, type TaskSecurity, type ToolRisk } from './provenance.js';
+import type { ToolProgressSink } from './progress.js';
 
 /**
  * Called once per tool invocation for usage tracking. `source` is native |
@@ -22,7 +23,7 @@ export type ToolUsageSink = (toolName: string, source: string, status: 'ok' | 'b
  * tool that reads third-party content marks the task as tainted and hands its
  * result to the model wrapped in "data, not instructions" markers.
  */
-function instrumentTool(t: HydraTool, source: string, sink?: ToolUsageSink, sourceSink?: ToolSourceSink, security?: TaskSecurity): HydraTool {
+function instrumentTool(t: HydraTool, source: string, sink?: ToolUsageSink, sourceSink?: ToolSourceSink, security?: TaskSecurity, progress?: ToolProgressSink): HydraTool {
   return {
     ...t,
     execute: async (args: any) => {
@@ -30,10 +31,12 @@ function instrumentTool(t: HydraTool, source: string, sink?: ToolUsageSink, sour
       // A sensitive call on a task that read outside content is not run: it is stored
       // for the user's approval and the model gets an explanation instead.
       if (security?.shouldHold(t.name, risk)) {
+        try { progress?.('held', t.name, args); } catch { /* progress never breaks a call */ }
         const message = await security.hold(t.name, args);
         try { sink?.(t.name, source, 'held'); } catch { /* tracking never breaks a call */ }
         return message;
       }
+      try { progress?.('start', t.name, args); } catch { /* progress never breaks a call */ }
       try {
         security?.beforeCall(t.name, risk, args);
         const result = await t.execute(args);
@@ -52,6 +55,8 @@ function instrumentTool(t: HydraTool, source: string, sink?: ToolUsageSink, sour
       } catch (err) {
         try { sink?.(t.name, source, 'error'); } catch { /* ignore */ }
         throw err;
+      } finally {
+        try { progress?.('end', t.name); } catch { /* progress never breaks a call */ }
       }
     },
   };
@@ -124,14 +129,14 @@ export class ToolRegistry {
   // wrappers, so it reaches the tool untouched and callers never pass it per call.
   // `security` is the task's prompt-injection state (see provenance.ts); pass the
   // SAME object to getRawTools and getAiSdkTools so both views share one taint.
-  getRawTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink, context?: ToolContext, sourceSink?: ToolSourceSink, security?: TaskSecurity): HydraTool[] {
+  getRawTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink, context?: ToolContext, sourceSink?: ToolSourceSink, security?: TaskSecurity, progress?: ToolProgressSink): HydraTool[] {
     const activeTools: HydraTool[] = [];
 
     const bind = (t: HydraTool): HydraTool =>
       context ? { ...t, execute: (args: any) => t.execute(args, context) } : t;
     const finalize = (t: HydraTool, source: string) => {
       const bound = bind(t);
-      return sink || sourceSink || security ? instrumentTool(guardTool(bound), source, sink, sourceSink, security) : guardTool(bound);
+      return sink || sourceSink || security || progress ? instrumentTool(guardTool(bound), source, sink, sourceSink, security, progress) : guardTool(bound);
     };
 
     for (const name of allowedNames) {
@@ -154,8 +159,8 @@ export class ToolRegistry {
   }
 
   // Returns the tools in the shape the Vercel AI SDK expects
-  getAiSdkTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink, context?: ToolContext, sourceSink?: ToolSourceSink, security?: TaskSecurity) {
-    const rawTools = this.getRawTools(allowedNames, globalNativeState, sink, context, sourceSink, security);
+  getAiSdkTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink, context?: ToolContext, sourceSink?: ToolSourceSink, security?: TaskSecurity, progress?: ToolProgressSink) {
+    const rawTools = this.getRawTools(allowedNames, globalNativeState, sink, context, sourceSink, security, progress);
     if (rawTools.length === 0) return undefined;
     
     const aiTools: Record<string, any> = {};

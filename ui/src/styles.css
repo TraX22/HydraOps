@@ -326,3 +326,19 @@ a.link-mismatch::after { content: ' ⚠'; }
 .mermaid-block.zoomed .mermaid-svg svg { width: 100%; max-height: 90vh; }
 .mermaid-block .mermaid-svg svg { max-width: 100%; height: auto; }
 .mermaid-block .mermaid-svg .node rect, .mermaid-block .mermaid-svg .node polygon, .mermaid-block .mermaid-svg .node circle { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.12)); }
+
+/* Chat: what the agent is doing, under the typing dots (global: the chat component's own
+   stylesheet is at its size budget) */
+.work-step { display: flex; align-items: center; gap: 6px; margin-top: 6px; max-width: 560px; font-size: 12.5px; color: var(--text-secondary); animation: ws-in .3s ease; }
+.ws-icon { width: 18px; text-align: center; flex-shrink: 0; }
+.ws-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ws-text.held { color: #d97706; }
+.ws-time { margin-left: auto; padding-left: 10px; color: var(--text-muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.ws-toggle { margin-top: 4px; padding: 0; border: none; background: none; color: var(--accent); font-size: 11.5px; cursor: pointer; }
+.ws-list { list-style: none; margin: 6px 0 0; padding: 8px 10px; max-width: 560px; display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-secondary); background: var(--bg-surface); border-left: 2px solid color-mix(in srgb, var(--accent) 35%, var(--border-color)); border-radius: 0 8px 8px 0; }
+.ws-list li { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ws-list li.done { color: var(--text-muted); }
+.ws-list li.done::after { content: "✓"; margin-left: auto; padding-left: 8px; color: var(--status-online); font-size: 11px; }
+.ws-list li.now { font-weight: 600; color: var(--text-primary); }
+.ws-list li.held .ws-text { color: #d97706; }
+@keyframes ws-in { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
