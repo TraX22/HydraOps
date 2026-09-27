@@ -85,6 +85,25 @@ export class ChatService {
     this.api.markAgentRead(channel).subscribe({ error: () => { /* best-effort */ } });
   }
 
+  /**
+   * The "typing" bubble shown the moment a task is created, before the first history poll
+   * brings the server's copy. In an agent's chat it is born with that agent's name and
+   * avatar (the tab knows them), so the bubble does not read "Agent" for a second and then
+   * change; in the main chat the agent is picked by the orchestrator, so nothing is assumed.
+   */
+  private typingPlaceholder(taskId: string, channel: string): ChatMessage {
+    const tab = channel === 'main' ? undefined : this.tabs().find(t => t.id === channel);
+    return {
+      id: 'typing-' + taskId,
+      role: 'assistant',
+      content: '',
+      taskId,
+      isTyping: true,
+      timestamp: new Date().toISOString(),
+      ...(tab ? { agentId: tab.id, agentName: tab.label, avatarUrl: tab.avatarUrl } : {}),
+    };
+  }
+
   openAgentTab(agentId: string, agentName: string, avatarUrl?: string): void {
     const currentTabs = this.tabs();
     if (!currentTabs.find(t => t.id === agentId)) {
@@ -136,14 +155,7 @@ export class ChatService {
     this.api.createTask(prompt, channel).subscribe({
       next: (task: Task) => {
         this.sending.set(false);
-        const typingMsg: ChatMessage = {
-          id: 'typing-' + task.id,
-          role: 'assistant',
-          content: '',
-          taskId: task.id,
-          isTyping: true,
-          timestamp: new Date().toISOString(),
-        };
+        const typingMsg = this.typingPlaceholder(task.id, channel);
         this.messagesByChannel.update(m => ({
           ...m,
           [channel]: [...(m[channel] ?? []), typingMsg],
@@ -207,7 +219,7 @@ export class ChatService {
     this.api.revisePlan(planTaskId, text).subscribe({
       next: r => {
         this.sending.set(false);
-        const typingMsg: ChatMessage = { id: 'typing-' + r.taskId, role: 'assistant', content: '', taskId: r.taskId, isTyping: true, timestamp: new Date().toISOString() };
+        const typingMsg = this.typingPlaceholder(r.taskId, channel);
         this.messagesByChannel.update(m => ({ ...m, [channel]: [...(m[channel] ?? []), typingMsg] }));
         this.pollTaskCompletion(r.taskId, channel);
       },
