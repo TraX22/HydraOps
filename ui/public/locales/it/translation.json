@@ -122,6 +122,38 @@
       "tool": "Usa {{tool}}",
       "showSteps": "mostra i passi ({{n}})",
       "hideSteps": "nascondi i passi"
+    },
+    "plan": {
+      "title": "Piano",
+      "status": {
+        "pending": "in attesa del tuo OK",
+        "approved": "approvato",
+        "discarded": "scartato",
+        "superseded": "sostituito"
+      },
+      "approve": "Approva ed esegui",
+      "approveThis": "Approva questa versione",
+      "edit": "Modifica",
+      "revise": "Chiedi una revisione",
+      "discard": "Scarta",
+      "editHint": "È testo: togli passi, cambia l'ordine o aggiungi dettagli. Ciò che approvi è ciò che viene eseguito.",
+      "revisePlaceholder": "Cosa cambieresti? Es.: invece del video, 3 immagini per Instagram",
+      "reviseHint": "L'agente valuta la tua idea rispetto al resto del piano e torna con la versione successiva, con le modifiche segnate e cosa comportano.",
+      "sendRevision": "Invia per la revisione",
+      "questions": "Prima di iniziare",
+      "implications": "Cosa comporta la modifica",
+      "change": {
+        "added": "nuovo",
+        "changed": "modificato",
+        "removed": "rimosso"
+      },
+      "executing": "Esecuzione del piano approvato",
+      "showApproved": "mostra il piano",
+      "approvedTextLabel": "Testo approvato",
+      "discardConfirm": "Scartare questo piano? Non viene eseguito nulla.",
+      "alreadyDecided": "Questo piano è già stato deciso.",
+      "revisingHint": "Il tuo messaggio va all'agente come revisione del piano v{{n}}.",
+      "sendAsNew": "Invia come nuova richiesta"
     }
   },
   "agents": {
@@ -517,6 +549,7 @@
     "main": "Torna alla chat principale",
     "close": "Chiude la scheda corrente",
     "delegate": "Crea un'attività per un altro agente, da dove sei",
+    "plan": "Chiedi prima un piano all'agente: legge soltanto e propone i passi; tu li approvi, modifichi o revisioni prima che faccia qualcosa",
     "tasks": "Ultime attività di questa chat con il loro stato",
     "status": "Stato del sistema: versione, servizi e provider con chiave",
     "keys": "Quali provider hanno una chiave configurata",

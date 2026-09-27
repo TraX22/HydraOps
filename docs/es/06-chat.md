@@ -36,6 +36,19 @@ El historial del canal se conserva entre sesiones, con sus adjuntos y resultados
 
 Mientras un agente trabaja, debajo de los puntitos se ve **lo que está haciendo** y cuánto tiempo lleva: "Buscando «…»", "Leyendo cppreference.com/…", "Abriendo la skill deep-research", "Esperando tu aprobación"… Entre herramienta y herramienta dice "Pensando…". **ver pasos** despliega todo lo que hizo en esa tarea hasta ahora, útil en investigaciones largas para saber qué buscó y qué leyó. El texto de la respuesta aparece recién cuando termina.
 
+## Planificar antes de hacer
+
+Para un pedido grande, caro o difícil de deshacer, escribí **`/plan`** delante: *`/plan investigá el mercado de juegos idle en Argentina y armá un video corto para promocionar Idle Miner`*. El agente entra en **modo plan**: solo tiene las herramientas que **leen** (buscar, abrir páginas, skills, consultar GitHub); enviar, guardar en memoria, delegar, crear issues o skills y generar imágenes o video **no están disponibles** en ese momento, no es solo una instrucción. Investiga lo justo y te devuelve una **tarjeta con el plan**: el objetivo, los pasos numerados con las herramientas que va a usar en cada uno (en naranja las que actúan o cuestan, como generar un video) y a qué agente delega, y las dudas que conviene aclarar antes.
+
+Con la tarjeta tenés cuatro caminos:
+
+- **Aprobar y ejecutar**: se crea la tarea que hace el trabajo, con las herramientas completas. Las reglas de seguridad siguen valiendo: si en el camino lee contenido externo, las acciones sensibles quedan retenidas como siempre.
+- **Editar**: el plan pasa a texto. Sacás un paso, cambiás el orden o agregás un detalle, y aprobás *esa* versión.
+- **Pedir revisión**: contás qué cambiarías sin preocuparte por cómo encaja. El agente, todavía sin poder actuar, devuelve la **versión siguiente en la misma tarjeta**: pasos marcados como *nuevo*, *cambiado* o *quitado*, y una nota de **qué implica** el cambio para el resto. Los botones **v1 · v2 · v3** saltan a cada versión.
+- **Descartar**: no se ejecuta nada.
+
+Mientras el último mensaje del chat sea un plan esperando tu OK, **lo que escribas se toma como una revisión** de ese plan; el enlace *Enviar como pedido nuevo* lo manda como una tarea normal. En Telegram el plan llega con **▶ Aprobar / ✕ Descartar**; editar y revisar se hacen en la app.
+
 ## Detener una tarea
 
 Mientras un agente trabaja, al lado de los puntitos de "escribiendo" aparece el botón **Detener**. Al pulsarlo la tarea queda **Cancelada** en el acto: el worker corta la llamada al modelo (en la nube deja de generar y de facturar salida; tu modelo local libera la GPU), no se guarda ninguna respuesta y el agente vuelve a estar disponible. También sirve para tareas que todavía están en cola detrás de otra: se saltean cuando les llega el turno. El comando `/cancel` (o `/cancelar`, `/stop`) detiene todo lo que esté corriendo en el chat donde lo escribas, y funciona igual desde Telegram.

@@ -194,6 +194,27 @@ export class ChatService {
     this.taskPollSubs.clear();
   }
 
+  /**
+   * /plan: the user's notes on a pending plan go to the agent as a revision (a plan-mode
+   * task that answers with the next version). Same shape as sendMessage: the note shows
+   * as the user's message, then the typing row until the new version arrives.
+   */
+  sendPlanRevision(planTaskId: string, text: string, channel: string): void {
+    if (!text.trim()) return;
+    this.sending.set(true);
+    const userMsg: ChatMessage = { id: 'temp-' + Date.now(), role: 'user', content: text, timestamp: new Date().toISOString() };
+    this.messagesByChannel.update(m => ({ ...m, [channel]: [...(m[channel] ?? []), userMsg] }));
+    this.api.revisePlan(planTaskId, text).subscribe({
+      next: r => {
+        this.sending.set(false);
+        const typingMsg: ChatMessage = { id: 'typing-' + r.taskId, role: 'assistant', content: '', taskId: r.taskId, isTyping: true, timestamp: new Date().toISOString() };
+        this.messagesByChannel.update(m => ({ ...m, [channel]: [...(m[channel] ?? []), typingMsg] }));
+        this.pollTaskCompletion(r.taskId, channel);
+      },
+      error: () => { this.sending.set(false); this.fetchHistory(channel); },
+    });
+  }
+
   private pollTaskCompletion(taskId: string, channel: string): void {
     const sub = interval(2000)
       .pipe(

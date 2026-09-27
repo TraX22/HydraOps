@@ -12,13 +12,14 @@ import { linkKey, type LinkCheck } from '../../pipes/sanitize-html';
 import { watchMermaid } from '../../pipes/mermaid-render';
 import { IconComponent } from '../../components/icon/icon.component';
 import { HeldActionComponent } from '../../components/held-action/held-action.component';
+import { PlanCardComponent, type PlanVersionRef } from '../../components/plan-card/plan-card.component';
 import { modelLabel } from '../../shared/model-groups';
 import { CommandService, PaletteItem } from '../../services/command.service';
 
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [FormsModule, TranslatePipe, MarkdownPipe, DatePipe, IconComponent, HeldActionComponent],
+  imports: [FormsModule, TranslatePipe, MarkdownPipe, DatePipe, IconComponent, HeldActionComponent, PlanCardComponent],
   templateUrl: './chat.component.html',
   styleUrl: './chat.component.css',
 })
@@ -152,7 +153,10 @@ export class ChatComponent implements OnInit, OnDestroy {
       // Marker block parsed by the workers (buildUserMessage in @hydraops/llm)
       prompt = `${val}\n\n[ATTACHMENTS]\n${atts.map(a => `- ${a.path} (${a.mime})`).join('\n')}`.trim();
     }
-    this.chat.sendMessage(prompt, this.chat.activeTab());
+    const revising = this.revisingPlan();
+    if (revising?.taskId && atts.length === 0) this.chat.sendPlanRevision(revising.taskId, prompt, this.chat.activeTab());
+    else this.chat.sendMessage(prompt, this.chat.activeTab());
+    this.sendAsNew.set(false);
     this.onInput('');
     this.setAttachments([]);
     this.scrollToBottom();
@@ -433,6 +437,45 @@ export class ChatComponent implements OnInit, OnDestroy {
     const withRef = ['search', 'read', 'skill', 'createSkill', 'github', 'recall', 'delegate', 'youtube'];
     const key = withRef.includes(kind) && !step.ref ? `chat.progress.${kind}NoRef` : `chat.progress.${kind}`;
     return this.translate.instant(key, params);
+  }
+
+  // ── /plan ──
+  // The latest message of the chat is a plan waiting for the user: what they type next
+  // goes to the agent as a revision of it, unless they choose to send a new request.
+  sendAsNew = signal(false);
+  pendingPlanMessage = computed<ChatMessage | null>(() => {
+    const msgs = this.chat.messagesByChannel()[this.chat.activeTab()] ?? [];
+    const last = msgs[msgs.length - 1];
+    return last?.role === 'assistant' && last.plan?.status === 'pending' && last.taskId ? last : null;
+  });
+  revisingPlan = computed(() => (this.sendAsNew() ? null : this.pendingPlanMessage()));
+
+  revisePlan(msg: ChatMessage, text: string): void {
+    if (!msg.taskId) return;
+    this.chat.sendPlanRevision(msg.taskId, text, this.chat.activeTab());
+    this.scrollToBottom();
+  }
+
+  // Every version of the plan this message belongs to (the chain of revisions), oldest first.
+  planVersions(msg: ChatMessage): PlanVersionRef[] {
+    const msgs = this.chat.messagesByChannel()[this.chat.activeTab()] ?? [];
+    const byTask = new Map<string, ChatMessage>();
+    for (const m of msgs) if (m.plan && m.taskId) byTask.set(m.taskId, m);
+    const rootOf = (m: ChatMessage): string => {
+      let cur = m;
+      const seen = new Set<string>();
+      while (cur.plan?.parentTaskId && byTask.has(cur.plan.parentTaskId) && !seen.has(cur.plan.parentTaskId)) { seen.add(cur.plan.parentTaskId); cur = byTask.get(cur.plan.parentTaskId)!; }
+      return cur.taskId!;
+    };
+    const root = rootOf(msg);
+    return [...byTask.values()].filter(m => rootOf(m) === root)
+      .map(m => ({ version: m.plan!.version, taskId: m.taskId!, status: m.plan!.status }))
+      .sort((a, b) => a.version - b.version);
+  }
+
+  jumpToTask(taskId: string): void {
+    const el = this.messagesArea()?.nativeElement.querySelector(`[data-task-id="${CSS.escape(taskId)}"]`) as HTMLElement | null;
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   scrollToBottom(behavior: ScrollBehavior = 'smooth'): void {

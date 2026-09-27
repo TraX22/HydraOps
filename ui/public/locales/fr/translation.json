@@ -122,6 +122,38 @@
       "tool": "Utilise {{tool}}",
       "showSteps": "voir les étapes ({{n}})",
       "hideSteps": "masquer les étapes"
+    },
+    "plan": {
+      "title": "Plan",
+      "status": {
+        "pending": "en attente de votre accord",
+        "approved": "approuvé",
+        "discarded": "écarté",
+        "superseded": "remplacé"
+      },
+      "approve": "Approuver et exécuter",
+      "approveThis": "Approuver cette version",
+      "edit": "Modifier",
+      "revise": "Demander une révision",
+      "discard": "Écarter",
+      "editHint": "C'est du texte : retirez des étapes, changez l'ordre ou ajoutez des détails. Ce que vous approuvez est ce qui s'exécute.",
+      "revisePlaceholder": "Que changeriez-vous ? Ex. : à la place de la vidéo, 3 images pour Instagram",
+      "reviseHint": "L'agent confronte votre idée au reste du plan et revient avec la version suivante, changements marqués et leurs implications.",
+      "sendRevision": "Envoyer pour révision",
+      "questions": "Avant de commencer",
+      "implications": "Ce que le changement implique",
+      "change": {
+        "added": "nouveau",
+        "changed": "modifié",
+        "removed": "retiré"
+      },
+      "executing": "Exécution du plan approuvé",
+      "showApproved": "voir le plan",
+      "approvedTextLabel": "Texte approuvé",
+      "discardConfirm": "Écarter ce plan ? Rien ne s'exécute.",
+      "alreadyDecided": "Ce plan a déjà été décidé.",
+      "revisingHint": "Votre message part à l'agent comme révision du plan v{{n}}.",
+      "sendAsNew": "Envoyer comme nouvelle demande"
     }
   },
   "agents": {
@@ -517,6 +549,7 @@
     "main": "Retour au chat principal",
     "close": "Ferme l'onglet courant",
     "delegate": "Crée une tâche pour un autre agent, d'où que vous soyez",
+    "plan": "Demandez d'abord un plan à l'agent : il lit seulement et propose les étapes ; vous approuvez, modifiez ou révisez avant que quoi que ce soit ne s'exécute",
     "tasks": "Dernières tâches de ce chat avec leur état",
     "status": "Santé du système : version, services et fournisseurs avec clé",
     "keys": "Quels fournisseurs ont une clé configurée",

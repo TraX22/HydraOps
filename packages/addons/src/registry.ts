@@ -111,6 +111,22 @@ export class ToolRegistry {
     return allowed;
   }
 
+  /**
+   * Plan mode: of the tools an agent may use, those that only read. A tool is left out
+   * when its risk says sensitive (send, save, delegate, create, generate…) or it always
+   * asks for approval; an unknown MCP tool counts as sensitive (worst case, as in
+   * provenance.ts), so it is left out too.
+   */
+  readOnlyToolNames(allowedNames: string[]): string[] {
+    return allowedNames.filter((name) => {
+      const t = this.nativeTools.get(name) ?? this.mcpManager.mcpTools.get(name);
+      if (!t) return false;
+      const source = this.nativeTools.has(name) ? (t.source === 'my_addons' ? 'my_addons' : 'native') : 'mcp';
+      const risk = resolveToolRisk(t, source);
+      return risk.sensitive !== true && risk.approval !== 'always';
+    });
+  }
+
   // Metadata for the UI (no schema/execute)
   listNative(): { name: string; title?: string; description: string; source: string; requiresKey?: ToolKeyRequirement; risk: ToolRisk }[] {
     return [...this.nativeTools.values()].map(t => ({

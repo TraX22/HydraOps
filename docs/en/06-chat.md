@@ -36,6 +36,19 @@ The channel history is kept across sessions, with its attachments and results. G
 
 While an agent works, the line under the dots shows **what it is doing** and for how long: "Searching “…”", "Reading cppreference.com/…", "Opening the skill deep-research", "Waiting for your approval"… Between tools it says "Thinking…". **show steps** lists everything it has done in that task so far, handy in long research to see what it searched and read. The reply's text appears when it is done.
 
+## Plan before doing
+
+For a big, costly or hard-to-undo request, put **`/plan`** in front: *`/plan research the idle game market in Argentina and make a short video to promote Idle Miner`*. The agent enters **plan mode**: it only has the tools that **read** (search, open pages, skills, GitHub lookups); sending, saving to memory, delegating, creating issues or skills and generating images or video **are not available** at that point — it is not just an instruction. It looks around as far as needed and hands you a **plan card**: the goal, the numbered steps with the tools each one uses (orange for the ones that act or cost, like generating a video) and the agent a step is delegated to, and the questions worth settling first.
+
+With the card you have four ways to go:
+
+- **Approve and run**: the task that does the work is created, with the full tools. The security rules still apply: if it reads outside content on the way, sensitive actions are held as usual.
+- **Edit**: the plan becomes text. Drop a step, reorder them or add a detail, and approve *that* version.
+- **Ask for a revision**: say what you would change without worrying about how it fits. The agent, still unable to act, returns the **next version in the same card**: steps marked *new*, *changed* or *removed*, and a note on **what the change implies** for the rest. The **v1 · v2 · v3** chips jump to each version.
+- **Discard**: nothing runs.
+
+While the chat's last message is a plan waiting for your OK, **what you type is taken as a revision** of it; the *Send as a new request* link sends it as a normal task. On Telegram the plan arrives with **▶ Approve / ✕ Discard**; editing and revising happen in the app.
+
 ## Stopping a task
 
 While an agent is working, a **Stop** button sits next to the "typing" dots. Press it and the task is **Cancelled** at once: the worker aborts the model call (a cloud model stops generating and billing output; your local model frees the GPU), no reply is saved and the agent is available again. It also works on tasks still queued behind another one: they are skipped when their turn comes. The `/cancel` command (or `/stop`) stops whatever is running in the chat where you type it, and works the same from Telegram.

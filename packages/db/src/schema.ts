@@ -26,6 +26,12 @@ export const tasks = sqliteTable("tasks", {
   // What the agent is doing while the task runs (steps: thinking, a tool with what it is
   // working on, a held action), written by the worker and shown under the typing dots.
   progress: text("progress", { mode: "json" }),
+  // /plan: "plan" = the agent only reads and proposes a plan (see @hydraops/addons plan.ts);
+  // null = a normal task. `plan` holds the proposal and its state; `planOf` links an
+  // execution task to the plan it carries out.
+  mode: text("mode"),
+  plan: text("plan", { mode: "json" }),
+  planOf: text("plan_of"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });

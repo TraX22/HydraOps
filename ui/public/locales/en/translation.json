@@ -122,6 +122,38 @@
       "tool": "Using {{tool}}",
       "showSteps": "show steps ({{n}})",
       "hideSteps": "hide steps"
+    },
+    "plan": {
+      "title": "Plan",
+      "status": {
+        "pending": "waiting for your OK",
+        "approved": "approved",
+        "discarded": "discarded",
+        "superseded": "superseded"
+      },
+      "approve": "Approve and run",
+      "approveThis": "Approve this version",
+      "edit": "Edit",
+      "revise": "Ask for a revision",
+      "discard": "Discard",
+      "editHint": "It's text: drop steps, reorder them or add details. What you approve is what runs.",
+      "revisePlaceholder": "What would you change? E.g. instead of the video, 3 images for Instagram",
+      "reviseHint": "The agent weighs your idea against the rest of the plan and comes back with the next version, changes marked and what they imply.",
+      "sendRevision": "Send for revision",
+      "questions": "Before starting",
+      "implications": "What the change implies",
+      "change": {
+        "added": "new",
+        "changed": "changed",
+        "removed": "removed"
+      },
+      "executing": "Carrying out the approved plan",
+      "showApproved": "show the plan",
+      "approvedTextLabel": "Approved text",
+      "discardConfirm": "Discard this plan? Nothing runs.",
+      "alreadyDecided": "This plan was already decided.",
+      "revisingHint": "Your message goes to the agent as a revision of plan v{{n}}.",
+      "sendAsNew": "Send as a new request instead"
     }
   },
   "agents": {
@@ -517,6 +549,7 @@
     "main": "Back to the main chat",
     "close": "Close the current tab",
     "delegate": "Create a task for another agent, from wherever you are",
+    "plan": "Ask the agent for a plan first: it only reads and proposes the steps; you approve, edit or revise them before anything runs",
     "tasks": "Latest tasks of this chat with their status",
     "status": "System health: version, services and providers with a key",
     "keys": "Which providers have an API key configured",
