@@ -8,6 +8,7 @@
  * already polls. The labels are built by the UI (localized), from the tool name and ref.
  */
 import { redactSecrets } from './guard.js';
+import type { VaultSummary } from './vault.js';
 
 export interface ProgressStep {
   kind: 'thinking' | 'tool' | 'held';
@@ -21,6 +22,8 @@ export interface ProgressStep {
 export interface TaskProgress {
   startedAt: string;
   steps: ProgressStep[];
+  /** Documents kept whole in the task vault so far (see vault.ts). */
+  vault?: VaultSummary;
 }
 
 /** Called by the registry around each tool call. */
@@ -39,6 +42,12 @@ const clipRef = (v: string) => {
 export function progressRef(toolName: string, args: unknown): string | undefined {
   const a = (args && typeof args === 'object' ? args : {}) as Record<string, unknown>;
   const str = (k: string) => (typeof a[k] === 'string' && (a[k] as string).trim() ? (a[k] as string) : undefined);
+  if (toolName === 'vault_read' || toolName === 'vault_find') {
+    const doc = typeof a['n'] === 'number' ? `#${a['n']}` : '';
+    const what = toolName === 'vault_read' ? str('section') : str('query');
+    const ref = [doc, what ? (toolName === 'vault_find' ? `«${what}»` : what) : ''].filter(Boolean).join(' · ');
+    return ref ? clipRef(ref) : undefined;
+  }
   if (toolName.startsWith('github')) {
     const repo = str('owner') && str('repo') ? `${str('owner')}/${str('repo')}` : str('repo') ?? str('query') ?? str('path');
     return repo ? clipRef(repo) : undefined;
@@ -59,13 +68,14 @@ export function progressRef(toolName: string, args: unknown): string | undefined
 export function createProgressTracker(persist: (p: TaskProgress) => unknown) {
   const now = () => new Date().toISOString();
   const state: TaskProgress = { startedAt: now(), steps: [{ kind: 'thinking', at: now() }] };
+  const snapshot = (): TaskProgress => ({ startedAt: state.startedAt, steps: [...state.steps], ...(state.vault ? { vault: { ...state.vault } } : {}) });
   let lastWrite = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   const write = () => {
     timer = null;
     lastWrite = Date.now();
-    try { Promise.resolve(persist({ startedAt: state.startedAt, steps: [...state.steps] })).catch(() => {}); } catch { /* ignore */ }
+    try { Promise.resolve(persist(snapshot())).catch(() => {}); } catch { /* ignore */ }
   };
   const schedule = () => {
     if (timer) return;
@@ -93,7 +103,9 @@ export function createProgressTracker(persist: (p: TaskProgress) => unknown) {
   write();
   return {
     sink,
-    snapshot: (): TaskProgress => ({ startedAt: state.startedAt, steps: [...state.steps] }),
+    snapshot,
+    /** The vault grew: the chat's counter follows. */
+    vault: (summary: VaultSummary) => { state.vault = { ...summary }; schedule(); },
     /** Stops pending writes (the task finished; the final result replaces the typing row). */
     stop: () => { if (timer) { clearTimeout(timer); timer = null; } },
   };

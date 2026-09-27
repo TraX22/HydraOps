@@ -121,7 +121,13 @@
       "video": "Génération de la vidéo (cela peut prendre quelques minutes)",
       "tool": "Utilise {{tool}}",
       "showSteps": "voir les étapes ({{n}})",
-      "hideSteps": "masquer les étapes"
+      "hideSteps": "masquer les étapes",
+      "vault": "coffre : {{n}}",
+      "vaultHint": "Résultats d'outils longs conservés en entier pour cette tâche (24 h). L'agent peut les relire avec vault_read / vault_find.",
+      "vaultRead": "Relecture du coffre {{ref}}",
+      "vaultReadNoRef": "Relecture du coffre",
+      "vaultFind": "Recherche dans le coffre {{ref}}",
+      "vaultFindNoRef": "Recherche dans le coffre"
     },
     "plan": {
       "title": "Plan",

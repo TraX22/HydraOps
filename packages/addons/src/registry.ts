@@ -5,6 +5,7 @@ import { guardTool } from './guard.js';
 import { extractSources, extractSeenUrls, type ToolSourceSink } from './sources.js';
 import { resolveToolRisk, type TaskSecurity, type ToolRisk } from './provenance.js';
 import type { ToolProgressSink } from './progress.js';
+import { createVaultTools, type TaskVault } from './vault.js';
 
 /**
  * Called once per tool invocation for usage tracking. `source` is native |
@@ -19,11 +20,15 @@ export type ToolUsageSink = (toolName: string, source: string, status: 'ok' | 'b
  * the ⛔ marker string (→ 'blocked'), a thrown error → 'error', anything else →
  * 'ok'. Tracking is best-effort and must never change what the model receives.
  *
- * The one thing that does change the result is `security` (see provenance.ts): a
- * tool that reads third-party content marks the task as tainted and hands its
- * result to the model wrapped in "data, not instructions" markers.
+ * Two things do change the result. `vault` (see vault.ts) keeps a long result whole
+ * on disk and hands the model a digest of it; without a vault a long result is cut
+ * at NO_VAULT_CAP, the old behaviour. `security` (see provenance.ts): a tool that
+ * reads third-party content marks the task as tainted and hands its result to the
+ * model wrapped in "data, not instructions" markers.
  */
-function instrumentTool(t: HydraTool, source: string, sink?: ToolUsageSink, sourceSink?: ToolSourceSink, security?: TaskSecurity, progress?: ToolProgressSink): HydraTool {
+const NO_VAULT_CAP = 8_000;
+
+function instrumentTool(t: HydraTool, source: string, sink?: ToolUsageSink, sourceSink?: ToolSourceSink, security?: TaskSecurity, progress?: ToolProgressSink, vault?: TaskVault): HydraTool {
   return {
     ...t,
     execute: async (args: any) => {
@@ -51,7 +56,8 @@ function instrumentTool(t: HydraTool, source: string, sink?: ToolUsageSink, sour
           } catch { /* best-effort */ }
         }
         // Last, so usage and sources above still see the tool's own output.
-        return security ? security.afterCall(t.name, risk, args, result) : result;
+        const shown = blocked ? result : vault ? await vault.store(t.name, args, result) : capWithoutVault(result);
+        return security ? security.afterCall(t.name, risk, args, shown) : shown;
       } catch (err) {
         try { sink?.(t.name, source, 'error'); } catch { /* ignore */ }
         throw err;
@@ -60,6 +66,11 @@ function instrumentTool(t: HydraTool, source: string, sink?: ToolUsageSink, sour
       }
     },
   };
+}
+
+function capWithoutVault(result: unknown): unknown {
+  if (typeof result !== 'string' || result.length <= NO_VAULT_CAP) return result;
+  return result.slice(0, NO_VAULT_CAP) + `\n[result cut at ${NO_VAULT_CAP} characters]`;
 }
 
 export class ToolRegistry {
@@ -145,15 +156,17 @@ export class ToolRegistry {
   // wrappers, so it reaches the tool untouched and callers never pass it per call.
   // `security` is the task's prompt-injection state (see provenance.ts); pass the
   // SAME object to getRawTools and getAiSdkTools so both views share one taint.
-  getRawTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink, context?: ToolContext, sourceSink?: ToolSourceSink, security?: TaskSecurity, progress?: ToolProgressSink): HydraTool[] {
+  // `vault` (see vault.ts) keeps long results whole; when given, the model also gets
+  // the vault_read / vault_find tools, instrumented like the rest.
+  getRawTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink, context?: ToolContext, sourceSink?: ToolSourceSink, security?: TaskSecurity, progress?: ToolProgressSink, vault?: TaskVault): HydraTool[] {
     const activeTools: HydraTool[] = [];
 
     const bind = (t: HydraTool): HydraTool =>
       context ? { ...t, execute: (args: any) => t.execute(args, context) } : t;
-    const finalize = (t: HydraTool, source: string) => {
-      const bound = bind(t);
-      return sink || sourceSink || security || progress ? instrumentTool(guardTool(bound), source, sink, sourceSink, security, progress) : guardTool(bound);
-    };
+    // Every tool leaves through instrumentTool, even with no sinks: it is where a long
+    // result is capped (or vaulted) — the single exit point for size as well.
+    const finalize = (t: HydraTool, source: string) =>
+      instrumentTool(guardTool(bind(t)), source, sink, sourceSink, security, progress, vault);
 
     for (const name of allowedNames) {
       const nt = this.nativeTools.get(name);
@@ -170,13 +183,16 @@ export class ToolRegistry {
         activeTools.push(finalize(mt, 'mcp'));
       }
     }
+    if (vault && activeTools.length) {
+      for (const vt of createVaultTools(vault)) activeTools.push(finalize(vt, 'native'));
+    }
 
     return activeTools;
   }
 
   // Returns the tools in the shape the Vercel AI SDK expects
-  getAiSdkTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink, context?: ToolContext, sourceSink?: ToolSourceSink, security?: TaskSecurity, progress?: ToolProgressSink) {
-    const rawTools = this.getRawTools(allowedNames, globalNativeState, sink, context, sourceSink, security, progress);
+  getAiSdkTools(allowedNames: string[], globalNativeState: Record<string, boolean>, sink?: ToolUsageSink, context?: ToolContext, sourceSink?: ToolSourceSink, security?: TaskSecurity, progress?: ToolProgressSink, vault?: TaskVault) {
+    const rawTools = this.getRawTools(allowedNames, globalNativeState, sink, context, sourceSink, security, progress, vault);
     if (rawTools.length === 0) return undefined;
     
     const aiTools: Record<string, any> = {};

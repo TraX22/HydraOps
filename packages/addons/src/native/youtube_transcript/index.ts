@@ -18,7 +18,8 @@ const INNERTUBE_KEY = "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w"; // public Inner
 const IOS_UA = "com.google.ios.youtube/20.03.02 (iPhone16,2; U; CPU iOS 18_2_1 like Mac OS X)";
 const IOS_CLIENT = { clientName: "IOS", clientVersion: "20.03.02", deviceModel: "iPhone16,2", hl: "en", gl: "US" };
 
-const MAX_OUTPUT = 15000;
+// Whole transcripts go to the task vault (see ../../vault.ts); this only stops a runaway one.
+const MAX_OUTPUT = 300_000;
 
 // Accepts a full YouTube URL (watch, youtu.be, shorts, embed, live) or a bare
 // 11-character video id.

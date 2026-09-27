@@ -121,7 +121,13 @@
       "video": "Genera il video (può richiedere qualche minuto)",
       "tool": "Usa {{tool}}",
       "showSteps": "mostra i passi ({{n}})",
-      "hideSteps": "nascondi i passi"
+      "hideSteps": "nascondi i passi",
+      "vault": "baule: {{n}}",
+      "vaultHint": "Risultati lunghi degli strumenti conservati interi per questo compito (24 h). L'agente può rileggerli con vault_read / vault_find.",
+      "vaultRead": "Rilettura dal baule {{ref}}",
+      "vaultReadNoRef": "Rilettura dal baule",
+      "vaultFind": "Ricerca nel baule {{ref}}",
+      "vaultFindNoRef": "Ricerca nel baule"
     },
     "plan": {
       "title": "Piano",

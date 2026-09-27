@@ -23,14 +23,14 @@ import {
   docsDir,
   envFile,
   keyStoreFile,
-  readLocalLlmEnv, scenesDir, skillsDir } from "@hydraops/config";
+  readLocalLlmEnv, scenesDir, skillsDir, resultsDir } from "@hydraops/config";
 
 loadDotenv({ path: envFile });
 
 import {
   createRegistry, rememberTool, listInstalledSkills, readSkillFile, scanSkill, writeSkillFolder, deleteSkill,
   isValidSkillName, isAllowedSkillPath, skillFilePath, SKILL_LIMITS, builtinSkillNames,
-  renderPlanText, executionPrompt, type Plan,
+  renderPlanText, executionPrompt, type Plan, sweepVaults,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
 import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, searchAgentTasks } from "@hydraops/db";
@@ -3754,6 +3754,19 @@ async function sweepPendingActions(): Promise<void> {
 }
 setTimeout(() => void sweepPendingActions(), 15_000).unref();
 setInterval(() => void sweepPendingActions(), 60_000).unref();
+
+// The task vaults (long tool results kept whole, see @hydraops/addons vault.ts) live
+// 24 h: long enough to re-read them in a follow-up, short enough not to pile up.
+async function sweepTaskVaults(): Promise<void> {
+  try {
+    const removed = await sweepVaults(resultsDir);
+    if (removed) console.log(`[api] removed ${removed} task vault(s) older than 24 h`);
+  } catch (err) {
+    console.warn("[api] vault sweep failed", err);
+  }
+}
+setTimeout(() => void sweepTaskVaults(), 30_000).unref();
+setInterval(() => void sweepTaskVaults(), 60 * 60_000).unref();
 
 api.get("/security/events", securityLimiter, async (req, res) => {
   try {
