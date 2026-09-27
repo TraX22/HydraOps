@@ -105,13 +105,26 @@ export function detectSections(text: string): string[] {
  * underlined with `===` or `---`, which is how turndown writes h1/h2 for web pages).
  */
 function headingAt(lines: string[], i: number): { level: number; title: string; lines: number } | null {
-  const atx = /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(lines[i]);
-  if (atx) return { level: atx[1].length, title: atx[2], lines: 1 };
-  const under = lines[i + 1];
-  if (under && lines[i].trim() && !/^[\s>*+-]|^\d+\./.test(lines[i]) && /^(=+|-+)\s*$/.test(under) && under.trim().length >= 3) {
-    return { level: under.trim()[0] === '=' ? 1 : 2, title: lines[i], lines: 2 };
+  const atx = atxHeading(lines[i]);
+  if (atx) return { ...atx, lines: 1 };
+  const under = (lines[i + 1] ?? '').trim();
+  const isRule = under.length >= 3 && (under === '='.repeat(under.length) || under === '-'.repeat(under.length));
+  if (isRule && lines[i].trim() && !/^[\s>*+-]|^\d+\./.test(lines[i])) {
+    return { level: under[0] === '=' ? 1 : 2, title: lines[i], lines: 2 };
   }
   return null;
+}
+
+/** `## Title ##` → level 2, "Title". Parsed by hand: a regex here is polynomial on long runs of spaces. */
+function atxHeading(line: string): { level: number; title: string } | null {
+  let level = 0;
+  while (level < line.length && line[level] === '#') level++;
+  if (level === 0 || level > 6 || (line[level] !== ' ' && line[level] !== '\t')) return null;
+  let title = line.slice(level + 1).trim();
+  let end = title.length;
+  while (end > 0 && title[end - 1] === '#') end--;
+  title = title.slice(0, end).trim();
+  return title ? { level, title } : null;
 }
 
 /** Cuts at the last line break before `max`, so the head does not end mid-word. */
