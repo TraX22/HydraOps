@@ -99,6 +99,9 @@
                   <span class="ws-icon">⏳</span>
                   <span class="ws-text">{{ 'chat.progress.queued' | translate }}</span>
                 }
+                @if (msg.progress?.vault?.docs; as docs) {
+                  <span class="ws-vault" [title]="'chat.progress.vaultHint' | translate">🗄️ {{ 'chat.progress.vault' | translate: { n: docs } }}</span>
+                }
                 <span class="ws-time">{{ elapsed(msg) }}</span>
               </div>
               @if ((msg.progress?.steps?.length ?? 0) > 1) {

@@ -121,7 +121,13 @@
       "video": "Gerando o vídeo (pode levar alguns minutos)",
       "tool": "Usando {{tool}}",
       "showSteps": "ver etapas ({{n}})",
-      "hideSteps": "ocultar etapas"
+      "hideSteps": "ocultar etapas",
+      "vault": "baú: {{n}}",
+      "vaultHint": "Resultados longos de ferramentas guardados inteiros para esta tarefa (24 h). O agente pode relê-los com vault_read / vault_find.",
+      "vaultRead": "Relendo do baú {{ref}}",
+      "vaultReadNoRef": "Relendo do baú",
+      "vaultFind": "Buscando no baú {{ref}}",
+      "vaultFindNoRef": "Buscando no baú"
     },
     "plan": {
       "title": "Plano",

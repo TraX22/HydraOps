@@ -7,7 +7,9 @@ import { assertPublicUrl } from "../../guard.js";
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
 
-const MAX_OUTPUT = 4000;
+// The registry's vault keeps the whole page and digests it for the model (see
+// ../../vault.ts); this only stops a runaway page from being read to the end.
+const MAX_OUTPUT = 200_000;
 
 // Redirecciones seguidas a mano para poder validar CADA salto contra el guard
 // SSRF — un redirect a 127.0.0.1/red privada no debe colarse.

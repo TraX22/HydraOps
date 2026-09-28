@@ -16,7 +16,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
 import { AckPolicy } from "nats";
 
 const WORKER_TYPE = "general";
@@ -388,6 +388,8 @@ ${EXTERNAL_CONTENT_RULE}
     // From then on a sensitive call is HELD for the user's approval (mode 'ask').
     // What the agent is doing, shown under the chat's typing dots (see @hydraops/addons progress.ts).
     const progress = createProgressTracker((p) => (db as any).update(tasks).set({ progress: p }).where(eq(tasks.id, taskId!)).run());
+    // Long tool results are kept whole here and digested for the model (see @hydraops/addons vault.ts).
+    const vault = createTaskVault({ dir: path.join(storageDir, "results", taskId!, "vault"), onChange: (s) => progress.vault(s) });
     const taskSecurity = createTaskSecurity({
       mode: resolveSecurityMode(getGlobalConfig("security_mode", "ask"), cfgRows[0]?.securityMode),
       // One image per task is bound elsewhere; a video is held (it is the costly one).
@@ -411,8 +413,8 @@ ${EXTERNAL_CONTENT_RULE}
     // Installed skills, by name and description, for an agent that may use them (the
     // full text is opened on demand with skills_view; see @hydraops/addons skills.ts).
     const skillsSection = await skillsPromptSection(allowedTools.filter((n: string) => nativeState[n] !== false)).catch(() => "");
-    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink);
-    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink);
+    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink, vault);
+    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink, vault);
     let proposedPlan: unknown = null;
     const planTools = planMode ? createPlanTools((proposal) => { proposedPlan = proposal; }) : null;
     const planSection = planMode ? planModePrompt({ toolNames: allowedTools, previous: planPrevious ?? undefined, userNotes: planPrevious ? userPrompt : undefined, version: planVersion }) : "";
@@ -492,7 +494,7 @@ ${EXTERNAL_CONTENT_RULE}
       .set({
         status: "completed",
         ...(plan ? { plan } : {}),
-        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, completedAt: new Date().toISOString(), ...(plan ? { plan } : {}), ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), seenUrls: sourceCollector.seen(), ...(skillsUsed.length ? { skillsUsed } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) },
+        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, completedAt: new Date().toISOString(), ...(plan ? { plan } : {}), ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), seenUrls: sourceCollector.seen(), ...(skillsUsed.length ? { skillsUsed } : {}), ...(vault.summary().docs ? { vault: vault.summary() } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) },
         updatedAt: new Date(),
       })
       .where(and(eq(tasks.id, taskId), ne(tasks.status, "cancelled")));

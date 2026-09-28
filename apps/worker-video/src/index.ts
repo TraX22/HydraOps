@@ -18,7 +18,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, generateVideo, resolveLLMConfig, buildUserMessage, GROK_VIDEO_ASPECTS, isGrokVideoEngine } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
 import { tool } from "ai";
 import { z } from "zod";
 import { AckPolicy } from "nats";
@@ -483,6 +483,8 @@ ${EXTERNAL_CONTENT_RULE}
     // From then on a sensitive call is HELD for the user's approval (mode 'ask').
     // What the agent is doing, shown under the chat's typing dots (see @hydraops/addons progress.ts).
     const progress = createProgressTracker((p) => (db as any).update(tasks).set({ progress: p }).where(eq(tasks.id, taskId!)).run());
+    // Long tool results are kept whole here and digested for the model (see @hydraops/addons vault.ts).
+    const vault = createTaskVault({ dir: path.join(storageDir, "results", taskId!, "vault"), onChange: (s) => progress.vault(s) });
     const taskSecurity = createTaskSecurity({
       mode: resolveSecurityMode(getGlobalConfig("security_mode", "ask"), agentCfg?.securityMode),
       // One image per task is bound elsewhere; a video is held (it is the costly one).
@@ -506,8 +508,8 @@ ${EXTERNAL_CONTENT_RULE}
     // Installed skills, by name and description, for an agent that may use them (the
     // full text is opened on demand with skills_view; see @hydraops/addons skills.ts).
     const skillsSection = await skillsPromptSection(allowedTools.filter((n: string) => nativeState[n] !== false)).catch(() => "");
-    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink);
-    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink);
+    const aiTools = globalRegistry.getAiSdkTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink, vault);
+    const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink, vault);
     let proposedPlan: unknown = null;
     const planTools = planMode ? createPlanTools((proposal) => { proposedPlan = proposal; }) : null;
     const planSection = planMode ? planModePrompt({ toolNames: allowedTools, previous: planPrevious ?? undefined, userNotes: planPrevious ? userPrompt : undefined, version: planVersion }) : "";
@@ -611,7 +613,7 @@ ${EXTERNAL_CONTENT_RULE}
     progress.stop();
     const installedSkillNames = skillsOpened.size ? new Set((await listInstalledSkills().catch(() => [])).map((k) => k.name)) : new Set<string>();
     const skillsUsed = [...skillsOpened].filter((n) => installedSkillNames.has(n));
-    resultMeta = { text: finalText, usage, success, error, errorCode, modelUsed: llmConfig.model, ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), seenUrls: sourceCollector.seen(), ...(skillsUsed.length ? { skillsUsed } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) };
+    resultMeta = { text: finalText, usage, success, error, errorCode, modelUsed: llmConfig.model, ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), seenUrls: sourceCollector.seen(), ...(skillsUsed.length ? { skillsUsed } : {}), ...(vault.summary().docs ? { vault: vault.summary() } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) };
     if (rendered.video) {
       Object.assign(resultMeta, {
         videoPath: rendered.video.relPath,

@@ -112,12 +112,12 @@ function killTransport(transport: any): void {
 }
 
 // --- Tool-result sanitisation ---
-// Overall cap on the text an MCP result injects into the model's context.
-// Without it, a Playwright screenshot (an `image` part with base64) or a full
-// DOM snapshot got dumped raw (100k+ tokens) and overflowed the context window
-// of local models, wrecking the response. Mirrors fetch_url's MAX_OUTPUT, with
-// a bit more headroom for legitimate text.
-const MAX_MCP_OUTPUT = 8_000;
+// Overall cap on the text an MCP result can produce. A Playwright screenshot (an
+// `image` part with base64) or a full DOM snapshot used to be dumped raw (100k+
+// tokens) and overflow the context window of local models; images are replaced by
+// markers below, and the text goes whole to the task vault, which hands the model a
+// digest (see vault.ts). This only stops a runaway result.
+const MAX_MCP_OUTPUT = 200_000;
 
 // Estimates the size (KB) of a non-text part's original payload for the marker,
 // without dumping its content. Base64 ≈ 3/4 of the real bytes.

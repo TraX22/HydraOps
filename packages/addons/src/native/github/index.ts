@@ -12,7 +12,8 @@ import { HydraTool } from "../../types.js";
 // in Herramientas → GitHub. The guard additionally redacts GitHub token shapes
 // from any tool output as a safety net.
 
-const MAX_OUTPUT = 12000;
+// Long outputs go whole to the task vault (see ../../vault.ts); this only stops a runaway one.
+const MAX_OUTPUT = 200_000;
 const UA = "HydraOps";
 
 function proxyBase(): string {

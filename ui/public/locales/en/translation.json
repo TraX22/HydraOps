@@ -121,7 +121,13 @@
       "video": "Generating the video (this can take a few minutes)",
       "tool": "Using {{tool}}",
       "showSteps": "show steps ({{n}})",
-      "hideSteps": "hide steps"
+      "hideSteps": "hide steps",
+      "vault": "vault: {{n}}",
+      "vaultHint": "Long tool results kept whole for this task (24 h). The agent can read them again with vault_read / vault_find.",
+      "vaultRead": "Reading back from the vault {{ref}}",
+      "vaultReadNoRef": "Reading back from the vault",
+      "vaultFind": "Searching the vault {{ref}}",
+      "vaultFindNoRef": "Searching the vault"
     },
     "plan": {
       "title": "Plan",

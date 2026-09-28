@@ -36,6 +36,12 @@ The channel history is kept across sessions, with its attachments and results. G
 
 While an agent works, the line under the dots shows **what it is doing** and for how long: "Searching “…”", "Reading cppreference.com/…", "Opening the skill deep-research", "Waiting for your approval"… Between tools it says "Thinking…". **show steps** lists everything it has done in that task so far, handy in long research to see what it searched and read. The reply's text appears when it is done.
 
+## The task vault
+
+A whole web page, an hour-long transcript or a long list of issues does not fit in a model's working memory; until now each tool cut its result (a page at 4,000 characters) and whatever fell off was gone: a long research task ended up "remembering" the first screen of everything it read. Now **every long result is kept whole** in the task's vault and the agent gets a digest: the beginning of the text, the index of its sections and a `[vault #3 · 42 KB]` marker. With **`vault_read`** it keeps reading (the whole document, one section or from a given point) and with **`vault_find`** it searches what it stored for a word. While it works, the progress row shows **vault: 7** (how many documents it has stored so far).
+
+The vault lives in `storage/results/<task>/vault/` and is removed after **24 hours**: enough to come back to a task the next day without piling up. What the agent reads back from the vault arrives marked as outside data, just as it did the first time (see [Security](./13-security.md)).
+
 ## Plan before doing
 
 For a big, costly or hard-to-undo request, put **`/plan`** in front: *`/plan research the idle game market in Argentina and make a short video to promote Idle Miner`*. The agent enters **plan mode**: it only has the tools that **read** (search, open pages, skills, GitHub lookups); sending, saving to memory, delegating, creating issues or skills and generating images or video **are not available** at that point — it is not just an instruction. It looks around as far as needed and hands you a **plan card**: the goal, the numbered steps with the tools each one uses (orange for the ones that act or cost, like generating a video) and the agent a step is delegated to, and the questions worth settling first.

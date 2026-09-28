@@ -36,6 +36,12 @@ El historial del canal se conserva entre sesiones, con sus adjuntos y resultados
 
 Mientras un agente trabaja, debajo de los puntitos se ve **lo que está haciendo** y cuánto tiempo lleva: "Buscando «…»", "Leyendo cppreference.com/…", "Abriendo la skill deep-research", "Esperando tu aprobación"… Entre herramienta y herramienta dice "Pensando…". **ver pasos** despliega todo lo que hizo en esa tarea hasta ahora, útil en investigaciones largas para saber qué buscó y qué leyó. El texto de la respuesta aparece recién cuando termina.
 
+## El baúl de la tarea
+
+Una página web entera, una transcripción de una hora o una lista larga de issues no entran en la memoria de trabajo de un modelo; hasta ahora cada herramienta recortaba su resultado (una página a 4 000 caracteres) y lo que sobraba se perdía: una investigación larga terminaba "recordando" la primera pantalla de cada cosa que leyó. Ahora **cada resultado largo se guarda entero** en el baúl de la tarea y el agente recibe un resumen: el comienzo del texto, el índice de secciones y una marca `[baúl #3 · 42 KB]`. Con **`vault_read`** sigue leyendo (todo el documento, una sección o desde un punto) y con **`vault_find`** busca una palabra en lo que guardó. Mientras trabaja, la fila de progreso muestra **baúl: 7** (cuántos documentos lleva guardados).
+
+El baúl vive en `storage/results/<tarea>/vault/` y se borra a las **24 horas**: lo justo para volver sobre una tarea al día siguiente sin que se acumule. Lo que el agente relee del baúl llega marcado como dato externo, igual que cuando lo leyó por primera vez (ver [Seguridad](./13-security.md)).
+
 ## Planificar antes de hacer
 
 Para un pedido grande, caro o difícil de deshacer, escribí **`/plan`** delante: *`/plan investigá el mercado de juegos idle en Argentina y armá un video corto para promocionar Idle Miner`*. El agente entra en **modo plan**: solo tiene las herramientas que **leen** (buscar, abrir páginas, skills, consultar GitHub); enviar, guardar en memoria, delegar, crear issues o skills y generar imágenes o video **no están disponibles** en ese momento, no es solo una instrucción. Investiga lo justo y te devuelve una **tarjeta con el plan**: el objetivo, los pasos numerados con las herramientas que va a usar en cada uno (en naranja las que actúan o cuestan, como generar un video) y a qué agente delega, y las dudas que conviene aclarar antes.

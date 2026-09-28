@@ -121,7 +121,13 @@
       "video": "Generando el video (puede tardar unos minutos)",
       "tool": "Usando {{tool}}",
       "showSteps": "ver pasos ({{n}})",
-      "hideSteps": "ocultar pasos"
+      "hideSteps": "ocultar pasos",
+      "vault": "baúl: {{n}}",
+      "vaultHint": "Resultados largos de herramientas guardados enteros para esta tarea (24 h). El agente puede releerlos con vault_read / vault_find.",
+      "vaultRead": "Releyendo del baúl {{ref}}",
+      "vaultReadNoRef": "Releyendo del baúl",
+      "vaultFind": "Buscando en el baúl {{ref}}",
+      "vaultFindNoRef": "Buscando en el baúl"
     },
     "plan": {
       "title": "Plan",
