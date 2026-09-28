@@ -55,6 +55,9 @@ export class ChatComponent implements OnInit, OnDestroy {
   // Last tab the auto-scroll effect saw, to tell "opened a chat" apart from
   // "a new message arrived in the current one".
   private lastScrolledTab = '';
+  // What the auto-scroll effect last saw of the current chat (length + last message +
+  // whether it was still typing): a poll that changes none of it must not scroll.
+  private lastScrollKey = '';
 
   // Upgrades ```mermaid blocks in rendered messages to SVG diagrams.
   private stopMermaid?: () => void;
@@ -71,17 +74,24 @@ export class ChatComponent implements OnInit, OnDestroy {
       this.attachments.set(this.chat.getPendingAttachments(tab));
     });
     // Opening or switching to a chat jumps to the latest message (not the first).
-    // New messages in the current chat only pull the view down while the user is
-    // already near the bottom, so scrolling up to read older history isn't undone.
+    // A new message in the current chat (or a reply that just finished) pulls the view
+    // down only while the user is already near the bottom, so scrolling up to read older
+    // history isn't undone. The history is polled every couple of seconds and each poll
+    // replaces the list, so the effect re-runs constantly: it only acts when the last
+    // message actually changed, never on a poll that brought the same thing again
+    // (that used to yank the view back to the start of a long reply while reading it).
     effect(() => {
       const tab = this.chat.activeTab();
-      // Read the map so the effect also re-runs when this chat's history loads.
-      const count = (this.chat.messagesByChannel()[tab] ?? []).length;
+      const list = this.chat.messagesByChannel()[tab] ?? [];
+      const last = list[list.length - 1];
+      const key = `${tab}|${list.length}|${last?.id ?? ''}|${last?.isTyping ? 't' : ''}`;
       const opened = tab !== this.lastScrolledTab;
+      const changed = key !== this.lastScrollKey;
       this.lastScrolledTab = tab;
-      if (!opened && count === 0) return;
+      this.lastScrollKey = key;
+      if (!opened && list.length === 0) return;
       if (opened) this.scrollToBottom('auto');
-      else if (this.isNearBottom()) this.scrollToLatest();
+      else if (changed && this.isNearBottom()) this.scrollToLatest();
     });
   }
 
