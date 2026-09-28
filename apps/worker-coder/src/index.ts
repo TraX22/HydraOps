@@ -14,7 +14,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
 
 const env = loadEnv({ ...process.env, SERVICE_NAME: process.env.SERVICE_NAME ?? "worker-coder" });
 const consumerName = env.SERVICE_NAME;
@@ -498,7 +498,9 @@ ${EXTERNAL_CONTENT_RULE}
     // What the agent is doing, shown under the chat's typing dots (see @hydraops/addons progress.ts).
     const progress = createProgressTracker((p) => (db as any).update(tasks).set({ progress: p }).where(eq(tasks.id, taskId!)).run());
     // Long tool results are kept whole here and digested for the model (see @hydraops/addons vault.ts).
-    const vault = createTaskVault({ dir: path.join(resultsDir, taskId!, "vault"), onChange: (s) => progress.vault(s) });
+    const vault = createTaskVault({ dir: path.join(resultsDir, taskId!, "vault"), onChange: (s) => progress.vault(s), budgetChars: vaultBudgetChars(llmConfig.provider) });
+    // A task carrying out a plan starts with what the planning task already read.
+    if (taskRows[0]?.planOf) await vault.importFrom(path.join(resultsDir, String(taskRows[0].planOf), "vault")).catch(() => 0);
     const taskSecurity = createTaskSecurity({
       mode: resolveSecurityMode(getGlobalConfig("security_mode", "ask"), cfgRows[0]?.securityMode),
       // One image per task is bound elsewhere; a video is held (it is the costly one).
@@ -555,10 +557,10 @@ ${EXTERNAL_CONTENT_RULE}
       llmGenerateText(
         llmConfig,
         finalMessages,
-        systemPrompt + skillsSection + planSection + cronDedup,
+        systemPrompt + skillsSection + planSection + cronDedup + vault.promptSection(),
         planTools ? { ...aiTools, ...planTools.ai } : aiTools,
         planTools ? [...rawTools, ...planTools.raw] : rawTools,
-        { abortSignal: controller.signal }
+        { abortSignal: controller.signal, prepareStep: (step: any) => vault.prepareStep(step) }
       ),
       LLM_TIMEOUT_MS(llmConfig.provider),
       `LLM call (${llmConfig.provider}:${llmConfig.model})`,

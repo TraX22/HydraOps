@@ -47,6 +47,20 @@ export interface VaultEntry {
 export interface VaultSummary {
   docs: number;
   chars: number;
+  /** Findings the agent wrote down with vault_note. */
+  notes?: number;
+  /** Tool results replaced by a stub in the conversation because the budget was hit. */
+  compactions?: number;
+}
+
+/** What prepareStep hands over and takes back (the AI SDK's own types stay out of this package). */
+export interface StepMessages {
+  messages: unknown[];
+  initialInstructions?: unknown;
+}
+export interface StepOverrides {
+  messages?: unknown[];
+  system?: string;
 }
 
 export interface TaskVault {
@@ -54,6 +68,19 @@ export interface TaskVault {
   store(toolName: string, args: unknown, result: unknown): Promise<unknown>;
   read(n: number, opts?: { section?: string; from?: number }): Promise<string>;
   find(query: string, n?: number): Promise<string>;
+  /** A finding worth keeping (vault_note): persisted, and repeated to the model on every step. */
+  note(text: string): Promise<string>;
+  notes(): string[];
+  /** Brings in another task's vault (the plan this task carries out): its documents keep their numbers. */
+  importFrom(dir: string): Promise<number>;
+  /** For the system prompt: the documents already in the vault and the notes so far ('' when empty). */
+  promptSection(): string;
+  /**
+   * The AI SDK `prepareStep` hook: before each model call, tool results older than the last
+   * rounds are replaced by a stub once they exceed the budget (they stay in the vault), and
+   * the notes ride along in the system prompt.
+   */
+  prepareStep(step: StepMessages): StepOverrides | undefined;
   list(): VaultEntry[];
   summary(): VaultSummary;
 }
@@ -63,7 +90,23 @@ export interface TaskVaultOptions {
   dir: string;
   /** Called after each stored document (the worker feeds the chat's counter). */
   onChange?: (summary: VaultSummary) => void;
+  /** How much tool-result text may travel in the conversation before older results are compacted. */
+  budgetChars?: number;
 }
+
+/**
+ * The budget for one task's tool results in context: ~22k tokens for an API model, less
+ * for a local one (small windows), overridable with HYDRA_TOOL_CONTEXT_CHARS.
+ */
+export function vaultBudgetChars(provider?: string): number {
+  const env = Number(process.env.HYDRA_TOOL_CONTEXT_CHARS);
+  if (env > 0) return env;
+  return provider === 'local' ? 40_000 : 90_000;
+}
+const KEEP_ROUNDS = 2;
+const MAX_NOTES = 60;
+const MAX_NOTE_CHARS = 600;
+const STUB_MARK = '· compacted:';
 
 const toText = (value: unknown): string => {
   if (typeof value === 'string') return value;
@@ -164,13 +207,73 @@ function sectionText(text: string, wanted: string): string | null {
   return start < 0 ? null : lines.slice(start).join('\n');
 }
 
+/** The text of a tool-result part as the model sees it (AI SDK: `output.value` text or JSON). */
+function toolResultText(part: any): string | null {
+  if (!part || part.type !== 'tool-result') return null;
+  const out = part.output;
+  if (out && typeof out === 'object' && 'value' in out) return typeof out.value === 'string' ? out.value : toText(out.value);
+  if (typeof part.result === 'string') return part.result;
+  return part.result === undefined ? null : toText(part.result);
+}
+
+function withToolResultText(part: any, text: string): any {
+  if (part.output && typeof part.output === 'object' && 'value' in part.output) return { ...part, output: { ...part.output, type: 'text', value: text } };
+  return { ...part, result: text };
+}
+
+/**
+ * Replaces the oldest vaulted tool results in `messages` with a one-line stub until the
+ * text of all tool results fits `budgetChars`; the last KEEP_ROUNDS tool messages are left
+ * alone. Only results that carry a `[vault #n` marker are touched: they are on disk and
+ * vault_read brings them back. Returns the new list and the numbers compacted this time.
+ */
+export function compactToolMessages(messages: unknown[], budgetChars: number, entryOf: (n: number) => VaultEntry | undefined): { messages: unknown[]; compacted: number[] } {
+  const msgs = messages as any[];
+  const toolIdx = msgs.map((m, i) => (m?.role === 'tool' && Array.isArray(m.content) ? i : -1)).filter((i) => i >= 0);
+  const out = [...msgs];
+  const size = () => out.reduce((n, m) => (m?.role === 'tool' && Array.isArray(m.content) ? n + m.content.reduce((k: number, p: any) => k + (toolResultText(p)?.length ?? 0), 0) : n), 0);
+  const compacted: number[] = [];
+  if (size() <= budgetChars) return { messages, compacted };
+  const candidates = toolIdx.slice(0, Math.max(0, toolIdx.length - KEEP_ROUNDS));
+  for (const i of candidates) {
+    if (size() <= budgetChars) break;
+    const m = out[i];
+    const content = m.content.map((p: any) => {
+      const text = toolResultText(p);
+      const mark = text ? /\[vault #(\d+) · /.exec(text) : null;
+      if (!mark || text!.includes(STUB_MARK) || text!.length < 400) return p;
+      const n = Number(mark[1]);
+      const e = entryOf(n);
+      compacted.push(n);
+      const label = e ? `${e.tool}${e.ref ? ` · ${e.ref}` : ''} · ${kb(e.chars)}` : 'stored result';
+      return withToolResultText(p, `[vault #${n} · ${label} ${STUB_MARK} the text was removed from this conversation to save room; it is still in the vault. Do not fetch it again: vault_read(n=${n}) or vault_find(query, n=${n}) bring it back.]`);
+    });
+    out[i] = { ...m, content };
+  }
+  return { messages: out, compacted };
+}
+
 export function createTaskVault(options: TaskVaultOptions): TaskVault {
   const entries: VaultEntry[] = [];
   const cache = new Map<number, string>();
+  const notes: string[] = [];
+  let nextN = 1;
+  // Documents compacted so far: the SDK rebuilds the messages from the steps before each
+  // call, so the same result is stubbed again every step; it counts (and logs) once.
+  const compacted = new Set<number>();
+  let imported = 0;
   let ready: Promise<void> | null = null;
   const ensureDir = () => (ready ??= mkdir(options.dir, { recursive: true }).then(() => undefined));
   const file = (n: number) => path.join(options.dir, `${n}.txt`);
-  const summary = (): VaultSummary => ({ docs: entries.length, chars: entries.reduce((a, e) => a + e.chars, 0) });
+  const summary = (): VaultSummary => ({
+    docs: entries.length,
+    chars: entries.reduce((a, e) => a + e.chars, 0),
+    ...(notes.length ? { notes: notes.length } : {}),
+    ...(compacted.size ? { compactions: compacted.size } : {}),
+  });
+  const saveIndex = () => writeFile(path.join(options.dir, 'index.json'), JSON.stringify({ entries }, null, 2), 'utf-8').catch(() => {});
+  const saveNotes = () => writeFile(path.join(options.dir, 'notes.md'), notes.map((n, i) => `${i + 1}. ${n}`).join('\n') + '\n', 'utf-8').catch(() => {});
+  const changed = () => { try { options.onChange?.(summary()); } catch { /* the counter never breaks a call */ } };
 
   const load = async (n: number): Promise<string | null> => {
     const hit = cache.get(n);
@@ -195,6 +298,19 @@ export function createTaskVault(options: TaskVaultOptions): TaskVault {
     );
   };
 
+  const promptSectionOf = (): string => {
+    const parts: string[] = [];
+    if (imported) {
+      const docs = entries.map((e) => `#${e.n} ${e.tool}${e.ref ? ` (${e.ref})` : ''}, ${kb(e.chars)}${e.sections.length ? `, sections: ${e.sections.slice(0, 8).map((s) => `"${s}"`).join(', ')}` : ''}`);
+      parts.push(
+        `Documents already in this task's vault, read while planning:\n${docs.map((d) => `- ${d}`).join('\n')}\n` +
+        `Any plan step that says to open, fetch or read these pages is already done: do not fetch them again, use vault_read(n=…) or vault_find on them.`,
+      );
+    }
+    if (notes.length) parts.push(`Your notes so far (vault_note):\n${notes.map((n, i) => `${i + 1}. ${n}`).join('\n')}`);
+    return parts.length ? `\n\n## Task vault\n${parts.join('\n\n')}` : '';
+  };
+
   return {
     async store(toolName, args, result) {
       // The vault tools read the vault; storing their output would loop.
@@ -202,27 +318,91 @@ export function createTaskVault(options: TaskVaultOptions): TaskVault {
       let text = toText(result);
       if (text.length <= VAULT_MIN_CHARS || entries.length >= MAX_DOCS) return result;
       if (text.length > VAULT_MAX_CHARS) text = text.slice(0, VAULT_MAX_CHARS) + `\n[cut at ${VAULT_MAX_CHARS} characters]`;
+      // Tools run in parallel: the number is taken synchronously, before any await, so
+      // three pages fetched at once get #1, #2 and #3 and not the same file.
       const entry: VaultEntry = {
-        n: entries.length + 1,
+        n: nextN++,
         tool: toolName,
         ref: progressRef(toolName, args),
         chars: text.length,
         sections: detectSections(text),
         at: new Date().toISOString(),
       };
+      entries.push(entry);
+      cache.set(entry.n, text);
       try {
         await ensureDir();
         await writeFile(file(entry.n), text, 'utf-8');
       } catch (err) {
         // Disk trouble must not cost the task its result: the model gets the old-style cut.
         console.warn(`[vault] could not store the ${toolName} result`, err);
+        entries.splice(entries.indexOf(entry), 1);
+        cache.delete(entry.n);
         return head(text, VAULT_MIN_CHARS) + `\n[result cut at ${VAULT_MIN_CHARS} characters: the vault is not available]`;
       }
-      entries.push(entry);
-      cache.set(entry.n, text);
-      writeFile(path.join(options.dir, 'index.json'), JSON.stringify({ entries }, null, 2), 'utf-8').catch(() => {});
-      try { options.onChange?.(summary()); } catch { /* the counter never breaks a call */ }
+      saveIndex();
+      changed();
       return digest(entry, text);
+    },
+
+    async note(text) {
+      const clean = redactSecrets(String(text ?? '').replace(/\s+/g, ' ').trim()).slice(0, MAX_NOTE_CHARS);
+      if (!clean) return 'Nothing to note: give the finding as text.';
+      if (notes.length >= MAX_NOTES) return `The note list is full (${MAX_NOTES}); fold this into an existing one when you answer.`;
+      notes.push(clean);
+      try { await ensureDir(); await saveNotes(); } catch { /* the note still lives in memory for this task */ }
+      changed();
+      return `Noted (#${notes.length}). Your notes are shown to you on every step.`;
+    },
+    notes: () => [...notes],
+
+    async importFrom(dir) {
+      let index: { entries?: VaultEntry[] };
+      try { index = JSON.parse(await readFile(path.join(dir, 'index.json'), 'utf-8')); } catch { return 0; }
+      let count = 0;
+      for (const e of index.entries ?? []) {
+        if (!e || typeof e.n !== 'number' || entries.some((x) => x.n === e.n)) continue;
+        try {
+          const text = await readFile(path.join(dir, `${e.n}.txt`), 'utf-8');
+          await ensureDir();
+          await writeFile(file(e.n), text, 'utf-8');
+          entries.push({ ...e, sections: [...(e.sections ?? [])] });
+          cache.set(e.n, text);
+          count++;
+        } catch { /* a missing file is skipped */ }
+      }
+      try {
+        const md = await readFile(path.join(dir, 'notes.md'), 'utf-8');
+        for (const line of md.split('\n')) { const m = /^\d+\.\s+(.+)$/.exec(line); if (m && notes.length < MAX_NOTES) notes.push(m[1]); }
+      } catch { /* no notes there */ }
+      if (count) {
+        entries.sort((a, b) => a.n - b.n);
+        nextN = Math.max(nextN, ...entries.map((e) => e.n + 1));
+        imported += count;
+        saveIndex();
+        if (notes.length) saveNotes();
+        changed();
+      }
+      return count;
+    },
+
+    promptSection: () => promptSectionOf(),
+
+    prepareStep(step) {
+      const budget = options.budgetChars ?? vaultBudgetChars();
+      const { messages, compacted: now } = compactToolMessages(step.messages, budget, (n) => entries.find((e) => e.n === n));
+      const fresh = now.filter((n) => !compacted.has(n));
+      if (fresh.length) {
+        for (const n of fresh) compacted.add(n);
+        console.log(`[vault] compacted ${fresh.length} tool result(s) (#${fresh.join(', #')}) to stay under ${budget} characters`);
+        changed();
+      }
+      const section = promptSectionOf();
+      const base = typeof step.initialInstructions === 'string' ? step.initialInstructions : undefined;
+      const out: StepOverrides = {};
+      if (now.length) out.messages = messages;
+      if (section && base !== undefined) out.system = base + section;
+      return out.messages || out.system ? out : undefined;
     },
 
     async read(n, opts = {}) {
@@ -305,6 +485,18 @@ export function createVaultTools(vault: TaskVault): HydraTool[] {
         n: z.number().int().positive().optional().describe('Restrict to one document number'),
       }),
       execute: async ({ query, n }) => redactSecrets(await vault.find(query, n)),
+    },
+    {
+      name: 'vault_note',
+      title: 'Vault: note',
+      risk: { readsExternal: false, sensitive: false },
+      description:
+        'Writes down a finding worth keeping while you work: a figure, a quote, a conclusion, with the document number it comes from (e.g. "Cookie Clicker: released 8 Aug 2013 (#1, Reception)"). ' +
+        'Long tool results may be removed from this conversation as it grows; your notes are shown to you on every step and survive, so note what you will need for the final answer.',
+      schema: z.object({
+        text: z.string().min(1).max(600).describe('One or two sentences; include the [vault #n] the fact comes from'),
+      }),
+      execute: async ({ text }) => vault.note(text),
     },
   ];
 }

@@ -123,11 +123,13 @@
       "showSteps": "show steps ({{n}})",
       "hideSteps": "hide steps",
       "vault": "vault: {{n}}",
-      "vaultHint": "Long tool results kept whole for this task (24 h). The agent can read them again with vault_read / vault_find.",
+      "vaultHint": "Long tool results kept whole for this task (24 h). The agent can read them again with vault_read / vault_find and writes findings down with vault_note; as the conversation grows, old results are compacted and stay in the vault.",
       "vaultRead": "Reading back from the vault {{ref}}",
       "vaultReadNoRef": "Reading back from the vault",
       "vaultFind": "Searching the vault {{ref}}",
-      "vaultFindNoRef": "Searching the vault"
+      "vaultFindNoRef": "Searching the vault",
+      "vaultNote": "Noting: {{ref}}",
+      "vaultNoteNoRef": "Noting a finding"
     },
     "plan": {
       "title": "Plan",

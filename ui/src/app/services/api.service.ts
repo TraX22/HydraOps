@@ -109,7 +109,7 @@ export interface TaskProgress {
   startedAt: string;
   steps: ProgressStep[];
   /** Long tool results kept whole for this task (the "vault"). */
-  vault?: { docs: number; chars: number };
+  vault?: { docs: number; chars: number; notes?: number; compactions?: number };
 }
 
 // One line of the prompt-injection log (GET /api/security/events).

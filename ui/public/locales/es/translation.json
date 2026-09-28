@@ -123,11 +123,13 @@
       "showSteps": "ver pasos ({{n}})",
       "hideSteps": "ocultar pasos",
       "vault": "baúl: {{n}}",
-      "vaultHint": "Resultados largos de herramientas guardados enteros para esta tarea (24 h). El agente puede releerlos con vault_read / vault_find.",
+      "vaultHint": "Resultados largos de herramientas guardados enteros para esta tarea (24 h). El agente puede releerlos con vault_read / vault_find y anota hallazgos con vault_note; cuando la conversación crece, los resultados viejos se compactan y quedan en el baúl.",
       "vaultRead": "Releyendo del baúl {{ref}}",
       "vaultReadNoRef": "Releyendo del baúl",
       "vaultFind": "Buscando en el baúl {{ref}}",
-      "vaultFindNoRef": "Buscando en el baúl"
+      "vaultFindNoRef": "Buscando en el baúl",
+      "vaultNote": "Anotando: {{ref}}",
+      "vaultNoteNoRef": "Anotando un hallazgo"
     },
     "plan": {
       "title": "Plan",
