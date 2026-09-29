@@ -42,6 +42,7 @@ const clipRef = (v: string) => {
 export function progressRef(toolName: string, args: unknown): string | undefined {
   const a = (args && typeof args === 'object' ? args : {}) as Record<string, unknown>;
   const str = (k: string) => (typeof a[k] === 'string' && (a[k] as string).trim() ? (a[k] as string) : undefined);
+  if (toolName === 'vault_note') return str('text') ? clipRef(str('text')!) : undefined;
   if (toolName === 'vault_read' || toolName === 'vault_find') {
     const doc = typeof a['n'] === 'number' ? `#${a['n']}` : '';
     const what = toolName === 'vault_read' ? str('section') : str('query');

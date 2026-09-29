@@ -608,9 +608,13 @@ export async function generateText(
   rawTools?: any[],
   // abortSignal: cancels the HTTP call to the provider (stops billing output tokens,
   // frees a local GPU). Reaches every retry/fallback call below.
-  opts: { abortSignal?: AbortSignal } = {},
+  // prepareStep: the AI SDK hook run before each model call; the workers pass the task
+  // vault's, which compacts old tool results and repeats the agent's notes (see
+  // @hydraops/addons vault.ts). Reaches every call that carries tool results.
+  opts: { abortSignal?: AbortSignal; prepareStep?: (step: any) => any } = {},
 ) {
   const abortSignal = opts.abortSignal;
+  const prepareStep = opts.prepareStep;
   try {
     const hasTools = aiTools && Object.keys(aiTools).length > 0;
     console.log(`[LLM] Attempting with model: ${config.model} (${config.provider}) | Tools: ${hasTools}`);
@@ -646,6 +650,7 @@ export async function generateText(
         // AI SDK v5+ replaced maxSteps with stopWhen; maxSteps is ignored and
         // the loop would stop after the first tool call without a text answer.
         stopWhen: hasTools ? stepCountIs(MAX_TOOL_STEPS) : undefined,
+        prepareStep,
         maxRetries: 2,
         providerOptions: (config.provider === 'google' && isThinkingModel) ? {
           google: {
@@ -761,6 +766,7 @@ export async function generateText(
           messages: stripped as any,
           tools: aiTools,
           stopWhen: hasTools ? stepCountIs(MAX_TOOL_STEPS) : undefined,
+          prepareStep,
           maxRetries: 1,
         });
       // If the error seems related to tools and we are in local, we retry without them
@@ -796,6 +802,7 @@ export async function generateText(
          try {
            const forcedResponse = await vercelGenerateText({
              abortSignal,
+             prepareStep,
              model,
              system: finalSystemPrompt,
              messages: generated.length

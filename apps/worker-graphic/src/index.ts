@@ -17,7 +17,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, generateImage, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
 import { tool } from "ai";
 import { z } from "zod";
 import { AckPolicy } from "nats";
@@ -463,7 +463,9 @@ ${EXTERNAL_CONTENT_RULE}
     // What the agent is doing, shown under the chat's typing dots (see @hydraops/addons progress.ts).
     const progress = createProgressTracker((p) => (db as any).update(tasks).set({ progress: p }).where(eq(tasks.id, taskId!)).run());
     // Long tool results are kept whole here and digested for the model (see @hydraops/addons vault.ts).
-    const vault = createTaskVault({ dir: path.join(storageDir, "results", taskId!, "vault"), onChange: (s) => progress.vault(s) });
+    const vault = createTaskVault({ dir: path.join(storageDir, "results", taskId!, "vault"), onChange: (s) => progress.vault(s), budgetChars: vaultBudgetChars(llmConfig.provider) });
+    // A task carrying out a plan starts with what the planning task already read.
+    if (taskRows[0]?.planOf) await vault.importFrom(path.join(storageDir, "results", String(taskRows[0].planOf), "vault")).catch(() => 0);
     const taskSecurity = createTaskSecurity({
       mode: resolveSecurityMode(getGlobalConfig("security_mode", "ask"), agentCfg?.securityMode),
       // One image per task is bound elsewhere; a video is held (it is the costly one).
@@ -556,10 +558,10 @@ ${EXTERNAL_CONTENT_RULE}
     const { text, usage, success, error, errorCode } = await llmGenerateText(
       llmConfig,
       [...history, await buildUserMessage(userPrompt, rootDir)],
-      systemPrompt + skillsSection + planSection,
+      systemPrompt + skillsSection + planSection + vault.promptSection(),
       toolsForModel,
       rawToolsForModel,
-      { abortSignal: controller.signal }
+      { abortSignal: controller.signal, prepareStep: (step: any) => vault.prepareStep(step) }
     );
 
     // Explicit request but the model never drew (weak/local models): fall back
