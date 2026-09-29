@@ -135,6 +135,12 @@
                   <span>▶ {{ 'chat.plan.executing' | translate }}</span>
                   <details><summary>{{ 'chat.plan.showApproved' | translate }}</summary><pre>{{ msg.content }}</pre></details>
                 </div>
+              } @else if (msg.role === 'user' && msg.continuationOf) {
+                <!-- The agent picking up after the user's decision on its held calls -->
+                <div class="msg-bubble plan-exec">
+                  <span>✅ {{ 'chat.held.continuing' | translate }}</span>
+                  <details><summary>{{ 'chat.held.continuingDetail' | translate }}</summary><pre>{{ msg.content }}</pre></details>
+                </div>
               } @else if (displayContent(msg)) {
                 <div class="msg-bubble" [innerHTML]="displayContent(msg) | markdown: linkCheck(msg)"></div>
               }

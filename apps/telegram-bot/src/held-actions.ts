@@ -6,7 +6,7 @@
 // same API call the chat card makes. The API does the deciding (expiry, already
 // decided, publishing action.approved); the bot only relays.
 
-import { pendingActions } from "@hydraops/db";
+import { pendingActions, tasks } from "@hydraops/db";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
 export interface HeldActionsDeps {
@@ -31,6 +31,15 @@ const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n) + "…" : s
  */
 const sentNotices = new Map<string, { chatId: number; messageId: number; text: string }[]>();
 const MAX_TRACKED = 200;
+
+/**
+ * Tasks whose held calls were decided from here: once every call is decided the worker
+ * starts a continuation task (see @hydraops/db createContinuationTask) and the agent's
+ * follow-up reply lands in the app; this delivers it to the chats that saw the notice.
+ * Dropped after CONTINUATION_WAIT_MS if no continuation shows up.
+ */
+const awaitingContinuation = new Map<string, { chats: Set<number>; agent: string; since: number }>();
+const CONTINUATION_WAIT_MS = 30 * 60_000;
 
 /** The line added under a notice once its action was decided. */
 function outcomeLine(status: string, result: unknown): string {
@@ -110,11 +119,39 @@ async function syncDecided(deps: HeldActionsDeps): Promise<void> {
         text: `${n.text}\n\n${outcomeLine(a.status, a.result)}`, disable_web_page_preview: true,
       }).catch(() => {});
     }
+    // A call that ran means the agent may pick the task up again: watch for its reply.
+    if ((a.status === "executed" || a.status === "failed") && notices.length) {
+      const entry = awaitingContinuation.get(a.taskId) ?? { chats: new Set<number>(), agent: String(a.agentId), since: Date.now() };
+      for (const n of notices) entry.chats.add(n.chatId);
+      awaitingContinuation.set(a.taskId, entry);
+    }
+  }
+}
+
+/** Sends the agent's continuation reply to the chats that approved from Telegram. */
+async function deliverContinuations(deps: HeldActionsDeps): Promise<void> {
+  if (awaitingContinuation.size === 0) return;
+  const now = Date.now();
+  for (const [taskId, entry] of awaitingContinuation) if (now - entry.since > CONTINUATION_WAIT_MS) awaitingContinuation.delete(taskId);
+  if (awaitingContinuation.size === 0) return;
+  const token = await deps.getToken();
+  if (!token) return;
+  const rows = await deps.db.select().from(tasks).where(inArray(tasks.continuationOf, [...awaitingContinuation.keys()]));
+  for (const t of rows) {
+    if (t.status !== "completed" && t.status !== "failed") continue;
+    const entry = awaitingContinuation.get(String(t.continuationOf));
+    if (!entry) continue;
+    awaitingContinuation.delete(String(t.continuationOf));
+    const meta = (t.resultMeta || {}) as any;
+    const body = t.status === "completed" ? (meta.text || "(the agent returned an empty reply)") : `The task failed: ${meta.error || "unknown error"}`;
+    for (const chatId of entry.chats) {
+      await deps.tg(token, "sendMessage", { chat_id: chatId, text: `↳ ${entry.agent} continues:\n\n${clip(String(body), 3500)}`, disable_web_page_preview: true }).catch(() => {});
+    }
   }
 }
 
 export function startHeldActionsNotifier(deps: HeldActionsDeps): void {
-  const tick = () => Promise.all([notifyNew(deps), syncDecided(deps)]).catch((e) => console.error("[telegram-bot] held actions poll failed", e));
+  const tick = () => Promise.all([notifyNew(deps), syncDecided(deps), deliverContinuations(deps)]).catch((e) => console.error("[telegram-bot] held actions poll failed", e));
   setTimeout(tick, 5_000);
   setInterval(tick, POLL_MS);
 }

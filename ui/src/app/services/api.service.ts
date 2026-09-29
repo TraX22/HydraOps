@@ -73,6 +73,8 @@ export interface ChatMessage {
   plan?: Plan;
   /** This task carries out that approved plan (the user message is the approved plan). */
   planOf?: string;
+  /** This user turn is the outcome of approvals on another task; the agent continues from it. */
+  continuationOf?: string;
 }
 
 // ── /plan (see @hydraops/addons plan.ts) ──

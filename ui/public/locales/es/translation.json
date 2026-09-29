@@ -92,7 +92,9 @@
         "failed": "falló",
         "rejected": "rechazada",
         "expired": "vencida"
-      }
+      },
+      "continuing": "El agente continúa después de tu decisión",
+      "continuingDetail": "qué se decidió"
     },
     "linkUnverified": "⚠ No verificado: el agente no abrió ni vio esta dirección en esta conversación. Puede existir, pero salió de su memoria, no de una consulta.",
     "progress": {

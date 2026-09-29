@@ -9,6 +9,7 @@
 import type { ToolRegistry } from './registry.js';
 import type { ToolContext } from './types.js';
 import { redactSecrets } from './guard.js';
+import { wrapExternalContent } from './provenance.js';
 
 export interface ApprovedCall {
   toolName: string;
@@ -51,4 +52,40 @@ export async function executeApprovedCall(registry: ToolRegistry, call: Approved
   } catch (err: any) {
     return { ok: false, result: clean(err?.message ?? err) };
   }
+}
+
+// ── Continuing after the decision ─────────────────────────────────────────────
+// A task that asked for approval ends its turn; once every held call is decided, the
+// worker starts a follow-up task in the same chat (see @hydraops/db
+// createContinuationTask) and composes this message for it: what the user decided and
+// what each call returned, so the agent carries on instead of asking again.
+
+export interface DecidedAction {
+  toolName: string;
+  args: unknown;
+  /** executed | failed | rejected | expired */
+  status: string;
+  result?: string | null;
+}
+
+const MAX_ARGS_CHARS = 400;
+const describeArgs = (args: unknown): string => {
+  try { return redactSecrets(JSON.stringify(args ?? {})).slice(0, MAX_ARGS_CHARS); } catch { return '{}'; }
+};
+
+/** The user message of a continuation task. */
+export function continuationPrompt(originalPrompt: string, actions: DecidedAction[]): string {
+  const lines = actions.map((a) => {
+    const head = `- ${a.toolName}(${describeArgs(a.args)})`;
+    if (a.status === 'executed') return `${head} → APPROVED and run. It returned:\n${wrapExternalContent(a.result ?? '(no output)', a.toolName, 'approved-' + a.toolName)}`;
+    if (a.status === 'failed') return `${head} → APPROVED, but it failed:\n${wrapExternalContent(a.result ?? '(no details)', a.toolName, 'approved-' + a.toolName)}`;
+    if (a.status === 'rejected') return `${head} → REJECTED by the user. Do not retry it; adjust or explain.`;
+    return `${head} → not decided in time (expired). Ask again only if it is still needed.`;
+  });
+  return (
+    `[APPROVAL OUTCOME] In your previous turn you asked the user to approve one or more calls. They have been decided:\n` +
+    `${lines.join('\n')}\n\n` +
+    `Continue the task from where you left off using these outcomes; do not repeat the calls that ran. ` +
+    `The request you were working on: "${originalPrompt.replace(/\s+/g, ' ').trim().slice(0, 600)}"`
+  );
 }

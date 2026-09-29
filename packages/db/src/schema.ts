@@ -32,6 +32,9 @@ export const tasks = sqliteTable("tasks", {
   mode: text("mode"),
   plan: text("plan", { mode: "json" }),
   planOf: text("plan_of"),
+  // A task the worker creates once every call the user was asked to approve on another
+  // task has been decided: the agent gets the outcomes and carries on from there.
+  continuationOf: text("continuation_of"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });

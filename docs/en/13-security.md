@@ -33,6 +33,8 @@ A web page, a search result, a video transcript or an issue can contain text wri
 
 Once a task has read outside content, a sensitive call the agent then makes — sending a message, writing to GitHub, saving to its permanent memory, generating a video, any MCP tool that acts — is **not run**. It is stored, the agent is told so (and tells you what it wanted to do), and a card appears under its reply with the tool, the exact arguments and where the outside content came from. **Approve** runs that call exactly as stored, through the same guard as any tool call but without the model: the page it read gets no second chance to change the request. **Reject** discards it. Undecided calls expire after 24 hours.
 
+The agent does not stay stuck waiting: once you have decided on every call of a task (and at least one ran), it **carries on by itself** in the same chat, in a new task that receives what each call returned (marked as outside content) and which ones you rejected, and continues from where it stopped, with what it had already read. The chat shows it as "The agent continues after your decision", and the action's card shows the result; if you approved from Telegram, the continuation's reply reaches you there too. A chain of approvals stops after five continuations.
+
 While you are away — a scheduled task at night, the mini PC on its own — held calls pile up. If Telegram is set up, each one reaches your phone with **✅ Approve / ❌ Reject** buttons (Tools → Telegram → *Held actions* switches it off).
 
 Two things are deliberately not held: an image (`generate_image`), because one image per task is all an agent can ever spend, and calls the agent made *before* any outside content arrived.

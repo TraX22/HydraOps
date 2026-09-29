@@ -33,7 +33,7 @@ import {
   renderPlanText, executionPrompt, type Plan, sweepVaults,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
-import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, searchAgentTasks } from "@hydraops/db";
+import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks } from "@hydraops/db";
 import { buildEnvelope } from "@hydraops/events";
 import { eq, and, gte, lt, asc, desc, like, inArray } from "drizzle-orm";
 import os from "node:os";
@@ -2268,6 +2268,7 @@ api.get("/tasks", async (req, res) => {
         id: `${row.id}-u`,
         role: "user",
         ...(row.planOf ? { planOf: row.planOf } : {}),
+        ...(row.continuationOf ? { continuationOf: row.continuationOf } : {}),
         content: row.prompt,
         timestamp: created,
         taskId: row.id,
@@ -3681,6 +3682,8 @@ async function decidePendingAction(id: string, decision: "approved" | "rejected"
   const now = new Date();
   if (decision === "rejected") {
     await (db as any).update(pendingActions).set({ status: "rejected", decidedAt: now }).where(eq(pendingActions.id, id)).run();
+    // If this was the last undecided call and others ran, the agent still gets to continue.
+    createContinuationTask(db, { taskId: row.taskId, producer: env.SERVICE_NAME }).catch((e: any) => console.warn("[api] continuation after reject failed", e?.message ?? e));
     return { status: 200, body: { action: publicPendingAction({ ...row, status: "rejected", decidedAt: now }) } };
   }
   const [cfg] = await (db as any).select().from(agentConfigs).where(eq(agentConfigs.agentId, row.agentId)).limit(1);
