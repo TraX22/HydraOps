@@ -56,7 +56,7 @@ function instrumentTool(t: HydraTool, source: string, sink?: ToolUsageSink, sour
           } catch { /* best-effort */ }
         }
         // Last, so usage and sources above still see the tool's own output.
-        const shown = blocked ? result : vault ? await vault.store(t.name, args, result) : capWithoutVault(result);
+        const shown = blocked || t.vault === false ? result : vault ? await vault.store(t.name, args, result, { external: risk.readsExternal === true }) : capWithoutVault(result);
         return security ? security.afterCall(t.name, risk, args, shown) : shown;
       } catch (err) {
         try { sink?.(t.name, source, 'error'); } catch { /* ignore */ }
