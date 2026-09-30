@@ -158,8 +158,18 @@ function sanitizeMcpContent(content: any[], toolName: string): string {
   return out;
 }
 
+// A server that did not connect is retried by the next task, not more often than this.
+const RETRY_COOLDOWN_MS = 60_000;
+// A server that reports a lost connection is restarted, not more often than this.
+const RESTART_COOLDOWN_MS = 30_000;
+// What a server says when the thing it drives is gone (checked on the start of a result).
+const DOWNSTREAM_LOST = /\bnot connected\b|connection (?:refused|lost|closed|reset)|ECONNREFUSED|ECONNRESET/i;
+
 // --- Main MCP Client Manager ---
 export class McpClientManager {
+  // Cooldowns are parameters so the tests need not wait a minute.
+  constructor(private readonly opts: { retryCooldownMs?: number; restartCooldownMs?: number } = {}) {}
+
   private clients = new Map<string, Client>();
   private transports = new Map<string, any>();
   public mcpTools = new Map<string, HydraTool>();
@@ -169,6 +179,56 @@ export class McpClientManager {
 
   // Store original config per server for reconnection
   private serverConfigs = new Map<string, any>();
+
+  // The config the servers were last (re)connected from, and the connection round in
+  // flight, so that a worker's start-up warm-up and its first task share one round.
+  private currentConfigStr: string | null = null;
+  private round: Promise<void> | null = null;
+  // When each server was last retried / restarted, to keep a broken one from costing
+  // every task a connection timeout.
+  private lastRetryAt = new Map<string, number>();
+
+  /**
+   * Brings the MCP servers in line with `configStr` and returns once they are usable or
+   * `waitMs` has passed (the round goes on in the background). A new config reconnects
+   * everything; the same config retries the servers that failed or timed out, at most
+   * once a minute each. Called at worker start (waitMs 0) and before every task.
+   */
+  async ensure(configStr: string, waitMs = 15_000): Promise<void> {
+    const settle = (ms: number) => (this.round && ms > 0 ? Promise.race([this.round, new Promise<void>((r) => setTimeout(r, ms))]) : Promise.resolve());
+    if (configStr !== this.currentConfigStr) {
+      // Let a round that is still connecting finish first: closing under it leaves child processes behind.
+      await settle(Math.max(waitMs, 15_000));
+      if (this.currentConfigStr !== null) console.log("[MCP] Config changed — reconnecting servers...");
+      await this.closeAll();
+      this.currentConfigStr = configStr;
+      let parsed: any;
+      try { parsed = JSON.parse(configStr); } catch { parsed = { mcpServers: {} }; }
+      this.startRound(this.connectServers(parsed));
+    } else if (!this.round) {
+      this.startRound(this.retryFailed());
+    }
+    await settle(waitMs);
+  }
+
+  private startRound(work: Promise<unknown>): void {
+    const p: Promise<void> = work.then(() => undefined, (e: any) => { console.error(`[MCP] connection round failed: ${e?.message ?? e}`); })
+      .finally(() => { if (this.round === p) this.round = null; });
+    this.round = p;
+  }
+
+  /** Reconnects the servers left in `failed` / `timeout`, each at most once per RETRY_COOLDOWN_MS. */
+  async retryFailed(): Promise<number> {
+    const now = Date.now();
+    const due = [...this.serverStatuses.values()].filter((st) =>
+      (st.state === 'failed' || st.state === 'timeout') && this.serverConfigs.has(st.name)
+      && now - (this.lastRetryAt.get(st.name) ?? 0) >= (this.opts.retryCooldownMs ?? RETRY_COOLDOWN_MS));
+    if (!due.length) return 0;
+    for (const st of due) this.lastRetryAt.set(st.name, now);
+    console.log(`[MCP] Retrying ${due.length} server(s) that did not connect: ${due.map((d) => d.name).join(', ')}`);
+    await Promise.allSettled(due.map((st) => this.reconnectServer(st.name, this.serverConfigs.get(st.name))));
+    return due.length;
+  }
 
   async connectServers(mcpConfig: any) {
     if (!mcpConfig || !mcpConfig.mcpServers) return;
@@ -249,9 +309,10 @@ export class McpClientManager {
               name: toolName,
               description: `[From ${serverName}]: ${t.description || ''}`,
               schema: zodSchema,
-              execute: this.createToolExecutor(serverName, client, t.name),
-              // Known server, or the tool's own MCP annotations; worst case otherwise.
-              risk: classifyMcpTool(serverName, t.annotations),
+              execute: this.createToolExecutor(serverName, t.name),
+              // The config's own word on this tool, a known server, or the tool's MCP
+              // annotations; worst case otherwise.
+              risk: classifyMcpTool(serverName, t.annotations, config.toolRisk?.[t.name]),
             });
             registeredCount++;
             console.log(`[MCP] Registered tool: ${toolName}`);
@@ -304,9 +365,15 @@ export class McpClientManager {
   /**
    * Creates a tool executor with automatic error handling and reconnection
    */
-  private createToolExecutor(serverName: string, client: Client, toolOriginalName: string) {
+  private createToolExecutor(serverName: string, toolOriginalName: string) {
     return async (args: any): Promise<string> => {
       console.log(`[MCP Tool Exec] Calling ${toolOriginalName} on ${serverName}...`);
+      // Looked up per call: after a reconnection the same tool object talks to the new client.
+      const client = this.clients.get(serverName);
+      if (!client) {
+        this.scheduleRestart(serverName, 'no live connection');
+        return `Error executing MCP tool ${toolOriginalName}: ${serverName} is not connected right now (reconnecting); try again in a moment.`;
+      }
 
       try {
         const res: any = await withTimeout(
@@ -318,11 +385,11 @@ export class McpClientManager {
           `tool call ${toolOriginalName}`
         );
 
-        if (res.isError) {
-          return `MCP Server Error: ${sanitizeMcpContent(res.content, toolOriginalName)}`;
-        }
-
-        return sanitizeMcpContent(res.content, toolOriginalName);
+        const text = sanitizeMcpContent(res.content, toolOriginalName);
+        // The server answered, but says it lost what IT talks to (Blender closed and
+        // reopened, a browser gone): a fresh server process reconnects on start.
+        if (DOWNSTREAM_LOST.test(text.slice(0, 400))) this.scheduleRestart(serverName, 'the server reports a lost connection');
+        return res.isError ? `MCP Server Error: ${text}` : text;
       } catch (execErr: any) {
         const errMsg = execErr.message || 'Unknown execution error';
         console.error(`[MCP Tool Exec] ❌ ${toolOriginalName} on ${serverName} failed: ${errMsg}`);
@@ -338,18 +405,25 @@ export class McpClientManager {
           });
 
           // Attempt reconnection in background
-          const config = this.serverConfigs.get(serverName);
-          if (config) {
-            console.log(`[MCP] Scheduling reconnection for ${serverName}...`);
-            this.reconnectServer(serverName, config).catch(
-              e => console.error(`[MCP] Reconnection for ${serverName} failed: ${e.message}`)
-            );
-          }
+          this.scheduleRestart(serverName, 'connection lost', 0);
         }
 
         return `Error executing MCP tool ${toolOriginalName}: ${errMsg}`;
       }
     };
+  }
+
+  /** Restarts one server in the background, at most once per `cooldownMs`. */
+  private scheduleRestart(serverName: string, why: string, cooldownMs = this.opts.restartCooldownMs ?? RESTART_COOLDOWN_MS): void {
+    const config = this.serverConfigs.get(serverName);
+    if (!config) return;
+    const now = Date.now();
+    if (now - (this.lastRetryAt.get(serverName) ?? 0) < cooldownMs) return;
+    this.lastRetryAt.set(serverName, now);
+    console.log(`[MCP] Restarting ${serverName} (${why})...`);
+    this.reconnectServer(serverName, config).catch(
+      (e) => console.error(`[MCP] Reconnection for ${serverName} failed: ${e.message}`)
+    );
   }
 
   /**
@@ -405,5 +479,6 @@ export class McpClientManager {
     this.mcpTools.clear();
     this.serverStatuses.clear();
     this.serverConfigs.clear();
+    this.lastRetryAt.clear();
   }
 }

@@ -28,8 +28,24 @@ export interface ToolRisk {
    *  instructions for other agents). */
   approval?: 'always';
   /** Why the tool is classified this way (shown in the security log). */
-  basis?: 'declared' | 'annotations' | 'known-server' | 'unknown';
+  basis?: 'declared' | 'annotations' | 'known-server' | 'configured' | 'unknown';
 }
+
+/**
+ * What one MCP tool does, as written in its server's config (`toolRisk`):
+ * - neutral: neither reads third-party content nor acts (the user's own app state, a clock)
+ * - read:    returns third-party content (a page, search results), changes nothing
+ * - acts:    changes something (runs code, writes, sends); what it returns is not third-party
+ * - both:    reads third-party content and acts
+ */
+export type McpToolClass = 'neutral' | 'read' | 'acts' | 'both';
+const MCP_CLASS_RISK: Record<McpToolClass, ToolRisk> = {
+  neutral: {},
+  read: { readsExternal: true },
+  acts: { sensitive: true },
+  both: { readsExternal: true, sensitive: true },
+};
+export const isMcpToolClass = (v: unknown): v is McpToolClass => typeof v === 'string' && Object.prototype.hasOwnProperty.call(MCP_CLASS_RISK, v);
 
 // ── Classification ────────────────────────────────────────────────────────────
 
@@ -49,11 +65,14 @@ const MCP_READ_ONLY_SERVERS = new Set([
 const MCP_NEUTRAL_SERVERS = new Set(['time', 'sequentialthinking', 'sequential_thinking']);
 
 /**
- * Risk of an MCP tool. A server from the lists above is taken at its word;
- * otherwise the tool's own MCP annotations decide (readOnlyHint = does not act),
- * and a tool with neither is treated as the worst case.
+ * Risk of an MCP tool. What the server's config says about that tool comes first
+ * (`configured`: the user, or the preset the server was installed from, knows it best);
+ * then a server from the lists above is taken at its word; otherwise the tool's own MCP
+ * annotations decide (readOnlyHint = does not act), and a tool with none of these is
+ * treated as the worst case.
  */
-export function classifyMcpTool(serverName: string, annotations?: any): ToolRisk {
+export function classifyMcpTool(serverName: string, annotations?: any, configured?: unknown): ToolRisk {
+  if (isMcpToolClass(configured)) return { ...MCP_CLASS_RISK[configured], basis: 'configured' };
   const server = normalize(serverName);
   if (MCP_NEUTRAL_SERVERS.has(server)) return { basis: 'known-server' };
   if (MCP_READ_ONLY_SERVERS.has(server)) return { readsExternal: true, basis: 'known-server' };

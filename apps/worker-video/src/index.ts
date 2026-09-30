@@ -51,7 +51,14 @@ const cancels = createCancelRegistry(nc, consumerName);
 console.log(`[${consumerName}] listening for agent.task_assigned (workerType=${WORKER_TYPE}) on ${env.NATS_URL}`);
 
 const globalRegistry = await createRegistry();
-let lastMcpConfigStr = "";
+// The MCP servers start connecting now, in the background: a docker-based server can
+// take longer than a task is willing to wait, and the first task should find them ready.
+(async () => {
+  try {
+    const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, "mcp_servers_config")).limit(1);
+    await globalRegistry.mcpManager.ensure(rows[0]?.value || process.env.mcp_servers_config || '{"mcpServers":{}}', 0);
+  } catch (e: any) { console.warn(`[${consumerName}]`, `MCP warm-up failed: ${e?.message ?? e}`); }
+})();
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;
@@ -267,15 +274,8 @@ async function runApprovedAction(actionId: string): Promise<void> {
     return found ? found.value : process.env[key] || defaultValue;
   };
   const mcpServersConfigStr = getGlobalConfig("mcp_servers_config", '{"mcpServers":{}}');
-  if (mcpServersConfigStr !== lastMcpConfigStr) {
-    try {
-      await globalRegistry.mcpManager.closeAll();
-      await withTimeout(globalRegistry.initializeMcp(JSON.parse(mcpServersConfigStr)), 15_000, "MCP init");
-    } catch (mcpErr: any) {
-      console.error(`[${consumerName}] MCP init failed: ${mcpErr.message}`);
-    }
-    lastMcpConfigStr = mcpServersConfigStr;
-  }
+  // Connect or reconnect what changed; a server that failed earlier is retried here.
+  await globalRegistry.mcpManager.ensure(mcpServersConfigStr, 15_000);
   const agentId = String(action.agentId);
   console.log(`[${consumerName}] Running approved ${action.toolName} (${actionId}) for ${agentId}...`);
   const outcome = await executeApprovedCall(globalRegistry, {
@@ -449,16 +449,8 @@ ${EXTERNAL_CONTENT_RULE}
     // Same tool set as worker-general: natives/my_addons + MCP tools
     const nativeState = JSON.parse(getGlobalConfig("native_addons_state", "{}"));
     const mcpServersConfigStr = getGlobalConfig("mcp_servers_config", '{"mcpServers":{}}');
-    if (mcpServersConfigStr !== lastMcpConfigStr) {
-      console.log(`[${consumerName}] MCP config changed — reconnecting servers...`);
-      try {
-        await globalRegistry.mcpManager.closeAll();
-        await withTimeout(globalRegistry.initializeMcp(JSON.parse(mcpServersConfigStr)), 15_000, "MCP init");
-      } catch (mcpErr: any) {
-        console.error(`[${consumerName}] MCP init failed: ${mcpErr.message}`);
-      }
-      lastMcpConfigStr = mcpServersConfigStr;
-    }
+    // Connect or reconnect what changed; a server that failed earlier is retried here.
+    await globalRegistry.mcpManager.ensure(mcpServersConfigStr, 15_000);
 
     // MCP tools pass if the chat UI enabled the server (enabledMcpServers) or,
     // failing that, if the agent's tools.md mentions the server/tool.
