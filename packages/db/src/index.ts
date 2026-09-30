@@ -199,6 +199,71 @@ export async function finishPendingAction(db: any, id: string, status: "executed
   await db.update(schema.pendingActions).set({ status, result, decidedAt: new Date() }).where(eq(schema.pendingActions.id, id)).run();
 }
 
+/** Every held call of a task (any status), oldest first. */
+export async function loadTaskActions(db: any, taskId: string): Promise<any[]> {
+  return db.select().from(schema.pendingActions).where(eq(schema.pendingActions.taskId, taskId)).orderBy(schema.pendingActions.createdAt);
+}
+
+const CONTINUATION_MAX_DEPTH = 5;
+
+/**
+ * Once every call a task asked approval for has been decided (and at least one ran), the
+ * agent gets a follow-up task in the same chat with the outcomes, so it can carry on
+ * instead of stopping at "approve and I'll continue". The worker composes the real
+ * message from the actions (see @hydraops/addons approvals.ts continuationPrompt); the
+ * row's prompt is the short line the chat shows. Idempotent: one continuation per task,
+ * chains stop after CONTINUATION_MAX_DEPTH, and a task still waiting on a decision, or
+ * that did not complete, gets none. Returns the new task id, or null when nothing was
+ * created.
+ */
+export async function createContinuationTask(db: any, opts: { taskId: string; producer: string; prompt?: string }): Promise<string | null> {
+  const [original] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, opts.taskId)).limit(1);
+  if (!original || original.status !== "completed") return null;
+  const actions = await loadTaskActions(db, opts.taskId);
+  if (!actions.length || actions.some((a: any) => a.status === "pending" || a.status === "approved")) return null;
+  if (!actions.some((a: any) => a.status === "executed" || a.status === "failed")) return null;
+  const existing = await db.select({ id: schema.tasks.id }).from(schema.tasks).where(eq(schema.tasks.continuationOf, opts.taskId)).limit(1);
+  if (existing.length) return null;
+  // How far back does this chain go? A run of approvals must not continue forever.
+  let depth = 0;
+  for (let cursor = original; cursor?.continuationOf && depth < CONTINUATION_MAX_DEPTH; depth++) {
+    const [prev] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, cursor.continuationOf)).limit(1);
+    cursor = prev;
+  }
+  if (depth >= CONTINUATION_MAX_DEPTH) return null;
+
+  // The outside content that reached the original task reaches this one too.
+  const origins: { tool: string; ref?: string }[] = [];
+  const seen = new Set<string>();
+  const push = (o: any) => { if (o && o.tool && !seen.has(o.tool + "|" + (o.ref ?? ""))) { seen.add(o.tool + "|" + (o.ref ?? "")); origins.push({ tool: String(o.tool), ...(o.ref ? { ref: String(o.ref) } : {}) }); } };
+  for (const o of Array.isArray(original.inheritedTaint) ? original.inheritedTaint : []) push(o);
+  for (const o of (original.resultMeta as any)?.security?.origins ?? []) push(o);
+  for (const a of actions) for (const o of Array.isArray(a.origins) ? a.origins : []) push(o);
+
+  const prompt = opts.prompt ?? `Continuing after your decision: ${actions.map((a: any) => `${a.toolName} ${a.status === "executed" ? "✓" : a.status === "failed" ? "✗" : "—"}`).join(", ")}`;
+  const taskId = randomUUID();
+  const eventId = randomUUID();
+  const occurredAt = new Date();
+  const envelope = {
+    specVersion: "1.0", id: eventId, type: "task.created", version: 1, occurredAt: occurredAt.toISOString(), producer: opts.producer,
+    subject: { entity: "task", id: taskId },
+    data: { taskId, prompt, userId: "system-admin", channel: original.channel, priority: "normal", date: occurredAt.toISOString(), continuationOf: opts.taskId },
+  };
+  await db.transaction((tx: any) => {
+    tx.insert(schema.tasks).values({
+      id: taskId, prompt, channel: original.channel, status: "pending", isRead: original.isRead ?? true,
+      ...(origins.length ? { inheritedTaint: origins } : {}),
+      continuationOf: opts.taskId, createdAt: occurredAt, updatedAt: occurredAt,
+    }).run();
+    tx.insert(schema.events).values({
+      id: eventId, type: envelope.type, version: envelope.version, occurredAt, producer: envelope.producer,
+      subjectEntity: envelope.subject.entity, subjectId: envelope.subject.id, payload: envelope,
+    }).run();
+    tx.insert(schema.outbox).values({ eventId, status: "pending", nextAttemptAt: occurredAt }).run();
+  });
+  return taskId;
+}
+
 /** Pending actions past their deadline become 'expired'; returns how many. */
 export async function expirePendingActions(db: any): Promise<number> {
   const result: any = await db.update(schema.pendingActions)

@@ -9,12 +9,12 @@ import { loadEnv, envFile, dataRoot, agentsDir, logsDir, usersDir, resultsDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, buildCronDedupContext, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
+import { createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
 
 const env = loadEnv({ ...process.env, SERVICE_NAME: process.env.SERVICE_NAME ?? "worker-coder" });
 const consumerName = env.SERVICE_NAME;
@@ -253,6 +253,11 @@ async function runApprovedAction(actionId: string): Promise<void> {
     },
   });
   await finishPendingAction(db, actionId, outcome.ok ? "executed" : "failed", outcome.result);
+  // Every call of that task decided (and at least one ran) → the agent carries on with the outcomes.
+  try {
+    const next = await createContinuationTask(db, { taskId: String(action.taskId), producer: consumerName });
+    if (next) console.log(`[${consumerName}] Continuation task ${next} created for ${action.taskId}.`);
+  } catch (e: any) { console.warn(`[${consumerName}] could not create the continuation task: ${e?.message ?? e}`); }
   console.log(`[worker-coder] Approved ${action.toolName} (${actionId}): ${outcome.ok ? "executed" : "failed"}.`);
 }
 const approvalsSub = await js.pullSubscribe(subjectForType("action.approved"), {
@@ -334,7 +339,15 @@ for await (const m of sub) {
     const task = taskRows[0];
     
     // Priority: 1. Prompt from event, 2. Prompt from DB
-    const userPrompt = (envlp.data as any).prompt as string || task?.prompt || '';
+    let userPrompt = (envlp.data as any).prompt as string || task?.prompt || '';
+    // A continuation: the user decided on the calls held in the original task; the message
+    // carries the outcomes so the agent picks up where it stopped (see approvals.ts).
+    const continuationOf = taskRows[0]?.continuationOf ? String(taskRows[0].continuationOf) : null;
+    if (continuationOf) {
+      const decided = await loadTaskActions(db, continuationOf);
+      const originalRows = await (db as any).select({ prompt: tasks.prompt }).from(tasks).where(eq(tasks.id, continuationOf)).limit(1);
+      if (decided.length) userPrompt = continuationPrompt(String(originalRows[0]?.prompt ?? ""), decided);
+    }
     
     // If no prompt from any source, something went wrong
     if (!userPrompt) {
@@ -501,6 +514,7 @@ ${EXTERNAL_CONTENT_RULE}
     const vault = createTaskVault({ dir: path.join(resultsDir, taskId!, "vault"), onChange: (s) => progress.vault(s), budgetChars: vaultBudgetChars(llmConfig.provider) });
     // A task carrying out a plan starts with what the planning task already read.
     if (taskRows[0]?.planOf) await vault.importFrom(path.join(resultsDir, String(taskRows[0].planOf), "vault")).catch(() => 0);
+    if (continuationOf) await vault.importFrom(path.join(resultsDir, continuationOf, "vault")).catch(() => 0);
     const taskSecurity = createTaskSecurity({
       mode: resolveSecurityMode(getGlobalConfig("security_mode", "ask"), cfgRows[0]?.securityMode),
       // One image per task is bound elsewhere; a video is held (it is the costly one).

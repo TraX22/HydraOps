@@ -303,7 +303,7 @@ export function createTaskVault(options: TaskVaultOptions): TaskVault {
     if (imported) {
       const docs = entries.map((e) => `#${e.n} ${e.tool}${e.ref ? ` (${e.ref})` : ''}, ${kb(e.chars)}${e.sections.length ? `, sections: ${e.sections.slice(0, 8).map((s) => `"${s}"`).join(', ')}` : ''}`);
       parts.push(
-        `Documents already in this task's vault, read while planning:\n${docs.map((d) => `- ${d}`).join('\n')}\n` +
+        `Documents already in this task's vault, read earlier (while planning, or before an approval):\n${docs.map((d) => `- ${d}`).join('\n')}\n` +
         `Any plan step that says to open, fetch or read these pages is already done: do not fetch them again, use vault_read(n=…) or vault_find on them.`,
       );
     }

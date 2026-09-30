@@ -38,7 +38,7 @@ import { IconComponent } from '../icon/icon.component';
           <span class="held-expires">{{ 'chat.held.expires' | translate:{ when: expiresIn } }}</span>
         </div>
       } @else if (action.result && (action.status === 'executed' || action.status === 'failed')) {
-        <details class="held-result">
+        <details class="held-result" [open]="action.status === 'executed'">
           <summary>{{ 'chat.held.result' | translate }}</summary>
           <pre>{{ action.result }}</pre>
         </details>
