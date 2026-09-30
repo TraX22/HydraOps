@@ -6,7 +6,7 @@ import path from "node:path";
 import { readdir, readFile, writeFile, mkdir, rm, access, rename } from "node:fs/promises";
 import { randomUUID, randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { writeFileSync, chmodSync } from "node:fs";
-import { spawn } from "node:child_process";
+import { spawn, execFile } from "node:child_process";
 import multer from "multer";
 
 import {
@@ -31,6 +31,8 @@ import {
   createRegistry, rememberTool, listInstalledSkills, readSkillFile, scanSkill, writeSkillFolder, deleteSkill,
   isValidSkillName, isAllowedSkillPath, skillFilePath, SKILL_LIMITS, builtinSkillNames,
   renderPlanText, executionPrompt, type Plan, sweepVaults,
+  parsePreset, presetServerEntry, presetMarkerOf, isPresetEntryModified, presetCommandLine, launcherInstallHint,
+  isValidPresetName, PRESET_LAUNCHERS, type ConnectionPreset,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
 import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks } from "@hydraops/db";
@@ -2960,6 +2962,205 @@ api.delete("/skills/installed/:name", skillsLimiter, async (req, res) => {
   }
 });
 
+// --- Connections (Herramientas): MCP servers installed from the catalog's presets ---
+// A preset is configuration (see @hydraops/addons presets.ts): installing one writes an
+// entry in mcp_servers_config, with what each tool does and the program's version pinned.
+// The servers the user configured by hand in Add-ons are listed too, and left alone.
+const connectionsLimiter = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false });
+const PRESET_FILES = new Set(["preset.json", "README.md"]);
+interface CatalogPreset { name: string; title: string; description: string; version: string; launcher: string; toolCount: number; files: CatalogFile[] }
+let presetsCatalogCache: { at: number; presets: CatalogPreset[] } | null = null;
+
+async function loadPresetsCatalog(refresh = false): Promise<CatalogPreset[]> {
+  if (!refresh && presetsCatalogCache && Date.now() - presetsCatalogCache.at < SKILLS_CATALOG_TTL_MS) return presetsCatalogCache.presets;
+  const index = JSON.parse((await fetchCatalogText("index.json", 1024 * 1024)).toString("utf-8"));
+  const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+  const presets: CatalogPreset[] = [];
+  for (const p of (Array.isArray(index?.presets) ? index.presets : []).slice(0, 200)) {
+    if (!isValidPresetName(p?.name) || !Array.isArray(p?.files)) continue;
+    const files: CatalogFile[] = p.files
+      .filter((f: any) => PRESET_FILES.has(String(f?.path)) && /^[0-9a-f]{64}$/i.test(String(f?.sha256)))
+      .map((f: any) => ({ path: String(f.path), sha256: String(f.sha256).toLowerCase(), size: Number(f.size) || 0 }));
+    if (!files.some((f) => f.path === "preset.json")) continue;
+    presets.push({
+      name: p.name, title: str(p.title, 40) || p.name, description: str(p.description, 500), version: str(p.version, 30),
+      launcher: str(p.launcher, 12), toolCount: Math.max(0, Math.floor(Number(p.toolCount) || 0)), files,
+    });
+  }
+  presets.sort((a, b) => a.title.localeCompare(b.title));
+  presetsCatalogCache = { at: Date.now(), presets };
+  return presets;
+}
+
+/** Downloads a preset (and its README), each checked against the index's sha256, and validates it. */
+async function downloadPreset(entry: CatalogPreset): Promise<{ preset: ConnectionPreset; readme: string }> {
+  const fetchChecked = async (file: string) => {
+    const f = entry.files.find((x) => x.path === file);
+    if (!f) return null;
+    const buf = await fetchCatalogText(`presets/${entry.name}/${file}`, 128 * 1024);
+    if (createHash("sha256").update(buf).digest("hex") !== f.sha256) throw new Error(`${file} does not match the catalog index`);
+    return buf.toString("utf-8");
+  };
+  const parsed = parsePreset(JSON.parse((await fetchChecked("preset.json"))!));
+  if ("error" in parsed) throw new Error(`invalid preset: ${parsed.error}`);
+  if (parsed.preset.name !== entry.name) throw new Error("preset name does not match its folder");
+  return { preset: parsed.preset, readme: (await fetchChecked("README.md")) ?? "" };
+}
+
+// Is the launcher on this machine? (where / which, no shell; cached for a minute)
+const launcherCache = new Map<string, { at: number; found: boolean }>();
+async function launcherFound(launcher: string): Promise<boolean | null> {
+  if (!(PRESET_LAUNCHERS as readonly string[]).includes(launcher)) return null;
+  const hit = launcherCache.get(launcher);
+  if (hit && Date.now() - hit.at < 60_000) return hit.found;
+  const found = await new Promise<boolean>((resolve) => {
+    execFile(process.platform === "win32" ? "where" : "which", [launcher], { timeout: 4000, windowsHide: true }, (err) => resolve(!err));
+  });
+  launcherCache.set(launcher, { at: Date.now(), found });
+  return found;
+}
+
+const normServerName = (v: string) => v.replace(/\s+/g, "_").toLowerCase();
+async function readMcpConfig(): Promise<{ mcpServers: Record<string, any> }> {
+  const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, "mcp_servers_config")).limit(1);
+  let cfg: any = {};
+  try { cfg = rows[0] ? JSON.parse(rows[0].value) : {}; } catch { cfg = {}; }
+  return { ...cfg, mcpServers: cfg?.mcpServers && typeof cfg.mcpServers === "object" ? cfg.mcpServers : {} };
+}
+async function writeMcpConfig(cfg: { mcpServers: Record<string, any> }): Promise<void> {
+  const value = JSON.stringify(cfg);
+  await (db as any).insert(systemConfigs).values({ key: "mcp_servers_config", value, updatedAt: new Date() })
+    .onConflictDoUpdate({ target: systemConfigs.key, set: { value, updatedAt: new Date() } }).run();
+}
+/** The best state any worker reports for each server (a worker only connects what its agents use). */
+async function mcpStatusByServer(): Promise<Map<string, any>> {
+  const rows = await (db as any).select().from(systemConfigs).where(like(systemConfigs.key, "mcp_servers_status:%"));
+  const rank: Record<string, number> = { connected: 5, connecting: 4, timeout: 3, failed: 2, disconnected: 1 };
+  const best = new Map<string, any>();
+  for (const r of rows) {
+    let list: any[] = [];
+    try { list = JSON.parse(r.value); } catch { /* ignore a bad report */ }
+    for (const st of Array.isArray(list) ? list : []) {
+      const cur = best.get(st?.name);
+      if (st?.name && (rank[st.state] ?? 0) > (cur ? rank[cur.state] ?? 0 : 0)) best.set(st.name, st);
+    }
+  }
+  return best;
+}
+
+api.get("/connections", connectionsLimiter, async (_req, res) => {
+  try {
+    const [config, status] = await Promise.all([readMcpConfig(), mcpStatusByServer()]);
+    // Which agents were given each server: the same rule the gate applies to tools.md.
+    const dirs = await readdir(agentsDir, { withFileTypes: true }).catch(() => []);
+    const agentLines: { name: string; lines: string[] }[] = [];
+    for (const d of dirs) {
+      if (!d.isDirectory()) continue;
+      agentLines.push({ name: d.name.charAt(0).toUpperCase() + d.name.slice(1), lines: (await readAgentRequestedTools(d.name)).map(normServerName) });
+    }
+    const servers = Object.entries<any>(config.mcpServers).map(([name, cfg]) => {
+      const st = status.get(name);
+      const enabled = cfg?.switch !== "off";
+      const marker = presetMarkerOf(cfg);
+      const key = normServerName(name);
+      return {
+        name,
+        switch: enabled ? "on" : "off",
+        state: !enabled ? "off" : (st?.state ?? "unknown"),
+        toolCount: st?.toolCount ?? 0,
+        unclassified: enabled ? (st?.unclassified ?? 0) : 0,
+        error: st?.error,
+        preset: marker ? { name: marker.name, version: marker.version, modified: isPresetEntryModified(cfg) } : null,
+        classified: !!(cfg?.toolRisk && typeof cfg.toolRisk === "object" && Object.keys(cfg.toolRisk).length),
+        launcher: typeof cfg?.command === "string" ? cfg.command : cfg?.url ? "url" : "",
+        agents: agentLines.filter((a) => a.lines.some((l) => l === key || l.startsWith(key + "_"))).map((a) => a.name),
+      };
+    });
+    servers.sort((a, b) => Number(!!b.preset) - Number(!!a.preset) || a.name.localeCompare(b.name));
+    res.json({ servers });
+  } catch (err: any) {
+    console.error("[api] GET /connections failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+api.get("/connections/catalog", connectionsLimiter, async (req, res) => {
+  try {
+    const presets = await loadPresetsCatalog(req.query.refresh === "1");
+    res.json({ source: SKILLS_CATALOG_URL, presets: presets.map(({ files: _files, ...p }) => p) });
+  } catch (err: any) {
+    console.warn("[api] connections catalog unavailable:", err?.message ?? err);
+    res.status(502).json({ error: "catalog_unavailable" });
+  }
+});
+
+api.get("/connections/catalog/:name", connectionsLimiter, async (req, res) => {
+  try {
+    const name = String(req.params.name);
+    if (!isValidPresetName(name)) return res.status(400).json({ error: "invalid_name" });
+    const entry = (await loadPresetsCatalog()).find((p) => p.name === name);
+    if (!entry) return res.status(404).json({ error: "not_found" });
+    const { preset, readme } = await downloadPreset(entry);
+    const config = await readMcpConfig();
+    const existingKey = Object.keys(config.mcpServers).find((k) => normServerName(k) === normServerName(preset.title));
+    const existing = existingKey ? config.mcpServers[existingKey] : undefined;
+    const marker = presetMarkerOf(existing);
+    // none: free to install · manual: a server the user configured has this name ·
+    // installed / update: this preset is here, same or older version · modified: and was edited.
+    const conflict = !existing ? "none" : !marker || marker.name !== preset.name ? "manual"
+      : isPresetEntryModified(existing) ? "modified" : marker.version === preset.version ? "installed" : "update";
+    res.json({
+      preset, readme, commandLine: presetCommandLine(preset), conflict,
+      installedVersion: marker?.version ?? null,
+      launcher: { name: preset.requires.launcher, found: await launcherFound(preset.requires.launcher), hint: launcherInstallHint(preset.requires.launcher) },
+    });
+  } catch (err: any) {
+    console.warn("[api] connection preview failed:", err?.message ?? err);
+    res.status(502).json({ error: "catalog_unavailable" });
+  }
+});
+
+api.post("/connections/catalog/:name/install", connectionsLimiter, async (req, res) => {
+  try {
+    const name = String(req.params.name);
+    if (!isValidPresetName(name)) return res.status(400).json({ error: "invalid_name" });
+    const entry = (await loadPresetsCatalog(true)).find((p) => p.name === name);
+    if (!entry) return res.status(404).json({ error: "not_found" });
+    const { preset } = await downloadPreset(entry);
+    const config = await readMcpConfig();
+    const existingKey = Object.keys(config.mcpServers).find((k) => normServerName(k) === normServerName(preset.title));
+    const existing = existingKey ? config.mcpServers[existingKey] : undefined;
+    const marker = presetMarkerOf(existing);
+    const replace = req.body?.replace === true;
+    // A server the user set up by hand, or one they edited after installing: only on their say-so.
+    if (existing && !replace && (!marker || marker.name !== preset.name)) return res.status(409).json({ error: "name_taken" });
+    if (existing && !replace && isPresetEntryModified(existing)) return res.status(409).json({ error: "modified" });
+    if (existingKey && existingKey !== preset.title) delete config.mcpServers[existingKey];
+    config.mcpServers[preset.title] = presetServerEntry(preset, marker && marker.name === preset.name ? existing : undefined);
+    await writeMcpConfig(config);
+    res.json({ success: true, server: preset.title, version: preset.version, launcherFound: await launcherFound(preset.requires.launcher) });
+  } catch (err: any) {
+    console.error("[api] connection install failed:", err?.message ?? err);
+    res.status(502).json({ error: "install_failed" });
+  }
+});
+
+api.delete("/connections/:server", connectionsLimiter, async (req, res) => {
+  try {
+    const server = String(req.params.server);
+    const config = await readMcpConfig();
+    if (!Object.prototype.hasOwnProperty.call(config.mcpServers, server)) return res.status(404).json({ error: "not_found" });
+    // Only what came from the catalog is removed here; hand-made servers are edited in Add-ons.
+    if (!presetMarkerOf(config.mcpServers[server])) return res.status(403).json({ error: "manual" });
+    delete config.mcpServers[server];
+    await writeMcpConfig(config);
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("[api] DELETE /connections failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
 // --- /plan: approve, discard or revise a proposed plan (see @hydraops/addons plan.ts) ---
 const plansLimiter = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false });
 
@@ -3182,6 +3383,7 @@ api.get("/system/mcp/status", async (_req, res) => {
         switch: enabled ? "on" : "off",
         state: !enabled ? "off" : (st?.state ?? "unknown"),
         toolCount: st?.toolCount ?? 0,
+        unclassified: enabled ? (st?.unclassified ?? 0) : 0,
         transport: st?.transport ?? "unknown",
         error: st?.error,
       };

@@ -297,6 +297,48 @@ export interface SkillPreview {
   findings: SkillFinding[];
 }
 
+// ── Connections (Herramientas → Connections): MCP servers from the catalog ──
+export type McpToolClass = 'neutral' | 'read' | 'acts' | 'both';
+
+export interface ConnectionServer {
+  name: string;
+  switch: 'on' | 'off';
+  state: 'connecting' | 'connected' | 'failed' | 'timeout' | 'disconnected' | 'off' | 'unknown';
+  toolCount: number;
+  /** Tools the server publishes that its config does not classify (they are treated as read + act). */
+  unclassified: number;
+  error?: string;
+  /** Set when the entry came from the catalog; null for a server configured by hand. */
+  preset: { name: string; version: string; modified: boolean } | null;
+  classified: boolean;
+  launcher: string;
+  agents: string[];
+}
+
+export interface CatalogConnection {
+  name: string;
+  title: string;
+  description: string;
+  version: string;
+  launcher: string;
+  toolCount: number;
+}
+
+export interface ConnectionPreview {
+  preset: {
+    name: string; title: string; description: string; version: string; author: string; homepage?: string;
+    requires: { launcher: string; notes: string[]; setup: { run?: string; then?: string }[] };
+    toolRisk: Record<string, McpToolClass>;
+    toolsMd: string;
+    tips: string[];
+  };
+  readme: string;
+  commandLine: string;
+  conflict: 'none' | 'manual' | 'installed' | 'update' | 'modified';
+  installedVersion: string | null;
+  launcher: { name: string; found: boolean | null; hint: { command?: string; url: string } | null };
+}
+
 // Tool usage tracking (Agents + Stats)
 export interface AgentToolGranted { name: string; source: string; description: string; }
 export interface ToolUsageStat { toolName: string; source: string; count: number; blocked: number; errors: number; lastUsedAt: number; }
@@ -703,6 +745,28 @@ export class ApiService {
 
   saveGitHubIntegration(cfg: Partial<GitHubIntegration>): Observable<void> {
     return this.http.post<void>(`${this.base}/system/integrations/github`, cfg);
+  }
+
+  // ── Connections ──
+  getConnections(): Observable<{ servers: ConnectionServer[] }> {
+    return this.http.get<{ servers: ConnectionServer[] }>(`${this.base}/connections`);
+  }
+
+  getConnectionsCatalog(refresh = false): Observable<{ source: string; presets: CatalogConnection[] }> {
+    return this.http.get<{ source: string; presets: CatalogConnection[] }>(`${this.base}/connections/catalog${refresh ? '?refresh=1' : ''}`);
+  }
+
+  previewConnection(name: string): Observable<ConnectionPreview> {
+    return this.http.get<ConnectionPreview>(`${this.base}/connections/catalog/${encodeURIComponent(name)}`);
+  }
+
+  installConnection(name: string, replace = false): Observable<{ success: boolean; server: string; version: string; launcherFound: boolean | null }> {
+    return this.http.post<{ success: boolean; server: string; version: string; launcherFound: boolean | null }>(
+      `${this.base}/connections/catalog/${encodeURIComponent(name)}/install`, { replace });
+  }
+
+  removeConnection(server: string): Observable<{ success: boolean }> {
+    return this.http.delete<{ success: boolean }>(`${this.base}/connections/${encodeURIComponent(server)}`);
   }
 
   // ── Skills ──

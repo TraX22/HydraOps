@@ -2,7 +2,7 @@
 
 La sección **Herramientas** de la barra lateral conecta HydraOps con servicios externos. No confundir con los [Add-ons](./08-addons.md): un add-on es una herramienta que *usan los agentes* (buscar en la web, leer una página); una herramienta de esta sección es un **conector** que te deja *operar HydraOps desde fuera*.
 
-Hoy están **Telegram** (hablar con tus agentes desde el móvil), **GitHub** y las **[Skills](#skills-habilidades-para-los-agentes)**, las habilidades que los agentes leen cuando una tarea las necesita. Discord, Signal y Reddit aparecen como "próximamente".
+Hoy están **Telegram** (hablar con tus agentes desde el móvil), **GitHub**, las **[Skills](#skills-habilidades-para-los-agentes)** (las habilidades que los agentes leen cuando una tarea las necesita) y las **[Conexiones](#conexiones-servidores-mcp-listos-para-usar)** (aplicaciones y servicios que los agentes pueden manejar). Discord, Signal y Reddit aparecen como "próximamente".
 
 ## Telegram: manejar los agentes desde el móvil
 
@@ -101,3 +101,48 @@ Un agente con `create_skill` puede proponer una skill cuando resolvió algo que 
 Las skills que crean los agentes se quedan **en tu equipo**: no se suben a ningún repositorio. Un agente tampoco puede modificar ni reemplazar una skill que ya existe.
 
 Por ahora las skills no se editan desde la aplicación: para cambiar una, edita su `SKILL.md` en la carpeta o bórrala y vuelve a instalarla.
+
+## Conexiones: servidores MCP listos para usar
+
+Una **conexión** es un servidor MCP ya configurado: Blender, un navegador real, un conversor de documentos. Es lo mismo que podrías escribir a mano en [Add-ons → Servidores MCP](./08-addons.md), pero con el trabajo hecho: cómo se arranca, qué necesita tu equipo y, sobre todo, **qué hace cada una de sus herramientas** (su [`toolRisk`](./08-addons.md)). Con eso las herramientas que solo leen corren libres y las que modifican algo se retienen para tu aprobación solo cuando corresponde (ver [Seguridad](./13-security.md)), en lugar de que todo pida permiso.
+
+Las conexiones salen del mismo catálogo público que las skills ([HydraOps-Skills](https://github.com/TraX22/HydraOps-Skills), carpeta `presets/`). Una conexión es **configuración, no código**: instalarla escribe una entrada en tu configuración MCP y nada más. El programa del servidor lo publica un tercero y lo trae el lanzador que corresponda.
+
+### Qué necesita cada una
+
+Cada conexión usa el lanzador más liviano que sirva:
+
+| Lanzador | Qué es | Cómo se instala |
+|---|---|---|
+| `uvx` | Ejecuta programas de Python sin instalarlos (viene con [uv](https://docs.astral.sh/uv/)) | Windows: `winget install astral-sh.uv` · macOS: `brew install uv` |
+| `npx` | Ejecuta programas de Node.js (viene con [Node.js](https://nodejs.org/)) | Windows: `winget install OpenJS.NodeJS.LTS` · macOS: `brew install node` |
+| `docker` | Solo para servidores que no se publican de otra forma | [Docker Desktop](https://docs.docker.com/get-started/get-docker/) |
+
+El catálogo no acepta ningún otro comando. El botón **Ver** te dice si el lanzador está en tu equipo y, si falta, cómo instalarlo; también lista lo que HydraOps no puede comprobar (por ejemplo, que Blender esté abierto con su add-on activado).
+
+### Instalar y usar
+
+1. En **Herramientas → Conexiones**, tabla **Disponibles**: **Ver** muestra qué necesita, el comando exacto con que se arranca y la clasificación de cada herramienta. **Instalar** la agrega.
+2. Dásela a un agente: en **Agentes → Herramientas**, agrega la línea que indica el panel (el nombre de la conexión en minúsculas, por ejemplo `blender`). Ningún agente recibe una conexión que no le diste.
+3. El worker de ese agente la conecta solo en unos segundos. La tabla **En este equipo** muestra el estado: *Conectada*, *Sin respuesta · se reintenta sola* (la aplicación estaba cerrada: ábrela, no hace falta reiniciar nada) o *Ningún agente la usa todavía*.
+
+Las clases de las herramientas:
+
+| Etiqueta | Clase | Qué pasa |
+|---|---|---|
+| consulta | `neutral` | Corre libre y no marca la tarea (el estado de tu propia aplicación). |
+| lee de afuera | `read` | Corre libre; marca la tarea como que leyó contenido de terceros. |
+| modifica | `acts` | Se retiene para tu aprobación si la tarea ya leyó contenido de terceros. |
+| lee y modifica | `both` | Las dos cosas. |
+
+### Versiones y actualizaciones
+
+La versión del programa está **fijada dentro de la conexión** (`uvx mcp-for-blender==2.1.3`, `npx @playwright/mcp@0.0.83`): es la que se probó y clasificó. No cambia sola. Cuando el catálogo publica una versión nueva de la conexión, aparece la etiqueta *nueva versión* y el botón **Actualizar**; al actualizar se conservan el interruptor y los valores que hayas cambiado en las variables de entorno (un puerto, por ejemplo).
+
+Si un servidor publica una herramienta que la conexión no clasifica, aparece *N herramientas sin clasificar*: esas se tratan como el peor caso (leen y actúan) hasta que una versión nueva de la conexión las clasifique.
+
+Si editaste a mano el comando o la clasificación de una conexión instalada, queda marcada *modificada a mano* y actualizarla te pide confirmación antes de pisar tus cambios.
+
+### Las que configuraste a mano
+
+Los servidores que agregaste en Add-ons aparecen en **En este equipo** como *configurada por vos*, con su estado y los agentes que los usan, pero desde acá no se tocan: se editan y se quitan en Add-ons. Si el catálogo tiene una conexión con el mismo nombre, instalarla te pregunta antes de reemplazar la tuya.

@@ -1,0 +1,194 @@
+<div class="tool-card">
+  <div class="tool-head">
+    <div class="tool-title">
+      <app-icon name="addons" class="tool-icon" />
+      <div class="tool-title-text">
+        <span class="addon-name">{{ 'herramientas.connections.name' | translate }}</span>
+        <span class="addon-type">{{ 'herramientas.connections.description' | translate }}</span>
+      </div>
+    </div>
+  </div>
+  <p class="tool-hint intro">{{ 'herramientas.connections.intro' | translate }}</p>
+
+  <!-- Available: the catalog -->
+  <div class="sec">
+    <h3>{{ 'herramientas.connections.available' | translate }} <span class="count">{{ catalog().length }}</span></h3>
+    <input class="search" type="search" [placeholder]="'herramientas.skills.search' | translate"
+           [value]="filter()" (input)="filter.set($any($event.target).value)" />
+    <button class="link-btn" [disabled]="catalogLoading()" (click)="loadCatalog(true)">
+      {{ (catalogLoading() ? 'herramientas.skills.checking' : 'herramientas.skills.checkUpdates') | translate }}
+    </button>
+  </div>
+  @if (catalogError()) {
+    <p class="notice">{{ 'herramientas.connections.catalogError' | translate }}</p>
+  } @else {
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>{{ 'herramientas.connections.colConnection' | translate }}</th><th>{{ 'herramientas.skills.colVersion' | translate }}</th><th></th></tr></thead>
+        <tbody>
+          @for (r of available(); track r.preset.name) {
+            <tr>
+              <td>
+                <div class="name">{{ r.preset.title }}</div>
+                <div class="desc" [title]="r.preset.description">{{ r.preset.description }}</div>
+                <div class="chips">
+                  @if (r.preset.launcher && r.preset.launcher !== 'none') {
+                    <span class="chip req">{{ 'herramientas.connections.needs' | translate:{ what: r.preset.launcher } }}</span>
+                  }
+                  <span class="chip">{{ (r.preset.toolCount === 1 ? 'herramientas.connections.toolCountOne' : 'herramientas.connections.toolCount') | translate:{ n: r.preset.toolCount } }}</span>
+                </div>
+              </td>
+              <td class="ver">{{ r.preset.version }}</td>
+              <td class="actions">
+                <button class="ibtn" (click)="open(r.preset.name, r.preset.title, r.preset.version)">{{ 'herramientas.skills.view' | translate }}</button>
+                @switch (r.state) {
+                  @case ('installed') { <span class="installed-tag"><app-icon name="check" /> {{ 'herramientas.connections.installed' | translate }}</span> }
+                  @case ('taken') { <span class="taken-tag" [title]="'herramientas.connections.takenWarn' | translate">{{ 'herramientas.skills.taken' | translate }}</span> }
+                  @case ('modified') { <span class="taken-tag" [title]="'herramientas.connections.modifiedWarn' | translate">{{ 'herramientas.connections.modified' | translate }}</span> }
+                  @case ('update') { <button class="ibtn ok" [disabled]="!!busy()" (click)="install(r.preset.name)">{{ 'herramientas.connections.update' | translate }}</button> }
+                  @default { <button class="ibtn primary" [disabled]="!!busy()" (click)="install(r.preset.name)"><app-icon name="download" /> {{ 'herramientas.connections.install' | translate }}</button> }
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="3" class="empty-cell">{{ (catalogLoading() ? 'herramientas.skills.checking' : 'herramientas.connections.noneAvailable') | translate }}</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  @if (notice(); as n) { <div class="scan after" [class.ok]="n.kind === 'ok'" [class.warn]="n.kind === 'warn'">{{ n.text }}</div> }
+
+  <!-- On this computer: from the catalog, and the ones set up by hand in Add-ons -->
+  <div class="sec">
+    <h3>{{ 'herramientas.connections.onThisComputer' | translate }} <span class="count">{{ servers().length }}</span></h3>
+  </div>
+  <div class="tscroll">
+    <table>
+      <thead><tr><th>{{ 'herramientas.connections.colConnection' | translate }}</th><th>{{ 'herramientas.connections.colState' | translate }}</th><th></th></tr></thead>
+      <tbody>
+        @for (s of servers(); track s.name) {
+          <tr>
+            <td>
+              <div class="name">{{ s.name }}</div>
+              <div class="chips">
+                @if (s.preset; as p) {
+                  <span class="chip ok">{{ 'herramientas.connections.fromCatalog' | translate:{ v: p.version } }}</span>
+                  @if (p.modified) { <span class="chip warn" [title]="'herramientas.connections.modifiedWarn' | translate">{{ 'herramientas.connections.modified' | translate }}</span> }
+                  @if (newerVersion(s); as v) { <span class="chip req">{{ 'herramientas.connections.newVersion' | translate:{ v } }}</span> }
+                } @else {
+                  <span class="chip">{{ 'herramientas.connections.manual' | translate }}</span>
+                  @if (!s.classified) { <span class="chip bad" [title]="'herramientas.connections.unclassifiedHint' | translate">{{ 'herramientas.connections.unclassifiedAll' | translate }}</span> }
+                }
+                @if (s.classified && s.unclassified > 0) {
+                  <span class="chip bad" [title]="'herramientas.connections.unclassifiedHint' | translate">{{ 'herramientas.connections.unclassified' | translate:{ n: s.unclassified } }}</span>
+                }
+                @if (s.agents.length) {
+                  <span class="chip agent">{{ 'herramientas.connections.usedBy' | translate:{ agents: s.agents.join(', ') } }}</span>
+                }
+              </div>
+            </td>
+            <td class="state-cell" [title]="s.error || ''"><span class="dot" [class]="'dot ' + stateKind(s)"></span>{{ stateText(s) }}</td>
+            <td class="actions">
+              @if (s.preset; as p) {
+                <button class="ibtn" (click)="open(p.name, s.name, p.version)">{{ 'herramientas.skills.view' | translate }}</button>
+                @if (newerVersion(s)) {
+                  <button class="ibtn ok" [disabled]="!!busy()" (click)="p.modified ? open(p.name, s.name, p.version) : install(p.name)">{{ 'herramientas.connections.update' | translate }}</button>
+                }
+                <button class="ibtn danger" [disabled]="!!busy()" (click)="remove(s)"><app-icon name="trash" /> {{ 'herramientas.connections.remove' | translate }}</button>
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="3" class="empty-cell">{{ 'herramientas.connections.noneHere' | translate }}</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <p class="tool-hint">{{ 'herramientas.connections.manualHint' | translate }}</p>
+  @if (error()) { <p class="notice bad">{{ error() }}</p> }
+</div>
+
+<!-- Preview: what it needs, how it starts and what each tool does, before installing -->
+@if (preview(); as p) {
+  <div class="backdrop" (click)="closePreview()"></div>
+  <aside class="drawer" role="dialog" [attr.aria-label]="p.title">
+    <div class="drawer-head">
+      <h3>{{ p.title }}</h3>
+      <span class="ver">{{ p.version }}{{ p.data?.preset?.author ? ' · ' + p.data?.preset?.author : '' }}</span>
+      <button class="icon-btn" (click)="closePreview()" [attr.aria-label]="'common.close' | translate"><app-icon name="x" /></button>
+    </div>
+    @if (p.loading) {
+      <p class="tool-hint">{{ 'herramientas.skills.loading' | translate }}</p>
+    } @else if (p.error) {
+      <p class="notice bad">{{ p.error }}</p>
+    } @else if (p.data; as d) {
+      <div class="scan ok">{{ 'herramientas.connections.verified' | translate }}</div>
+      @switch (d.conflict) {
+        @case ('manual') { <div class="scan warn">{{ 'herramientas.connections.takenWarn' | translate }}</div> }
+        @case ('modified') { <div class="scan warn">{{ 'herramientas.connections.modifiedWarn' | translate }}</div> }
+        @case ('update') { <div class="scan warn">{{ 'herramientas.connections.updateHint' | translate:{ from: d.installedVersion, to: d.preset.version } }}</div> }
+      }
+      <p class="pdesc">{{ d.preset.description }}</p>
+
+      <div class="box">
+        <h4>{{ 'herramientas.connections.requires' | translate }}</h4>
+        @if (d.launcher.name !== 'none') {
+          <div class="req-row">
+            <span class="mark" [class.ok]="d.launcher.found" [class.bad]="d.launcher.found === false">{{ d.launcher.found ? '✓' : '✗' }}</span>
+            <span><b>{{ d.launcher.name }}</b>
+              <small> — {{ (d.launcher.found ? 'herramientas.connections.launcherFound' : 'herramientas.connections.launcherMissing') | translate }}</small></span>
+          </div>
+          @if (!d.launcher.found && d.launcher.hint; as h) {
+            @if (h.command) { <pre>{{ h.command }}</pre> }
+            <a class="hint-link" [href]="h.url" target="_blank" rel="noopener">{{ h.url }}</a>
+          }
+        }
+        @for (n of d.preset.requires.notes; track n) {
+          <div class="req-row"><span class="mark q">?</span><span>{{ n }}</span></div>
+        }
+        @for (st of d.preset.requires.setup; track $index) {
+          @if (st.run) { <pre>{{ st.run }}</pre> }
+          @if (st.then) { <div class="req-row"><small>{{ st.then }}</small></div> }
+        }
+        @if (d.launcher.name === 'none' && !d.preset.requires.notes.length && !d.preset.requires.setup.length) {
+          <div class="req-row"><small>{{ 'herramientas.connections.requiresNothing' | translate }}</small></div>
+        }
+      </div>
+
+      <div class="box">
+        <h4>{{ 'herramientas.connections.startsWith' | translate }}</h4>
+        <pre>{{ d.commandLine }}</pre>
+        <div class="req-row"><small>{{ 'herramientas.connections.pinnedHint' | translate }}</small></div>
+      </div>
+
+      <div class="box">
+        <h4>{{ 'herramientas.connections.tools' | translate }} · {{ tools(p).length }}</h4>
+        <div class="tools">
+          @for (t of tools(p); track t.name) {
+            <code>{{ t.name }}</code><span class="cls" [class]="'cls ' + t.cls">{{ 'herramientas.connections.cls.' + t.cls | translate }}</span>
+          }
+        </div>
+        <div class="legend">
+          @for (c of classesUsed(p); track c) {
+            <span><span class="cls" [class]="'cls ' + c">{{ 'herramientas.connections.cls.' + c | translate }}</span> {{ 'herramientas.connections.clsHint.' + c | translate }}</span>
+          }
+        </div>
+      </div>
+
+      <div class="box">
+        <h4>{{ 'herramientas.connections.toUse' | translate }}</h4>
+        <div class="req-row"><span>{{ 'herramientas.connections.toUseHint' | translate }} <code>{{ d.preset.toolsMd }}</code></span></div>
+        @for (tip of d.preset.tips; track tip) { <div class="req-row"><small>{{ tip }}</small></div> }
+        @if (d.preset.homepage) { <a class="hint-link" [href]="d.preset.homepage" target="_blank" rel="noopener">{{ d.preset.homepage }}</a> }
+      </div>
+    }
+    <div class="drawer-foot">
+      <button class="ibtn" (click)="closePreview()">{{ 'common.close' | translate }}</button>
+      @if (actionLabel(p); as label) {
+        <button class="ibtn primary" [disabled]="!!busy()" (click)="confirmFromPreview(p)">{{ label | translate }}</button>
+      }
+    </div>
+  </aside>
+}
