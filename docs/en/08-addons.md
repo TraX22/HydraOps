@@ -47,6 +47,36 @@ MCP (Model Context Protocol) is the standard for connecting third-party tools ov
 
 Every server has its own switch, and the view shows its real status as reported by the workers: Connected, Connecting…, Connection error, Timed out, Off.
 
+Servers start connecting **when the app starts**, not with the first task. If one did not connect (docker still coming up, the application it drives was closed), it is **retried by itself** on the next task, at most once a minute; and if a server says it lost its connection (you closed and reopened Blender, say), HydraOps restarts it so it reconnects. No need to touch the configuration.
+
+### What each tool does (`toolRisk`)
+
+A local server that drives an application of yours (through `command`) is configured here too. HydraOps cannot know what each tool of an unknown server does, so it treats it as the worst case: it **reads third-party content and acts**. With that, as soon as the agent uses two tools of that server in one task, the second is held for your approval (see [Security](./13-security.md)), even if it is only reading. `toolRisk` says what each one does:
+
+```json
+{
+  "mcpServers": {
+    "Blender": {
+      "command": "uvx",
+      "args": ["mcp-for-blender"],
+      "toolRisk": {
+        "get_scene_info": "neutral",
+        "get_object_info": "neutral",
+        "get_viewport_screenshot": "neutral",
+        "execute_blender_code": "acts"
+      }
+    }
+  }
+}
+```
+
+- `neutral`: neither reads third-party content nor acts (your own application's state, the time).
+- `read`: brings in third-party content (a page, search results); changes nothing. Marks the task.
+- `acts`: changes something (runs code, writes, sends). Held if the task has already read third-party content.
+- `both`: both.
+
+The name is the tool's as the server publishes it, without the server prefix. Tools you do not list follow the usual rule: a known server, the server's own `readOnlyHint` annotation, or the worst case.
+
 ## Which tools each agent sees
 
 None, until you grant them: a tool — native, custom add-on or MCP server — reaches an agent only if its `tools.md` names it. It's managed with the tag selector in the Agents view (see [Agents](./05-agents.md)); new agents come with `web_search`, `fetch_url`, `remember` and `recall` already granted. That way your research agent can have a web search tool while your coding agent doesn't.

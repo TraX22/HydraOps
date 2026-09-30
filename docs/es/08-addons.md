@@ -47,6 +47,36 @@ MCP (Model Context Protocol) es el estándar para conectar herramientas de terce
 
 Cada servidor tiene su interruptor, y la vista muestra su estado real según lo reportan los workers: Conectado, Conectando…, Error de conexión, Tiempo agotado, Apagado.
 
+Los servidores empiezan a conectarse **cuando arranca la app**, no con la primera tarea. Si uno no conectó (docker todavía levantando, la aplicación que maneja estaba cerrada), se **reintenta solo** en la tarea siguiente, como mucho una vez por minuto; y si un servidor avisa que perdió su conexión (cerraste y reabriste Blender, por ejemplo), HydraOps lo reinicia para que se reconecte. No hace falta tocar la configuración.
+
+### Qué hace cada herramienta (`toolRisk`)
+
+Un servidor local que maneja una aplicación tuya (por `command`) también se configura acá. HydraOps no sabe qué hace cada herramienta de un servidor que no conoce, así que la trata como el peor caso: que **lee contenido de terceros y actúa**. Con eso, apenas el agente usa dos herramientas de ese servidor en una tarea, la segunda queda retenida para tu aprobación (ver [Seguridad](./13-security.md)), aunque solo esté leyendo. `toolRisk` le dice qué hace cada una:
+
+```json
+{
+  "mcpServers": {
+    "Blender": {
+      "command": "uvx",
+      "args": ["mcp-for-blender"],
+      "toolRisk": {
+        "get_scene_info": "neutral",
+        "get_object_info": "neutral",
+        "get_viewport_screenshot": "neutral",
+        "execute_blender_code": "acts"
+      }
+    }
+  }
+}
+```
+
+- `neutral`: ni lee contenido de terceros ni actúa (el estado de tu propia aplicación, la hora).
+- `read`: trae contenido de terceros (una página, resultados de búsqueda); no cambia nada. Marca la tarea.
+- `acts`: cambia algo (ejecuta código, escribe, envía). Se retiene si la tarea ya leyó contenido de terceros.
+- `both`: las dos cosas.
+
+El nombre es el de la herramienta tal como la publica el servidor, sin el prefijo del servidor. Las que no listes siguen la regla de siempre: servidor conocido, anotación `readOnlyHint` del propio servidor, o el peor caso.
+
 ## Qué herramientas ve cada agente
 
 Ninguna, hasta que se la concedas: una herramienta —nativa, add-on propio o servidor MCP— solo llega a un agente si su `tools.md` la nombra. Se gestiona con el selector de etiquetas de la vista Agentes (ver [Agentes](./05-agents.md)); los agentes nuevos vienen con `web_search`, `fetch_url`, `remember` y `recall` ya concedidas. Así tu agente de investigación puede tener buscador y tu agente de código no.
