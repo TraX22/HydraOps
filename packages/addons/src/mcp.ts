@@ -13,6 +13,8 @@ export interface McpServerStatus {
   name: string;
   state: McpServerState;
   toolCount: number;
+  /** Tools nobody classified (no toolRisk entry, known server or annotation): they ask for approval. */
+  unclassified?: number;
   error?: string;
   connectedAt?: string;
   transport: 'stdio' | 'sse' | 'http' | 'unknown';
@@ -165,6 +167,24 @@ const RESTART_COOLDOWN_MS = 30_000;
 // What a server says when the thing it drives is gone (checked on the start of a result).
 const DOWNSTREAM_LOST = /\bnot connected\b|connection (?:refused|lost|closed|reset)|ECONNREFUSED|ECONNRESET/i;
 
+/**
+ * The part of an MCP config a set of agents can actually use: the servers their tools.md
+ * lines name (the server itself, or one of its tools). A worker connects only these, so
+ * a server no agent of its kind was given is not started there at all.
+ */
+export function filterMcpConfigForTools(configStr: string, toolLines: string[]): string {
+  let parsed: any;
+  try { parsed = JSON.parse(configStr); } catch { return '{"mcpServers":{}}'; }
+  const norm = (v: string) => v.replace(/\s+/g, '_').toLowerCase();
+  const lines = toolLines.map(norm).filter(Boolean);
+  const kept: Record<string, unknown> = {};
+  for (const [name, cfg] of Object.entries<any>(parsed?.mcpServers ?? {})) {
+    const server = norm(name);
+    if (lines.some((l) => l === server || l.startsWith(server + '_'))) kept[name] = cfg;
+  }
+  return JSON.stringify({ mcpServers: kept });
+}
+
 // --- Main MCP Client Manager ---
 export class McpClientManager {
   // Cooldowns are parameters so the tests need not wait a minute.
@@ -184,31 +204,60 @@ export class McpClientManager {
   // flight, so that a worker's start-up warm-up and its first task share one round.
   private currentConfigStr: string | null = null;
   private round: Promise<void> | null = null;
+  // Each server's config as applied (JSON), to reconnect only what changed.
+  private appliedConfigs = new Map<string, string>();
+  // The tools each server registered, to remove exactly those when it goes away.
+  private serverTools = new Map<string, Set<string>>();
   // When each server was last retried / restarted, to keep a broken one from costing
   // every task a connection timeout.
   private lastRetryAt = new Map<string, number>();
 
   /**
    * Brings the MCP servers in line with `configStr` and returns once they are usable or
-   * `waitMs` has passed (the round goes on in the background). A new config reconnects
-   * everything; the same config retries the servers that failed or timed out, at most
-   * once a minute each. Called at worker start (waitMs 0) and before every task.
+   * `waitMs` has passed (the round goes on in the background). A different config
+   * touches only the servers that were added, removed or changed — the rest keep their
+   * connection; the same config retries the servers that failed or timed out, at most
+   * once a minute each. Called at worker start and on its heartbeat (waitMs 0) and
+   * before every task.
    */
   async ensure(configStr: string, waitMs = 15_000): Promise<void> {
     const settle = (ms: number) => (this.round && ms > 0 ? Promise.race([this.round, new Promise<void>((r) => setTimeout(r, ms))]) : Promise.resolve());
     if (configStr !== this.currentConfigStr) {
       // Let a round that is still connecting finish first: closing under it leaves child processes behind.
       await settle(Math.max(waitMs, 15_000));
-      if (this.currentConfigStr !== null) console.log("[MCP] Config changed — reconnecting servers...");
-      await this.closeAll();
-      this.currentConfigStr = configStr;
       let parsed: any;
       try { parsed = JSON.parse(configStr); } catch { parsed = { mcpServers: {} }; }
-      this.startRound(this.connectServers(parsed));
+      const next = new Map<string, string>();
+      for (const [name, cfg] of Object.entries<any>(parsed?.mcpServers ?? {})) next.set(name, JSON.stringify(cfg ?? {}));
+      for (const name of [...this.appliedConfigs.keys()]) {
+        if (next.get(name) !== this.appliedConfigs.get(name)) await this.disconnectServer(name);
+      }
+      const changed: Record<string, any> = {};
+      for (const [name, json] of next) if (this.appliedConfigs.get(name) !== json) changed[name] = JSON.parse(json);
+      this.appliedConfigs = next;
+      this.currentConfigStr = configStr;
+      const names = Object.keys(changed);
+      if (names.length) {
+        console.log(`[MCP] Connecting ${names.length} server(s): ${names.join(', ')}`);
+        this.startRound(this.connectServers({ mcpServers: changed }));
+      }
     } else if (!this.round) {
       this.startRound(this.retryFailed());
     }
     await settle(waitMs);
+  }
+
+  /** Closes one server and forgets its tools and status. */
+  private async disconnectServer(serverName: string): Promise<void> {
+    killTransport(this.transports.get(serverName));
+    try { await this.clients.get(serverName)?.close(); } catch (_) {}
+    this.clients.delete(serverName);
+    this.transports.delete(serverName);
+    for (const toolName of this.serverTools.get(serverName) ?? []) this.mcpTools.delete(toolName);
+    this.serverTools.delete(serverName);
+    this.serverStatuses.delete(serverName);
+    this.serverConfigs.delete(serverName);
+    this.lastRetryAt.delete(serverName);
   }
 
   private startRound(work: Promise<unknown>): void {
@@ -301,9 +350,14 @@ export class McpClientManager {
           const tools = response?.tools || [];
 
           let registeredCount = 0;
+          let unclassified = 0;
+          const registered = new Set<string>();
           for (const t of tools) {
             const toolName = `${serverName.replace(/\s+/g, '_').toLowerCase()}_${t.name}`;
             const zodSchema = jsonSchemaToZod(t.inputSchema);
+            const risk = classifyMcpTool(serverName, t.annotations, config.toolRisk?.[t.name]);
+            if (risk.basis === 'unknown') unclassified++;
+            registered.add(toolName);
 
             this.mcpTools.set(toolName, {
               name: toolName,
@@ -312,17 +366,20 @@ export class McpClientManager {
               execute: this.createToolExecutor(serverName, t.name),
               // The config's own word on this tool, a known server, or the tool's MCP
               // annotations; worst case otherwise.
-              risk: classifyMcpTool(serverName, t.annotations, config.toolRisk?.[t.name]),
+              risk,
             });
             registeredCount++;
             console.log(`[MCP] Registered tool: ${toolName}`);
           }
+
+          this.serverTools.set(serverName, registered);
 
           // Mark as connected
           this.serverStatuses.set(serverName, {
             name: serverName,
             state: 'connected',
             toolCount: registeredCount,
+            ...(unclassified ? { unclassified } : {}),
             connectedAt: new Date().toISOString(),
             transport: transportKind
           });
@@ -439,11 +496,8 @@ export class McpClientManager {
     this.transports.delete(serverName);
 
     // Remove old tools from this server
-    for (const [toolName] of this.mcpTools) {
-      if (toolName.startsWith(`${serverName.replace(/\s+/g, '_').toLowerCase()}_`)) {
-        this.mcpTools.delete(toolName);
-      }
-    }
+    for (const toolName of this.serverTools.get(serverName) ?? []) this.mcpTools.delete(toolName);
+    this.serverTools.delete(serverName);
 
     // Reconnect as if it were a fresh config (single server)
     await this.connectServers({ mcpServers: { [serverName]: config } });
@@ -480,5 +534,8 @@ export class McpClientManager {
     this.serverStatuses.clear();
     this.serverConfigs.clear();
     this.lastRetryAt.clear();
+    this.appliedConfigs.clear();
+    this.serverTools.clear();
+    this.currentConfigStr = null;
   }
 }

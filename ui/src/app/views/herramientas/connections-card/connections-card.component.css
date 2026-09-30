@@ -1,0 +1,33 @@
+/* What Connections adds to the Skills card vocabulary. */
+.tool-head { margin-bottom: 6px; }
+.tool-hint.intro { margin-top: 0; }
+.desc { -webkit-line-clamp: 2; }
+
+.state-cell { white-space: nowrap; font-size: 12px; color: var(--text-secondary); }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; background: #9ca3af; }
+.dot.ok { background: var(--status-online); }
+.dot.wait { background: #f59e0b; }
+.dot.unknown { background: transparent; border: 1px solid #9ca3af; }
+.scan.after { margin-top: 10px; }
+
+/* Preview */
+.pdesc { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
+.box { border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 10px 12px; }
+.box h4 { margin: 0 0 8px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--text-secondary); }
+.req-row { display: flex; gap: 8px; align-items: baseline; font-size: 13px; padding: 3px 0; color: var(--text-primary); line-height: 1.45; }
+.req-row small { color: var(--text-muted); font-size: 12px; }
+.mark { width: 16px; flex-shrink: 0; font-weight: 700; color: #d97706; }
+.mark.ok { color: var(--status-online); }
+.mark.bad { color: #ef4444; }
+.box pre {
+  margin: 4px 0; background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+  padding: 7px 10px; font-size: 11.5px; font-family: ui-monospace, monospace; white-space: pre-wrap; word-break: break-all; user-select: all;
+}
+.hint-link { font-size: 12px; color: var(--accent); word-break: break-all; }
+.tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; font-size: 12.5px; max-height: 260px; overflow-y: auto; }
+.tools code, .req-row code { font-size: 12px; word-break: break-all; color: var(--text-primary); }
+.cls { font-size: 10.5px; font-weight: 700; padding: 1px 8px; border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: .03em; justify-self: end; white-space: nowrap; }
+.cls.neutral { background: color-mix(in srgb, #6b7280 14%, transparent); color: var(--text-secondary); }
+.cls.read { background: color-mix(in srgb, #2563eb 14%, transparent); color: #3b82f6; }
+.cls.acts, .cls.both { background: color-mix(in srgb, #d97706 18%, transparent); color: #d97706; }
+.legend { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--text-muted); margin-top: 10px; }

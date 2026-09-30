@@ -47,9 +47,11 @@ MCP (Model Context Protocol) is the standard for connecting third-party tools ov
 
 Every server has its own switch, and the view shows its real status as reported by the workers: Connected, Connecting…, Connection error, Timed out, Off.
 
-Servers start connecting **when the app starts**, not with the first task. If one did not connect (docker still coming up, the application it drives was closed), it is **retried by itself** on the next task, at most once a minute; and if a server says it lost its connection (you closed and reopened Blender, say), HydraOps restarts it so it reconnects. No need to touch the configuration.
+Servers start connecting **when the app starts**, not with the first task. Each worker connects only the servers its agents use: one that no agent has in its tools is not started. If one did not connect (docker still coming up, the application it drives was closed), it is **retried by itself** on the next task, at most once a minute; and if a server says it lost its connection (you closed and reopened Blender, say), HydraOps restarts it so it reconnects. No need to touch the configuration.
 
 ### What each tool does (`toolRisk`)
+
+> For the most common servers you do not need to write this by hand: the catalog's [Connections](./09-tools.md) already carry the command and the classification of each tool.
 
 A local server that drives an application of yours (through `command`) is configured here too. HydraOps cannot know what each tool of an unknown server does, so it treats it as the worst case: it **reads third-party content and acts**. With that, as soon as the agent uses two tools of that server in one task, the second is held for your approval (see [Security](./13-security.md)), even if it is only reading. `toolRisk` says what each one does:
 

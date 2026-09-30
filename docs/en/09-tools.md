@@ -2,7 +2,7 @@
 
 The **Tools** section in the sidebar connects HydraOps to external services. Don't confuse it with [Add-ons](./08-addons.md): an add-on is a tool the *agents use* (search the web, read a page); a tool in this section is a **connector** that lets you *operate HydraOps from the outside*.
 
-Today there are **Telegram** (talk to your agents from your phone), **GitHub** and **[Skills](#skills-know-how-for-the-agents)**, the know-how agents read when a task calls for it. Discord, Signal and Reddit appear as "coming soon".
+Today there are **Telegram** (talk to your agents from your phone), **GitHub**, **[Skills](#skills-know-how-for-the-agents)** (the know-how agents read when a task calls for it) and **[Connections](#connections-ready-made-mcp-servers)** (apps and services the agents can drive). Discord, Signal and Reddit appear as "coming soon".
 
 ## Telegram: run your agents from your phone
 
@@ -101,3 +101,48 @@ An agent with `create_skill` can propose a skill when it has worked out somethin
 Skills your agents create stay **on your computer**: they are not uploaded to any repository. An agent cannot change or replace a skill that already exists either.
 
 Skills cannot be edited from the app yet: to change one, edit its `SKILL.md` in the folder, or delete it and install it again.
+
+## Connections: ready-made MCP servers
+
+A **connection** is an MCP server that is already configured: Blender, a real browser, a document converter. It is what you could write by hand in [Add-ons → MCP servers](./08-addons.md), with the work done: how it is started, what your computer needs and, above all, **what each of its tools does** (its [`toolRisk`](./08-addons.md)). With that, the tools that only read run freely and the ones that change something are held for your approval only when they should be (see [Security](./13-security.md)), instead of everything asking for permission.
+
+Connections come from the same public catalog as skills ([HydraOps-Skills](https://github.com/TraX22/HydraOps-Skills), the `presets/` folder). A connection is **configuration, not code**: installing one writes an entry in your MCP configuration and nothing else. The server program is published by a third party and fetched by the launcher it uses.
+
+### What each one needs
+
+Each connection uses the lightest launcher that works:
+
+| Launcher | What it is | How to install it |
+|---|---|---|
+| `uvx` | Runs Python programs without installing them (comes with [uv](https://docs.astral.sh/uv/)) | Windows: `winget install astral-sh.uv` · macOS: `brew install uv` |
+| `npx` | Runs Node.js programs (comes with [Node.js](https://nodejs.org/)) | Windows: `winget install OpenJS.NodeJS.LTS` · macOS: `brew install node` |
+| `docker` | Only for servers that are not published any other way | [Docker Desktop](https://docs.docker.com/get-started/get-docker/) |
+
+The catalog accepts no other command. **View** tells you whether the launcher is on your computer and, if it is missing, how to install it; it also lists what HydraOps cannot check (for example, that Blender is open with its add-on enabled).
+
+### Installing and using one
+
+1. In **Tools → Connections**, the **Available** table: **View** shows what it needs, the exact command it is started with and the classification of each tool. **Install** adds it.
+2. Give it to an agent: in **Agents → Tools**, add the line the panel shows (the connection's name in lowercase, for example `blender`). No agent gets a connection you did not give it.
+3. That agent's worker connects it on its own within seconds. The **On this computer** table shows the state: *Connected*, *No answer · retried automatically* (the application was closed: open it, nothing needs restarting) or *No agent uses it yet*.
+
+The tool classes:
+
+| Label | Class | What happens |
+|---|---|---|
+| looks up | `neutral` | Runs freely and does not mark the task (the state of your own application). |
+| reads outside | `read` | Runs freely; marks the task as having read third-party content. |
+| changes | `acts` | Held for your approval if the task has already read third-party content. |
+| reads and changes | `both` | Both. |
+
+### Versions and updates
+
+The program's version is **pinned inside the connection** (`uvx mcp-for-blender==2.1.3`, `npx @playwright/mcp@0.0.83`): it is the one that was tested and classified. It does not change on its own. When the catalog publishes a new version of the connection, the *new version* label and the **Update** button appear; updating keeps the switch and the values you changed in the environment variables (a port, for example).
+
+If a server publishes a tool the connection does not classify, *N unclassified tools* appears: those are treated as the worst case (read and act) until a new version of the connection classifies them.
+
+If you edited the command or the classification of an installed connection by hand, it is marked *edited by hand* and updating it asks for confirmation before overwriting your changes.
+
+### The ones you set up by hand
+
+The servers you added in Add-ons are listed under **On this computer** as *set up by you*, with their state and the agents that use them, but they are left alone here: edit and remove them in Add-ons. If the catalog has a connection with the same name, installing it asks before replacing yours.

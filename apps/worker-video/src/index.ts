@@ -18,7 +18,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, generateVideo, resolveLLMConfig, buildUserMessage, GROK_VIDEO_ASPECTS, isGrokVideoEngine } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
+import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
 import { tool } from "ai";
 import { z } from "zod";
 import { AckPolicy } from "nats";
@@ -51,12 +51,34 @@ const cancels = createCancelRegistry(nc, consumerName);
 console.log(`[${consumerName}] listening for agent.task_assigned (workerType=${WORKER_TYPE}) on ${env.NATS_URL}`);
 
 const globalRegistry = await createRegistry();
-// The MCP servers start connecting now, in the background: a docker-based server can
-// take longer than a task is willing to wait, and the first task should find them ready.
+// The MCP servers this worker connects: the ones the agents of its kind were given in
+// their tools.md. A server no such agent uses is not started here (every worker used to
+// start every server). An agent whose task arrives here counts as this worker's from
+// then on, whatever its configured type. On any trouble the whole config is used, as before.
+const servedAgents = new Set<string>();
+async function mcpConfigForMyAgents(configStr: string, servingAgent?: string): Promise<string> {
+  try {
+    if (servingAgent) servedAgents.add(servingAgent);
+    const cfgs = await (db as any).select().from(agentConfigs);
+    const typeOf = new Map<string, string>(cfgs.map((c: any) => [String(c.agentId), String(c.workerType || "coder")]));
+    const dirs: string[] = await (await import("node:fs/promises")).readdir(agentsDir).catch(() => []);
+    const lines: string[] = [];
+    for (const id of dirs) {
+      if (id.startsWith(".") || ((typeOf.get(id) ?? "coder") !== WORKER_TYPE && !servedAgents.has(id))) continue;
+      lines.push(...(await readAgentToolLines(id)));
+    }
+    return filterMcpConfigForTools(configStr, lines);
+  } catch { return configStr; }
+}
+async function storedMcpConfig(): Promise<string> {
+  const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, "mcp_servers_config")).limit(1);
+  return rows[0]?.value || process.env.mcp_servers_config || '{"mcpServers":{}}';
+}
+// They start connecting now, in the background: a server can take longer than a task is
+// willing to wait, and the first task should find them ready.
 (async () => {
   try {
-    const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, "mcp_servers_config")).limit(1);
-    await globalRegistry.mcpManager.ensure(rows[0]?.value || process.env.mcp_servers_config || '{"mcpServers":{}}', 0);
+    await globalRegistry.mcpManager.ensure(await mcpConfigForMyAgents(await storedMcpConfig()), 0);
   } catch (e: any) { console.warn(`[${consumerName}]`, `MCP warm-up failed: ${e?.message ?? e}`); }
 })();
 
@@ -70,6 +92,8 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 
 async function sendHeartbeat() {
   try {
+    // A connection installed from Herramientas, or a change in an agent's tools, takes effect here.
+    storedMcpConfig().then(mcpConfigForMyAgents).then((c) => globalRegistry.mcpManager.ensure(c, 0)).catch(() => {});
     const configs = await (db as any).select().from(agentConfigs);
     for (const cfg of configs) {
       if (cfg.workerType === WORKER_TYPE) {
@@ -275,8 +299,8 @@ async function runApprovedAction(actionId: string): Promise<void> {
   };
   const mcpServersConfigStr = getGlobalConfig("mcp_servers_config", '{"mcpServers":{}}');
   // Connect or reconnect what changed; a server that failed earlier is retried here.
-  await globalRegistry.mcpManager.ensure(mcpServersConfigStr, 15_000);
   const agentId = String(action.agentId);
+  await globalRegistry.mcpManager.ensure(await mcpConfigForMyAgents(mcpServersConfigStr, agentId), 15_000);
   console.log(`[${consumerName}] Running approved ${action.toolName} (${actionId}) for ${agentId}...`);
   const outcome = await executeApprovedCall(globalRegistry, {
     toolName: String(action.toolName),
@@ -450,7 +474,7 @@ ${EXTERNAL_CONTENT_RULE}
     const nativeState = JSON.parse(getGlobalConfig("native_addons_state", "{}"));
     const mcpServersConfigStr = getGlobalConfig("mcp_servers_config", '{"mcpServers":{}}');
     // Connect or reconnect what changed; a server that failed earlier is retried here.
-    await globalRegistry.mcpManager.ensure(mcpServersConfigStr, 15_000);
+    await globalRegistry.mcpManager.ensure(await mcpConfigForMyAgents(mcpServersConfigStr, agentId), 15_000);
 
     // MCP tools pass if the chat UI enabled the server (enabledMcpServers) or,
     // failing that, if the agent's tools.md mentions the server/tool.
