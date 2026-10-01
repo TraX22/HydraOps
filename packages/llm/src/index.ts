@@ -611,8 +611,10 @@ export function modelSeesImages(config: LLMConfig): boolean {
   if (config.provider === 'local') return process.env.LOCAL_LLM_VISION === '1';
   if (config.provider === 'anthropic') return true;
   if (config.provider === 'google') return m.includes('gemini');
-  const base = (config.baseURL || '').toLowerCase();
-  if (config.provider === 'openai' && (!base || base.includes('api.openai.com'))) {
+  // The host is compared whole: a substring test would also match "api.openai.com.evil.example".
+  let host = '';
+  try { host = config.baseURL ? new URL(config.baseURL).hostname.toLowerCase() : ''; } catch { host = 'invalid'; }
+  if (config.provider === 'openai' && (!host || host === 'api.openai.com')) {
     return /^(gpt-|chatgpt|o\d)/.test(m) && !/gpt-3\.5|instruct|audio|realtime/.test(m);
   }
   // OpenAI-compatible providers and OpenRouter: only models whose name says so.
