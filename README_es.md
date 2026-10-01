@@ -7,6 +7,7 @@
   <a href="https://github.com/TraX22/HydraOps/releases"><img src="https://img.shields.io/github/downloads/TraX22/HydraOps/total?color=4f46e5" alt="Downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/TraX22/HydraOps?color=4f46e5" alt="License"></a>
   <a href="https://hydraops.org"><img src="https://img.shields.io/badge/web-hydraops.org-4f46e5" alt="Website"></a>
+  <a href="https://docs.github.com/en/get-started/exploring-integrations/github-developer-program"><img src="https://img.shields.io/badge/GitHub-Developer_Program-4f46e5?logo=github" alt="Miembro del GitHub Developer Program"></a>
 </p>
 
 [English](README.md) | **Español**
@@ -251,6 +252,8 @@ la [Política de Privacidad](PRIVACY_es.md).
 Preguntas, ideas, lo que sea: **hi@hydraops.org** — o abre un issue.
 
 Síguenos en X: [@HydraOpsApp](https://x.com/HydraOpsApp).
+
+HydraOps se integra con GitHub a través de su API (el add-on `github`: repositorios, issues y pull requests) y es miembro del [GitHub Developer Program](https://docs.github.com/es/get-started/exploring-integrations/github-developer-program). Soporte de la integración: **hi@hydraops.org**.
 
 ## Licencia
 
