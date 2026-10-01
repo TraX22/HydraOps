@@ -49,6 +49,12 @@ Cada servidor tiene su interruptor, y la vista muestra su estado real según lo 
 
 Los servidores empiezan a conectarse **cuando arranca la app**, no con la primera tarea. Cada worker conecta solo los servidores que usan sus agentes: uno que ningún agente tiene en sus herramientas no se arranca. Si uno no conectó (docker todavía levantando, la aplicación que maneja estaba cerrada), se **reintenta solo** en la tarea siguiente, como mucho una vez por minuto; y si un servidor avisa que perdió su conexión (cerraste y reabriste Blender, por ejemplo), HydraOps lo reinicia para que se reconecte. No hace falta tocar la configuración.
 
+### Imágenes que devuelve una herramienta
+
+Algunas herramientas responden con una imagen: una captura del visor de Blender, una captura de página de un servidor de navegador. Si el modelo del agente ve imágenes (los modelos de chat de OpenAI, Anthropic y Gemini, y otros cuyo nombre lo indica), la imagen se le muestra justo después del resultado de la herramienta, así puede comprobar de verdad su trabajo; las dos más recientes siguen adjuntas mientras dura la tarea. A un modelo que no ve imágenes se le dice claramente que no se le mostró, para que no afirme haberla mirado.
+
+Con un modelo local, pon `LOCAL_LLM_VISION=1` en el `.env` si tu servidor tiene cargado el proyector multimodal. `HYDRA_TOOL_IMAGES=off` lo desactiva para todos los modelos y `all` lo fuerza.
+
 ### Qué hace cada herramienta (`toolRisk`)
 
 > Para los servidores más comunes no hace falta escribir esto a mano: las [Conexiones](./09-tools.md) del catálogo ya traen el comando y la clasificación de cada herramienta.

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { keepToolImage, toolImageMarker } from './tool-images.js';
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
@@ -139,6 +140,9 @@ function sanitizeMcpContent(content: any[], toolName: string): string {
     const type = c?.type;
     if (type === "image" || type === "audio") {
       const mime = c?.mimeType || type;
+      // A picture is kept aside and handed to a model that can see it (see tool-images.ts).
+      const id = type === 'image' ? keepToolImage(mime, c?.data) : null;
+      if (id) return toolImageMarker(id, String(mime).toLowerCase().split(';')[0].trim(), partSizeKB(c));
       return `[${type} ${mime} omitted: ~${partSizeKB(c)} KB — not embeddable in text context]`;
     }
     if (type === "resource" && c?.resource) {
