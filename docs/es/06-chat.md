@@ -42,7 +42,7 @@ Una página web entera, una transcripción de una hora o una lista larga de issu
 
 Cuando la tarea es larga, lo que ya leyó no cabe entero en la memoria de trabajo del modelo. Por eso, antes de cada paso, los resultados **más viejos** que superan el presupuesto (unos 90 000 caracteres; 40 000 con un modelo local; `HYDRA_TOOL_CONTEXT_CHARS` lo cambia) se **compactan**: en la conversación queda una línea con el número de baúl y cómo volver a leerlos; nada se pierde. Para que los hallazgos sobrevivan a eso, el agente tiene **`vault_note`**: anota cifras, citas y conclusiones con su `#n`, y esas notas le vuelven en cada paso (en "ver pasos": "Anotando: …"). Si la tarea ejecuta un plan (`/plan`), arranca con los documentos que el agente ya leyó al planificar, sin volver a bajarlos.
 
-El baúl vive en `storage/results/<tarea>/vault/` y se borra a las **24 horas**: lo justo para volver sobre una tarea al día siguiente sin que se acumule. Lo que el agente relee del baúl llega marcado como dato externo, igual que cuando lo leyó por primera vez (ver [Seguridad](./13-security.md)).
+El baúl vive en `storage/results/<tarea>/vault/` y se borra a las **24 horas**: lo justo para volver sobre una tarea al día siguiente sin que se acumule. Lo que el agente relee del baúl conserva su origen: un documento que vino de afuera (una página, una búsqueda) llega marcado como dato externo, igual que cuando lo leyó por primera vez, mientras que releer algo que no vino de afuera (el estado de tu propia aplicación, por ejemplo) no marca la tarea (ver [Seguridad](./13-security.md)). Una **skill** instalada es la excepción al resumen: el agente recibe siempre su texto completo.
 
 ## Planificar antes de hacer
 

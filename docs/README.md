@@ -18,5 +18,6 @@ Este manual también se lee **dentro de la aplicación**, en la vista **Docs** (
 | [Modo servidor](es/12-server-mode.md) | [Server mode](en/12-server-mode.md) |
 | [Seguridad](es/13-security.md) | [Security](en/13-security.md) |
 | [Problemas frecuentes](es/14-troubleshooting.md) | [Troubleshooting](en/14-troubleshooting.md) |
+| [Comandos](es/15-commands.md) | [Commands](en/15-commands.md) |
 
 `manifest.json` define la navegación que usa la app; si añades una página, añádela ahí también. / `manifest.json` drives the in-app navigation; if you add a page, add it there too.

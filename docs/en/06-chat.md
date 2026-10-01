@@ -42,7 +42,7 @@ A whole web page, an hour-long transcript or a long list of issues does not fit 
 
 On a long task, what it has already read does not fit whole in the model's working memory. So before each step, the **oldest** results beyond the budget (about 90,000 characters; 40,000 with a local model; `HYDRA_TOOL_CONTEXT_CHARS` changes it) are **compacted**: the conversation keeps one line with the vault number and how to read them again; nothing is lost. So that findings survive that, the agent has **`vault_note`**: it writes down figures, quotes and conclusions with their `#n`, and those notes come back to it on every step ("Noting: …" in "show steps"). A task that carries out a plan (`/plan`) starts with the documents the agent already read while planning, without fetching them again.
 
-The vault lives in `storage/results/<task>/vault/` and is removed after **24 hours**: enough to come back to a task the next day without piling up. What the agent reads back from the vault arrives marked as outside data, just as it did the first time (see [Security](./13-security.md)).
+The vault lives in `storage/results/<task>/vault/` and is removed after **24 hours**: enough to come back to a task the next day without piling up. What the agent reads back from the vault keeps its origin: a document that came from outside (a page, a search) arrives marked as outside data, just as it did the first time, while re-reading something that did not (the state of your own application, say) does not mark the task (see [Security](./13-security.md)). An installed **skill** is the exception to the digest: the agent always gets its full text.
 
 ## Plan before doing
 

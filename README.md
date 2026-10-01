@@ -40,10 +40,29 @@ Leonardo, Google Imagen and Veo, xAI Grok Imagine.
   and every agent is told to say so when it lacks a tool instead of pretending.
 - **Four worker types** — code, general, image and video — each with its own engine and
   aspect ratio, configurable per agent. Video through Google Veo, xAI Grok Imagine or
-  Leonardo Motion; images through Leonardo (Flux, Phoenix…), Google Imagen or Grok.
+  Leonardo Motion; images through Leonardo (Flux, Phoenix…), Google's Gemini image
+  models or Grok.
 - **Tools.** Native add-ons (web search, Brave, Perplexity, `fetch_url` with RSS
   fallback, YouTube transcripts, GitHub, Telegram), your own add-ons in `my_addons/`
-  (hot-loaded) and MCP servers over HTTP. Each agent gets only the tools you grant it.
+  (hot-loaded) and MCP servers, local or remote. Each agent gets only the tools you
+  grant it.
+- **Connections.** A catalog of MCP servers ready to install from the app — Blender, a
+  real browser, a document converter — with the program's version pinned and every tool
+  classified by what it does, so the ones that only read run freely.
+- **Skills.** Tested procedures (the open Agent Skills format) that agents open when a
+  task calls for one: install them from the
+  [catalog](https://github.com/TraX22/HydraOps-Skills), copy your own, or let an agent
+  propose one for your approval.
+- **Plan before doing.** `/plan` puts an agent in a mode where it can only read: it
+  proposes the steps, you approve, edit or ask for a revision, and only then does
+  anything run.
+- **Outside content is data, not orders.** What an agent reads from the web is marked as
+  third-party content, and once a task has read any, the actions that change something
+  wait for your approval in the chat (or on Telegram); the agent picks up where it left
+  off once you decide.
+- **Long reads without losing the thread.** Long tool results are kept whole in a task
+  vault; the agent reads them back by section or by search instead of working from a
+  truncated first screen.
 - **Telegram bot.** Pair a chat with a code and talk to any agent from your phone;
   scheduled tasks can push their results (and failures) to Telegram too.
 - **Commands.** Type `/` in the chat for a palette of verbs that cost no tokens —
@@ -52,6 +71,8 @@ Leonardo, Google Imagen and Veo, xAI Grok Imagine.
   See [Commands](docs/en/15-commands.md).
 - **One Shot.** Draw a task as a flow diagram of nodes and connections and have your
   model compile it into a single, complete prompt.
+- **3D.** Describe an object and a model writes the scene; it renders in an isolated
+  viewer, you iterate on it and export it as `.glb` or a PNG.
 - **Credential firewall.** API keys are never in the repository, the database or the
   `.env`: they live outside the project and a local proxy injects them at the network
   boundary. Workers only ever see the `proxy` placeholder.

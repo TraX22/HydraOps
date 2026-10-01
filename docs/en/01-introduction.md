@@ -8,9 +8,11 @@ HydraOps is a multi-agent AI system with a chat interface. You create agents —
 - **Workers.** Four executor types: **code**, **general**, **image** and **video**. Every agent belongs to one, and that decides what kind of tasks it handles.
 - **Models.** Works with API models (OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, DeepSeek, Qwen, Kimi, GLM, MiniMax, OpenRouter, Leonardo) and with local models through any OpenAI-compatible server — llama.cpp, LM Studio, vLLM, Ollama. See [API keys & models](./04-api-keys.md).
 - **Add-ons.** Native add-ons, your own add-ons and MCP servers: what the agents use to *act*. See [Add-ons & MCP](./08-addons.md).
-- **Tools.** Connectors to external services, like Telegram to run your agents from your phone. See [Tools (integrations)](./09-tools.md).
+- **Tools.** Telegram and GitHub to run your agents from outside; **Skills**, tested procedures the agents open when a task calls for one; and **Connections**, a catalog of MCP servers ready to install (Blender, a real browser, documents) where every tool says what it does. See [Tools (integrations)](./09-tools.md).
+- **Commands.** Type `/` in the chat: verbs that cost no tokens, and **`/plan`** to have the agent propose a plan that you approve, edit or revise before anything runs. See [Commands](./15-commands.md) and [Chat](./06-chat.md#plan-before-doing).
+- **Safety.** What an agent reads from outside is treated as data, never as instructions, and once a task has read outside content the actions that change something wait for your approval. See [Security](./13-security.md).
 - **Scheduled tasks.** Crons: "every morning at 8, summarize the news from…". See [Scheduled tasks](./10-scheduled-tasks.md).
-- **Plugins.** Mini-apps inside the interface; today **One Shot**, which compiles a flow diagram into a one-shot prompt. See [Plugins](./07-plugins.md).
+- **Plugins.** Mini-apps inside the interface: **One Shot**, which compiles a flow diagram into a one-shot prompt, and **3D**, where a model writes the scene you describe and you see it rendered. See [Plugins](./07-plugins.md).
 
 ## How a task flows
 

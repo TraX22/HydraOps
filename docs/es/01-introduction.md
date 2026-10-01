@@ -8,9 +8,11 @@ HydraOps es un sistema multi-agente de IA con interfaz de chat. Creas agentes �
 - **Workers.** Cuatro tipos de ejecutor: **código**, **general**, **imagen** y **vídeo**. Cada agente pertenece a uno, y eso decide qué clase de tareas resuelve.
 - **Modelos.** Funciona con modelos de API (OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, DeepSeek, Qwen, Kimi, GLM, MiniMax, OpenRouter, Leonardo) y con modelos locales por cualquier servidor compatible con OpenAI — llama.cpp, LM Studio, vLLM, Ollama. Ver [Claves de API y modelos](./04-api-keys.md).
 - **Add-ons.** Add-ons nativos, add-ons tuyos y servidores MCP: lo que los agentes usan para *hacer*. Ver [Add-ons y MCP](./08-addons.md).
-- **Herramientas.** Conectores hacia servicios externos, como Telegram para manejar los agentes desde el móvil. Ver [Herramientas (integraciones)](./09-tools.md).
+- **Herramientas.** Telegram y GitHub para manejar los agentes desde fuera; las **Skills**, procedimientos probados que los agentes abren cuando una tarea los necesita; y las **Conexiones**, un catálogo de servidores MCP listos para instalar (Blender, un navegador real, documentos) donde cada herramienta dice qué hace. Ver [Herramientas (integraciones)](./09-tools.md).
+- **Comandos.** Escribe `/` en el chat: verbos que no gastan tokens, y **`/plan`** para que el agente proponga un plan que apruebas, editas o revisas antes de que se ejecute nada. Ver [Comandos](./15-commands.md) y [El chat](./06-chat.md#planificar-antes-de-hacer).
+- **Seguridad.** Lo que un agente lee de afuera se trata como dato, nunca como instrucciones, y cuando una tarea ya leyó contenido externo las acciones que cambian algo esperan tu aprobación. Ver [Seguridad](./13-security.md).
 - **Tareas programadas.** Crons: "cada mañana a las 8, resume las novedades de…". Ver [Tareas programadas](./10-scheduled-tasks.md).
-- **Complementos.** Mini-aplicaciones dentro de la interfaz; hoy **One Shot**, que compila un diagrama de flujo en un prompt de un tiro. Ver [Complementos](./07-plugins.md).
+- **Complementos.** Mini-aplicaciones dentro de la interfaz: **One Shot**, que compila un diagrama de flujo en un prompt de un tiro, y **3D**, donde un modelo escribe la escena que describes y la ves renderizada. Ver [Complementos](./07-plugins.md).
 
 ## Cómo fluye una tarea
 

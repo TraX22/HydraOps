@@ -41,6 +41,14 @@ It is in plain text in the server's `.env` (`HYDRA_AUTH_TOKEN`). Change it whene
 
 Close HydraOps before installing: the installer cannot overwrite files in use.
 
+## A connection (MCP server) does not connect
+
+Open **Tools → Connections** and look at its state. *No agent uses it yet*: give it to an agent in Agents → Tools; a worker only starts the servers its agents were given. *No answer · retried automatically*: the application it drives is closed (open Blender, start the add-on's server) or the launcher is missing; **View** says whether `uvx`, `npx` or `docker` is installed and how to get it. Nothing needs restarting: it is retried on the next task. The first start of a server can take a minute or more, while it downloads itself.
+
+## An agent on "Automatic" fails to generate images
+
+Update to 0.1.46 or newer: the old default engine was a Google model that no longer exists. If it still fails, pick an engine by name in the agent's profile and check that provider's key in Config.
+
 ## Does reinstalling erase my data?
 
 No. Data and keys live outside the installation (`%APPDATA%\HydraOps` and `%APPDATA%\hydraops\keys.json`). Uninstalling and reinstalling gives you back your agents, your history and your keys. That also means **deleting the application does not delete your keys**: for that, delete those two folders.
