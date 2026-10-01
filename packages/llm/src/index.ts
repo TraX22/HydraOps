@@ -914,10 +914,41 @@ function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+/** Gemini models that draw (gemini-2.5-flash-image, gemini-3.1-flash-image…), as opposed to Imagen. */
+export function isGeminiImageModel(model: string): boolean {
+  return /^gemini-[\w.-]*image/i.test(model.replace(/^models\//, ''));
+}
+
 export async function generateImage(config: LLMConfig, prompt: string, width: number = 1024, height: number = 1024, opts: { abortSignal?: AbortSignal } = {}) {
   const abortSignal = opts.abortSignal;
   try {
     console.log(`[LLM Image] Attempting with model: ${config.model} (${config.provider})`);
+
+    // Google has two image APIs. The Gemini image models (gemini-*-image, "Nano Banana")
+    // answer generateContent with the picture as inline data; the Imagen family uses
+    // predict. Imagen is no longer offered to every key, so the Gemini one is the default.
+    if (config.provider === 'google' && isGeminiImageModel(config.model)) {
+       const response = await fetch(proxied(`https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`), {
+         signal: abortSignal,
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: aspectFromSize(width, height) } },
+         })
+       });
+       if (!response.ok) throw new Error(await response.text());
+       const data = await response.json();
+       const parts: any[] = data.candidates?.[0]?.content?.parts ?? [];
+       const image = parts.find((p) => typeof p?.inlineData?.data === 'string');
+       if (!image) {
+          // No picture: the model answered in words (a refusal, usually) or was stopped.
+          const said = parts.map((p) => p?.text).filter(Boolean).join(' ').trim();
+          const why = said || data.candidates?.[0]?.finishReason || data.promptFeedback?.blockReason || 'no image in the response';
+          throw new Error(`Google returned no image: ${String(why).slice(0, 300)}`);
+       }
+       return { success: true, base64: image.inlineData.data as string };
+    }
 
     if (config.provider === 'google') {
        const response = await fetch(proxied(`https://generativelanguage.googleapis.com/v1beta/models/${config.model}:predict?key=${config.apiKey}`), {

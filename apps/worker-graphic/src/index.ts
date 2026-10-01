@@ -167,7 +167,11 @@ function imageSize(resolution?: string | null): [number, number] {
   return IMAGE_SIZES[resolution ?? ""] ?? [1024, 1024];
 }
 
-const IMAGE_MODEL_HINT = /imagen|leonardo|flux|dall|stable|sdxl|photon|phoenix|lucid/i;
+const IMAGE_MODEL_HINT = /imagen|-image\b|leonardo|flux|dall|stable|sdxl|photon|phoenix|lucid/i;
+// What "auto" draws with when the agent has no image engine of its own. Google stopped
+// offering Imagen to every key (the old default, imagen-3.0-generate-002, answers 404);
+// the Gemini image models are listed for all of them.
+const FALLBACK_IMAGE_MODEL = "gemini-3.1-flash-image";
 const BARE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // The image engine this agent draws with. "auto" used to fall back to the
@@ -182,7 +186,7 @@ function resolveImageEngine(agentCfg: any): string {
       ? agentCfg.graphicEngine
       : agentCfg.model && IMAGE_MODEL_HINT.test(agentCfg.model)
         ? agentCfg.model
-        : process.env.DEFAULT_IMAGE_MODEL || "imagen-3.0-generate-002";
+        : process.env.DEFAULT_IMAGE_MODEL || FALLBACK_IMAGE_MODEL;
   if (BARE_UUID.test(engine)) engine = `leonardo:${engine}`;
   return engine;
 }
