@@ -281,7 +281,12 @@ export class McpClientManager {
 
   async connectServers(mcpConfig: any) {
     if (!mcpConfig || !mcpConfig.mcpServers) return;
-    const PER_SERVER_TIMEOUT_MS = 10_000;
+    // A remote server answers at once or not at all. A local one started through uvx, npx
+    // or docker may have to download itself the first time (a minute is common), and
+    // cutting that short kills the download, so it would never get to start: it gets
+    // longer. Tasks do not wait for this (see ensure): they go on without the server.
+    const REMOTE_TIMEOUT_MS = 10_000;
+    const LOCAL_TIMEOUT_MS = 180_000;
 
     const connectionPromises = Object.entries<any>(mcpConfig.mcpServers).map(async ([serverName, config]) => {
       if (config.switch === "off") {
@@ -385,7 +390,7 @@ export class McpClientManager {
           });
 
           console.log(`[MCP] ✅ ${serverName} connected — ${registeredCount} tools registered.`);
-        })(), PER_SERVER_TIMEOUT_MS, `connection to ${serverName}`);
+        })(), config.command ? LOCAL_TIMEOUT_MS : REMOTE_TIMEOUT_MS, `connection to ${serverName}`);
       } catch (err: any) {
         const isTimeout = err.message?.includes('Timeout');
         const state: McpServerState = isTimeout ? 'timeout' : 'failed';
