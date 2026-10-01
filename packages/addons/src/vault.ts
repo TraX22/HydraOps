@@ -42,6 +42,12 @@ export interface VaultEntry {
   chars: number;
   sections: string[];
   at: string;
+  /**
+   * False when the tool that produced it does not read third-party content (the state of
+   * the user's own application, say). Missing on documents stored by older versions:
+   * those count as third-party content.
+   */
+  external?: boolean;
 }
 
 export interface VaultSummary {
@@ -65,7 +71,9 @@ export interface StepOverrides {
 
 export interface TaskVault {
   /** Returns what the model should get for this result: the result itself, or a digest. */
-  store(toolName: string, args: unknown, result: unknown): Promise<unknown>;
+  store(toolName: string, args: unknown, result: unknown, opts?: { external?: boolean }): Promise<unknown>;
+  /** Does document #n hold third-party content? Without n: does any document? */
+  isExternal(n?: number): boolean;
   read(n: number, opts?: { section?: string; from?: number }): Promise<string>;
   find(query: string, n?: number): Promise<string>;
   /** A finding worth keeping (vault_note): persisted, and repeated to the model on every step. */
@@ -312,7 +320,7 @@ export function createTaskVault(options: TaskVaultOptions): TaskVault {
   };
 
   return {
-    async store(toolName, args, result) {
+    async store(toolName, args, result, opts) {
       // The vault tools read the vault; storing their output would loop.
       if (toolName.startsWith('vault_') || result == null) return result;
       let text = toText(result);
@@ -327,6 +335,7 @@ export function createTaskVault(options: TaskVaultOptions): TaskVault {
         chars: text.length,
         sections: detectSections(text),
         at: new Date().toISOString(),
+        external: opts?.external !== false,
       };
       entries.push(entry);
       cache.set(entry.n, text);
@@ -446,6 +455,12 @@ export function createTaskVault(options: TaskVaultOptions): TaskVault {
       return `${hits.length} match(es) for "${query}" (position after @ can be used as from= in vault_read):\n` + hits.join('\n');
     },
 
+    isExternal(n) {
+      if (n === undefined) return entries.some((e) => e.external !== false);
+      const entry = entries.find((e) => e.n === n);
+      return !!entry && entry.external !== false;
+    },
+
     list: () => entries.map((e) => ({ ...e, sections: [...e.sections] })),
     summary,
   };
@@ -454,15 +469,16 @@ export function createTaskVault(options: TaskVaultOptions): TaskVault {
 /**
  * The two tools the model gets while a task has a vault. They are appended by the
  * registry (not gated by tools.md: they only reach what this task's own tools already
- * brought in) and marked as reading outside content, so what they return is wrapped
- * as data like the original result was.
+ * brought in). Reading a document counts as reading outside content exactly when the
+ * tool that produced it did: a page that was fetched is wrapped as data again, while
+ * re-reading the state of the user's own application does not mark the task.
  */
 export function createVaultTools(vault: TaskVault): HydraTool[] {
   return [
     {
       name: 'vault_read',
       title: 'Vault: read',
-      risk: { readsExternal: true },
+      risk: (args: any) => ({ readsExternal: vault.isExternal(typeof args?.n === 'number' ? args.n : undefined) }),
       description:
         'Reads more of a long tool result kept in the task vault (marked [vault #n] in the result you got). ' +
         'With `section`, returns that section (as listed in the marker); otherwise returns up to 6000 characters starting at `from` (default: right after the part you already saw).',
@@ -476,7 +492,7 @@ export function createVaultTools(vault: TaskVault): HydraTool[] {
     {
       name: 'vault_find',
       title: 'Vault: find',
-      risk: { readsExternal: true },
+      risk: (args: any) => ({ readsExternal: vault.isExternal(typeof args?.n === 'number' ? args.n : undefined) }),
       description:
         'Searches the long tool results kept in the task vault for a word or phrase and returns each match with its surroundings. ' +
         'Give `n` to search one document, or leave it out to search all of them.',

@@ -36,6 +36,8 @@ export const skillsViewTool: HydraTool = {
   title: "Skills",
   // Reads files the user installed or approved: local, trusted instructions.
   risk: {},
+  // A procedure to follow: the model gets all of it, not a digest (capped by maxViewChars).
+  vault: false,
   description:
     "Open an installed skill: step-by-step instructions for a kind of task. Call it with the skill's name (from the installed skills list in your instructions) BEFORE starting a task that matches it, then follow it. Pass `file` to open one of the skill's reference files when the skill tells you to.",
   schema: z.object({
