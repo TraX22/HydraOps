@@ -39,6 +39,27 @@
       </select>
     </section>
 
+    <!-- Routing model: who hands out the main chat's messages (ROUTER_MODEL) -->
+    <section class="config-section">
+      <h3>{{ 'config.routerModel' | translate }}</h3>
+      <select class="model-select"
+              [ngModel]="config().routerModel ?? ''"
+              (ngModelChange)="updateField('routerModel', $event)">
+        <option value="">{{ 'config.routerSameAsDefault' | translate }}</option>
+        @if (missingRouterModel(); as mm) {
+          <option [value]="mm">⚠ {{ mm }} — {{ 'config.modelUnavailable' | translate }}</option>
+        }
+        @for (group of groupedModels(); track group.provider) {
+          <optgroup [label]="group.label">
+            @for (model of group.models; track model.id) {
+              <option [value]="model.id">{{ model.emoji }} {{ modelLabel(model.name) }}</option>
+            }
+          </optgroup>
+        }
+      </select>
+      <p class="hint">{{ 'config.routerModelHint' | translate }}</p>
+    </section>
+
     <!-- Language -->
     <section class="config-section">
       <h3>{{ 'config.languages' | translate }}</h3>

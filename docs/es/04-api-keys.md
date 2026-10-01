@@ -10,7 +10,7 @@ Las claves **no se guardan en el proyecto, ni en la base de datos, ni en ningún
 
 ## Elegir modelo
 
-- **Modelo por defecto:** en Configuración; se usa cuando un agente no tiene uno propio.
+- **Modelo predeterminado:** en Configuración; se usa cuando un agente no tiene uno propio.
 - **Modelo por agente:** en la ficha del agente (vista Agentes). Cada agente puede usar un proveedor distinto.
 
 Los modelos de proveedores sin clave aparecen como "no disponible" hasta que pongas la suya.

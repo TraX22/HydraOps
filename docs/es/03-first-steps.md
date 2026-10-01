@@ -25,7 +25,7 @@ Ve a **Chat** y escribe. La tarea se asigna al agente y la respuesta aparece en 
 - **Add-ons** — las herramientas: add-ons nativos, los tuyos y servidores MCP.
 - **Estadísticas** — tareas completadas y fallidas, tokens, tiempos, uso por agente.
 - **Docs** — este manual.
-- **Configuración** — claves de API, modelo por defecto, LLM local, nivel de log.
+- **Configuración** — claves de API, modelo predeterminado, LLM local, nivel de log.
 - **Perfil** — quién eres tú: los agentes usan esa información para personalizar sus respuestas.
 
 El botón de la luna/sol cambia entre tema día y noche, y el idioma de la interfaz se elige en **Configuración → Lenguajes** (el manual existe en español e inglés; con la interfaz en otro idioma, se muestra en inglés).

@@ -1224,6 +1224,8 @@ const envMapping: Record<string, string> = {
   localLlmKey: "LOCAL_LLM_KEY",
   localLlmModel: "LOCAL_LLM_MODEL",
   defaultModel: "DEFAULT_MODEL",
+  // The model that hands out the main chat's messages (see apps/orchestrator router.ts); empty = the default model.
+  routerModel: "ROUTER_MODEL",
   logLevel: "LOG_LEVEL"
 };
 
@@ -1969,6 +1971,7 @@ api.get("/config", async (req, res) => {
       localLlmKey: "",
       localLlmModel: "",
       defaultModel: "",
+      routerModel: "",
       logLevel: "info"
     };
 
