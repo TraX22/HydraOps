@@ -502,9 +502,9 @@ export class AgentsComponent implements OnInit {
   }
 
   // ── Worker & Model config ──
-  // Modelo crudo del agente: vacío = "Automático" (sigue el modelo por defecto
-  // global). No se resuelve al default aquí para que el selector muestre
-  // "Automático" en vez de un modelo concreto.
+  // The agent's raw model: empty = "Automatic" (follow the global default model).
+  // It is not resolved to the default here, so the selector shows "Automatic"
+  // instead of a specific model.
   get currentModel(): string {
     return this.selectedAgent()?.llmModel || '';
   }

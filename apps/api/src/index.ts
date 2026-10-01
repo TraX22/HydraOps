@@ -897,7 +897,7 @@ api.post("/agents", async (req, res) => {
     }
 
     // Register in DB so the agent gets a workerType/model and worker heartbeats.
-    // Sin modelo → "" (Automático): el agente sigue el modelo por defecto global.
+    // No model → "" (Automatic): the agent follows the global default model.
     const finalModel = model || "";
     const finalWorker = workerType || "general";
     await (db as any).insert(agentConfigs)
@@ -1029,8 +1029,8 @@ api.post("/agents/:id/config", async (req, res) => {
   const { id } = req.params;
   if (!AGENT_ID_RE.test(id)) return res.status(400).json({ error: "Invalid agent id" });
   const { model, workerType, graphicEngine, graphicFormat, resolution, securityMode } = req.body;
-  // El campo debe venir, pero "" es válido: significa "Automático" (sigue el
-  // modelo por defecto global). Solo se rechaza si falta del todo.
+  // The field must be present, but "" is valid: it means "Automatic" (follow the
+  // global default model). Only a missing field is rejected.
   if (model === undefined || model === null) return res.status(400).json({ error: "model is required" });
 
   try {
@@ -3608,14 +3608,14 @@ if (existsSync(path.join(uiDir, "index.html"))) {
   console.log(`[api] sin build de la interfaz en ${uiDir} — solo API (compílala con: pnpm --filter ui build)`);
 }
 
-// Por defecto la API solo escucha en loopback: abrirla a la red tiene que ser
-// una decisión explícita (HYDRA_HOST=0.0.0.0) y no el estado de fábrica. Y esa
-// decisión exige además HYDRA_AUTH_TOKEN — sin token definido, quien alcance
-// el puerto podría crear tareas que ejecutan herramientas y gastan créditos,
-// así que la API se niega y cae a loopback avisando en el log.
+// By default the API listens on loopback only: opening it to the network has to be
+// an explicit decision (HYDRA_HOST=0.0.0.0), not the factory state. That decision
+// also requires HYDRA_AUTH_TOKEN: without a token, whoever reaches the port could
+// create tasks that run tools and spend credits, so the API refuses and falls back
+// to loopback, saying so in the log.
 //
-// La variable NO se llama HOST a propósito: csh y tcsh la definen solas con el
-// nombre de la máquina, y eso abriría el puerto a la red sin que nadie lo pida.
+// The variable is NOT called HOST on purpose: csh and tcsh set it themselves to the
+// machine's name, which would open the port to the network without anyone asking.
 
 // ── Commands ────────────────────────────────────────────────────────────────
 // The "/verb" layer of HydraOps (@hydraops/commands): the app chat palette and

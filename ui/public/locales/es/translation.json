@@ -398,7 +398,7 @@
       "tokenMissing": "Sin token",
       "tokenPlaceholder": "Token del bot de @BotFather",
       "getToken": "Conseguir un token",
-      "defaultAgent": "Agente por defecto",
+      "defaultAgent": "Agente predeterminado",
       "noDefaultAgent": "Ninguno (requiere /use)",
       "notifyCron": "Avisar al terminar una tarea programada",
       "notifyCronHint": "Cuando un cron completa su tarea, el bot te envía el resultado a Telegram.",
