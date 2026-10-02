@@ -480,7 +480,7 @@ ${EXTERNAL_CONTENT_RULE}
       try {
         const check = await cronRepeatCheck(db, taskId, text, sourceCollector.seen());
         if (check) {
-          console.log(`[${consumerName}] Scheduled task ${taskId} may repeat earlier runs (${check.repeated.length} delivered link(s)${check.sourcesUnchanged ? ", sources unchanged" : ""}); asking for the answer without what was already delivered...`);
+          console.log(`[${consumerName}] Scheduled task ${taskId} may repeat earlier runs (${check.repeated.length} delivered link(s), ${check.seenBefore.length} seen before, ${check.sourcesUnchanged ? "sources unchanged" : check.newInSources.length + " new in the sources"}); asking for the answer without what was already delivered...`);
           const fixed = await llmGenerateText(llmConfig, [{ role: "user", content: cronRewritePrompt(text, check) }] as any, undefined, undefined, undefined, { abortSignal: controller.signal });
           if (fixed.success && fixed.text?.trim()) text = fixed.text;
         }

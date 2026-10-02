@@ -11,8 +11,8 @@
  *  - the links of the answers of the cron's previous runs (what was delivered), and
  *  - the links its tools saw in those runs (what the sources contained).
  * The model gets the delivered links up front. And the answer is checked: when it
- * repeats delivered links, or when the sources showed nothing they had not shown
- * before and the answer still lists items, the model is asked once, in a small call
+ * repeats delivered links, cites links the sources had already shown, carries no links,
+ * or comes from sources that showed nothing new, the model is asked once, in a small call
  * with the earlier answers beside its draft, to drop what was already delivered. The
  * model keeps the last word on purpose: a task that reads the same page every day
  * for a figure that changes (a price, a status) cites the same link each time and is
@@ -154,39 +154,58 @@ export async function buildCronDedupContext(db: any, taskId: string, opts: { max
 export interface CronRepeatCheck {
   /** Links of the answer that earlier runs already delivered (as written in the answer). */
   repeated: string[];
+  /** Links of the answer that the sources had already shown in earlier runs, though no answer carried them. */
+  seenBefore: string[];
+  /** Links the tools saw in this run for the first time: what is new in the sources. */
+  newInSources: string[];
   /** The tools saw, this run, no link that earlier runs had not seen: the sources brought nothing new. */
   sourcesUnchanged: boolean;
   /** Earlier answers with content, to compare the draft with (most recent first). */
   previous: { when: string; text: string }[];
 }
 
+const NEW_LINKS_SHOWN = 40;
+
 /**
  * Should this answer of a cron-fired task be looked at again before it is delivered?
- * Yes when it repeats delivered links, or when its sources showed nothing new and it
- * still has content. `seenNow` is what the task's tools saw in this run. Returns null
- * when there is nothing to do (also for a task no cron fired, and for a first run).
+ * Yes when it has content and any of these holds: it repeats delivered links; it cites
+ * links the sources had already shown in earlier runs; the sources showed nothing new;
+ * or it carries no links at all, so only its words can be compared. An answer whose
+ * every link is new to this cron goes out as it is. `seenNow` is what the task's tools
+ * saw in this run. Returns null when there is nothing to do (also for a task no cron
+ * fired, a first run, and a one-line "nothing new").
  */
 export async function cronRepeatCheck(db: any, taskId: string, answer: string, seenNow: string[] = []): Promise<CronRepeatCheck | null> {
   const ledger = await loadCronLedger(db, taskId);
   if (!ledger || (!ledger.delivered.size && !ledger.answers.length)) return null;
   const links = extractLinks(answer).filter((u) => !ledger.promptLinks.has(normalizeLink(u)));
+  if (!isSubstantive(answer, links.length)) return null;
+  const known = (key: string) => ledger.seen.has(key) || ledger.delivered.has(key);
   const repeated = links.filter((u) => ledger.delivered.has(normalizeLink(u)));
-  const now = seenNow.map(normalizeLink).filter((k) => k && !ledger.promptLinks.has(k));
-  const sourcesUnchanged = ledger.seen.size > 0 && now.length > 0 && now.every((k) => ledger.seen.has(k) || ledger.delivered.has(k));
-  if (!repeated.length && !(sourcesUnchanged && isSubstantive(answer, links.length))) return null;
-  return { repeated, sourcesUnchanged, previous: ledger.answers.slice(0, REWRITE_RUNS) };
+  const seenBefore = links.filter((u) => !ledger.delivered.has(normalizeLink(u)) && ledger.seen.has(normalizeLink(u)));
+  const now = extractLinks(seenNow.join("\n")).filter((u) => !ledger.promptLinks.has(normalizeLink(u)));
+  const newInSources = now.filter((u) => !known(normalizeLink(u)));
+  const sourcesUnchanged = ledger.seen.size > 0 && now.length > 0 && newInSources.length === 0;
+  // Content without a single link, from sources that were read: only the words can tell.
+  const unverifiable = links.length === 0 && now.length > 0 && ledger.answers.length > 0;
+  if (!repeated.length && !seenBefore.length && !sourcesUnchanged && !unverifiable) return null;
+  return { repeated, seenBefore, newInSources: newInSources.slice(0, NEW_LINKS_SHOWN), sourcesUnchanged, previous: ledger.answers.slice(0, REWRITE_RUNS) };
 }
 
 /** What the worker asks the model when the check fires: the same answer without what was already delivered. */
 export function cronRewritePrompt(draft: string, check: CronRepeatCheck): string {
+  const list = (urls: string[]) => urls.map((u) => `- ${u}`).join("\n");
   return (
     `You wrote the draft below for a task that runs on a schedule. It may repeat what earlier runs already delivered to the user.\n\n` +
-    (check.repeated.length
-      ? `These links of your draft were already delivered in earlier runs:\n${check.repeated.map((u) => `- ${u}`).join("\n")}\n\n`
+    (check.repeated.length ? `These links of your draft were already delivered in earlier runs:\n${list(check.repeated)}\n\n` : "") +
+    (check.seenBefore.length
+      ? `These links of your draft were already in the sources when the earlier runs read them, so they are not new there; check below whether you already delivered those items:\n${list(check.seenBefore)}\n\n`
       : "") +
     (check.sourcesUnchanged
       ? `The pages you read in this run showed no link that earlier runs had not already seen: the sources brought nothing new.\n\n`
-      : "") +
+      : check.newInSources.length
+        ? `Links the sources showed in this run for the first time (what is new there):\n${list(check.newInSources)}\n\n`
+        : "") +
     (check.previous.length
       ? `What you delivered in earlier runs (most recent first):\n\n` +
         check.previous.map((p) => `--- Earlier run ${p.when} ---\n${clip(p.text, REWRITE_CHARS)}`).join("\n\n") + "\n\n"
@@ -194,6 +213,7 @@ export function cronRewritePrompt(draft: string, check: CronRepeatCheck): string
     `Rewrite the draft in the same language and format:\n` +
     `- Remove every item that says the same as something already delivered, even if it is worded, dated or translated differently.\n` +
     `- Keep, exactly as written, the items that are new, and the ones whose facts changed since the earlier run (a new figure, a new state).\n` +
+    `- Keep any note about a problem (a source that could not be read, a tool that failed).\n` +
     `- Do not add items, and do not mention this instruction or what you removed.\n` +
     `- If nothing is left, answer with one short line saying there is nothing new since the last run.\n\n` +
     `--- Draft ---\n${draft}`
