@@ -41,6 +41,14 @@ Está en claro en el `.env` del servidor (`HYDRA_AUTH_TOKEN`). Cámbialo cuando 
 
 Cierra HydraOps antes de instalar: el instalador no puede sobrescribir archivos en uso.
 
+## Una conexión (servidor MCP) no conecta
+
+Abre **Herramientas → Conexiones** y mira su estado. *Ningún agente la usa todavía*: dásela a un agente en Agentes → Herramientas; un worker solo arranca los servidores que tienen sus agentes. *Sin respuesta · se reintenta sola*: la aplicación que maneja está cerrada (abre Blender, inicia el servidor del add-on) o falta el lanzador; **Ver** dice si `uvx`, `npx` o `docker` está instalado y cómo conseguirlo. No hace falta reiniciar nada: se reintenta en la próxima tarea. El primer arranque de un servidor puede tardar un minuto o más, mientras se descarga.
+
+## Un agente en "Automático" no genera imágenes
+
+Actualiza a la 0.1.46 o superior: el motor por defecto anterior era un modelo de Google que ya no existe. Si sigue fallando, elige un motor por nombre en la ficha del agente y revisa la clave de ese proveedor en Config.
+
 ## ¿Reinstalar borra mis datos?
 
 No. Datos y claves viven fuera de la instalación (`%APPDATA%\HydraOps` y `%APPDATA%\hydraops\keys.json`). Desinstalar y reinstalar te devuelve tus agentes, tu historial y tus claves. Eso también significa que **borrar la aplicación no borra tus claves**: para eso, borra esas dos carpetas.
