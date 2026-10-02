@@ -14,7 +14,7 @@
  * The model gets the delivered links up front, and its answer is then filtered BY CODE,
  * not by asking it again (a model asked to "remove the repeats" drops new items as
  * readily as old ones):
- *  - when every page read in this run said exactly what it said in an earlier run, the
+ *  - when the pages the task reads said exactly what they said in an earlier run, the
  *    answer becomes one line: nothing new;
  *  - otherwise the items whose links were already delivered are removed, and what is
  *    left goes out. An item about a page that was read again and now says something
@@ -229,9 +229,15 @@ export async function filterCronAnswer(db: any, taskId: string, answer: string, 
   const reads = sources.filter((s) => s.kind === "read" && typeof s.digest === "string" && typeof s.url === "string");
   const saidBefore = (s: CronSourceRead) => ledger.digests.get(normalizeLink(s.url))?.has(s.digest!) === true;
 
-  // 1. Every page read in this run said exactly what it said in an earlier run.
-  if (ledger.answers.length && reads.length && reads.every(saidBefore)) {
-    return { text: null, dropped: 0, reason: `the ${reads.length} page(s) read said the same as in an earlier run: nothing new` };
+  // 1. The sources said exactly what they said in an earlier run. When the task names its
+  // pages (a feed, a site), those decide, provided no page read before has changed: the
+  // model may open articles it never opened, that makes nothing new. Otherwise every page
+  // read must be one already read, with the same content.
+  const entry = reads.filter((s) => ledger.promptLinks.has(normalizeLink(s.url)));
+  const someChanged = reads.some((s) => ledger.digests.has(normalizeLink(s.url)) && !saidBefore(s));
+  const unchanged = entry.length ? entry.every(saidBefore) && !someChanged : reads.length > 0 && reads.every(saidBefore);
+  if (ledger.answers.length && unchanged) {
+    return { text: null, dropped: 0, reason: `the ${entry.length || reads.length} page(s) the task reads said the same as in an earlier run: nothing new` };
   }
 
   // 2. Remove the items whose links were all delivered already. A delivered page that was
