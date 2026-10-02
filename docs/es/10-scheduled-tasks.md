@@ -32,6 +32,12 @@ La expresión cron, para el modo manual:
 
 Cada tarea de la lista muestra su estado (**activa** / **pausada**) y se puede pausar, editar o borrar. El borrado pide confirmación escribiendo el nombre — un cron borrado por accidente no avisa hasta que echas de menos su resultado.
 
+## Solo lo nuevo
+
+Una tarea como "tráeme las últimas noticias de este feed" entregaría los mismos ítems cada vez. HydraOps lleva un registro, por tarea, de los **enlaces que ya entregó** en ejecuciones anteriores y se lo pasa al agente, para que informe solo lo nuevo y responda con una línea cuando no hay nada. La respuesta también se revisa: si todavía lista ítems cuyos enlaces ya se entregaron, se le pide al agente una vez que los quite antes de que el resultado te llegue (a ti o a tu Telegram).
+
+El registro está hecho de enlaces, así que pide las fuentes: un ítem que viene con su enlace no se repite; uno sin enlace depende de que el modelo lo reconozca en sus respuestas anteriores. Cada tarea programada lleva su propio registro, y una ejecución fallida no cuenta como entregada.
+
 ## Consejos
 
 - Empieza con una programación frecuente (cada minuto) para probar que el prompt hace lo que quieres, y cámbiala después a la definitiva.

@@ -11,7 +11,7 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
+import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, cronRepeatCheck, cronRewritePrompt, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
@@ -467,12 +467,27 @@ ${EXTERNAL_CONTENT_RULE}
 
     console.log(`[${consumerName}] Processing task ${taskId} for agent ${agentId} (${llmConfig.provider}:${llmConfig.model})...`);
     const controller = cancels.track(taskId);
-    const { text, usage, success, error, errorCode } = await withTimeout(
+    const { text: draftText, usage, success, error, errorCode } = await withTimeout(
       llmGenerateText(llmConfig, [...history, await buildUserMessage(userPrompt, rootDir)], systemPrompt + skillsSection + planSection + cronDedup + vault.promptSection(), planTools ? { ...aiTools, ...planTools.ai } : aiTools, planTools ? [...rawTools, ...planTools.raw] : rawTools, { abortSignal: controller.signal, prepareStep: (step: any) => vault.prepareStep(step), stepImages: stepToolImages }),
       LLM_TIMEOUT_MS(llmConfig.provider),
       `LLM call`,
       () => controller.abort(new Error("LLM call timed out")),
     );
+    // A scheduled task whose answer repeats what its earlier runs delivered is sent back
+    // once, to have that removed (the record and the check: @hydraops/db cron-dedup.ts).
+    let text = draftText;
+    if (success && text) {
+      try {
+        const check = await cronRepeatCheck(db, taskId, text, sourceCollector.seen());
+        if (check) {
+          console.log(`[${consumerName}] Scheduled task ${taskId} may repeat earlier runs (${check.repeated.length} delivered link(s)${check.sourcesUnchanged ? ", sources unchanged" : ""}); asking for the answer without what was already delivered...`);
+          const fixed = await llmGenerateText(llmConfig, [{ role: "user", content: cronRewritePrompt(text, check) }] as any, undefined, undefined, undefined, { abortSignal: controller.signal });
+          if (fixed.success && fixed.text?.trim()) text = fixed.text;
+        }
+      } catch (e: any) {
+        console.warn(`[${consumerName}] repeat check failed: ${e?.message ?? e}`);
+      }
+    }
 
     // Persist tool usage for this task (best-effort; never break processing).
     if (toolUsageLog.length) {
