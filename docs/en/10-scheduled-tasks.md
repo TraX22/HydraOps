@@ -34,9 +34,13 @@ Each task in the list shows its state (**active** / **paused**) and can be pause
 
 ## Only what is new
 
-A task like "bring me the latest news from this feed" would deliver the same items every time. HydraOps keeps a record, per task, of the **links it already delivered** in earlier runs and gives it to the agent, so it reports only what is new and answers with one line when there is nothing. The answer is checked too: if it still lists items whose links were already delivered, the agent is asked once to remove them before the result reaches you (or your Telegram).
+A task like "bring me the latest news from this feed" would deliver the same items every time. HydraOps keeps a record, per task, of what its earlier runs did: the **links they delivered** and **what each page they read said**. The agent gets the delivered links before it starts, and its answer is then filtered by the app itself, not by asking the model again, before it reaches you (or your Telegram):
 
-The record is made of links, so ask for sources: an item that comes with its link is never repeated; an item without one depends on the model noticing it in its previous answers. Each scheduled task keeps its own record, and a failed run does not count as delivered.
+- If the pages the task reads say exactly what they said in an earlier run, you get one line: nothing new.
+- Otherwise the items whose links were already delivered are removed and only the rest goes out. If nothing is left, you get the one line.
+- A page that was read again and now says something else (a price, a status) is not a repeat: that item is kept.
+
+The record is made of links, so ask for sources in the task ("with the link of each item"). An item that comes with its link is never repeated; an item without one, from a page that did change, cannot be told apart from a new one and goes out as the agent wrote it. Each scheduled task keeps its own record, runs that found nothing do not erase it, and a failed run does not count as delivered.
 
 ## Tips
 

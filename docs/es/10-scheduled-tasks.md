@@ -34,9 +34,13 @@ Cada tarea de la lista muestra su estado (**activa** / **pausada**) y se puede p
 
 ## Solo lo nuevo
 
-Una tarea como "tráeme las últimas noticias de este feed" entregaría los mismos ítems cada vez. HydraOps lleva un registro, por tarea, de los **enlaces que ya entregó** en ejecuciones anteriores y se lo pasa al agente, para que informe solo lo nuevo y responda con una línea cuando no hay nada. La respuesta también se revisa: si todavía lista ítems cuyos enlaces ya se entregaron, se le pide al agente una vez que los quite antes de que el resultado te llegue (a ti o a tu Telegram).
+Una tarea como "tráeme las últimas noticias de este feed" entregaría los mismos ítems cada vez. HydraOps lleva un registro, por tarea, de lo que hicieron sus ejecuciones anteriores: los **enlaces que entregaron** y **lo que decía cada página que leyeron**. El agente recibe los enlaces ya entregados antes de empezar, y después su respuesta la filtra la propia app, sin volver a preguntarle al modelo, antes de que te llegue (a ti o a tu Telegram):
 
-El registro está hecho de enlaces, así que pide las fuentes: un ítem que viene con su enlace no se repite; uno sin enlace depende de que el modelo lo reconozca en sus respuestas anteriores. Cada tarea programada lleva su propio registro, y una ejecución fallida no cuenta como entregada.
+- Si las páginas que lee la tarea dicen exactamente lo mismo que en una ejecución anterior, recibes una línea: sin novedades.
+- Si no, se quitan los ítems cuyos enlaces ya se entregaron y sale solo el resto. Si no queda nada, recibes la línea.
+- Una página que se volvió a leer y ahora dice otra cosa (un precio, un estado) no es una repetición: ese ítem se conserva.
+
+El registro está hecho de enlaces, así que pide las fuentes en la tarea ("con el enlace de cada ítem"). Un ítem que viene con su enlace no se repite; uno sin enlace, de una página que sí cambió, no se puede distinguir de uno nuevo y sale como lo escribió el agente. Cada tarea programada lleva su propio registro, las ejecuciones que no encontraron nada no lo borran, y una ejecución fallida no cuenta como entregada.
 
 ## Consejos
 
