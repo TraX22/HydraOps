@@ -2,7 +2,7 @@ import { tool } from 'ai';
 import { HydraTool, ToolContext, ToolKeyRequirement } from './types.js';
 import { McpClientManager, McpServerStatus } from './mcp.js';
 import { guardTool } from './guard.js';
-import { extractSources, extractSeenUrls, type ToolSourceSink } from './sources.js';
+import { extractSources, extractSeenUrls, contentDigest, type ToolSourceSink } from './sources.js';
 import { resolveToolRisk, type TaskSecurity, type ToolRisk } from './provenance.js';
 import type { ToolProgressSink } from './progress.js';
 import { createVaultTools, type TaskVault } from './vault.js';
@@ -51,6 +51,9 @@ function instrumentTool(t: HydraTool, source: string, sink?: ToolUsageSink, sour
         if (sourceSink && !blocked) {
           try {
             const found = extractSources(t.name, args, result);
+            // One page read by this call: remember what it said, as a digest.
+            const reads = found.filter((s) => s.kind === 'read');
+            if (reads.length === 1 && typeof result === 'string' && result.length > 0) reads[0].digest = contentDigest(result);
             const seen = extractSeenUrls(result);
             if (found.length || seen.length) sourceSink(found, seen);
           } catch { /* best-effort */ }

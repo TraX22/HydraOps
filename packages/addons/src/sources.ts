@@ -4,6 +4,7 @@
  * and fed back into the conversation history — so a later "give me the link" is
  * answered with a real address instead of a plausible-looking guess.
  */
+import { createHash } from 'node:crypto';
 export interface ToolSource {
   url: string;
   title?: string;
@@ -11,6 +12,17 @@ export interface ToolSource {
   kind: 'read' | 'found';
   /** Tool that produced it (fetch_url, web_search, …). */
   via: string;
+  /**
+   * For a page that was read: a short hash of what the tool returned. Two runs of a
+   * scheduled task that read the same page and got the same digest saw the same content
+   * (see @hydraops/db cron-dedup.ts).
+   */
+  digest?: string;
+}
+
+/** The digest of a tool result: whitespace does not count. */
+export function contentDigest(text: string): string {
+  return createHash('sha256').update(text.replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
 }
 
 /** `seen`: every address that appeared anywhere in the tool's result (links inside a page
@@ -110,6 +122,7 @@ export function createSourceCollector() {
         const prev = byUrl.get(s.url);
         if (!prev) byUrl.set(s.url, s);
         else if (prev.kind === 'found' && s.kind === 'read') byUrl.set(s.url, { ...s, title: s.title ?? prev.title });
+        else if (s.kind === 'read' && s.digest) byUrl.set(s.url, { ...prev, title: prev.title ?? s.title, digest: s.digest });
         else if (!prev.title && s.title) byUrl.set(s.url, { ...prev, title: s.title });
       }
     }) as ToolSourceSink,
