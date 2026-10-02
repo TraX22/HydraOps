@@ -47,3 +47,4 @@ El registro está hecho de enlaces, así que pide las fuentes en la tarea ("con 
 - Empieza con una programación frecuente (cada minuto) para probar que el prompt hace lo que quieres, y cámbiala después a la definitiva.
 - El resultado llega al chat firmado por el agente: si programas muchas tareas frecuentes, el canal se llena — y cada ejecución consume tokens de tu proveedor.
 - Recuerda que las tareas corren solo mientras HydraOps está encendido. Para que corran siempre, el [modo servidor](./12-server-mode.md) en una máquina 24/7.
+- Si la tarea nombra sus fuentes (un feed, una página), el agente tiene que abrir al menos una en cada ejecución. Una respuesta escrita sin abrir ninguna se devuelve una vez; si la segunda tampoco las abre, la ejecución muestra un aviso en lugar de una respuesta que podría ser inventada.
