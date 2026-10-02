@@ -28,6 +28,9 @@ const LANG_ALIAS: Record<string, string> = {
   py: 'python', sh: 'bash', shell: 'bash', yml: 'yaml', html: 'markup', xml: 'markup',
 };
 
+// Fence labels that mean "this is prose to copy", not code. A fence without a label counts too.
+const PROSE_LANGS = new Set(['', 'text', 'txt', 'plain', 'plaintext', 'markdown', 'md', 'prompt']);
+
 // Inline clipboard icon (matches the app's icon set); handled by chat click delegation.
 const COPY_BTN =
   '<button class="code-copy" type="button" title="Copy" aria-label="Copy">' +
@@ -83,9 +86,11 @@ marked.use({
       const grammar = grammarId ? Prism.languages[grammarId] : undefined;
       const highlighted = grammar ? Prism.highlight(text, grammar, grammarId) : escapeHtml(text);
       const label = lang ? `<span class="code-lang">${escapeHtml(lang)}</span>` : '<span class="code-lang"></span>';
+      // Prose in a frame (a prompt, a message to paste) wraps like text; labelled code keeps its lines.
+      const pre = PROSE_LANGS.has(lang) ? 'code-pre wrap' : 'code-pre';
       return (
         `<div class="code-block"><div class="code-head">${label}${COPY_BTN}</div>` +
-        `<pre class="code-pre"><code class="prism${grammarId ? ' language-' + grammarId : ''}">${highlighted}</code></pre></div>`
+        `<pre class="${pre}"><code class="prism${grammarId ? ' language-' + grammarId : ''}">${highlighted}</code></pre></div>`
       );
     },
   },

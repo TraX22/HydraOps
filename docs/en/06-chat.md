@@ -15,6 +15,10 @@ The **📎** clip attaches files to the message:
 - **Images** (PNG, JPG, WebP…) — if the agent's model has vision, it truly sees them; handy for "what does this screenshot say?" or "describe this photo".
 - **Documents** (text, Markdown, code, JSON…) — their content is handed to the agent along with the message.
 
+## Text to copy
+
+When an agent writes something for you to paste somewhere else — a prompt, a command, a message to send — it puts it in a framed block with a **copy** button in its top right corner, apart from its own comments. The button copies exactly what is in the frame. If a reply came without the frame, ask for it ("give it to me in a code block"); the copy icon under each reply copies the whole reply.
+
 ## Diagrams in replies
 
 The chat renders Markdown, and since v0.1.21 also **Mermaid diagrams**: when an agent replies with a ` ```mermaid ` code block, it shows up as a real diagram (flowcharts, sequences, pies, timelines…), in HydraOps' own colours in both the light and the dark theme. Click a diagram to open it full screen (click again or Esc to close). Agents already know it's available; you can also ask for one explicitly ("draw me a flowchart of..."). If the diagram is malformed, its code is shown as-is instead of breaking.
