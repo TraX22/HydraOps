@@ -48,3 +48,4 @@ export * from './progress.js';
 export * from './plan.js';
 export * from './vault.js';
 export * from './presets.js';
+export * from './tool-images.js';

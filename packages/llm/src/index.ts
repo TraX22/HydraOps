@@ -594,6 +594,33 @@ function isToolMarkupLeak(text: string): boolean {
   return visible < 60;
 }
 
+/**
+ * Can this model look at an image? Used for the pictures tools return (a viewport
+ * capture, a page screenshot): a model that sees gets them attached, one that does not
+ * is told it was not shown. Deliberately conservative: an image sent to a text-only
+ * endpoint fails the whole call. HYDRA_TOOL_IMAGES=all | off overrides it;
+ * LOCAL_LLM_VISION=1 says the local server has its multimodal projector loaded.
+ */
+export function modelSeesImages(config: LLMConfig): boolean {
+  const mode = (process.env.HYDRA_TOOL_IMAGES || '').trim().toLowerCase();
+  if (mode === 'off') return false;
+  if (mode === 'all') return true;
+  const m = config.model.toLowerCase();
+  // Engines that draw, film, speak or embed are not chat models with eyes.
+  if (/imagen|-image\b|veo|sora|embed|whisper|tts/.test(m)) return false;
+  if (config.provider === 'local') return process.env.LOCAL_LLM_VISION === '1';
+  if (config.provider === 'anthropic') return true;
+  if (config.provider === 'google') return m.includes('gemini');
+  // The host is compared whole: a substring test would also match "api.openai.com.evil.example".
+  let host = '';
+  try { host = config.baseURL ? new URL(config.baseURL).hostname.toLowerCase() : ''; } catch { host = 'invalid'; }
+  if (config.provider === 'openai' && (!host || host === 'api.openai.com')) {
+    return /^(gpt-|chatgpt|o\d)/.test(m) && !/gpt-3\.5|instruct|audio|realtime/.test(m);
+  }
+  // OpenAI-compatible providers and OpenRouter: only models whose name says so.
+  return /claude|gemini|gpt-4o|gpt-4\.1|gpt-[5-9]|grok-[4-9]|pixtral|llava|[-_.]vl\b|vision|omni/.test(m);
+}
+
 // Tool-call rounds a task may take before it must answer. A research skill can send a
 // model through 30+ calls; when the cap is hit, the answer is synthesized from everything
 // gathered (see the silent-after-tools recovery below) instead of being lost.
@@ -611,10 +638,30 @@ export async function generateText(
   // prepareStep: the AI SDK hook run before each model call; the workers pass the task
   // vault's, which compacts old tool results and repeats the agent's notes (see
   // @hydraops/addons vault.ts). Reaches every call that carries tool results.
-  opts: { abortSignal?: AbortSignal; prepareStep?: (step: any) => any } = {},
+  // stepImages: given the messages of the next call, returns them with the images tools
+  // returned attached (visible) or with their markers saying the model cannot see them
+  // (see @hydraops/addons tool-images.ts); undefined when there is nothing to do.
+  opts: {
+    abortSignal?: AbortSignal;
+    prepareStep?: (step: any) => any;
+    stepImages?: (messages: unknown[], o: { visible: boolean }) => unknown[] | undefined;
+  } = {},
 ) {
   const abortSignal = opts.abortSignal;
-  const prepareStep = opts.prepareStep;
+  // Whether this model is shown the images; turned off for the rest of the task if the
+  // provider rejects one.
+  let imagesVisible = modelSeesImages(config);
+  const prepareStep = !opts.prepareStep && !opts.stepImages ? undefined : (step: any) => {
+    const base = opts.prepareStep?.(step);
+    if (!opts.stepImages) return base;
+    try {
+      const withImages = opts.stepImages(base?.messages ?? step.messages, { visible: imagesVisible });
+      return withImages ? { ...(base ?? {}), messages: withImages } : base;
+    } catch (err) {
+      console.warn('[LLM] could not attach tool images:', err);
+      return base;
+    }
+  };
   try {
     const hasTools = aiTools && Object.keys(aiTools).length > 0;
     console.log(`[LLM] Attempting with model: ${config.model} (${config.provider}) | Tools: ${hasTools}`);
@@ -751,6 +798,7 @@ export async function generateText(
       // the image parts stripped and let the model explain it to the user.
       if (errorMsg.includes('image input is not supported') || errorMsg.includes('mmproj') || errorMsg.includes('does not support image')) {
         console.warn(`[LLM] ${config.model} cannot process images. Retrying without image parts...`);
+        imagesVisible = false;
         const stripped = messages.map((m: any) => {
           if (!Array.isArray(m.content)) return m;
           const textOnly = m.content.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('\n');
