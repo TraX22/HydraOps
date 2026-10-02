@@ -35,7 +35,7 @@ import {
   isValidPresetName, PRESET_LAUNCHERS, type ConnectionPreset,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
-import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks } from "@hydraops/db";
+import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, HISTORY_DAYS } from "@hydraops/db";
 import { buildEnvelope } from "@hydraops/events";
 import { eq, and, gte, lt, asc, desc, like, inArray } from "drizzle-orm";
 import os from "node:os";
@@ -2245,15 +2245,20 @@ api.post("/tasks", async (req, res) => {
 
 // Chat-message shaped history for the Angular UI: one user bubble per task,
 // plus an assistant bubble (typing placeholder until the task completes).
+// A chat shows at most this many of its newest tasks (each is a question and its reply).
+const CHAT_MAX_TASKS = 300;
+
 api.get("/tasks", async (req, res) => {
   try {
     const channel = String(req.query.channel ?? "main");
-    const hours24 = 24 * 60 * 60 * 1000;
-    const since = req.query.since ? new Date(String(req.query.since)) : new Date(Date.now() - hours24);
+    // The same 30 days the agents remember (HISTORY_DAYS); the newest CHAT_MAX_TASKS of
+    // them, since the chat polls this every couple of seconds.
+    const since = req.query.since ? new Date(String(req.query.since)) : new Date(Date.now() - HISTORY_DAYS * 86_400_000);
 
-    const rows = await (db as any).select().from(tasks)
+    const rows = (await (db as any).select().from(tasks)
       .where(and(eq(tasks.channel, channel), gte(tasks.createdAt, since)))
-      .orderBy(asc(tasks.createdAt));
+      .orderBy(desc(tasks.createdAt))
+      .limit(CHAT_MAX_TASKS)).reverse();
 
     // Sensitive calls held for approval, grouped by the task that made them (see
     // @hydraops/addons provenance.ts); the chat shows them as cards under the reply.

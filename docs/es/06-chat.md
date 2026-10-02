@@ -36,6 +36,8 @@ Los resultados de los agentes de imagen y vídeo aparecen en línea en el chat. 
 
 El historial del canal se conserva entre sesiones, con sus adjuntos y resultados. Los archivos generados y subidos viven en la carpeta de datos (`storage/`), así que también puedes llegar a ellos desde el explorador de archivos.
 
+El chat muestra los **últimos 30 días** de cada canal, y el agente recibe como contexto los **últimos 20 intercambios** de esos días: puedes volver el lunes sobre "las webs que me propusiste el viernes". Los mensajes de más de un día le llegan con su fecha, para que los tome como una conversación anterior. Con un modelo local la conversación pasada que recibe es más corta (un límite de tamaño, no de cantidad de mensajes), para que su contexto no se llene de respuestas viejas. Lo que deba conservar para siempre, pídele que lo recuerde (ver [agentes](./05-agents.md)).
+
 ## Qué está haciendo el agente
 
 Mientras un agente trabaja, debajo de los puntitos se ve **lo que está haciendo** y cuánto tiempo lleva: "Buscando «…»", "Leyendo cppreference.com/…", "Abriendo la skill deep-research", "Esperando tu aprobación"… Entre herramienta y herramienta dice "Pensando…". **ver pasos** despliega todo lo que hizo en esa tarea hasta ahora, útil en investigaciones largas para saber qué buscó y qué leyó. El texto de la respuesta aparece recién cuando termina.

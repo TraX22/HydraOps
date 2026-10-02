@@ -9,7 +9,7 @@ import { loadEnv, envFile, dataRoot, agentsDir, logsDir, usersDir, resultsDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, filterCronAnswer, cronNothingNewPrompt, CRON_NOTHING_NEW, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
+import { createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, filterCronAnswer, cronNothingNewPrompt, CRON_NOTHING_NEW, loadRecentChannelHistory, historyBudgetChars, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
@@ -560,8 +560,9 @@ ${EXTERNAL_CONTENT_RULE}
     const planSection = planMode ? planModePrompt({ toolNames: allowedTools, previous: planPrevious ?? undefined, userNotes: planPrevious ? userPrompt : undefined, version: planVersion }) : "";
 
     // Fetch conversation history (last 10 completed tasks in this channel)
-    // Last 24h of the channel; empty for cron-fired tasks (see loadRecentChannelHistory).
-    const historyRows = await loadRecentChannelHistory(db, channel, taskId);
+    // The channel's last exchanges (30 days, 20 at most, within a size budget); empty for
+    // cron-fired tasks (see loadRecentChannelHistory).
+    const historyRows = await loadRecentChannelHistory(db, channel, taskId, { maxChars: historyBudgetChars(llmConfig.provider) });
 
     const history = historyRows.reverse().map((t: any) => {
       const assistantText = historyAssistantText(t.resultMeta);
