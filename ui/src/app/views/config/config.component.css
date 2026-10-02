@@ -98,3 +98,6 @@
 /* Explanatory text under a section title: smaller and quieter than the title, with room before the controls. */
 .config-section .hint { font-size: 13px; line-height: 1.5; color: var(--text-secondary); margin: -8px 0 14px; }
 .config-section .log-levels + .hint { margin: 12px 0 0; }
+
+/* A hint right under a model select needs air. */
+.model-select + .hint { margin-top: 8px; }

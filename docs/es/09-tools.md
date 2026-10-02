@@ -23,7 +23,7 @@ BotFather también te da el enlace a tu bot (`t.me/TuBot`). Guárdalo: es donde 
 Ve a **Herramientas → Telegram** y:
 
 1. **Pega el token** en el campo y pulsa **Guardar**. La insignia pasa a "Token configurado". El token va a un almacén cifrado fuera del proyecto — nunca al repositorio, la base de datos ni ningún `.env` (ver [Seguridad](./13-security.md)).
-2. **Elige un agente por defecto** (opcional): con él, los mensajes normales van a ese agente sin tener que nombrarlo.
+2. **Elige un agente predeterminado** (opcional): con él, los mensajes normales van a ese agente sin tener que nombrarlo.
 3. **Genera un código de emparejamiento** con el botón. Es un número corto que autoriza a quien lo use.
 4. **Activa** el interruptor (ON). El bot empieza a escuchar en segundos, sin reiniciar nada.
 
@@ -45,7 +45,7 @@ El bot usa **los mismos comandos que el chat de la aplicación** (ver [Comandos]
 |---|---|
 | `/<agente> <mensaje>` | Envía un mensaje puntual a ese agente (ej. `/elena resume esto`) y el bot te devuelve la respuesta. |
 | `/use <agente>` | Fija el agente activo de este chat de Telegram. |
-| *texto normal* | Va al agente activo (o al agente por defecto). |
+| *texto normal* | Va al agente activo (o al agente predeterminado). |
 | `/help` | Lista todos los comandos. |
 
 El código responde con marco monoespaciado, así que un "hola mundo" pedido a un agente de código se lee cómodo en el teléfono.

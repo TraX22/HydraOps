@@ -397,6 +397,8 @@ export interface AppConfig {
   localLlmKey: string;
   localLlmModel: string;
   defaultModel: string;
+  /** The model that picks the agent for a main-chat message; empty = the default model. */
+  routerModel?: string;
   logLevel: string;
 }
 

@@ -36,6 +36,13 @@ export class ConfigComponent implements OnInit {
     return this.models().some(m => m.id === dm) ? null : dm;
   });
 
+  // Same for the routing model (empty = the default model does the routing).
+  missingRouterModel = computed(() => {
+    const rm = this.config().routerModel;
+    if (!rm) return null;
+    return this.models().some(m => m.id === rm) ? null : rm;
+  });
+
   // Sorted alphabetically by company so the grid stays readable as more are added.
   apiKeyFields = [
     { key: 'anthropicKey', label: 'Anthropic' },
