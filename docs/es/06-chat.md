@@ -15,6 +15,10 @@ El clip **📎** adjunta archivos al mensaje:
 - **Imágenes** (PNG, JPG, WebP…) — si el modelo del agente tiene visión, las ve de verdad; útil para "¿qué pone en esta captura?" o "descríbeme esta foto".
 - **Documentos** (texto, Markdown, código, JSON…) — su contenido se le pasa al agente junto al mensaje.
 
+## Texto para copiar
+
+Cuando un agente escribe algo para que lo pegues en otro lado — un prompt, un comando, un mensaje para enviar — lo pone en un bloque con marco y un botón de **copiar** arriba a la derecha, separado de sus propios comentarios. El botón copia exactamente lo que hay en el marco. Si una respuesta llegó sin el marco, pídelo ("dámelo en un bloque de código"); el icono de copiar debajo de cada respuesta copia la respuesta entera.
+
 ## Diagramas en las respuestas
 
 El chat renderiza Markdown, y desde la v0.1.21 también **diagramas Mermaid**: si un agente responde con un bloque de código ` ```mermaid `, aparece como diagrama de verdad (flujos, secuencias, tortas, líneas de tiempo…), con los colores de HydraOps en el tema claro y en el oscuro. Un clic sobre el diagrama lo abre a pantalla completa (otro clic o Esc lo cierra). Los agentes ya saben que lo tienen disponible; también puedes pedirlo explícitamente ("hazme un diagrama de flujo de..."). Si el diagrama viene mal escrito, se muestra el código tal cual en lugar de romperse.

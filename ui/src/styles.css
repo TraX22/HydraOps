@@ -153,6 +153,8 @@ body {
   font-family: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 13px; line-height: 1.5; color: #dcdfe4;
 }
+/* A frame that holds prose (```text: a prompt, a message to paste) wraps its lines. */
+.msg-bubble .code-pre.wrap code { white-space: pre-wrap; overflow-wrap: anywhere; }
 /* Inline code (not a fenced block). */
 .msg-bubble code:not(.prism) {
   background: rgba(120, 120, 140, 0.18); padding: 1px 5px; border-radius: 4px;
