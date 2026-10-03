@@ -77,6 +77,10 @@ When an agent searches the web or opens pages to answer you, **Sources · N** sh
 
 Links in a reply always open **outside HydraOps**: in your browser when you use the desktop app, or in a new tab when you use it from a browser. The app window never navigates to another site.
 
+Before a link leaves the app, a small balloon next to it asks: it shows the full address, with the site in bold, and **Cancel** / **Accept**. Escape, a click elsewhere or scrolling cancel it; Enter accepts. This goes for every link to another site (replies, their sources, the manual), not for the app's own pages and files.
+
+A link with a dotted underline and a yellow warning triangle is one the agent **did not open or see** in this conversation: it may exist, but it came from the model's memory. Check it before trusting it.
+
 ## Safe content
 
 What an agent writes is shown as Markdown, never as live HTML: before it is painted, every reply goes through a filter that removes scripts, forms, embedded frames, styles and anything that could run code or pose as part of the app. Images load only when HydraOps itself serves them; an image from another site appears as a link (🖼), so opening it is your call and viewing a reply never makes requests to third parties. This matters because an agent that reads web pages can be manipulated by what those pages say.

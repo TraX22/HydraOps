@@ -623,6 +623,10 @@
     "delete": "Supprimer",
     "version": "version"
   },
+  "links": {
+    "leaving": "Vous allez sortir sur internet",
+    "accept": "Accepter"
+  },
   "update": {
     "available": "Une nouvelle version ({{version}}) est disponible.",
     "view": "Voir la version"
