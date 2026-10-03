@@ -11,7 +11,7 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
+import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, filterCronAnswer, cronNothingNewPrompt, CRON_NOTHING_NEW, loadRecentChannelHistory, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
@@ -467,12 +467,31 @@ ${EXTERNAL_CONTENT_RULE}
 
     console.log(`[${consumerName}] Processing task ${taskId} for agent ${agentId} (${llmConfig.provider}:${llmConfig.model})...`);
     const controller = cancels.track(taskId);
-    const { text, usage, success, error, errorCode } = await withTimeout(
+    const { text: draftText, usage, success, error, errorCode } = await withTimeout(
       llmGenerateText(llmConfig, [...history, await buildUserMessage(userPrompt, rootDir)], systemPrompt + skillsSection + planSection + cronDedup + vault.promptSection(), planTools ? { ...aiTools, ...planTools.ai } : aiTools, planTools ? [...rawTools, ...planTools.raw] : rawTools, { abortSignal: controller.signal, prepareStep: (step: any) => vault.prepareStep(step), stepImages: stepToolImages }),
       LLM_TIMEOUT_MS(llmConfig.provider),
       `LLM call`,
       () => controller.abort(new Error("LLM call timed out")),
     );
+    // A scheduled task's answer loses the items its earlier runs already delivered; when
+    // nothing is left, it becomes one line (the record and the filter: @hydraops/db cron-dedup.ts).
+    let text = draftText;
+    if (success && text) {
+      try {
+        const filtered = await filterCronAnswer(db, taskId, text, sourceCollector.list());
+        if (filtered) {
+          console.log(`[${consumerName}] Scheduled task ${taskId}: ${filtered.reason}`);
+          if (filtered.text !== null) text = filtered.text;
+          else {
+            const line = await llmGenerateText(llmConfig, [{ role: "user", content: cronNothingNewPrompt(userPrompt) }] as any, undefined, undefined, undefined, { abortSignal: controller.signal });
+            const said = (line.success ? String(line.text ?? "") : "").trim();
+            text = said && said.length <= 200 && !said.includes("\n") ? said : CRON_NOTHING_NEW;
+          }
+        }
+      } catch (e: any) {
+        console.warn(`[${consumerName}] repeat check failed: ${e?.message ?? e}`);
+      }
+    }
 
     // Persist tool usage for this task (best-effort; never break processing).
     if (toolUsageLog.length) {

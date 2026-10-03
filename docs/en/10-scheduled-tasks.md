@@ -32,6 +32,16 @@ The cron expression, for the manual mode:
 
 Each task in the list shows its state (**active** / **paused**) and can be paused, edited or deleted. Deleting asks you to type the name to confirm — a cron deleted by accident gives no warning until you miss its result.
 
+## Only what is new
+
+A task like "bring me the latest news from this feed" would deliver the same items every time. HydraOps keeps a record, per task, of what its earlier runs did: the **links they delivered** and **what each page they read said**. The agent gets the delivered links before it starts, and its answer is then filtered by the app itself, not by asking the model again, before it reaches you (or your Telegram):
+
+- If the pages the task reads say exactly what they said in an earlier run, you get one line: nothing new.
+- Otherwise the items whose links were already delivered are removed and only the rest goes out. If nothing is left, you get the one line.
+- A page that was read again and now says something else (a price, a status) is not a repeat: that item is kept.
+
+The record is made of links, so ask for sources in the task ("with the link of each item"). An item that comes with its link is never repeated; an item without one, from a page that did change, cannot be told apart from a new one and goes out as the agent wrote it. Each scheduled task keeps its own record, runs that found nothing do not erase it, and a failed run does not count as delivered.
+
 ## Tips
 
 - Start with a frequent schedule (every minute) to check the prompt does what you want, then switch it to the real one.
