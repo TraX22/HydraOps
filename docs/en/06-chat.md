@@ -36,6 +36,8 @@ Results from image and video agents appear inline in the chat. Click an image to
 
 The channel history is kept across sessions, with its attachments and results. Generated and uploaded files live in the data folder (`storage/`), so you can also reach them from your file explorer.
 
+The chat shows the **last 30 days** of each channel, and the agent gets the **last 20 exchanges** of those days as context: you can come back on Monday to "the sites you suggested on Friday". Messages older than a day reach the agent with their date, so it treats them as an earlier conversation. With a local model the past conversation it receives is shorter (a size limit, not a number of messages), so its context does not fill up with old replies. For something it should keep for good, ask it to remember it (see [agents](./05-agents.md)).
+
 ## What the agent is doing
 
 While an agent works, the line under the dots shows **what it is doing** and for how long: "Searching “…”", "Reading cppreference.com/…", "Opening the skill deep-research", "Waiting for your approval"… Between tools it says "Thinking…". **show steps** lists everything it has done in that task so far, handy in long research to see what it searched and read. The reply's text appears when it is done.

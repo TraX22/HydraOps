@@ -77,22 +77,38 @@ export * from "./cron-dedup.js";
  *   and its prior-run context comes from buildCronDedupContext; feeding it the
  *   channel's chat can make a model re-execute an old imperative message
  *   ("remember that...") instead of the scheduled instruction.
- * - Interactive tasks only see the last 24 hours (same window the chat UI
- *   shows), so a days-old request no longer resurfaces as if it were live.
+ * - Interactive tasks see the last 20 exchanges of the last 30 days (the chat UI
+ *   shows the same 30 days), so "the sites you suggested the other day" works.
+ *   A message older than a day is handed back with its date in front, so a
+ *   days-old request reads as an earlier conversation, not as a live one.
+ * - The exchanges kept, newest first, stop at `maxChars` (see historyBudgetChars):
+ *   a small local model does not get its context filled with old replies.
  */
+export const HISTORY_DAYS = 30;
+export const HISTORY_EXCHANGES = 20;
+
+/** How much past conversation (characters) a task gets: less for a local model. */
+export function historyBudgetChars(provider?: string): number {
+  const env = Number(process.env.HYDRA_HISTORY_CHARS);
+  if (env > 0) return env;
+  return provider === "local" ? 30_000 : 120_000;
+}
+
 export async function loadRecentChannelHistory(
   db: any,
   channel: string,
   taskId: string,
-  opts: { hours?: number; limit?: number } = {},
+  opts: { days?: number; limit?: number; maxChars?: number } = {},
 ): Promise<any[]> {
-  const hours = opts.hours ?? 24;
-  const limit = opts.limit ?? 10;
+  const days = opts.days ?? HISTORY_DAYS;
+  const limit = opts.limit ?? HISTORY_EXCHANGES;
+  const maxChars = opts.maxChars ?? historyBudgetChars();
   const [current] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, taskId)).limit(1);
   if (current?.cronId) return [];
 
-  const cutoff = new Date(Date.now() - hours * 3_600_000);
-  return db
+  const now = Date.now();
+  const cutoff = new Date(now - days * 86_400_000);
+  const rows: any[] = await db
     .select()
     .from(schema.tasks)
     .where(and(
@@ -103,6 +119,19 @@ export async function loadRecentChannelHistory(
     ))
     .orderBy(desc(schema.tasks.createdAt))
     .limit(limit);
+
+  const kept: any[] = [];
+  let used = 0;
+  for (const row of rows) {
+    const meta = row.resultMeta ?? {};
+    const size = String(row.prompt ?? "").length + String(meta.text || meta.preview || meta.raw || "").length;
+    if (kept.length && used + size > maxChars) break;
+    used += size;
+    const created = row.createdAt instanceof Date ? row.createdAt.getTime() : new Date(row.createdAt).getTime();
+    const old = now - created > 86_400_000;
+    kept.push(old ? { ...row, prompt: `[Earlier conversation, ${new Date(created).toISOString().slice(0, 10)}]\n${row.prompt}` } : row);
+  }
+  return kept;
 }
 
 /**
