@@ -144,6 +144,14 @@
             <option value="ask">{{ 'agents.securityAsk' | translate }}</option>
             <option value="trusted">{{ 'agents.securityTrusted' | translate }}</option>
           </select>
+          <label class="field-sublabel">{{ 'agents.maxSteps' | translate }}</label>
+          <select class="field-select" [ngModel]="maxSteps()" (ngModelChange)="onMaxStepsChange($event)"
+                  [title]="'agents.maxStepsHint' | translate">
+            @for (n of stepLimits; track n) {
+              <option [ngValue]="n">{{ (n === 15 ? 'agents.maxStepsDefault' : 'agents.maxStepsOption') | translate: { n: n } }}</option>
+            }
+          </select>
+          <p class="list-empty-hint">{{ 'agents.maxStepsHint' | translate }}</p>
         </div>
 
         <!-- Personality / config files -->

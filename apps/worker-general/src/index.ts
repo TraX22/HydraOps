@@ -15,7 +15,7 @@ import { cronUnreadSources, cronReadSourcesPrompt, addUsage, CRON_SOURCES_UNREAD
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
-import { generateText as llmGenerateText, resolveLLMConfig, buildUserMessage } from "@hydraops/llm";
+import { generateText as llmGenerateText, resolveLLMConfig, resolveMaxSteps, buildUserMessage } from "@hydraops/llm";
 import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
 import { AckPolicy } from "nats";
 
@@ -471,7 +471,7 @@ ${EXTERNAL_CONTENT_RULE}
     const controller = cancels.track(taskId);
     const userMessage = await buildUserMessage(userPrompt, rootDir);
     const runModel = (extra: any[] = []) => withTimeout(
-      llmGenerateText(llmConfig, [...history, userMessage, ...extra], systemPrompt + skillsSection + planSection + cronDedup + vault.promptSection(), planTools ? { ...aiTools, ...planTools.ai } : aiTools, planTools ? [...rawTools, ...planTools.raw] : rawTools, { abortSignal: controller.signal, prepareStep: (step: any) => vault.prepareStep(step), stepImages: stepToolImages }),
+      llmGenerateText(llmConfig, [...history, userMessage, ...extra], systemPrompt + skillsSection + planSection + cronDedup + vault.promptSection(), planTools ? { ...aiTools, ...planTools.ai } : aiTools, planTools ? [...rawTools, ...planTools.raw] : rawTools, { abortSignal: controller.signal, prepareStep: (step: any) => vault.prepareStep(step), stepImages: stepToolImages, maxSteps: resolveMaxSteps(cfgRows[0]?.maxSteps) }),
       LLM_TIMEOUT_MS(llmConfig.provider),
       `LLM call`,
       () => controller.abort(new Error("LLM call timed out")),

@@ -71,6 +71,13 @@
       "when": 1790684889393,
       "tag": "0009_approval_continuation",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1791035883760,
+      "tag": "0010_agent_step_limit",
+      "breakpoints": true
     }
   ]
 }

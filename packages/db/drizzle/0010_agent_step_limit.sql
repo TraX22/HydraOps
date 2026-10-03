@@ -1,0 +1,1 @@
+ALTER TABLE `agent_configs` ADD `max_steps` integer;

@@ -26,6 +26,7 @@ Al seleccionar un agente en la lista se abre su ficha:
 - **Renombrar** — el lápiz junto al nombre.
 - **Modelo y motor** — el LLM del agente; en los workers de imagen y vídeo, además el motor de generación y la **resolución/aspecto** (o "Automático": el worker decide). Para imágenes, "Automático" dibuja con `gemini-3.1-flash-image` de Google salvo que el propio modelo del agente sea de imagen; la variable `DEFAULT_IMAGE_MODEL` cambia ese valor por defecto.
 - **Contenido externo** — qué hace el agente cuando quiere actuar después de leer una página, una búsqueda o un archivo de terceros: pedir tu aprobación (por defecto) o actuar como de confianza. Ver [Seguridad](./13-security.md).
+- **Pasos por tarea** — cuántas rondas de herramientas puede usar el agente en una tarea: 15 (por defecto), 30 o 45. Un agente que construye cosas largas (un modelo en Blender, una investigación con muchas fuentes) puede necesitar más; pero cada paso reenvía toda la conversación al modelo, así que una tarea de 45 pasos puede costar varias veces lo que una de 15. Cuando una tarea llega al límite, el agente cierra con lo que tiene y puedes pedirle que continúe.
 - **Archivos de configuración** — los seis Markdown de su personalidad, editables en un modal.
 - **💬** — abre el chat con él.
 
