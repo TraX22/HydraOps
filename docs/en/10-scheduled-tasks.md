@@ -47,3 +47,4 @@ The record is made of links, so ask for sources in the task ("with the link of e
 - Start with a frequent schedule (every minute) to check the prompt does what you want, then switch it to the real one.
 - The result arrives in the chat signed by the agent: many frequent tasks will fill the channel — and every run consumes tokens from your provider.
 - Remember tasks only run while HydraOps is on. To have them run always, use [server mode](./12-server-mode.md) on a 24/7 machine.
+- If the task names its sources (a feed, a page), the agent has to open at least one of them in every run. An answer written without opening any is sent back once; if the second one does not open them either, the run shows a notice instead of an answer that could be made up.

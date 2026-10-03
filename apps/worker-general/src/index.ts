@@ -11,7 +11,7 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, filterCronAnswer, cronNothingNewPrompt, CRON_NOTHING_NEW, loadRecentChannelHistory, historyBudgetChars, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
+import { cronUnreadSources, cronReadSourcesPrompt, addUsage, CRON_SOURCES_UNREAD, CRON_SOURCES_UNREAD_TEXT, createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, filterCronAnswer, cronNothingNewPrompt, CRON_NOTHING_NEW, loadRecentChannelHistory, historyBudgetChars, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
@@ -469,12 +469,32 @@ ${EXTERNAL_CONTENT_RULE}
 
     console.log(`[${consumerName}] Processing task ${taskId} for agent ${agentId} (${llmConfig.provider}:${llmConfig.model})...`);
     const controller = cancels.track(taskId);
-    const { text: draftText, usage, success, error, errorCode } = await withTimeout(
-      llmGenerateText(llmConfig, [...history, await buildUserMessage(userPrompt, rootDir)], systemPrompt + skillsSection + planSection + cronDedup + vault.promptSection(), planTools ? { ...aiTools, ...planTools.ai } : aiTools, planTools ? [...rawTools, ...planTools.raw] : rawTools, { abortSignal: controller.signal, prepareStep: (step: any) => vault.prepareStep(step), stepImages: stepToolImages }),
+    const userMessage = await buildUserMessage(userPrompt, rootDir);
+    const runModel = (extra: any[] = []) => withTimeout(
+      llmGenerateText(llmConfig, [...history, userMessage, ...extra], systemPrompt + skillsSection + planSection + cronDedup + vault.promptSection(), planTools ? { ...aiTools, ...planTools.ai } : aiTools, planTools ? [...rawTools, ...planTools.raw] : rawTools, { abortSignal: controller.signal, prepareStep: (step: any) => vault.prepareStep(step), stepImages: stepToolImages }),
       LLM_TIMEOUT_MS(llmConfig.provider),
       `LLM call`,
       () => controller.abort(new Error("LLM call timed out")),
     );
+    let run: any = await runModel();
+
+    // A scheduled task that names its sources must have opened at least one of them
+    // (@hydraops/db cron-sources.ts): ask once more, then deliver a failure, not news.
+    if (run.success) {
+      const unread = await cronUnreadSources(db, taskId, sourceCollector.list()).catch(() => null);
+      if (unread) {
+        console.log(`[${consumerName}] Scheduled task ${taskId} answered without opening its sources; asking again.`);
+        const retry = await runModel([{ role: "assistant", content: String(run.text ?? "") }, { role: "user", content: cronReadSourcesPrompt(unread) }]);
+        const still = retry.success ? await cronUnreadSources(db, taskId, sourceCollector.list()).catch(() => null) : unread;
+        const both = addUsage(run.usage, retry.usage);
+        if (still) console.warn(`[${consumerName}] Scheduled task ${taskId} did not open its sources twice; delivered as a failure.`);
+        run = still
+          ? { ...retry, usage: both, success: false, text: CRON_SOURCES_UNREAD_TEXT, error: CRON_SOURCES_UNREAD_TEXT, errorCode: CRON_SOURCES_UNREAD }
+          : { ...retry, usage: both };
+      }
+    }
+    const { text: draftText, usage, success, error, errorCode } = run;
+
     // A scheduled task's answer loses the items its earlier runs already delivered; when
     // nothing is left, it becomes one line (the record and the filter: @hydraops/db cron-dedup.ts).
     let text = draftText;

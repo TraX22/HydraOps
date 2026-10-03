@@ -260,3 +260,5 @@ export async function purgeOldSecurityEvents(db: any, retentionDays = 60): Promi
   const result: any = await db.delete(schema.securityEvents).where(lt(schema.securityEvents.createdAt, cutoff)).run();
   return Number(result?.changes ?? result?.rowCount ?? 0);
 }
+
+export * from "./cron-sources.js";
