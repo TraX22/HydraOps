@@ -9,6 +9,7 @@ import 'prismjs/components/prism-typescript';
 import 'prismjs/components/prism-yaml';
 import 'prismjs/components/prism-powershell';
 import { ApiService, DocsPage } from '../../services/api.service';
+import { ExternalLinkService } from '../../services/external-link.service';
 import { MarkdownPipe } from '../../pipes/markdown.pipe';
 import { watchMermaid } from '../../pipes/mermaid-render';
 import { environment } from '../../../environments/environment';
@@ -27,6 +28,7 @@ const GITHUB_DOCS = 'https://github.com/TraX22/HydraOps/blob/main/docs/';
 })
 export class DocsComponent implements OnInit {
   private api = inject(ApiService);
+  private links = inject(ExternalLinkService);
   private translate = inject(TranslateService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -111,8 +113,8 @@ export class DocsComponent implements OnInit {
     if (main) main.scrollTop = 0;
   }
 
-  // El HTML viene de innerHTML, así que la navegación de los enlaces se decide
-  // aquí: página del manual → dentro de la app; el resto → pestaña nueva.
+  // The HTML comes from innerHTML, so where a link goes is decided here: a page of the
+  // manual opens inside the app; anything else leaves it, after asking (ExternalLinkService).
   onContentClick(event: MouseEvent): void {
     const link = (event.target as HTMLElement).closest('a');
     const href = link?.getAttribute('href');
@@ -137,6 +139,6 @@ export class DocsComponent implements OnInit {
         return;
       }
     }
-    window.open(url, '_blank', 'noopener');
+    this.links.ask(url, link);
   }
 }

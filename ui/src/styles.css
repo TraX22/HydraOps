@@ -243,7 +243,10 @@ a.link-mismatch, .msg-row.bot .msg-bubble a.link-mismatch, :root[data-theme="lig
 a.link-mismatch::after { content: ' ⚠'; }
 /* A link the agent never opened nor saw in this conversation (see linkCheck in the chat). */
 .msg-bubble a.link-unverified { text-decoration: underline dotted; text-underline-offset: 3px; }
-.msg-bubble a.link-unverified::after { content: ' ?'; font-size: .75em; font-weight: 700; color: #d97706; vertical-align: super; }
+.msg-bubble a.link-unverified::after {
+  content: ''; display: inline-block; width: .95em; height: .95em; margin-left: 2px; vertical-align: super;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.6 1.4 21h21.2L12 2.6z' fill='%23facc15' stroke='%23ca8a04' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M12 9.2v5.6' stroke='%23422006' stroke-width='2.3' stroke-linecap='round'/%3E%3Ccircle cx='12' cy='17.9' r='1.35' fill='%23422006'/%3E%3C/svg%3E") center / contain no-repeat;
+}
 
 /* Links inside replies read as links: blue, underlined on hover — on both bubbles and in both themes. */
 .msg-bubble a { color: #60a5fa; text-decoration: none; word-break: break-word; }
