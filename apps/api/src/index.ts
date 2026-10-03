@@ -155,18 +155,30 @@ function cookieValue(req: express.Request, name: string): string | undefined {
   return undefined;
 }
 
+// The token of an "Authorization: Bearer <token>" header (no regex over request input).
+function bearerToken(header: string | undefined): string | undefined {
+  if (!header || header.slice(0, 7).toLowerCase() !== "bearer ") return undefined;
+  return header.slice(7).trim() || undefined;
+}
+
 function requestAuthState(req: express.Request): { required: boolean; authenticated: boolean } {
   const exempt = !authStrict && isLoopbackAddress(req.socket.remoteAddress);
   if (exempt) return { required: false, authenticated: true };
-  const bearer = req.headers.authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+  const bearer = bearerToken(req.headers.authorization);
   const authenticated = tokenMatches(bearer) || tokenMatches(cookieValue(req, AUTH_COOKIE));
   return { required: true, authenticated };
 }
 
 const PROTECTED_PREFIXES = ["/api", "/avatars", "/storage", "/img", "/users"];
-// /api/login es la puerta y /api/auth/status es lo que la UI pregunta para
-// saber si debe enseñarla — ninguna de las dos puede estar detrás del muro.
+// /api/login is the door and /api/auth/status is what the UI asks to know whether to
+// show it: neither can sit behind the wall.
 const AUTH_EXEMPT_PATHS = new Set(["/api/login", "/api/auth/status"]);
+
+// A cap on every request, ahead of the auth check and of every route. The interface
+// polls a few times per second and never comes near it; a runaway script or a loop
+// guessing the token is slowed down. Routes that work the disk keep their own lower caps.
+const requestLimiter = rateLimit({ windowMs: 60_000, limit: 6000, standardHeaders: "draft-7", legacyHeaders: false });
+app.use(requestLimiter);
 
 app.use((req, res, next) => {
   const p = req.path;
@@ -479,8 +491,8 @@ api.get("/workers", async (req, res) => {
 api.get("/workers/:id/logs", async (req, res) => {
   try {
     const id = req.params.id.replace(/[^a-z0-9-_]/gi, "");
-    const logPath = path.join(logsDir, `${id}.log`);
-    if (!(await fileExists(logPath))) {
+    const logPath = safeJoin(logsDir, `${id}.log`);
+    if (!logPath || !(await fileExists(logPath))) {
       return res.type("text/plain").send("");
     }
     const content = await readFile(logPath, "utf-8");
@@ -497,9 +509,11 @@ api.post("/workers", async (req, res) => {
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: "Worker name is required" });
   
-  const workerId = name.toLowerCase().replace(/\s+/g, "-");
-  const workerPath = path.join(appsDir, workerId);
-  
+  // A plain slug only: the name becomes a folder under apps/ and a package name.
+  const workerId = String(name).trim().toLowerCase().replace(/\s+/g, "-");
+  const workerPath = WORKER_ID_RE.test(workerId) ? safeJoin(appsDir, workerId) : null;
+  if (!workerPath) return res.status(400).json({ error: "Worker name may only have letters, digits and dashes" });
+
   if (await fileExists(workerPath)) {
     return res.status(400).json({ error: "Worker already exists" });
   }
@@ -548,14 +562,14 @@ console.log(\`[$\{env.SERVICE_NAME\}] Worker started...\`);
   }
 });
 
-// --- Existing Code ---
+const WORKER_ID_RE = /^[a-z0-9][a-z0-9-]{0,40}$/;
 
 /**
- * Une segmentos a baseDir y devuelve la ruta absoluta SOLO si queda dentro de
- * baseDir; si el resultado se sale (por "../", "%2f" decodificado, etc.),
- * devuelve null. Cierra el path traversal en TODA ruta que arma un path con
- * parámetros del request (:id, :filename). path.resolve normaliza los ".." y
- * la comprobación de prefijo garantiza la contención.
+ * Joins segments to baseDir and returns the absolute path ONLY if it stays inside
+ * baseDir; null when the result leaves it ("../", a decoded "%2f", and so on). It
+ * closes path traversal in every route that builds a path from request values
+ * (:id, :filename): path.resolve normalizes the ".." and the prefix check guarantees
+ * containment.
  */
 function safeJoin(baseDir: string, ...segments: string[]): string | null {
   const base = path.resolve(baseDir);
@@ -564,10 +578,14 @@ function safeJoin(baseDir: string, ...segments: string[]): string | null {
   return target;
 }
 
-// La forma de un id de agente válido (la misma que produce POST /agents al
-// sanear el nombre): rechaza separadores, "..", puntos y demás antes de que
-// un id llegue a componer una ruta de archivo.
+// The shape of a valid agent id (the one POST /agents produces when it cleans the
+// name): no separators, no "..", no dots, before an id becomes part of a file path.
 const AGENT_ID_RE = /^[a-z0-9_-]+$/;
+
+// An agent's folder, or null when the id is not a plain slug or would leave agentsDir.
+function agentDir(id: string): string | null {
+  return AGENT_ID_RE.test(id) ? safeJoin(agentsDir, id) : null;
+}
 
 // Serve agent directories statically to access avatars
 app.use("/avatars", express.static(agentsDir));
@@ -646,8 +664,10 @@ api.post("/upload", (req, res) => {
       try {
         const { default: sharp } = await import("sharp");
         const pngFilename = filename.replace(/\.[^.]*$/, "") + ".png";
-        const original = path.join(uploadsDir, filename);
-        await sharp(original).png().toFile(path.join(uploadsDir, pngFilename));
+        const original = safeJoin(uploadsDir, path.basename(filename));
+        const converted = safeJoin(uploadsDir, path.basename(pngFilename));
+        if (!original || !converted) throw new Error("upload path outside the uploads folder");
+        await sharp(original).png().toFile(converted);
         filename = pngFilename;
         name = name.replace(/\.[^.]*$/, "") + ".png";
         mime = "image/png";
@@ -856,7 +876,7 @@ api.put("/agents/:id/files/:filename", async (req, res) => {
     await writeFile(filePath, content, "utf-8");
     res.json({ success: true });
   } catch (err) {
-    console.error(`[api] PUT /agents/${id}/files/${filename} failed`, err);
+    console.error("[api] PUT /agents/%s/files/%s failed", id, filename, err);
     res.status(500).json({ error: "Failed to save file" });
   }
 });
@@ -917,8 +937,9 @@ api.post("/agents", async (req, res) => {
 
 api.delete("/agents/:id", async (req, res) => {
   const { id } = req.params;
-  const agentPath = path.join(agentsDir, id);
-  
+  const agentPath = agentDir(id);
+  if (!agentPath) return res.status(404).json({ error: "Agent not found" });
+
   try {
     // Check if directory exists
     const dirs = await readdir(agentsDir);
@@ -932,7 +953,7 @@ api.delete("/agents/:id", async (req, res) => {
     await (db as any).delete(agentConfigs).where(eq(agentConfigs.agentId, id)).run();
     res.json({ success: true, message: `Agent ${id} deleted successfully` });
   } catch (err) {
-    console.error(`[api] DELETE /agents/${id} failed`, err);
+    console.error("[api] DELETE /agents/%s failed", id, err);
     res.status(500).json({ error: "Failed to delete agent" });
   }
 });
@@ -950,16 +971,21 @@ api.patch("/agents/:id/rename", async (req, res) => {
     const dirs = await readdir(agentsDir);
     if (!dirs.includes(oldId)) return res.status(404).json({ error: "Agent not found" });
     if (dirs.includes(newId)) return res.status(409).json({ error: `An agent named "${newId}" already exists` });
+    const oldDir = agentDir(oldId);
+    const newDir = agentDir(newId);
+    if (!oldDir || !newDir) return res.status(400).json({ error: "Invalid agent id" });
 
     // 1. Rename the folder
-    await rename(path.join(agentsDir, oldId), path.join(agentsDir, newId));
+    await rename(oldDir, newDir);
 
     // 2. Rename the personality files inside (<old>.<type>.md → <new>.<type>.md)
-    const files = await readdir(path.join(agentsDir, newId));
+    const files = await readdir(newDir);
     for (const f of files) {
       if (f.startsWith(`${oldId}.`) && f.endsWith(".md")) {
         const suffix = f.slice(oldId.length); // ".soul.md" etc.
-        await rename(path.join(agentsDir, newId, f), path.join(agentsDir, newId, `${newId}${suffix}`));
+        const from = safeJoin(newDir, f);
+        const to = safeJoin(newDir, `${newId}${suffix}`);
+        if (from && to) await rename(from, to);
       }
     }
 
@@ -969,10 +995,10 @@ api.patch("/agents/:id/rename", async (req, res) => {
     await (db as any).update(tasks).set({ channel: newId }).where(eq(tasks.channel, oldId)).run();
     await (db as any).update(cronJobs).set({ assignedAgent: newId, updatedAt: new Date() }).where(eq(cronJobs.assignedAgent, oldId)).run();
 
-    console.log(`[api] Agent renamed: ${oldId} → ${newId}`);
+    console.log("[api] Agent renamed: %s → %s", oldId, newId);
     res.json({ success: true, id: newId });
   } catch (err: any) {
-    console.error(`[api] PATCH /agents/${oldId}/rename failed`, err);
+    console.error("[api] PATCH /agents/%s/rename failed", oldId, err);
     res.status(500).json({ error: "Failed to rename agent", detail: err?.message });
   }
 });
@@ -1011,8 +1037,8 @@ api.get("/agents/:id/config", async (req, res) => {
     }
     
     // Fallback: extract from file if not in DB
-    const agentFilePath = path.join(agentsDir, id, `${id}.agent.md`);
-    if (await fileExists(agentFilePath)) {
+    const agentFilePath = safeJoin(agentsDir, id, `${id}.agent.md`);
+    if (agentFilePath && (await fileExists(agentFilePath))) {
       const content = await readFile(agentFilePath, "utf-8");
       const model = extractModel(content);
       return res.json({ agentId: id, model });
@@ -1020,7 +1046,7 @@ api.get("/agents/:id/config", async (req, res) => {
 
     res.json({ agentId: id, model: "" });
   } catch (err) {
-    console.error(`[api] GET /agents/${id}/config failed`, err);
+    console.error("[api] GET /agents/%s/config failed", id, err);
     res.status(500).json({ error: "Failed to fetch agent config" });
   }
 });
@@ -1052,8 +1078,8 @@ api.post("/agents/:id/config", async (req, res) => {
       .run();
 
     // 2. Update in {id}.agent.md file (optional)
-    const agentFilePath = path.join(agentsDir, id, `${id}.agent.md`);
-    if (await fileExists(agentFilePath)) {
+    const agentFilePath = safeJoin(agentsDir, id, `${id}.agent.md`);
+    if (agentFilePath && (await fileExists(agentFilePath))) {
       const content = await readFile(agentFilePath, "utf-8");
       const updatedContent = updateModelInContent(content, model);
       await writeFile(agentFilePath, updatedContent, "utf-8");
@@ -1061,7 +1087,7 @@ api.post("/agents/:id/config", async (req, res) => {
 
     res.json({ success: true, model: finalModel, ...updatePayload });
   } catch (err) {
-    console.error(`[api] POST /agents/${id}/config failed`, err);
+    console.error("[api] POST /agents/%s/config failed", id, err);
     res.status(500).json({ error: "Failed to update agent config" });
   }
 });
@@ -2707,7 +2733,7 @@ async function pushTelegram(text: string): Promise<{ ok: boolean; sent: number; 
       }
       sent++;
     } catch (e: any) {
-      console.error(`[api] telegram send to ${chatId} failed:`, e?.message || e);
+      console.error("[api] telegram send to %s failed:", chatId, e?.message || e);
     }
   }
   return { ok: sent > 0, sent, reason: sent > 0 ? undefined : "send_failed" };

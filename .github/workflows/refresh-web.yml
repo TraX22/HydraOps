@@ -8,6 +8,9 @@ on:
     types: [published]
   workflow_dispatch: {}
 
+# The job only calls a deploy hook: it needs nothing from the repository token.
+permissions: {}
+
 jobs:
   trigger-rebuild:
     runs-on: ubuntu-latest

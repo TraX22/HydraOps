@@ -22,7 +22,7 @@ async function remember(text: string, ctx?: ToolContext): Promise<string> {
   if (!agentId || !isSafeAgentId(agentId)) {
     return "Could not save: this run has no agent identity attached, so there is no memory file to write to.";
   }
-  const entry = text.trim().replace(/\s*\n\s*/g, " ");
+  const entry = text.split("\n").map((line) => line.trim()).filter(Boolean).join(" ");
   if (!entry) return "Nothing to save: the note is empty.";
   if (entry.length > MAX_ENTRY_CHARS) {
     return `The note is too long (${entry.length} chars, max ${MAX_ENTRY_CHARS}). Memory holds short, durable facts — condense it to its essence and try again.`;

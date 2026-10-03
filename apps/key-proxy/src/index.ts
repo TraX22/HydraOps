@@ -130,7 +130,7 @@ const server = http.createServer(async (req, res) => {
       res.end();
     }
   } catch (err: any) {
-    console.error(`[key-proxy] ${req.method} ${req.url} failed:`, err?.message || err);
+    console.error("[key-proxy] %s %s failed:", req.method, req.url, err?.message || err);
     if (!res.headersSent) sendJson(res, 502, { error: "Upstream request failed" });
     else res.end();
   }
