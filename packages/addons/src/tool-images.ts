@@ -10,6 +10,12 @@
  * When it does not, the marker says so plainly: an agent must never report having
  * "checked the screenshot" it was not shown.
  *
+ * Older images leave in blocks, not one for each new image. Detaching an image rewrites
+ * a message in the middle of the conversation, and everything after a rewritten message
+ * is billed again at the full price (the provider's prompt cache only covers an unchanged
+ * prefix; a local server re-evaluates it). Dropping a block at a time changes the middle
+ * of the conversation once every few images instead of on every capture.
+ *
  * Nothing is written to disk and nothing outlives the process: the store holds the last
  * few images for a short while.
  */
@@ -19,8 +25,17 @@ const MAX_IMAGES = 24;
 const MAX_AGE_MS = 20 * 60_000;
 /** Larger pictures are not kept (base64 length; about 3 MB of image). */
 const MAX_BASE64_CHARS = 4_200_000;
-/** How many images ride along with each model call: the most recent ones. */
-export const TOOL_IMAGES_PER_STEP = 2;
+/**
+ * Images ride along in blocks of this size: a call carries the current block and the one
+ * before it (between TOOL_IMAGES_BLOCK and 2 × TOOL_IMAGES_BLOCK − 1 images).
+ */
+export const TOOL_IMAGES_BLOCK = 3;
+
+/** Index of the first image still attached when a conversation has `count` of them. */
+export function firstAttachedImage(count: number, block = TOOL_IMAGES_BLOCK): number {
+  const size = Math.max(1, Math.floor(block));
+  return size * Math.max(0, Math.floor(count / size) - 1);
+}
 
 const ACCEPTED = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 
@@ -66,7 +81,8 @@ function withPartText(part: any, text: string): any {
 export interface StepImagesOptions {
   /** False when the model cannot see images: the markers are rewritten to say so and nothing is attached. */
   visible: boolean;
-  max?: number;
+  /** Block size (see TOOL_IMAGES_BLOCK). */
+  block?: number;
 }
 
 /**
@@ -90,7 +106,7 @@ export function stepToolImages(messages: unknown[], opts: StepImagesOptions): un
   const attach = new Set<string>();
   if (opts.visible) {
     const live = found.filter((f) => store.has(f.id));
-    for (const f of live.slice(-(opts.max ?? TOOL_IMAGES_PER_STEP))) attach.add(f.id);
+    for (const f of live.slice(firstAttachedImage(live.length, opts.block))) attach.add(f.id);
   }
 
   const out: any[] = [];

@@ -8,7 +8,12 @@ import {
 // skills_view — open an installed skill (granted by `skills` in tools.md, a prefix
 // grant like `github`). The system prompt lists the installed skills by name and
 // description; this returns the full text, or one of its reference files.
-async function viewSkill(name: string, file?: string): Promise<string> {
+// What each task has opened so far (the tool context is one object per task). A file
+// opened twice is not sent twice: its text is already in the conversation, and a skill
+// can be tens of kilobytes that every later step would carry again.
+const openedByTask = new WeakMap<object, Set<string>>();
+
+async function viewSkill(name: string, file?: string, ctx?: ToolContext): Promise<string> {
   if (!isValidSkillName(name)) return `"${name}" is not a valid skill name. Use a name from the installed skills list.`;
   const skills = await listInstalledSkills();
   const skill = skills.find((s) => s.name === name);
@@ -17,8 +22,16 @@ async function viewSkill(name: string, file?: string): Promise<string> {
     return `No installed skill named "${name}".` + (names.length ? ` Installed: ${names.join(", ")}.` : " No skills are installed.");
   }
   const rel = file?.trim() || SKILL_FILE;
+  if (ctx) {
+    const opened = openedByTask.get(ctx) ?? new Set<string>();
+    openedByTask.set(ctx, opened);
+    const key = `${name}/${rel}`;
+    if (opened.has(key)) return `You already opened ${rel} of skill "${name}" in this task: its full text is in an earlier tool result above. It is not repeated; go on from it.`;
+    opened.add(key);
+  }
   const r = await readSkillFile(name, rel);
   if (!r.ok) {
+    if (ctx) openedByTask.get(ctx)?.delete(`${name}/${rel}`);
     return `Could not open ${rel} in skill "${name}" (${r.error}). Files in this skill: ${skill.files.join(", ") || "none"}.`;
   }
   let text = r.content;
@@ -44,7 +57,7 @@ export const skillsViewTool: HydraTool = {
     name: z.string().describe("The skill's name, exactly as listed (lowercase-with-hyphens)."),
     file: z.string().optional().describe("Optional: a file inside the skill, e.g. references/checklist.md. Omit to get SKILL.md."),
   }),
-  execute: async ({ name, file }) => await viewSkill(String(name ?? "").trim(), file),
+  execute: async ({ name, file }, ctx) => await viewSkill(String(name ?? "").trim(), file, ctx),
 };
 
 // create_skill — write a new skill (granted separately: `create_skill` in tools.md).
