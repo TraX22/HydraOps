@@ -102,6 +102,9 @@ export const agentConfigs = sqliteTable("agent_configs", {
   // content until the user approves) | trusted (run them, just record). See
   // @hydraops/addons provenance.ts. The global switch lives in system_configs.
   securityMode: text("security_mode").default("ask"),
+  // Tool rounds a task of this agent may use: null = the default (15, or HYDRA_LLM_MAX_STEPS),
+  // otherwise one of the fixed options (see @hydraops/llm STEP_LIMIT_OPTIONS).
+  maxSteps: integer("max_steps"),
   lastHeartbeat: integer("last_heartbeat", { mode: "timestamp" }),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });

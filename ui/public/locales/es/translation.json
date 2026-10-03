@@ -210,7 +210,11 @@
     "securityMode": "Contenido externo",
     "securityModeHint": "Qué hace el agente cuando quiere actuar después de leer una página, una búsqueda o un archivo de terceros",
     "securityAsk": "🛡️ Pedir aprobación (recomendado)",
-    "securityTrusted": "Confiar: actuar sin preguntar"
+    "securityTrusted": "Confiar: actuar sin preguntar",
+    "maxSteps": "Pasos por tarea",
+    "maxStepsDefault": "{{n}} pasos (predeterminado)",
+    "maxStepsOption": "{{n}} pasos",
+    "maxStepsHint": "Cuántas rondas de herramientas puede usar el agente en una tarea. Más pasos permiten trabajos más largos, pero cada paso reenvía toda la conversación: una tarea de 45 pasos puede costar varias veces lo que una de 15."
   },
   "system": {
     "title": "Sistema",

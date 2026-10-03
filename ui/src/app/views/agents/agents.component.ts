@@ -88,6 +88,9 @@ export class AgentsComponent implements OnInit {
   resolution = signal('auto');
   // Prompt-injection defense: ask (hold sensitive calls after outside content) | trusted.
   securityMode = signal<'ask' | 'trusted'>('ask');
+  // Tool rounds per task: fixed options (the first one is the default).
+  readonly stepLimits = [15, 30, 45];
+  maxSteps = signal<number>(15);
 
   // Only the aspects the selected engine can actually render. Anything else
   // would be mapped to the closest supported size by the worker without the
@@ -421,6 +424,7 @@ export class AgentsComponent implements OnInit {
         this.engine.set((cfg['graphicEngine'] as string) || 'auto');
         this.resolution.set((cfg['resolution'] as string) || 'auto');
         this.securityMode.set(cfg['securityMode'] === 'trusted' ? 'trusted' : 'ask');
+        this.maxSteps.set(this.stepLimits.includes(Number(cfg['maxSteps'])) ? Number(cfg['maxSteps']) : 15);
       }
     });
   }
@@ -555,7 +559,13 @@ export class AgentsComponent implements OnInit {
     this.saveConfig({ securityMode });
   }
 
-  private saveConfig(partial: { model?: string; workerType?: string; graphicEngine?: string; resolution?: string; securityMode?: string }): void {
+  onMaxStepsChange(value: number | string): void {
+    const maxSteps = Number(value);
+    this.maxSteps.set(maxSteps);
+    this.saveConfig({ maxSteps });
+  }
+
+  private saveConfig(partial: { model?: string; workerType?: string; graphicEngine?: string; resolution?: string; securityMode?: string; maxSteps?: number }): void {
     const agent = this.selectedAgent();
     if (!agent) return;
     const payload = {
@@ -564,6 +574,8 @@ export class AgentsComponent implements OnInit {
       graphicEngine: partial.graphicEngine ?? this.engine(),
       resolution: partial.resolution ?? this.resolution(),
       securityMode: partial.securityMode ?? this.securityMode(),
+      // The first option is "the default": stored as null, so it follows the app-wide default.
+      maxSteps: (partial.maxSteps ?? this.maxSteps()) === this.stepLimits[0] ? null : (partial.maxSteps ?? this.maxSteps()),
     };
     this.savingConfig.set(true);
     this.api.saveAgentConfig(agent.id, payload).subscribe({
