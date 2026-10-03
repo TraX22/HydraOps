@@ -40,6 +40,11 @@ const PROXY_PREFIXES: [string, string][] = [
   ['https://api.minimax.io', 'minimax'],
 ];
 
+/** The host of an address, lowercased; empty when it is not a valid URL. */
+function hostOf(url: string): string {
+  try { return new URL(url).hostname.toLowerCase(); } catch { return ''; }
+}
+
 function proxied(url: string): string {
   const proxyBase = (process.env.KEY_PROXY_URL || '').trim().replace(/\/$/, '');
   if (!proxyBase) return url;
@@ -257,7 +262,7 @@ function getModel(config: LLMConfig) {
       // assistant history items and xAI's 422s on tool calls. Note that Groq and
       // xAI resolve with provider 'openai' + custom baseURL, so the Responses API
       // is only safe when the baseURL is OpenAI's own (or unset).
-      const isRealOpenAI = config.provider === 'openai' && (!config.baseURL || config.baseURL.includes('api.openai.com'));
+      const isRealOpenAI = config.provider === 'openai' && (!config.baseURL || hostOf(config.baseURL) === 'api.openai.com');
       return isRealOpenAI ? openai(modelName) : openai.chat(modelName);
     }
     case 'anthropic': {

@@ -63,14 +63,10 @@ const { ensureDataDir } = require("./data-dir");
 const { initAutoUpdate, checkForUpdatesNow } = require("./updater");
 const shellI18n = require("./i18n");
 
-// Idioma del menú nativo y de la ventana Acerca de. Arranca en el mismo por
-// defecto que la UI (en); se ajusta al leer `hydra_lang` del renderer al cargar
-// y cada vez que el usuario lo cambia (IPC `ui:lang`).
+// Language of the native menu and of the About window. It starts on the same default
+// as the UI (en) and follows `hydra_lang`: read from the renderer on load, and every
+// time the user changes it (IPC `ui:lang`).
 let currentLang = "en";
-
-const GITHUB_URL = "https://github.com/TraX22/HydraOps";
-const WEBSITE_URL = "https://hydraops.org";
-const X_URL = "https://x.com/HydraOpsApp";
 
 const UI_DIST = UI_ROOT;
 const APP_ICON = path.join(__dirname, "..", "build", "icon.png");
@@ -433,7 +429,7 @@ function showAbout() {
   // Los enlaces (target=_blank) van al navegador del sistema, nunca a una
   // ventana de Electron.
   aboutWindow.webContents.setWindowOpenHandler(({ url: target }) => {
-    shell.openExternal(target);
+    if (target.startsWith("https://")) shell.openExternal(target);
     return { action: "deny" };
   });
   aboutWindow.once("ready-to-show", () => aboutWindow.show());
@@ -446,9 +442,6 @@ function showAbout() {
       v: app.getVersion(),
       electron: process.versions.electron,
       node: process.versions.node,
-      website: WEBSITE_URL,
-      github: GITHUB_URL,
-      x: X_URL,
       title: a.title,
       versionLabel: a.versionLabel,
       description: a.description,
