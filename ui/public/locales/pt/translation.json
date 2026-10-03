@@ -68,6 +68,8 @@
     "editProfile": "Clique duplo: editar o perfil deste agente",
     "scrollToBottom": "Ir para a última mensagem",
     "attachTooBig": "máximo 20 MB",
+    "dropHere": "Solte os arquivos para anexá-los",
+    "dropHint": "Imagens ou documentos, até 20 MB cada",
     "whatsNew": "Novidades",
     "whatsNewTitle": "Novidades do HydraOps {{version}}",
     "whatsNewAll": "Ver todas as versões no GitHub",

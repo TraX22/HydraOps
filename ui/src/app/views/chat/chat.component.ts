@@ -11,6 +11,7 @@ import { MarkdownPipe } from '../../pipes/markdown.pipe';
 import { linkKey, type LinkCheck } from '../../pipes/sanitize-html';
 import { watchMermaid } from '../../pipes/mermaid-render';
 import { IconComponent } from '../../components/icon/icon.component';
+import { DropOverlayComponent } from '../../components/drop-overlay/drop-overlay.component';
 import { HeldActionComponent } from '../../components/held-action/held-action.component';
 import { PlanCardComponent, type PlanVersionRef } from '../../components/plan-card/plan-card.component';
 import { modelLabel } from '../../shared/model-groups';
@@ -19,7 +20,7 @@ import { CommandService, PaletteItem } from '../../services/command.service';
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [FormsModule, TranslatePipe, MarkdownPipe, DatePipe, IconComponent, HeldActionComponent, PlanCardComponent],
+  imports: [FormsModule, TranslatePipe, MarkdownPipe, DatePipe, IconComponent, HeldActionComponent, PlanCardComponent, DropOverlayComponent],
   templateUrl: './chat.component.html',
   styleUrl: './chat.component.css',
 })
@@ -205,6 +206,60 @@ export class ChatComponent implements OnInit, OnDestroy {
     const input = event.target as HTMLInputElement;
     const files = Array.from(input.files ?? []);
     input.value = '';
+    this.addFiles(files);
+  }
+
+  // Files dragged over the chat: the view shows where to drop them. Only drags that
+  // carry files count (not a text selection), and never on the What's new tab, which
+  // has no message box. The counter follows enter/leave across child elements.
+  dropActive = signal(false);
+  private dragDepth = 0;
+  private carriesFiles(event: DragEvent): boolean {
+    return !this.isWhatsNew() && Array.from(event.dataTransfer?.types ?? []).includes('Files');
+  }
+  onDragEnter(event: DragEvent): void {
+    if (!this.carriesFiles(event)) return;
+    event.preventDefault();
+    this.dragDepth++;
+    this.dropActive.set(true);
+  }
+  onDragOver(event: DragEvent): void {
+    if (!this.carriesFiles(event)) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+  }
+  onDragLeave(event: DragEvent): void {
+    if (!this.carriesFiles(event)) return;
+    this.dragDepth = Math.max(0, this.dragDepth - 1);
+    if (this.dragDepth === 0) this.dropActive.set(false);
+  }
+  onDrop(event: DragEvent): void {
+    if (!this.carriesFiles(event)) return;
+    event.preventDefault();
+    this.dragDepth = 0;
+    this.dropActive.set(false);
+    this.attachError.set('');
+    this.addFiles(Array.from(event.dataTransfer?.files ?? []));
+  }
+
+  // Ctrl+V in the message box: a copied image (a screenshot) is attached. When the
+  // clipboard also has text (a copy from a document carries both), the text is pasted
+  // as usual and the picture is left out.
+  onPaste(event: ClipboardEvent): void {
+    const data = event.clipboardData;
+    const files = Array.from(data?.files ?? []);
+    if (!files.length || data?.getData('text/plain')) return;
+    event.preventDefault();
+    this.attachError.set('');
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
+    // A pasted picture is always named "image.png": give each its own name.
+    this.addFiles(files.map((f, i) => {
+      const ext = f.name.includes('.') ? f.name.slice(f.name.lastIndexOf('.')) : '.png';
+      return new File([f], `pasted-${stamp}${files.length > 1 ? '-' + (i + 1) : ''}${ext}`, { type: f.type });
+    }));
+  }
+
+  private addFiles(files: File[]): void {
     for (const file of files) {
       if (file.size > 20 * 1024 * 1024) {
         this.attachError.set(`${file.name}: ${this.translate.instant('chat.attachTooBig')}`);

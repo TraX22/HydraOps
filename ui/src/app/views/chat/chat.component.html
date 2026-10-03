@@ -1,4 +1,7 @@
-<div class="chat-view">
+<div class="chat-view" (dragenter)="onDragEnter($event)" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
+  @if (dropActive()) {
+    <app-drop-overlay [title]="'chat.dropHere' | translate" [hint]="'chat.dropHint' | translate" />
+  }
   <!-- Header + Tabs -->
   <div class="chat-header">
     <h2 class="header-title">{{ 'chat.title' | translate }}</h2>
@@ -279,6 +282,7 @@
       [ngModel]="inputValue()"
       (ngModelChange)="onInput($event)"
       (keydown)="onKeydown($event)"
+      (paste)="onPaste($event)"
       rows="1"
     ></textarea>
     <div class="input-footer">
