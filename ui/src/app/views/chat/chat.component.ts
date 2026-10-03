@@ -546,14 +546,25 @@ export class ChatComponent implements OnInit, OnDestroy {
   // Links an agent's reply gives, checked against what it actually opened or saw: its own
   // task's sources and seen addresses, those of earlier replies in this chat, and any
   // address the user wrote. Replies from before seenUrls existed are not checked.
-  private linkChecks = new WeakMap<ChatMessage[], Map<string, LinkCheck | null>>();
+  // The same check object is handed back while nothing it depends on changed: the history
+  // poll brings new arrays every couple of seconds, and a new object would make the
+  // markdown pipe render the reply again, which wipes the user's text selection.
+  private linkChecks = new Map<string, { sig: string; check: LinkCheck }>();
   linkCheck(msg: ChatMessage): LinkCheck | null {
     const meta = msg.resultMeta as Record<string, unknown> | undefined;
     if (msg.role !== 'assistant' || !Array.isArray(meta?.['seenUrls'])) return null;
     const all = this.messages;
-    let cache = this.linkChecks.get(all);
-    if (!cache) { cache = new Map(); this.linkChecks.set(all, cache); }
-    if (cache.has(msg.id)) return cache.get(msg.id)!;
+    const len = (v: unknown) => (Array.isArray(v) ? v.length : 0);
+    const parts: string[] = [];
+    for (const m of all) {
+      const mm = m.resultMeta as Record<string, unknown> | undefined;
+      parts.push(m.role === 'user' ? `${m.id}:${(m.content || '').length}` : `${m.id}:${len(mm?.['sources'])}:${len(mm?.['seenUrls'])}`);
+      if (m.id === msg.id) break;
+    }
+    const label = this.translate.instant('chat.linkUnverified');
+    const sig = label + '|' + parts.join('|');
+    const cached = this.linkChecks.get(msg.id);
+    if (cached && cached.sig === sig) return cached.check;
     const known = new Set<string>();
     const add = (u: unknown) => { if (typeof u === 'string') { const k = linkKey(u); if (k) known.add(k); } };
     for (const m of all) {
@@ -565,8 +576,8 @@ export class ChatComponent implements OnInit, OnDestroy {
       }
       if (m.id === msg.id) break;
     }
-    const check: LinkCheck = { known, label: this.translate.instant('chat.linkUnverified') };
-    cache.set(msg.id, check);
+    const check: LinkCheck = { known, label };
+    this.linkChecks.set(msg.id, { sig, check });
     return check;
   }
 
