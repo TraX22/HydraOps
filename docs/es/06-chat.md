@@ -10,7 +10,7 @@ En el **chat de un agente**, la tarea es para ese agente. En el **chat principal
 
 ## Adjuntos
 
-El clip **📎** adjunta archivos al mensaje:
+El clip **📎** adjunta archivos al mensaje. También puedes **arrastrar archivos al chat** (un marco muestra dónde soltarlos) o **pegar una imagen copiada** con Ctrl+V en el cuadro del mensaje, por ejemplo una captura de pantalla. Cada archivo puede pesar hasta 20 MB:
 
 - **Imágenes** (PNG, JPG, WebP…) — si el modelo del agente tiene visión, las ve de verdad; útil para "¿qué pone en esta captura?" o "descríbeme esta foto".
 - **Documentos** (texto, Markdown, código, JSON…) — su contenido se le pasa al agente junto al mensaje.

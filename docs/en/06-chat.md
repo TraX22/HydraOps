@@ -10,7 +10,7 @@ In an **agent's chat**, the task is for that agent. In the **main chat**, unless
 
 ## Attachments
 
-The **📎** clip attaches files to the message:
+The **📎** clip attaches files to the message. You can also **drag files onto the chat** (a frame shows where to drop them) or **paste a copied image** with Ctrl+V in the message box, a screenshot for instance. Each file can be up to 20 MB:
 
 - **Images** (PNG, JPG, WebP…) — if the agent's model has vision, it truly sees them; handy for "what does this screenshot say?" or "describe this photo".
 - **Documents** (text, Markdown, code, JSON…) — their content is handed to the agent along with the message.
