@@ -982,7 +982,7 @@ export async function generateText(
       // to the stored resultMeta.
       errorCode,
       // The reason behind errorCode, when there is one (the UI shows it inside the translated text).
-      ...(errorDetail ? { error: errorDetail } : {}),
+      error: errorDetail,
     };
   } catch (error: any) {
     if (abortSignal?.aborted) {
