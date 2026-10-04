@@ -212,7 +212,11 @@
     "securityMode": "Outside content",
     "securityModeHint": "What the agent does when it wants to act after reading a third-party page, search or file",
     "securityAsk": "🛡️ Ask for approval (recommended)",
-    "securityTrusted": "Trusted: act without asking"
+    "securityTrusted": "Trusted: act without asking",
+    "maxSteps": "Steps per task",
+    "maxStepsDefault": "{{n}} steps (default)",
+    "maxStepsOption": "{{n}} steps",
+    "maxStepsHint": "How many tool rounds the agent may use in one task. More steps allow longer jobs, but every step sends the whole conversation again: a 45-step task can cost several times what a 15-step one does."
   },
   "system": {
     "title": "System",

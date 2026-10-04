@@ -1068,6 +1068,9 @@ api.post("/agents/:id/config", async (req, res) => {
     if (graphicFormat) updatePayload.graphicFormat = graphicFormat;
     if (resolution) updatePayload.resolution = resolution;
     if (securityMode === "ask" || securityMode === "trusted") updatePayload.securityMode = securityMode;
+    // One of the fixed options, or null for the default. Anything else is ignored.
+    if (req.body.maxSteps === null) updatePayload.maxSteps = null;
+    else if ((STEP_LIMIT_OPTIONS as readonly number[]).includes(Number(req.body.maxSteps))) updatePayload.maxSteps = Number(req.body.maxSteps);
 
     await (db as any).insert(agentConfigs)
       .values({ agentId: id, ...updatePayload })
@@ -1392,6 +1395,7 @@ import {
   generateText,
   resolveLLMConfig,
   buildUserMessage,
+  STEP_LIMIT_OPTIONS,
 } from "@hydraops/llm";
 
 api.get("/config/models", async (req, res) => {

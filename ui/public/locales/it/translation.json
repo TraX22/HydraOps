@@ -212,7 +212,11 @@
     "securityMode": "Contenuti esterni",
     "securityModeHint": "Cosa fa l'agente quando vuole agire dopo aver letto una pagina, una ricerca o un file di terzi",
     "securityAsk": "🛡️ Chiedi approvazione (consigliato)",
-    "securityTrusted": "Fidato: agisce senza chiedere"
+    "securityTrusted": "Fidato: agisce senza chiedere",
+    "maxSteps": "Passi per attività",
+    "maxStepsDefault": "{{n}} passi (predefinito)",
+    "maxStepsOption": "{{n}} passi",
+    "maxStepsHint": "Quanti giri di strumenti l'agente può usare in un'attività. Più passi permettono lavori più lunghi, ma ogni passo reinvia tutta la conversazione: un'attività da 45 passi può costare diverse volte una da 15."
   },
   "system": {
     "title": "Sistema",

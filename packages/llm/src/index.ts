@@ -632,6 +632,19 @@ export function modelSeesImages(config: LLMConfig): boolean {
 // HYDRA_LLM_MAX_STEPS overrides it (tests force the cap with a small value).
 const MAX_TOOL_STEPS = Math.max(1, Number(process.env.HYDRA_LLM_MAX_STEPS) || 15);
 
+/**
+ * The step limits an agent can be given (Agents view). Fixed options, not a free number:
+ * every round sends the whole conversation again, so the cost of a task grows with its
+ * rounds, and a limit typed by hand invites a very large one "just in case".
+ */
+export const STEP_LIMIT_OPTIONS = [15, 30, 45] as const;
+
+/** The limit for a task: the agent's own when it is one of the options, else the default. */
+export function resolveMaxSteps(agentValue: unknown): number {
+  const n = Number(agentValue);
+  return (STEP_LIMIT_OPTIONS as readonly number[]).includes(n) ? n : MAX_TOOL_STEPS;
+}
+
 export async function generateText(
   config: LLMConfig,
   messages: CoreMessage[],
@@ -650,9 +663,12 @@ export async function generateText(
     abortSignal?: AbortSignal;
     prepareStep?: (step: any) => any;
     stepImages?: (messages: unknown[], o: { visible: boolean }) => unknown[] | undefined;
+    /** Tool rounds this call may use (see resolveMaxSteps); the default when absent. */
+    maxSteps?: number;
   } = {},
 ) {
   const abortSignal = opts.abortSignal;
+  const maxSteps = Math.max(1, Math.floor(Number(opts.maxSteps)) || MAX_TOOL_STEPS);
   // Whether this model is shown the images; turned off for the rest of the task if the
   // provider rejects one.
   let imagesVisible = modelSeesImages(config);
@@ -701,7 +717,7 @@ export async function generateText(
         tools: aiTools,
         // AI SDK v5+ replaced maxSteps with stopWhen; maxSteps is ignored and
         // the loop would stop after the first tool call without a text answer.
-        stopWhen: hasTools ? stepCountIs(MAX_TOOL_STEPS) : undefined,
+        stopWhen: hasTools ? stepCountIs(maxSteps) : undefined,
         prepareStep,
         maxRetries: 2,
         providerOptions: (config.provider === 'google' && isThinkingModel) ? {
@@ -818,7 +834,7 @@ export async function generateText(
           system: finalSystemPrompt,
           messages: stripped as any,
           tools: aiTools,
-          stopWhen: hasTools ? stepCountIs(MAX_TOOL_STEPS) : undefined,
+          stopWhen: hasTools ? stepCountIs(maxSteps) : undefined,
           prepareStep,
           maxRetries: 1,
         });
@@ -862,7 +878,7 @@ export async function generateText(
                ? [
                    ...messages,
                    ...generated,
-                   { role: 'user', content: `You have used all ${MAX_TOOL_STEPS} tool rounds this task allows. Every tool result above is real and already collected; no more tools can be called now. Write your final answer for the user from what you gathered, citing the pages you opened. Do not claim the searches failed or did not run.` },
+                   { role: 'user', content: `You have used all ${maxSteps} tool rounds this task allows. Every tool result above is real and already collected; no more tools can be called now. Write your final answer for the user from what you gathered, citing the pages you opened. Do not claim the searches failed or did not run.` },
                  ]
                : [
                    ...messages,

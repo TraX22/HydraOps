@@ -26,6 +26,7 @@ Selecting an agent in the list opens its profile:
 - **Rename** — the pencil next to the name.
 - **Model and engine** — the agent's LLM; for image and video workers, also the generation engine and the **resolution/aspect** (or "Automatic": the worker decides). For images, "Automatic" draws with Google's `gemini-3.1-flash-image` unless the agent's own model is an image model; the `DEFAULT_IMAGE_MODEL` variable changes that default.
 - **Outside content** — what the agent does when it wants to act after reading a page, a search or a third-party file: ask for your approval (default) or act as trusted. See [Security](./13-security.md).
+- **Steps per task** — how many tool rounds the agent may use in one task: 15 (the default), 30 or 45. An agent that builds long things (a model in Blender, research over many sources) may need more; but every step sends the whole conversation to the model again, so a 45-step task can cost several times what a 15-step one does. When a task reaches the limit, the agent wraps up with what it has and you can ask it to continue.
 - **Configuration files** — the six Markdown files of its personality, editable in a modal.
 - **💬** — opens the chat with it.
 

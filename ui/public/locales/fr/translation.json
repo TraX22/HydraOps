@@ -212,7 +212,11 @@
     "securityMode": "Contenu externe",
     "securityModeHint": "Ce que fait l'agent quand il veut agir après avoir lu une page, une recherche ou un fichier tiers",
     "securityAsk": "🛡️ Demander l'approbation (recommandé)",
-    "securityTrusted": "De confiance : agir sans demander"
+    "securityTrusted": "De confiance : agir sans demander",
+    "maxSteps": "Étapes par tâche",
+    "maxStepsDefault": "{{n}} étapes (par défaut)",
+    "maxStepsOption": "{{n}} étapes",
+    "maxStepsHint": "Le nombre de tours d'outils que l'agent peut utiliser dans une tâche. Plus d'étapes permettent des travaux plus longs, mais chaque étape renvoie toute la conversation : une tâche de 45 étapes peut coûter plusieurs fois le prix d'une tâche de 15."
   },
   "system": {
     "title": "Système",
