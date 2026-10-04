@@ -92,6 +92,21 @@ export function resolveLLMConfig(model: string, getGlobalConfig: (key: string, d
   // that happens to precede a 'b' inside a longer id.
   const isParamSize = /(^|[^a-z0-9])\d+(\.\d+)?b(?![a-z0-9])/.test(m);
 
+  // An OpenRouter id is "vendor/model" (google/gemini-…, openai/gpt-…, meta-llama/llama-…-70b).
+  // It is recognized by that shape BEFORE the rules by name below: those would send it to the
+  // vendor's own API (which answers "Not Found" to an id it does not know) or, with a
+  // parameter size in the name, to the local server. Only what is explicitly local stays local.
+  const isOpenRouterId = /^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._:-]*$/.test(m)
+    && !m.endsWith('.gguf') && !m.includes('local') && !isPartialLocalMatch;
+  if (isOpenRouterId) {
+    return {
+      provider: 'openrouter',
+      model,
+      apiKey: getGlobalConfig('OPENROUTER_API_KEY', ''),
+      baseURL: 'https://openrouter.ai/api/v1'
+    };
+  }
+
   // 1. Priority: Local models (.gguf, word 'local', os architectures, param sizes, or partial match to LOCAL_LLM_MODEL)
   if (m.endsWith('.gguf') || m.includes('local') || isOSArchitecture || isParamSize || isPartialLocalMatch) {
     const apiKey = getGlobalConfig('LOCAL_LLM_KEY', 'no-key');
@@ -165,11 +180,9 @@ export function resolveLLMConfig(model: string, getGlobalConfig: (key: string, d
     };
   }
 
-  // 8. OpenRouter — checked BEFORE the direct Chinese providers below so that
-  // OpenRouter ids like 'deepseek/deepseek-chat' or 'qwen/qwen-max' (they carry a
-  // slash) route to OpenRouter, while the slash-free direct ids fall through.
+  // 8. OpenRouter — any other id with a slash that none of the rules above claimed
+  // ("vendor/model" ids were already recognized at the top).
   if (m.includes('/') && !m.includes('http')) {
-     // OpenRouter models usually have a slash (e.g., 'anthropic/claude-3')
      return {
        provider: 'openrouter',
        model,
