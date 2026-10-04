@@ -8,7 +8,7 @@ Tools are what separate an agent that *answers* from one that *does*. HydraOps h
 
 They ship with the application. Today they are:
 
-- `web_search` — search the web (DuckDuckGo, no key needed).
+- `web_search` — search the web (DuckDuckGo, no key needed). DuckDuckGo sometimes refuses automated searches for a few minutes; the agent is then told the search was **blocked**, not that there were no results, so it says so instead of answering from memory. If it happens often, give the agent `brave_search` as well.
 - `brave_search` — search with the Brave API; the key is pasted on its card and travels through the key-proxy.
 - `perplexity_search` — ask Perplexity (Sonar): searches the web and returns a reasoned answer with cited sources; the key is pasted on its card and travels through the key-proxy.
 - `fetch_url` — download and read a page.
