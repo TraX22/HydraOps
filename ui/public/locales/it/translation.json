@@ -1,6 +1,8 @@
 {
   "llm": {
     "errors": {
+      "final_answer_failed": "⚠️ Gli strumenti sono stati eseguiti, ma il modello ha fallito scrivendo la risposta finale. Quello che hanno fatto gli strumenti è reale; chiedigli di continuare per avere il riepilogo. Motivo: {{reason}}",
+      "final_answer_empty": "⚠️ Gli strumenti sono stati eseguiti, ma il modello non ha scritto la risposta finale. Quello che hanno fatto gli strumenti è reale; chiedigli di continuare per avere il riepilogo.",
       "malformed_model_response": "⚠️ Il modello ha restituito una risposta malformata (sintassi interna degli strumenti). Riprova o riformula la richiesta.",
       "task_timed_out": "⚠️ Il task è scaduto: il worker non l'ha mai completato (potrebbe essersi riavviato a metà). Invialo di nuovo.",
       "llm_timeout": "⏱️ Il modello non ha finito in tempo: l'attività ha richiesto più del consentito (10 minuti nel cloud, 15 con il modello locale). Prova una richiesta più mirata o un modello più veloce per questo agente.",

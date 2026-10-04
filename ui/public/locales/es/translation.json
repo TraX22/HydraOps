@@ -1,6 +1,8 @@
 {
   "llm": {
     "errors": {
+      "final_answer_failed": "⚠️ Las herramientas se ejecutaron, pero el modelo falló al escribir la respuesta final. Lo que hicieron las herramientas es real; pedile que continúe para obtener el resumen. Motivo: {{reason}}",
+      "final_answer_empty": "⚠️ Las herramientas se ejecutaron, pero el modelo no escribió la respuesta final. Lo que hicieron las herramientas es real; pedile que continúe para obtener el resumen.",
       "malformed_model_response": "⚠️ El modelo devolvió una respuesta malformada (sintaxis interna de herramientas). Volvé a intentarlo o reformulá el pedido.",
       "task_timed_out": "⚠️ La tarea expiró: su worker nunca la terminó (puede haberse reiniciado a mitad de camino). Volvé a enviarla.",
       "llm_timeout": "⏱️ El modelo no terminó a tiempo: la tarea necesitó más de lo permitido (10 minutos en la nube, 15 con el modelo local). Probá con un pedido más acotado o con un modelo más rápido para este agente.",

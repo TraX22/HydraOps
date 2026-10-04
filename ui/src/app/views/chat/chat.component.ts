@@ -311,7 +311,8 @@ export class ChatComponent implements OnInit, OnDestroy {
     const code = (msg.resultMeta as Record<string, unknown> | undefined)?.['errorCode'];
     if (typeof code === 'string' && code) {
       const key = `llm.errors.${code}`;
-      const translated = this.translate.instant(key);
+      const reason = (msg.resultMeta as Record<string, unknown> | undefined)?.['error'];
+      const translated = this.translate.instant(key, { reason: typeof reason === 'string' ? reason : '' });
       if (translated !== key) return translated;
     }
     return (msg.content || '').replace(ChatComponent.ATTACH_RE, '').trim();
