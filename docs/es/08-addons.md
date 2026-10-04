@@ -8,7 +8,7 @@ Las herramientas son lo que separa a un agente que *contesta* de uno que *hace*.
 
 Vienen con la aplicación. Hoy son:
 
-- `web_search` — buscar en la web (DuckDuckGo, sin clave).
+- `web_search` — buscar en la web (DuckDuckGo, sin clave). DuckDuckGo a veces rechaza las búsquedas automáticas durante unos minutos; al agente se le dice entonces que la búsqueda fue **bloqueada**, no que no hubo resultados, para que lo avise en lugar de contestar de memoria. Si pasa seguido, dale también `brave_search`.
 - `brave_search` — búsqueda con la API de Brave; la clave se pega en su tarjeta y viaja por el key-proxy.
 - `perplexity_search` — pregunta a Perplexity (Sonar): busca en la web y devuelve una respuesta razonada con sus fuentes citadas; la clave se pega en su tarjeta y viaja por el key-proxy.
 - `fetch_url` — descargar y leer una página.
