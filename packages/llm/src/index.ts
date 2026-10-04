@@ -251,6 +251,32 @@ export function resolveLLMConfig(model: string, getGlobalConfig: (key: string, d
 }
 
 /**
+ * Anthropic's models reuse an already-sent prompt only when the request asks for it (every other
+ * provider here caches on its own). Without it each tool round of a task pays the whole
+ * conversation again at the full input price. A top-level `cache_control` asks for automatic
+ * caching: the provider stores the prompt up to its last block and reads it back on the next call.
+ * It is added to the request body here because neither SDK provider has an option for it.
+ */
+export function withPromptCache(baseFetch: typeof fetch = fetch): typeof fetch {
+  return (async (input: any, init?: any) => {
+    if (init && typeof init.body === 'string' && String(init.method || '').toUpperCase() === 'POST') {
+      try {
+        const body = JSON.parse(init.body);
+        if (body && typeof body === 'object' && Array.isArray(body.messages) && body.cache_control === undefined) {
+          init = { ...init, body: JSON.stringify({ ...body, cache_control: { type: 'ephemeral' } }) };
+        }
+      } catch { /* not JSON: sent as it is */ }
+    }
+    return baseFetch(input, init);
+  }) as typeof fetch;
+}
+
+/** An Anthropic model reached through OpenRouter ("anthropic/claude-…"). */
+function isAnthropicOnOpenRouter(config: LLMConfig): boolean {
+  return config.provider === 'openrouter' && /^~?anthropic\//i.test(config.model);
+}
+
+/**
  * Factory function that returns the appropriate model based on the configuration
  */
 function getModel(config: LLMConfig) {
@@ -267,7 +293,8 @@ function getModel(config: LLMConfig) {
       const openai = createOpenAI({
         apiKey: config.apiKey,
         // Explicit default so the proxy rewrite also applies when baseURL is unset
-        baseURL: proxied(config.baseURL || 'https://api.openai.com/v1')
+        baseURL: proxied(config.baseURL || 'https://api.openai.com/v1'),
+        fetch: isAnthropicOnOpenRouter(config) ? withPromptCache() : undefined,
       });
       // The default callable targets OpenAI's Responses API (/v1/responses).
       // Compatible servers (llama.cpp, Groq, xAI, OpenRouter) only implement
@@ -279,7 +306,7 @@ function getModel(config: LLMConfig) {
       return isRealOpenAI ? openai(modelName) : openai.chat(modelName);
     }
     case 'anthropic': {
-      const anthropic = createAnthropic({ apiKey: config.apiKey, baseURL: proxied('https://api.anthropic.com/v1') });
+      const anthropic = createAnthropic({ apiKey: config.apiKey, baseURL: proxied('https://api.anthropic.com/v1'), fetch: withPromptCache() });
       return anthropic(modelName);
     }
     case 'google': {
