@@ -77,6 +77,10 @@ Cuando un agente busca en la web o abre páginas para responderte, debajo de su 
 
 Los enlaces que aparecen en una respuesta se abren siempre **fuera de HydraOps**: en tu navegador si usás la app de escritorio, o en una pestaña nueva si entrás por el navegador. La ventana de la app nunca navega a otro sitio.
 
+Antes de que un enlace salga de la app, un globo al lado pregunta: muestra la dirección completa, con el sitio en negrita, y **Cancelar** / **Aceptar**. Escape, un clic en otro lado o desplazar la página lo cancelan; Enter acepta. Vale para todo enlace a otro sitio (respuestas, sus fuentes, el manual), no para las páginas y archivos de la propia app.
+
+Un enlace con subrayado punteado y un triángulo amarillo de advertencia es uno que el agente **no abrió ni vio** en esta conversación: puede existir, pero salió de la memoria del modelo. Compruébalo antes de fiarte.
+
 ## Contenido seguro
 
 Lo que escribe un agente se muestra como Markdown, pero nunca como HTML activo: antes de pintarse, cada respuesta pasa por un filtro que elimina scripts, formularios, marcos incrustados, estilos y cualquier cosa que pueda ejecutar código o disfrazarse de parte de la app. Las imágenes solo se cargan si las sirve el propio HydraOps; una imagen de otro sitio aparece como un enlace (🖼) para que abrirla sea tu decisión y ver una respuesta nunca haga pedidos a terceros. Esto importa porque un agente que lee páginas web puede ser manipulado por el contenido de esas páginas.

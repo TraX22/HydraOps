@@ -629,6 +629,10 @@
     "delete": "Eliminar",
     "version": "versión"
   },
+  "links": {
+    "leaving": "Vas a salir a internet",
+    "accept": "Aceptar"
+  },
   "update": {
     "available": "Hay una versión nueva ({{version}}) disponible.",
     "view": "Ver la release"
