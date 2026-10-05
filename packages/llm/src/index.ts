@@ -546,6 +546,9 @@ export async function buildUserMessage(prompt: string, rootDir: string): Promise
         // AI SDK v5+: 'image' parts are deprecated (and webp was getting dropped
         // on the openai-compatible route); 'file' parts with image/* work.
         imageParts.push({ type: 'file', mediaType: e.mime, data: await fsReadFile(abs) });
+        // The model is shown the picture, not its file: a tool that needs the file (to send
+        // it to another program) can only be given a name the model was told.
+        docSections.push(`[Attached image, stored as ${e.rel}]`);
       } else if (isTextLike(e.mime, name)) {
         const raw = await fsReadFile(abs, 'utf-8');
         const clipped = raw.length > MAX_INLINE_DOC_CHARS ? raw.slice(0, MAX_INLINE_DOC_CHARS) + '\n…(archivo truncado)' : raw;
