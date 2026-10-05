@@ -24,7 +24,7 @@ export interface ConnectionPreset {
   version: string;
   author: string;
   homepage?: string;
-  server: { command?: string; args?: string[]; env?: Record<string, string>; url?: string };
+  server: { command?: string; args?: string[]; env?: Record<string, string>; url?: string; toolTimeoutSeconds?: number };
   requires: { launcher: PresetLauncher; notes: string[]; setup: { run?: string; then?: string }[] };
   toolRisk: Record<string, McpToolClass>;
   /** The line an agent's tools.md needs to get every tool of this connection. */
@@ -43,6 +43,10 @@ const TOOL_RE = /^[A-Za-z0-9_.-]{1,80}$/;
 // No control characters, and nothing a shell would treat specially: arguments are passed
 // as an array (no shell), this only keeps a catalog entry from looking like a command line.
 const SAFE_ARG_RE = /^[^\x00-\x1f\x7f`$|&<>]{1,300}$/;
+
+/** The limits of a connection's tool-call timeout; the minimum is the default. */
+export const MIN_TOOL_TIMEOUT_SECONDS = 30;
+export const MAX_TOOL_TIMEOUT_SECONDS = 3600;
 
 export const isValidPresetName = (v: unknown): v is string => typeof v === 'string' && v.length <= 64 && NAME_RE.test(v);
 const normServer = (v: string) => v.replace(/\s+/g, '_').toLowerCase();
@@ -88,6 +92,14 @@ export function parsePreset(raw: unknown): { preset: ConnectionPreset } | { erro
       env[k] = v;
     }
     if (Object.keys(env).length) server.env = env;
+  }
+
+  // How long one tool call of this server may take (see toolCallTimeoutMs in mcp.ts). Only a
+  // server whose tools wait on long work (a render, a generation) needs more than the default.
+  if (srv.toolTimeoutSeconds !== undefined) {
+    const t = srv.toolTimeoutSeconds;
+    if (!Number.isInteger(t) || t < MIN_TOOL_TIMEOUT_SECONDS || t > MAX_TOOL_TIMEOUT_SECONDS) return { error: 'server.toolTimeoutSeconds is not valid' };
+    server.toolTimeoutSeconds = t;
   }
 
   const toolRisk: Record<string, McpToolClass> = {};
@@ -146,6 +158,7 @@ export function presetServerEntry(preset: ConnectionPreset, previous?: any): Rec
     ...(Object.keys(env).length ? { env } : {}),
     switch: previous?.switch === 'off' ? 'off' : 'on',
     toolRisk: { ...preset.toolRisk },
+    ...(preset.server.toolTimeoutSeconds ? { toolTimeoutSeconds: preset.server.toolTimeoutSeconds } : {}),
   };
   const marker: PresetMarker = { name: preset.name, version: preset.version, hash: presetEntryHash(entry) };
   return { ...entry, preset: marker };

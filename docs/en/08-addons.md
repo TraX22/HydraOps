@@ -85,6 +85,24 @@ A local server that drives an application of yours (through `command`) is config
 
 The name is the tool's as the server publishes it, without the server prefix. Tools you do not list follow the usual rule: a known server, the server's own `readOnlyHint` annotation, or the worst case.
 
+### Tools that take long (`toolTimeoutSeconds`)
+
+A tool call of an MCP server is given 30 seconds to answer. That suits almost every tool; a server whose tools wait on long work (a render, an image or a 3D model being generated) needs more, or every such call is cut short while the work goes on. Set `toolTimeoutSeconds` in that server's entry, from 30 to 3600:
+
+```json
+{
+  "mcpServers": {
+    "MyRenderer": {
+      "command": "uvx",
+      "args": ["my-render-server"],
+      "toolTimeoutSeconds": 900
+    }
+  }
+}
+```
+
+It applies to every tool of that server and to no other. A catalog connection that needs it already carries its value.
+
 ## Which tools each agent sees
 
 None, until you grant them: a tool — native, custom add-on or MCP server — reaches an agent only if its `tools.md` names it. It's managed with the tag selector in the Agents view (see [Agents](./05-agents.md)); new agents come with `web_search`, `fetch_url`, `remember` and `recall` already granted. That way your research agent can have a web search tool while your coding agent doesn't.
