@@ -669,6 +669,17 @@ export function modelSeesImages(config: LLMConfig): boolean {
   return /claude|gemini|gpt-4o|gpt-4\.1|gpt-[5-9]|grok-[4-9]|pixtral|llava|[-_.]vl\b|vision|omni/.test(m);
 }
 
+/** Adds the token counts of one model call to a running total (same shape, numbers summed). */
+export function sumUsage(total: any, step: any): any {
+  if (!step || typeof step !== 'object') return total;
+  const out: any = { ...(total ?? {}) };
+  for (const [k, v] of Object.entries(step)) {
+    if (typeof v === 'number' && Number.isFinite(v)) out[k] = (typeof out[k] === 'number' ? out[k] : 0) + v;
+    else if (v && typeof v === 'object' && !Array.isArray(v)) out[k] = sumUsage(out[k], v);
+  }
+  return out;
+}
+
 // Tool-call rounds a task may take before it must answer. A research skill can send a
 // model through 30+ calls; when the cap is hit, the answer is synthesized from everything
 // gathered (see the silent-after-tools recovery below) instead of being lost.
@@ -747,6 +758,11 @@ export async function generateText(
       return base;
     }
   };
+  // What the rounds that did finish consumed. When a later round fails (no credit left, a rate
+  // limit, the context too long) the SDK throws and its own total is lost, but those rounds
+  // were billed: the failed task still reports them.
+  let spent: any = null;
+  const onStepFinish = (step: any) => { spent = sumUsage(spent, step?.usage); };
   try {
     const hasTools = aiTools && Object.keys(aiTools).length > 0;
     console.log(`[LLM] Attempting with model: ${config.model} (${config.provider}) | Tools: ${hasTools}`);
@@ -783,6 +799,7 @@ export async function generateText(
         // the loop would stop after the first tool call without a text answer.
         stopWhen: hasTools ? stepCountIs(maxSteps) : undefined,
         prepareStep,
+        onStepFinish,
         maxRetries: 2,
         providerOptions: (config.provider === 'google' && isThinkingModel) ? {
           google: {
@@ -900,6 +917,7 @@ export async function generateText(
           tools: aiTools,
           stopWhen: hasTools ? stepCountIs(maxSteps) : undefined,
           prepareStep,
+          onStepFinish,
           maxRetries: 1,
         });
       // If the error seems related to tools and we are in local, we retry without them
@@ -1030,13 +1048,13 @@ export async function generateText(
   } catch (error: any) {
     if (abortSignal?.aborted) {
       console.log(`[LLM] Call to ${config.model} aborted.`);
-      return { text: '', usage: null, success: false, aborted: true, error: 'Cancelled.' };
+      return { text: '', usage: spent, success: false, aborted: true, error: 'Cancelled.' };
     }
     const lastError = error.message;
     console.error(`[LLM Error] Model ${config.model} failed: ${lastError}`);
     return {
       text: '',
-      usage: null,
+      usage: spent,
       success: false,
       error: `Model ${config.model} failed: ${lastError}`,
     };
