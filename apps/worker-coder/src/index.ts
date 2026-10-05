@@ -5,7 +5,7 @@ import { mkdir, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { createWriteStream, mkdirSync } from "node:fs";
 
-import { loadEnv, envFile, dataRoot, agentsDir, logsDir, usersDir, resultsDir, craftDir, readLocalLlmEnv } from "@hydraops/config";
+import { loadEnv, envFile, dataRoot, storageDir, agentsDir, logsDir, usersDir, resultsDir, craftDir, readLocalLlmEnv } from "@hydraops/config";
 
 loadDotenv({ path: envFile });
 
@@ -14,7 +14,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, resolveLLMConfig, resolveMaxSteps, buildUserMessage } from "@hydraops/llm";
-import { createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
+import { mcpServerEnv, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
 
 const env = loadEnv({ ...process.env, SERVICE_NAME: process.env.SERVICE_NAME ?? "worker-coder" });
 const consumerName = env.SERVICE_NAME;
@@ -549,6 +549,11 @@ ${EXTERNAL_CONTENT_RULE}
       external: (tool: string, ref: string | undefined, content: string) => taskSecurity.external(tool, ref, content),
       // delegate_task: hand this task's taint on to the agent it delegates to.
       taintOrigins: () => taskSecurity.origins(),
+      // comfy_workflows: where a prepared workflow and a collected result are written, where
+      // the user's attachments are, and the address its connection is configured with.
+      filesDir: path.join(storageDir, "results", String(taskId)),
+      uploadsDir: path.join(storageDir, "uploads"),
+      connectionEnv: (server: string) => mcpServerEnv(mcpServersConfigStr, server),
     };
     // Installed skills, by name and description, for an agent that may use them (the
     // full text is opened on demand with skills_view; see @hydraops/addons skills.ts).

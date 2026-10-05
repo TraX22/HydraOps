@@ -188,6 +188,21 @@ const DOWNSTREAM_LOST = /\bnot connected\b|connection (?:refused|lost|closed|res
  * lines name (the server itself, or one of its tools). A worker connects only these, so
  * a server no agent of its kind was given is not started there at all.
  */
+/** The `env` of one server of the stored MCP config, by name (case and spaces do not matter); empty when there is none. */
+export function mcpServerEnv(configStr: string, serverName: string): Record<string, string> {
+  const norm = (v: string) => v.replace(/\s+/g, '_').toLowerCase();
+  try {
+    const servers = JSON.parse(configStr || '{}')?.mcpServers;
+    if (!servers || typeof servers !== 'object') return {};
+    const key = Object.keys(servers).find((k) => norm(k) === norm(serverName));
+    const env = key ? servers[key]?.env : undefined;
+    if (!env || typeof env !== 'object' || Array.isArray(env)) return {};
+    return Object.fromEntries(Object.entries(env).filter(([, v]) => typeof v === 'string')) as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
 export function filterMcpConfigForTools(configStr: string, toolLines: string[]): string {
   let parsed: any;
   try { parsed = JSON.parse(configStr); } catch { return '{"mcpServers":{}}'; }

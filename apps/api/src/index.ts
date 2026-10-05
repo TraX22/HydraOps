@@ -2578,6 +2578,7 @@ const ADDON_DESCRIPTION_OVERRIDES: Record<string, string> = {
   brave_search: "Búsqueda web con Brave Search API (requiere API key).",
   fetch_url: "Lee una página web y la convierte a Markdown.",
   youtube_transcript: "Trae la transcripción (subtítulos) de un vídeo de YouTube.",
+  comfy_workflows: "Lista los flujos que guardaste en tu ComfyUI y copia uno para que el agente lo use.",
   // github_* tools are managed under Herramientas → GitHub, not the Add-ons view.
 };
 
