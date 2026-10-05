@@ -65,6 +65,13 @@
     "downloadImage": "Download image",
     "downloadVideo": "Download video",
     "imageHint": "Click to view full size",
+    "file": {
+      "kind": {
+        "image": "Image",
+        "video": "Video"
+      },
+      "download": "Download the file"
+    },
     "model": {
       "kind": "3D model",
       "mb": "{{n}} MB",

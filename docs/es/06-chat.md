@@ -27,6 +27,10 @@ El chat renderiza Markdown, y desde la v0.1.21 también **diagramas Mermaid**: s
 
 Los resultados de los agentes de imagen y vídeo aparecen en línea en el chat. Clic en una imagen para verla a tamaño completo, y cada resultado tiene su botón de **descargar**.
 
+## Archivos que trae una tarea
+
+Cuando una herramienta trae una imagen o un vídeo a una tarea (por ejemplo lo que guardó un flujo de [ComfyUI](./09-tools.md)), aparece debajo de la respuesta como una tarjeta con su nombre, su tamaño y una vista previa: clic en una imagen para verla a tamaño completo, el vídeo se reproduce ahí mismo, y el botón de la tarjeta **descarga** el archivo.
+
 ## Modelos 3D
 
 Cuando una tarea entrega un modelo 3D (un archivo GLB, por ejemplo uno generado con [ComfyUI](./09-tools.md)), debajo de la respuesta aparece una tarjeta con su nombre, tamaño y cantidad de triángulos. No se descarga nada hasta que lo pidas:

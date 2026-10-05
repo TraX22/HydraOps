@@ -14,6 +14,7 @@ import { IconComponent } from '../../components/icon/icon.component';
 import { DropOverlayComponent } from '../../components/drop-overlay/drop-overlay.component';
 import { HeldActionComponent } from '../../components/held-action/held-action.component';
 import { ModelCardComponent } from '../../components/model-card/model-card.component';
+import { MediaCardComponent } from '../../components/media-card/media-card.component';
 import { PlanCardComponent, type PlanVersionRef } from '../../components/plan-card/plan-card.component';
 import { modelLabel } from '../../shared/model-groups';
 import { CommandService, PaletteItem } from '../../services/command.service';
@@ -21,7 +22,7 @@ import { CommandService, PaletteItem } from '../../services/command.service';
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [FormsModule, TranslatePipe, MarkdownPipe, DatePipe, IconComponent, HeldActionComponent, PlanCardComponent, DropOverlayComponent, ModelCardComponent],
+  imports: [FormsModule, TranslatePipe, MarkdownPipe, DatePipe, IconComponent, HeldActionComponent, PlanCardComponent, DropOverlayComponent, ModelCardComponent, MediaCardComponent],
   templateUrl: './chat.component.html',
   styleUrl: './chat.component.css',
 })
@@ -666,14 +667,25 @@ export class ChatComponent implements OnInit, OnDestroy {
    * a path ends up in a URL.
    */
   modelFiles(msg: ChatMessage): ResultFile[] {
+    return this.resultFiles(msg).filter((f) => f.kind === 'model' && /\.glb$/i.test(f.name)).slice(0, 8);
+  }
+
+  /** The images and videos this reply delivered, in the formats a browser shows. */
+  mediaFiles(msg: ChatMessage): ResultFile[] {
+    return this.resultFiles(msg).filter((f) =>
+      (f.kind === 'image' && /\.(png|jpe?g|webp|gif)$/i.test(f.name)) || (f.kind === 'video' && /\.(mp4|webm)$/i.test(f.name)),
+    ).slice(0, 12);
+  }
+
+  private resultFiles(msg: ChatMessage): ResultFile[] {
     const files = (msg.resultMeta as Record<string, unknown> | undefined)?.['files'];
     if (!Array.isArray(files)) return [];
     return files.filter((f): f is ResultFile =>
-      !!f && typeof f === 'object' && f.kind === 'model'
-      && typeof f.name === 'string' && /\.glb$/i.test(f.name)
+      !!f && typeof f === 'object' && typeof f.kind === 'string'
+      && typeof f.name === 'string'
       && typeof f.path === 'string' && /^results\/[A-Za-z0-9-]+\/[^\\/]+$/.test(f.path) && !f.path.includes('..')
       && typeof f.size === 'number' && f.size >= 0,
-    ).slice(0, 8);
+    );
   }
 
   // ── Media viewer: video, download + lightbox ──
