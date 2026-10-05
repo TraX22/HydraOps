@@ -38,6 +38,7 @@ Cuando una tarea entrega un modelo 3D (un archivo GLB, por ejemplo uno generado 
 - **Ver en 3D** carga el modelo y abre el visor dentro del mensaje. Arrastra para girar, usa la rueda para acercar y el clic derecho para mover.
 - Los botones del visor vuelven a la **vista inicial**, dibujan la **malla** sobre el modelo y lo **agrandan** sobre la ventana (Esc lo achica). Agrandado, un cuadro muestra los triángulos, vértices, texturas y tamaño del modelo.
 - **Descargar** guarda el archivo; funciona sin abrir el visor.
+- **A Blender** abre el modelo en tu Blender: se importa en la escena que tienes abierta, dentro de una colección nueva con el nombre del archivo, y no se borra nada tuyo. Necesita una [conexión](./09-tools.md) de Blender (BlenderLab o Blender) dada a un agente, y Blender abierto en esta computadora con el add-on de la conexión iniciado. No interviene ningún modelo ni gasta tokens: la app le manda a Blender una importación fija, y la tarjeta te dice si llegó.
 
 El modelo se dibuja en un marco aislado y con una librería 3D que viene con la app: funciona sin internet y un archivo no puede alcanzar nada más de la app. Los modelos muy grandes (más de 400 MB) solo se ofrecen para descargar.
 

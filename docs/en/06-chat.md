@@ -38,6 +38,7 @@ When a task delivers a 3D model (a GLB file, for instance one generated with [Co
 - **View in 3D** loads the model and opens the viewer inside the message. Drag to rotate, use the wheel to zoom and right-click to move.
 - The viewer's buttons go back to the **initial view**, draw the **mesh** over the model and **enlarge** it over the window (Esc shrinks it back). Enlarged, a panel shows the model's triangles, vertices, textures and size.
 - **Download** saves the file; it works without opening the viewer.
+- **To Blender** opens the model in your Blender: it is imported into the scene you have open, inside a new collection named after the file, and nothing of yours is removed. It needs a Blender [connection](./09-tools.md) (BlenderLab or Blender) given to an agent, and Blender open on this computer with the connection's add-on started. No model takes part and it costs no tokens: the app sends Blender one fixed import, and the card tells you whether it arrived.
 
 The model is drawn in an isolated frame and with a 3D library that ships with the app, so it works offline and a file cannot reach anything else in the app. Very large models (over 400 MB) are offered for download only.
 

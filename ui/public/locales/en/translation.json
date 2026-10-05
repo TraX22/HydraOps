@@ -73,6 +73,19 @@
       "download": "Download the file"
     },
     "model": {
+      "blender": {
+        "send": "To Blender",
+        "sending": "Sending…",
+        "title": "Open this model in your Blender",
+        "ok": "Imported into Blender, in the collection {{collection}}. Nothing in your scene was removed.",
+        "error": {
+          "no_blender_agent": "No agent has a Blender connection. Install the BlenderLab connection in Tools and give it to an agent.",
+          "not_running": "Blender did not answer. It has to be open, with the connection's add-on started.",
+          "file_missing": "Blender could not find the file. It has to run on the same computer as HydraOps.",
+          "timeout": "Blender took too long to answer. Check in Blender whether the model arrived.",
+          "failed": "Blender could not import the model."
+        }
+      },
       "kind": "3D model",
       "mb": "{{n}} MB",
       "triangles": "{{n}} triangles",

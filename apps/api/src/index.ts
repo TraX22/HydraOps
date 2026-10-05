@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import path from "node:path";
-import { readdir, readFile, writeFile, mkdir, rm, access, rename } from "node:fs/promises";
+import { readdir, readFile, writeFile, mkdir, rm, access, rename, stat } from "node:fs/promises";
 import { randomUUID, randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { writeFileSync, chmodSync } from "node:fs";
 import { spawn, execFile } from "node:child_process";
@@ -33,6 +33,7 @@ import {
   renderPlanText, executionPrompt, type Plan, sweepVaults,
   parsePreset, presetServerEntry, presetMarkerOf, isPresetEntryModified, presetCommandLine, launcherInstallHint,
   isValidPresetName, PRESET_LAUNCHERS, type ConnectionPreset,
+  blenderImportCode, parseBlenderImportResult, BLENDER_SERVERS, BLENDER_CODE_TOOL,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
 import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, HISTORY_DAYS } from "@hydraops/db";
@@ -3957,6 +3958,88 @@ api.post("/security/actions/:id/approve", securityLimiter, async (req, res) => {
 api.post("/security/actions/:id/reject", securityLimiter, async (req, res) => {
   try { const r = await decidePendingAction(String(req.params.id), "rejected"); res.status(r.status).json(r.body); }
   catch (err: any) { res.status(500).json({ error: err?.message ?? "reject failed" }); }
+});
+
+// --- Open in Blender: a model shown in the chat, sent to the user's Blender ---
+// The click is the user's decision, so this is recorded as an action already approved and
+// runs the way an approved call does: the worker of an agent that has a Blender connection
+// executes one FIXED call to its code tool (see blender-import.ts in @hydraops/addons),
+// without any model. It belongs to no task (its task id matches none), so nothing follows it.
+const BLENDER_WAIT_MS = 75_000;
+async function blenderAgentFor(preferred: string | null): Promise<{ agentId: string; toolName: string } | null> {
+  const config = await readMcpConfig();
+  const servers = Object.entries<any>(config.mcpServers)
+    .filter(([, cfg]) => cfg?.switch !== "off")
+    .map(([name]) => normServerName(name))
+    .filter((key) => (BLENDER_SERVERS as readonly string[]).includes(key))
+    .sort((x, y) => BLENDER_SERVERS.indexOf(x as any) - BLENDER_SERVERS.indexOf(y as any));
+  if (!servers.length) return null;
+  const dirs = (await readdir(agentsDir, { withFileTypes: true }).catch(() => [])).filter((d) => d.isDirectory()).map((d) => d.name);
+  const ordered = preferred && dirs.includes(preferred) ? [preferred, ...dirs.filter((d) => d !== preferred)] : dirs;
+  for (const agentId of ordered) {
+    const lines = (await readAgentRequestedTools(agentId)).map(normServerName);
+    for (const key of servers) {
+      const toolName = `${key}_${BLENDER_CODE_TOOL}`;
+      if (lines.includes(key) || lines.includes(toolName)) return { agentId, toolName };
+    }
+  }
+  return null;
+}
+
+api.post("/files/open-in-blender", securityLimiter, async (req, res) => {
+  try {
+    const rel = typeof req.body?.path === "string" ? req.body.path : "";
+    // The same shape the chat accepts for a model: results/<task>/<file>.glb, nothing else.
+    const m = /^results\/([A-Za-z0-9-]+)\/([^\\/]+\.glb)$/i.exec(rel);
+    if (!m || rel.includes("..")) return res.status(400).json({ error: "invalid_path" });
+    const abs = path.join(storageDir, "results", m[1], m[2]);
+    const info = await stat(abs).catch(() => null);
+    if (!info?.isFile()) return res.status(404).json({ error: "not_found" });
+
+    const [task] = await (db as any).select({ agent: tasks.assignedAgent }).from(tasks).where(eq(tasks.id, m[1])).limit(1);
+    const target = await blenderAgentFor(task?.agent ? String(task.agent) : null);
+    if (!target) return res.status(409).json({ error: "no_blender_agent" });
+    const [cfg] = await (db as any).select().from(agentConfigs).where(eq(agentConfigs.agentId, target.agentId)).limit(1);
+    const workerType = cfg?.workerType || "general";
+
+    const id = randomUUID();
+    // A fresh id that is no task's: the action hangs from nothing, so no continuation is created.
+    const taskId = randomUUID();
+    const now = new Date();
+    const eventId = randomUUID();
+    const ev = buildEnvelope({
+      id: eventId, type: "action.approved", version: 1, occurredAt: now.toISOString(), producer: env.SERVICE_NAME,
+      subject: { entity: "task", id: taskId },
+      data: { actionId: id, taskId, agentId: target.agentId, workerType, toolName: target.toolName },
+    });
+    await (db as any).transaction((tx: any) => {
+      tx.insert(pendingActions).values({
+        id, taskId, agentId: target.agentId, channel: "ui", toolName: target.toolName,
+        args: { code: blenderImportCode(abs, m[2]) }, origins: [], status: "approved",
+        createdAt: now, decidedAt: now, expiresAt: new Date(now.getTime() + 10 * 60_000),
+      }).run();
+      tx.insert(eventsTable).values({
+        id: eventId, type: ev.type, version: ev.version, occurredAt: now,
+        producer: ev.producer, subjectEntity: ev.subject.entity, subjectId: ev.subject.id, payload: ev,
+      }).run();
+      tx.insert(outboxTable).values({ eventId, status: "pending", nextAttemptAt: now }).run();
+    });
+
+    const deadline = Date.now() + BLENDER_WAIT_MS;
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 400));
+      const [row] = await (db as any).select().from(pendingActions).where(eq(pendingActions.id, id)).limit(1);
+      if (row && (row.status === "executed" || row.status === "failed")) {
+        const outcome = parseBlenderImportResult(row.result);
+        if (outcome.ok) return res.json({ ok: true, objects: outcome.objects, collection: outcome.collection, agent: target.agentId });
+        return res.status(502).json({ error: outcome.error, detail: outcome.detail });
+      }
+      if (Date.now() > deadline) return res.status(504).json({ error: "timeout" });
+    }
+  } catch (err: any) {
+    console.error("[api] POST /files/open-in-blender failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
 });
 
 // Network access, for the Config view. The token is only ever returned to a request

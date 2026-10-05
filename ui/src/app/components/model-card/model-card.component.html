@@ -17,6 +17,13 @@
           <app-icon name="cube" /> {{ 'chat.model.view' | translate }}
         </button>
       }
+      @if (phase() === 'card' || phase() === 'error' || expanded()) {
+        <button class="model-btn" type="button" [class.on]="blender().state === 'ok'" [disabled]="blender().state === 'sending'" (click)="sendToBlender()"
+                [title]="'chat.model.blender.title' | translate">
+          @if (blender().state === 'sending') { <span class="model-spin"></span> } @else { <app-icon name="external-link" /> }
+          {{ (blender().state === 'sending' ? 'chat.model.blender.sending' : 'chat.model.blender.send') | translate }}
+        </button>
+      }
       @if (expanded()) {
         <button class="model-btn" type="button" (click)="resetView()"><app-icon name="frame" /> {{ 'chat.model.reset' | translate }}</button>
         <button class="model-btn" type="button" [class.on]="wire()" (click)="toggleWire()"><app-icon name="table" /> {{ 'chat.model.wire' | translate }}</button>
@@ -36,6 +43,12 @@
       <div class="model-note"><app-icon name="alert" /> <span>{{ ('chat.model.error.' + error()) | translate }}</span></div>
     }
 
+    @if (blender().state === 'ok') {
+      <div class="model-note ok"><app-icon name="check" /> <span>{{ 'chat.model.blender.ok' | translate:{ collection: blender().collection } }}</span></div>
+    } @else if (blender().state === 'error') {
+      <div class="model-note"><app-icon name="alert" /> <span>{{ ('chat.model.blender.error.' + blender().error) | translate }}</span></div>
+    }
+
     @if (phase() === 'loading' || phase() === 'viewer') {
       <div class="model-stage" [class.drawing]="drawing()">
         <iframe #frame class="model-frame" src="/threed/viewer.html" sandbox="allow-scripts" (load)="onFrameLoad()"
@@ -51,6 +64,10 @@
             <div class="model-tools">
               <button class="model-btn icon-only" type="button" (click)="resetView()" [title]="'chat.model.reset' | translate" [attr.aria-label]="'chat.model.reset' | translate"><app-icon name="frame" /></button>
               <button class="model-btn icon-only" type="button" [class.on]="wire()" (click)="toggleWire()" [title]="'chat.model.wire' | translate" [attr.aria-label]="'chat.model.wire' | translate"><app-icon name="table" /></button>
+              <button class="model-btn icon-only" type="button" [class.on]="blender().state === 'ok'" [disabled]="blender().state === 'sending'" (click)="sendToBlender()"
+                      [title]="'chat.model.blender.title' | translate" [attr.aria-label]="'chat.model.blender.title' | translate">
+                @if (blender().state === 'sending') { <span class="model-spin"></span> } @else { <app-icon name="external-link" /> }
+              </button>
               <button class="model-btn icon-only" type="button" (click)="toggleExpanded()" [title]="'chat.model.expand' | translate" [attr.aria-label]="'chat.model.expand' | translate"><app-icon name="maximize" /></button>
             </div>
           } @else if (stats(); as s) {

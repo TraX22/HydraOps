@@ -51,4 +51,5 @@ export * from './plan.js';
 export * from './vault.js';
 export * from './presets.js';
 export * from './result-files.js';
+export * from './blender-import.js';
 export * from './tool-images.js';

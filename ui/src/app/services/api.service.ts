@@ -842,6 +842,11 @@ export class ApiService {
   // ── 3D plugin ──
   // The Three.js bundle is served with the UI (ui/public/vendor/three); the
   // sandbox imports it from a blob, so the app fetches the text once.
+  /** Sends a model shown in the chat to the user's Blender (a fixed import, run by a Blender connection; no model involved). */
+  openInBlender(path: string): Observable<{ ok: true; objects: number; collection: string }> {
+    return this.http.post<{ ok: true; objects: number; collection: string }>(`${this.base}/files/open-in-blender`, { path });
+  }
+
   fetchThreeBundle(): Observable<string> {
     return this.http.get('/vendor/three/three.bundle.js', { responseType: 'text' });
   }
