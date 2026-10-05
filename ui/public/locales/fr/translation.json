@@ -65,6 +65,33 @@
     "downloadImage": "Télécharger l'image",
     "downloadVideo": "Télécharger la vidéo",
     "imageHint": "Cliquez pour voir en taille réelle",
+    "model": {
+      "kind": "Modèle 3D",
+      "mb": "{{n}} Mo",
+      "triangles": "{{n}} triangles",
+      "view": "Voir en 3D",
+      "download": "Télécharger le modèle",
+      "close": "Fermer la visionneuse",
+      "reset": "Vue initiale",
+      "wire": "Maillage",
+      "expand": "Agrandir",
+      "loading": "Chargement du modèle… {{loaded}} sur {{total}} Mo",
+      "hint": "Faites glisser pour tourner · molette pour zoomer · clic droit pour déplacer",
+      "hintExpanded": "Faites glisser pour tourner · molette pour zoomer · clic droit pour déplacer · Échap pour réduire",
+      "stat": {
+        "triangles": "triangles",
+        "vertices": "sommets",
+        "textures": "textures",
+        "noTextures": "Aucune texture",
+        "size": "Taille :"
+      },
+      "error": {
+        "load": "Le modèle n'a pas pu être chargé. Vous pouvez le télécharger et l'ouvrir dans un autre programme.",
+        "format": "Ce fichier n'a pas pu être ouvert comme modèle 3D. Vous pouvez le télécharger et l'ouvrir dans un autre programme.",
+        "webgl": "Cet ordinateur ou ce navigateur ne peut pas afficher la 3D ici. Vous pouvez télécharger le modèle.",
+        "tooLarge": "Le modèle est trop volumineux pour être affiché ici. Vous pouvez le télécharger."
+      }
+    },
     "attach": "Joindre des fichiers (images ou documents)",
     "uploading": "Envoi…",
     "editProfile": "Double-clic : modifier le profil de cet agent",

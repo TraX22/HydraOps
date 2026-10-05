@@ -14,7 +14,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, resolveLLMConfig, resolveMaxSteps, buildUserMessage } from "@hydraops/llm";
-import { mcpServerEnv, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
+import { createResultFiles, mcpServerEnv, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
 
 const env = loadEnv({ ...process.env, SERVICE_NAME: process.env.SERVICE_NAME ?? "worker-coder" });
 const consumerName = env.SERVICE_NAME;
@@ -542,6 +542,7 @@ ${EXTERNAL_CONTENT_RULE}
     });
     // Bind the calling agent's identity so identity-aware tools (`remember`,
     // `recall`) act on the right agent without trusting model input.
+    const resultFiles = createResultFiles(storageDir);
     const toolContext = {
       agentId,
       searchPastTasks: (query: string, limit?: number) => searchAgentTasks(sqliteClient, agentId, query, limit),
@@ -554,6 +555,8 @@ ${EXTERNAL_CONTENT_RULE}
       filesDir: path.join(storageDir, "results", String(taskId)),
       uploadsDir: path.join(storageDir, "uploads"),
       connectionEnv: (server: string) => mcpServerEnv(mcpServersConfigStr, server),
+      // Files a tool leaves for the user: stored with the result, shown in the chat.
+      addResultFile: resultFiles.add,
     };
     // Installed skills, by name and description, for an agent that may use them (the
     // full text is opened on demand with skills_view; see @hydraops/addons skills.ts).
@@ -707,7 +710,7 @@ ${EXTERNAL_CONTENT_RULE}
       .set({ 
         status: "completed",
         ...(plan ? { plan } : {}),
-        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, completedAt: new Date().toISOString(), ...(plan ? { plan } : {}), ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), seenUrls: sourceCollector.seen(), ...(skillsUsed.length ? { skillsUsed } : {}), ...(vault.summary().docs ? { vault: vault.summary() } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) },
+        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, completedAt: new Date().toISOString(), ...(resultFiles.list().length ? { files: resultFiles.list() } : {}), ...(plan ? { plan } : {}), ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), seenUrls: sourceCollector.seen(), ...(skillsUsed.length ? { skillsUsed } : {}), ...(vault.summary().docs ? { vault: vault.summary() } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) },
         updatedAt: new Date()
       })
       .where(and(eq(tasks.id, taskId), ne(tasks.status, "cancelled")));

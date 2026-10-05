@@ -49,6 +49,16 @@ export interface Task {
   completedAt?: string;
 }
 
+/** A file a task produced for the user (stored with the task's result; see result-files.ts in @hydraops/addons). */
+export interface ResultFile {
+  /** Relative to the storage folder: what storageUrl() takes. */
+  path: string;
+  name: string;
+  kind: 'model' | 'image' | 'video' | 'audio' | 'file';
+  size: number;
+  triangles?: number;
+}
+
 export interface ChatMessage {
   id: string;
   // 'system' = a local note from the command layer (never stored, never sent to an LLM)

@@ -1,0 +1,85 @@
+:host { display: block; }
+
+.model-card { margin-top: 8px; width: 560px; max-width: 100%; }
+.model-box {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  overflow: hidden;
+  color: var(--text-primary);
+}
+
+.model-head { display: flex; align-items: center; gap: 8px; padding: 9px 10px 9px 12px; }
+.model-icon {
+  width: 34px; height: 34px; border-radius: 8px; flex: none;
+  background: var(--accent-soft); color: var(--accent);
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.model-text { min-width: 0; flex: 1; line-height: 1.35; }
+.model-name { font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.model-meta { font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.model-btn {
+  border: 1px solid var(--border-color); background: var(--bg-surface); color: var(--text-primary);
+  border-radius: var(--radius-sm); font: inherit; font-size: 12.5px; font-weight: 600; line-height: 1;
+  padding: 7px 11px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  white-space: nowrap; text-decoration: none; flex: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.model-btn:hover { background: var(--bg-hover); }
+.model-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.model-btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.model-btn.icon-only { padding: 7px; }
+.model-btn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.model-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.model-note {
+  display: flex; gap: 8px; align-items: flex-start; padding: 8px 12px 9px;
+  font-size: 12.5px; line-height: 1.45; border-top: 1px solid var(--border-color);
+  background: rgba(245, 158, 11, 0.1); color: var(--status-working);
+}
+.model-note span { color: var(--text-primary); }
+
+/* The stage: a soft backdrop behind the transparent canvas of the frame. */
+.model-stage {
+  position: relative; height: 340px; border-top: 1px solid var(--border-color);
+  background: radial-gradient(ellipse at 50% 35%, var(--bg-surface-alt), var(--bg-hover));
+}
+.model-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; opacity: 0; }
+.model-stage.drawing .model-frame { opacity: 1; }
+
+.model-loading {
+  position: absolute; inset: 0; display: flex; flex-direction: column; gap: 10px;
+  align-items: center; justify-content: center; color: var(--text-secondary); font-size: 13px;
+}
+.model-bar { width: 220px; max-width: 70%; height: 5px; border-radius: var(--radius-full); background: var(--bg-hover); overflow: hidden; }
+.model-bar i { display: block; height: 100%; background: var(--accent); border-radius: var(--radius-full); transition: width 0.2s ease; }
+
+.model-tools { position: absolute; top: 8px; right: 8px; display: flex; gap: 6px; }
+.model-tools .model-btn { background: color-mix(in srgb, var(--bg-surface) 88%, transparent); }
+.model-tools .model-btn:hover { background: var(--bg-hover); }
+.model-tools .model-btn.on { background: var(--accent-soft); }
+
+.model-hint, .model-stats {
+  position: absolute; left: 10px; font-size: 11.5px; color: var(--text-secondary);
+  background: color-mix(in srgb, var(--bg-surface) 82%, transparent); pointer-events: none;
+}
+.model-hint { bottom: 8px; padding: 2px 9px; border-radius: var(--radius-full); max-width: calc(100% - 20px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.model-stats { top: 10px; padding: 6px 10px; border-radius: 8px; font-size: 12px; line-height: 1.5; }
+.model-stats b { color: var(--text-primary); font-weight: 600; }
+
+/* Expanded: the same card, lifted over the window (the frame is not moved, so the model stays loaded). */
+.model-card.expanded { width: auto; }
+.model-backdrop { position: fixed; inset: 0; z-index: 1000; background: rgba(8, 8, 18, 0.82); }
+.model-card.expanded .model-box {
+  position: fixed; z-index: 1001; inset: 5vh 5vw;
+  display: flex; flex-direction: column;
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+}
+.model-card.expanded .model-head { padding: 12px 14px; }
+.model-card.expanded .model-stage { flex: 1; height: auto; }
+
+@media (max-width: 640px) {
+  .model-stage { height: 260px; }
+  .model-card.expanded .model-box { inset: 0; border-radius: 0; }
+}

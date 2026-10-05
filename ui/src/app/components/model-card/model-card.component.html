@@ -1,0 +1,71 @@
+<div class="model-card" [class.expanded]="expanded()" [attr.data-phase]="phase()">
+  @if (expanded()) {
+    <div class="model-backdrop" (click)="toggleExpanded()"></div>
+  }
+  <div class="model-box">
+    <div class="model-head">
+      <div class="model-icon"><app-icon name="cube" /></div>
+      <div class="model-text">
+        <div class="model-name" [title]="file.name">{{ file.name }}</div>
+        <div class="model-meta">
+          {{ 'chat.model.kind' | translate }} · {{ 'chat.model.mb' | translate:{ n: mb(file.size) } }}
+          @if (hasTriangles) { · {{ 'chat.model.triangles' | translate:{ n: triangles } }} }
+        </div>
+      </div>
+      @if (phase() === 'card' || phase() === 'error') {
+        <button class="model-btn primary" type="button" (click)="open()">
+          <app-icon name="cube" /> {{ 'chat.model.view' | translate }}
+        </button>
+      }
+      @if (expanded()) {
+        <button class="model-btn" type="button" (click)="resetView()"><app-icon name="frame" /> {{ 'chat.model.reset' | translate }}</button>
+        <button class="model-btn" type="button" [class.on]="wire()" (click)="toggleWire()"><app-icon name="table" /> {{ 'chat.model.wire' | translate }}</button>
+      }
+      <a class="model-btn icon-only" [href]="url" [attr.download]="file.name" [title]="'chat.model.download' | translate" [attr.aria-label]="'chat.model.download' | translate">
+        <app-icon name="download" />
+      </a>
+      @if (phase() === 'loading' || phase() === 'viewer') {
+        <button class="model-btn icon-only" type="button" (click)="expanded() ? toggleExpanded() : close()"
+                [title]="'chat.model.close' | translate" [attr.aria-label]="'chat.model.close' | translate">
+          <app-icon name="x" />
+        </button>
+      }
+    </div>
+
+    @if (phase() === 'error') {
+      <div class="model-note"><app-icon name="alert" /> <span>{{ ('chat.model.error.' + error()) | translate }}</span></div>
+    }
+
+    @if (phase() === 'loading' || phase() === 'viewer') {
+      <div class="model-stage" [class.drawing]="drawing()">
+        <iframe #frame class="model-frame" src="/threed/viewer.html" sandbox="allow-scripts" (load)="onFrameLoad()"
+                [title]="file.name"></iframe>
+        @if (phase() === 'loading') {
+          <div class="model-loading">
+            <span>{{ 'chat.model.loading' | translate:{ loaded: mb(loaded()), total: mb(file.size) } }}</span>
+            <div class="model-bar"><i [style.width.%]="file.size ? (100 * loaded() / file.size) : 0"></i></div>
+          </div>
+        }
+        @if (phase() === 'viewer') {
+          @if (!expanded()) {
+            <div class="model-tools">
+              <button class="model-btn icon-only" type="button" (click)="resetView()" [title]="'chat.model.reset' | translate" [attr.aria-label]="'chat.model.reset' | translate"><app-icon name="frame" /></button>
+              <button class="model-btn icon-only" type="button" [class.on]="wire()" (click)="toggleWire()" [title]="'chat.model.wire' | translate" [attr.aria-label]="'chat.model.wire' | translate"><app-icon name="table" /></button>
+              <button class="model-btn icon-only" type="button" (click)="toggleExpanded()" [title]="'chat.model.expand' | translate" [attr.aria-label]="'chat.model.expand' | translate"><app-icon name="maximize" /></button>
+            </div>
+          } @else if (stats(); as s) {
+            <div class="model-stats">
+              <div><b>{{ triangles }}</b> {{ 'chat.model.stat.triangles' | translate }} · <b>{{ vertices }}</b> {{ 'chat.model.stat.vertices' | translate }}</div>
+              <div>
+                @if (textureCount) { <b>{{ textureCount }}</b> {{ 'chat.model.stat.textures' | translate }} ({{ textureDetail }}) }
+                @else { {{ 'chat.model.stat.noTextures' | translate }} }
+              </div>
+              <div>{{ 'chat.model.stat.size' | translate }} <b>{{ dimensions }}</b></div>
+            </div>
+          }
+          <div class="model-hint">{{ (expanded() ? 'chat.model.hintExpanded' : 'chat.model.hint') | translate }}</div>
+        }
+      </div>
+    }
+  </div>
+</div>

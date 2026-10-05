@@ -65,6 +65,33 @@
     "downloadImage": "Baixar imagem",
     "downloadVideo": "Baixar vídeo",
     "imageHint": "Clique para ver em tamanho real",
+    "model": {
+      "kind": "Modelo 3D",
+      "mb": "{{n}} MB",
+      "triangles": "{{n}} triângulos",
+      "view": "Ver em 3D",
+      "download": "Baixar o modelo",
+      "close": "Fechar o visualizador",
+      "reset": "Vista inicial",
+      "wire": "Malha",
+      "expand": "Ampliar",
+      "loading": "Carregando o modelo… {{loaded}} de {{total}} MB",
+      "hint": "Arraste para girar · roda para aproximar · clique direito para mover",
+      "hintExpanded": "Arraste para girar · roda para aproximar · clique direito para mover · Esc para reduzir",
+      "stat": {
+        "triangles": "triângulos",
+        "vertices": "vértices",
+        "textures": "texturas",
+        "noTextures": "Sem texturas",
+        "size": "Tamanho:"
+      },
+      "error": {
+        "load": "Não foi possível carregar o modelo. Você pode baixá-lo e abri-lo em outro programa.",
+        "format": "Não foi possível abrir este arquivo como modelo 3D. Você pode baixá-lo e abri-lo em outro programa.",
+        "webgl": "Este computador ou navegador não consegue desenhar 3D aqui. Você pode baixar o modelo.",
+        "tooLarge": "O modelo é grande demais para ver aqui. Você pode baixá-lo."
+      }
+    },
     "attach": "Anexar arquivos (imagens ou documentos)",
     "uploading": "Enviando…",
     "editProfile": "Clique duplo: editar o perfil deste agente",

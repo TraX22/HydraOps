@@ -5,7 +5,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ChatService, ChatTab, WHATS_NEW_TAB } from '../../services/chat.service';
 import { WhatsNewService } from '../../services/whats-new.service';
 import { AgentsService } from '../../services/agents.service';
-import { ApiService, ChatAttachment, ChatMessage, ProgressStep } from '../../services/api.service';
+import { ApiService, ChatAttachment, ChatMessage, ProgressStep, ResultFile } from '../../services/api.service';
 import { DatePipe } from '@angular/common';
 import { MarkdownPipe } from '../../pipes/markdown.pipe';
 import { linkKey, type LinkCheck } from '../../pipes/sanitize-html';
@@ -13,6 +13,7 @@ import { watchMermaid } from '../../pipes/mermaid-render';
 import { IconComponent } from '../../components/icon/icon.component';
 import { DropOverlayComponent } from '../../components/drop-overlay/drop-overlay.component';
 import { HeldActionComponent } from '../../components/held-action/held-action.component';
+import { ModelCardComponent } from '../../components/model-card/model-card.component';
 import { PlanCardComponent, type PlanVersionRef } from '../../components/plan-card/plan-card.component';
 import { modelLabel } from '../../shared/model-groups';
 import { CommandService, PaletteItem } from '../../services/command.service';
@@ -20,7 +21,7 @@ import { CommandService, PaletteItem } from '../../services/command.service';
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [FormsModule, TranslatePipe, MarkdownPipe, DatePipe, IconComponent, HeldActionComponent, PlanCardComponent, DropOverlayComponent],
+  imports: [FormsModule, TranslatePipe, MarkdownPipe, DatePipe, IconComponent, HeldActionComponent, PlanCardComponent, DropOverlayComponent, ModelCardComponent],
   templateUrl: './chat.component.html',
   styleUrl: './chat.component.css',
 })
@@ -657,6 +658,22 @@ export class ChatComponent implements OnInit, OnDestroy {
   getImageUrl(msg: ChatMessage): string {
     const meta = msg.resultMeta as Record<string, unknown>;
     return this.api.storageUrl(meta['imageUrl'] as string);
+  }
+
+  /**
+   * The 3D models this reply delivered (binary glTF, the one format the viewer draws).
+   * The list comes from the task's stored result: each entry is checked again here, since
+   * a path ends up in a URL.
+   */
+  modelFiles(msg: ChatMessage): ResultFile[] {
+    const files = (msg.resultMeta as Record<string, unknown> | undefined)?.['files'];
+    if (!Array.isArray(files)) return [];
+    return files.filter((f): f is ResultFile =>
+      !!f && typeof f === 'object' && f.kind === 'model'
+      && typeof f.name === 'string' && /\.glb$/i.test(f.name)
+      && typeof f.path === 'string' && /^results\/[A-Za-z0-9-]+\/[^\\/]+$/.test(f.path) && !f.path.includes('..')
+      && typeof f.size === 'number' && f.size >= 0,
+    ).slice(0, 8);
   }
 
   // ── Media viewer: video, download + lightbox ──

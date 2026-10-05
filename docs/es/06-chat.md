@@ -27,6 +27,16 @@ El chat renderiza Markdown, y desde la v0.1.21 también **diagramas Mermaid**: s
 
 Los resultados de los agentes de imagen y vídeo aparecen en línea en el chat. Clic en una imagen para verla a tamaño completo, y cada resultado tiene su botón de **descargar**.
 
+## Modelos 3D
+
+Cuando una tarea entrega un modelo 3D (un archivo GLB, por ejemplo uno generado con [ComfyUI](./09-tools.md)), debajo de la respuesta aparece una tarjeta con su nombre, tamaño y cantidad de triángulos. No se descarga nada hasta que lo pidas:
+
+- **Ver en 3D** carga el modelo y abre el visor dentro del mensaje. Arrastra para girar, usa la rueda para acercar y el clic derecho para mover.
+- Los botones del visor vuelven a la **vista inicial**, dibujan la **malla** sobre el modelo y lo **agrandan** sobre la ventana (Esc lo achica). Agrandado, un cuadro muestra los triángulos, vértices, texturas y tamaño del modelo.
+- **Descargar** guarda el archivo; funciona sin abrir el visor.
+
+El modelo se dibuja en un marco aislado y con una librería 3D que viene con la app: funciona sin internet y un archivo no puede alcanzar nada más de la app. Los modelos muy grandes (más de 400 MB) solo se ofrecen para descargar.
+
 ## Atajos útiles
 
 - **Doble clic en el avatar** de un agente en el chat → abre su ficha en la vista Agentes.

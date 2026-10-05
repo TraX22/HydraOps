@@ -65,6 +65,33 @@
     "downloadImage": "Scarica immagine",
     "downloadVideo": "Scarica video",
     "imageHint": "Clicca per vedere a dimensione intera",
+    "model": {
+      "kind": "Modello 3D",
+      "mb": "{{n}} MB",
+      "triangles": "{{n}} triangoli",
+      "view": "Vedi in 3D",
+      "download": "Scarica il modello",
+      "close": "Chiudi il visualizzatore",
+      "reset": "Vista iniziale",
+      "wire": "Mesh",
+      "expand": "Ingrandisci",
+      "loading": "Caricamento del modello… {{loaded}} di {{total}} MB",
+      "hint": "Trascina per ruotare · rotella per avvicinare · clic destro per spostare",
+      "hintExpanded": "Trascina per ruotare · rotella per avvicinare · clic destro per spostare · Esc per ridurre",
+      "stat": {
+        "triangles": "triangoli",
+        "vertices": "vertici",
+        "textures": "texture",
+        "noTextures": "Nessuna texture",
+        "size": "Dimensioni:"
+      },
+      "error": {
+        "load": "Non è stato possibile caricare il modello. Puoi scaricarlo e aprirlo in un altro programma.",
+        "format": "Non è stato possibile aprire questo file come modello 3D. Puoi scaricarlo e aprirlo in un altro programma.",
+        "webgl": "Questo computer o browser non può disegnare il 3D qui. Puoi scaricare il modello.",
+        "tooLarge": "Il modello è troppo grande per vederlo qui. Puoi scaricarlo."
+      }
+    },
     "attach": "Allega file (immagini o documenti)",
     "uploading": "Caricamento…",
     "editProfile": "Doppio clic: modifica il profilo di questo agente",

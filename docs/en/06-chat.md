@@ -27,6 +27,16 @@ The chat renders Markdown, and since v0.1.21 also **Mermaid diagrams**: when an 
 
 Results from image and video agents appear inline in the chat. Click an image to see it full size, and every result has its **download** button.
 
+## 3D models
+
+When a task delivers a 3D model (a GLB file, for instance one generated with [ComfyUI](./09-tools.md)), a card appears under the reply with its name, size and triangle count. Nothing is downloaded until you ask:
+
+- **View in 3D** loads the model and opens the viewer inside the message. Drag to rotate, use the wheel to zoom and right-click to move.
+- The viewer's buttons go back to the **initial view**, draw the **mesh** over the model and **enlarge** it over the window (Esc shrinks it back). Enlarged, a panel shows the model's triangles, vertices, textures and size.
+- **Download** saves the file; it works without opening the viewer.
+
+The model is drawn in an isolated frame and with a 3D library that ships with the app, so it works offline and a file cannot reach anything else in the app. Very large models (over 400 MB) are offered for download only.
+
 ## Handy shortcuts
 
 - **Double-click an agent's avatar** in the chat → opens its profile in the Agents view.

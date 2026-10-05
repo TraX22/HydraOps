@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { HydraTool } from "../../types.js";
+import type { ReportedFile, ResultFileKind } from "../../result-files.js";
 
 // comfy_workflows — the workflows the user saved in their own ComfyUI, made ready to run.
 //
@@ -303,13 +304,14 @@ async function prepare(base: string, name: string, files: string[], ctx: Prepare
 const PROMPT_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_RESULT_BYTES = 1024 * 1024 * 1024;
 const MAX_RESULT_FILES = 20;
-const KINDS: [RegExp, string][] = [
-  [/\.(glb|gltf|obj|fbx|stl|ply|usdz)$/i, "3D model"],
-  [/\.(png|jpe?g|webp|gif|bmp|tiff?)$/i, "image"],
-  [/\.(mp4|webm|mov|mkv|avi)$/i, "video"],
-  [/\.(wav|mp3|flac|ogg|m4a)$/i, "audio"],
+const KINDS: [RegExp, string, ResultFileKind][] = [
+  [/\.(glb|gltf|obj|fbx|stl|ply|usdz)$/i, "3D model", "model"],
+  [/\.(png|jpe?g|webp|gif|bmp|tiff?)$/i, "image", "image"],
+  [/\.(mp4|webm|mov|mkv|avi)$/i, "video", "video"],
+  [/\.(wav|mp3|flac|ogg|m4a)$/i, "audio", "audio"],
 ];
 const kindOf = (file: string) => KINDS.find(([re]) => re.test(file))?.[1] ?? "file";
+const resultKindOf = (file: string): ResultFileKind => KINDS.find(([re]) => re.test(file))?.[2] ?? "file";
 const fmtSize = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
 /** The files a finished job SAVED (type "output"), as ComfyUI's history lists them; previews are "temp". */
@@ -358,7 +360,7 @@ export function resultBaseName(raw: unknown): string {
   return String(raw ?? "").normalize("NFKD").replace(/[^A-Za-z0-9 _-]+/g, "").trim().replace(/\s+/g, "_").slice(0, 48);
 }
 
-async function collect(base: string, promptId: string, name: unknown, filesDir: string | undefined): Promise<string> {
+async function collect(base: string, promptId: string, name: unknown, filesDir: string | undefined, report?: (file: ReportedFile) => void): Promise<string> {
   if (!PROMPT_ID_RE.test(promptId)) return 'comfy_workflows: "prompt_id" must be the id run_workflow returned.';
   if (!filesDir) return "comfy_workflows: this task has no folder to bring the result into.";
   let item: any;
@@ -400,6 +402,7 @@ async function collect(base: string, promptId: string, name: unknown, filesDir: 
     const target = path.join(filesDir, fileName);
     await writeFile(target, buf);
     const tris = ext === ".glb" ? glbTriangles(buf) : null;
+    report?.({ absPath: target, kind: resultKindOf(fileName), size: buf.length, ...(tris !== null ? { triangles: tris } : {}) });
     lines.push(`- ${target}\n  ${kindOf(fileName)}, ${fmtSize(buf.length)}${tris !== null ? `, ${tris.toLocaleString("en-US")} triangles` : ""} (saved by ComfyUI as ${f.subfolder ? f.subfolder + "/" : ""}${f.filename})`);
   }
   return [
@@ -425,7 +428,7 @@ export const comfyWorkflowsTool: HydraTool = {
   }),
   execute: async ({ action, name, files, prompt_id }, context) => {
     const base = comfyBaseUrl(context?.connectionEnv?.("comfyui")?.COMFYUI_URL || process.env.COMFYUI_URL);
-    if (action === "collect") return collect(base, String(prompt_id ?? "").trim(), name, context?.filesDir);
+    if (action === "collect") return collect(base, String(prompt_id ?? "").trim(), name, context?.filesDir, context?.addResultFile);
     if (action !== "prepare") return listSaved(base);
     const list = Array.isArray(files) ? files.map((f) => String(f)) : [];
     return prepare(base, String(name ?? ""), list, { filesDir: context?.filesDir, uploadsDir: context?.uploadsDir });

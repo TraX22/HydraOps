@@ -65,6 +65,33 @@
     "downloadImage": "Download image",
     "downloadVideo": "Download video",
     "imageHint": "Click to view full size",
+    "model": {
+      "kind": "3D model",
+      "mb": "{{n}} MB",
+      "triangles": "{{n}} triangles",
+      "view": "View in 3D",
+      "download": "Download the model",
+      "close": "Close the viewer",
+      "reset": "Initial view",
+      "wire": "Mesh",
+      "expand": "Enlarge",
+      "loading": "Loading the model… {{loaded}} of {{total}} MB",
+      "hint": "Drag to rotate · wheel to zoom · right-click to move",
+      "hintExpanded": "Drag to rotate · wheel to zoom · right-click to move · Esc to shrink",
+      "stat": {
+        "triangles": "triangles",
+        "vertices": "vertices",
+        "textures": "textures",
+        "noTextures": "No textures",
+        "size": "Size:"
+      },
+      "error": {
+        "load": "The model could not be loaded. You can download it and open it in another program.",
+        "format": "This file could not be opened as a 3D model. You can download it and open it in another program.",
+        "webgl": "This computer or browser cannot draw 3D here. You can download the model.",
+        "tooLarge": "The model is too large to view here. You can download it."
+      }
+    },
     "attach": "Attach files (images or documents)",
     "uploading": "Uploading…",
     "editProfile": "Double-click: edit this agent's profile",

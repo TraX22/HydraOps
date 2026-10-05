@@ -22,6 +22,7 @@ await build({
       export * from "three";
       export { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
       export { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
+      export { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
       export * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
       export { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
       export { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
