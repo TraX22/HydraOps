@@ -6,6 +6,7 @@ import { braveSearchTool } from './native/brave_search/index.js';
 import { perplexitySearchTool } from './native/perplexity/index.js';
 import { fetchUrlTool } from './native/fetch_url/index.js';
 import { youtubeTranscriptTool } from './native/youtube_transcript/index.js';
+import { comfyWorkflowsTool } from './native/comfy_workflows/index.js';
 import { githubTools } from './native/github/index.js';
 import { sendToTelegramTool } from './native/send_to_telegram/index.js';
 import { delegateTaskTool } from './native/delegate_task/index.js';
@@ -17,7 +18,7 @@ export { rememberTool };
 export { ToolRegistry };
 export { guardTool, checkToolArgs, redactSecrets, assertPublicUrl } from './guard.js';
 export type { McpServerState, McpServerStatus } from './mcp.js';
-export { filterMcpConfigForTools } from './mcp.js';
+export { filterMcpConfigForTools, mcpServerEnv } from './mcp.js';
 
 // User addons live in <dataRoot>/my_addons/<name>/index.ts, each exporting a
 // HydraTool. Override the location with MY_ADDONS_DIR.
@@ -28,6 +29,7 @@ export async function createRegistry(): Promise<ToolRegistry> {
   registry.registerNative({ ...perplexitySearchTool, source: 'native' });
   registry.registerNative({ ...fetchUrlTool, source: 'native' });
   registry.registerNative({ ...youtubeTranscriptTool, source: 'native' });
+  registry.registerNative({ ...comfyWorkflowsTool, source: 'native' });
   registry.registerNative({ ...sendToTelegramTool, source: 'native' });
   registry.registerNative({ ...delegateTaskTool, source: 'native' });
   registry.registerNative({ ...rememberTool, source: 'native' });

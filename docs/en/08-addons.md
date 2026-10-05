@@ -13,6 +13,7 @@ They ship with the application. Today they are:
 - `perplexity_search` — ask Perplexity (Sonar): searches the web and returns a reasoned answer with cited sources; the key is pasted on its card and travels through the key-proxy.
 - `fetch_url` — download and read a page.
 - `youtube_transcript` — transcript of a YouTube video, no key needed.
+- `comfy_workflows` — the workflows you saved in your own ComfyUI: it lists them, prepares one to run (a copy, with the files you attached uploaded and placed in its inputs) and brings back what a finished job saved. It works next to the ComfyUI connection, which runs the workflow, and reaches ComfyUI through the address set in that connection (see [Tools](./09-tools.md)).
 - `remember` — the agent saves durable notes to its own memory (see [Agents](./05-agents.md)).
 - `recall` — the agent searches its past conversations, beyond the recent history.
 - `delegate_task` — the agent hands a task to another agent by name; the reply shows up in that agent's chat (see [Agents](./05-agents.md)).

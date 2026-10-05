@@ -39,6 +39,16 @@ export interface ToolContext {
   // task's outside content came from, so it can pass the taint on.
   external?: (toolName: string, ref: string | undefined, content: string) => string;
   taintOrigins?: () => { tool: string; ref?: string }[];
+  // This task's own folder (storage/results/<task>): where a tool leaves a file the agent
+  // will hand to another tool or to the user.
+  filesDir?: string;
+  // Where the files the user attached are stored (storage/uploads): a tool resolves an
+  // attachment the conversation names, the model never needs the folder itself.
+  uploadsDir?: string;
+  // The environment a connection (an MCP server entry) is configured with, by the server's
+  // name: a native tool that works next to a connection reads the same address the user
+  // set there instead of asking for it twice.
+  connectionEnv?: (serverName: string) => Record<string, string>;
 }
 
 export interface HydraTool {

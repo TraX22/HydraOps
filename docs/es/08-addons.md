@@ -12,6 +12,7 @@ Vienen con la aplicación. Hoy son:
 - `brave_search` — búsqueda con la API de Brave; la clave se pega en su tarjeta y viaja por el key-proxy.
 - `perplexity_search` — pregunta a Perplexity (Sonar): busca en la web y devuelve una respuesta razonada con sus fuentes citadas; la clave se pega en su tarjeta y viaja por el key-proxy.
 - `fetch_url` — descargar y leer una página.
+- `comfy_workflows` — los flujos que guardaste en tu ComfyUI: los lista, prepara uno para correr (una copia, con los archivos que adjuntaste ya subidos y puestos en sus entradas) y trae lo que guardó un trabajo terminado. Trabaja junto con la conexión de ComfyUI, que es la que corre el flujo, y llega a ComfyUI por la dirección configurada en esa conexión (ver [Herramientas](./09-tools.md)).
 - `youtube_transcript` — transcripción de un vídeo de YouTube, sin clave.
 - `remember` — el agente guarda notas duraderas en su propia memoria (ver [Agentes](./05-agents.md)).
 - `recall` — el agente busca en sus conversaciones pasadas, más allá del historial reciente.
