@@ -85,6 +85,24 @@ Un servidor local que maneja una aplicación tuya (por `command`) también se co
 
 El nombre es el de la herramienta tal como la publica el servidor, sin el prefijo del servidor. Las que no listes siguen la regla de siempre: servidor conocido, anotación `readOnlyHint` del propio servidor, o el peor caso.
 
+### Herramientas que tardan (`toolTimeoutSeconds`)
+
+Una llamada a una herramienta de un servidor MCP tiene 30 segundos para responder. Alcanza para casi todas; un servidor cuyas herramientas esperan un trabajo largo (un render, la generación de una imagen o de un modelo 3D) necesita más, o cada llamada de esas se corta mientras el trabajo sigue. Poné `toolTimeoutSeconds` en la entrada de ese servidor, entre 30 y 3600:
+
+```json
+{
+  "mcpServers": {
+    "MiRender": {
+      "command": "uvx",
+      "args": ["my-render-server"],
+      "toolTimeoutSeconds": 900
+    }
+  }
+}
+```
+
+Vale para todas las herramientas de ese servidor y para ningún otro. Una conexión del catálogo que lo necesita ya trae su valor.
+
 ## Qué herramientas ve cada agente
 
 Ninguna, hasta que se la concedas: una herramienta —nativa, add-on propio o servidor MCP— solo llega a un agente si su `tools.md` la nombra. Se gestiona con el selector de etiquetas de la vista Agentes (ver [Agentes](./05-agents.md)); los agentes nuevos vienen con `web_search`, `fetch_url`, `remember` y `recall` ya concedidas. Así tu agente de investigación puede tener buscador y tu agente de código no.

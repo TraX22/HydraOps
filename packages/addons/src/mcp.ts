@@ -6,6 +6,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { HydraTool } from "./types.js";
 import { classifyMcpTool } from "./provenance.js";
+import { MIN_TOOL_TIMEOUT_SECONDS, MAX_TOOL_TIMEOUT_SECONDS } from "./presets.js";
 
 // --- Server state types ---
 export type McpServerState = 'connecting' | 'connected' | 'failed' | 'timeout' | 'disconnected';
@@ -96,6 +97,17 @@ function convertType(val: any, required: string[], key?: string): z.ZodType<any>
 
 // --- Timeout utility ---
 const DEFAULT_CONNECT_TIMEOUT_MS = 10_000;
+
+/**
+ * How long one tool call of a server may take: 30 seconds unless its entry in the MCP config
+ * sets `toolTimeoutSeconds` (30 to 3600). A server whose tools wait on long work, such as a
+ * generation that takes minutes, would otherwise have every such call cut short.
+ */
+export function toolCallTimeoutMs(config: any): number {
+  const s = Number(config?.toolTimeoutSeconds);
+  if (!Number.isFinite(s)) return MIN_TOOL_TIMEOUT_SECONDS * 1000;
+  return Math.min(MAX_TOOL_TIMEOUT_SECONDS, Math.max(MIN_TOOL_TIMEOUT_SECONDS, Math.floor(s))) * 1000;
+}
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, name: string): Promise<T> {
   let timeoutHandle: any;
@@ -442,12 +454,15 @@ export class McpClientManager {
       }
 
       try {
+        const timeoutMs = toolCallTimeoutMs(this.serverConfigs.get(serverName));
         const res: any = await withTimeout(
           client.request(
             { method: "tools/call", params: { name: toolOriginalName, arguments: args } },
-            z.any()
+            z.any(),
+            // The SDK has its own limit per request (60 s by default): it follows ours.
+            { timeout: timeoutMs }
           ),
-          30_000,
+          timeoutMs,
           `tool call ${toolOriginalName}`
         );
 
