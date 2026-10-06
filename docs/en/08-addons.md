@@ -65,13 +65,13 @@ A local server that drives an application of yours (through `command`) is config
 ```json
 {
   "mcpServers": {
-    "Blender": {
+    "BlenderLab": {
       "command": "uvx",
-      "args": ["mcp-for-blender"],
+      "args": ["--from", "git+https://projects.blender.org/lab/blender_mcp.git@2cea8d566dde07fbac28a61d698909d69724e853#subdirectory=mcp", "blender-mcp"],
       "toolRisk": {
-        "get_scene_info": "neutral",
-        "get_object_info": "neutral",
-        "get_viewport_screenshot": "neutral",
+        "get_objects_summary": "neutral",
+        "get_object_detail_summary": "neutral",
+        "get_screenshot_of_window_as_image": "neutral",
         "execute_blender_code": "acts"
       }
     }

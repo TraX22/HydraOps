@@ -123,7 +123,7 @@ El catálogo no acepta ningún otro comando. El botón **Ver** te dice si el lan
 ### Instalar y usar
 
 1. En **Herramientas → Conexiones**, tabla **Disponibles**: **Ver** muestra qué necesita, el comando exacto con que se arranca y la clasificación de cada herramienta. **Instalar** la agrega.
-2. Dásela a un agente: en **Agentes → Herramientas**, agrega la línea que indica el panel (el nombre de la conexión en minúsculas, por ejemplo `blender`). Ningún agente recibe una conexión que no le diste.
+2. Dásela a un agente: en **Agentes → Herramientas**, agrega la línea que indica el panel (el nombre de la conexión en minúsculas, por ejemplo `blenderlab`). Ningún agente recibe una conexión que no le diste.
 3. El worker de ese agente la conecta solo en unos segundos. La tabla **En este equipo** muestra el estado: *Conectada*, *Sin respuesta · se reintenta sola* (la aplicación estaba cerrada: ábrela, no hace falta reiniciar nada) o *Ningún agente la usa todavía*.
 
 Las clases de las herramientas:
@@ -137,7 +137,7 @@ Las clases de las herramientas:
 
 ### Versiones y actualizaciones
 
-La versión del programa está **fijada dentro de la conexión** (`uvx mcp-for-blender==2.1.3`, `npx @playwright/mcp@0.0.83`): es la que se probó y clasificó. No cambia sola. Cuando el catálogo publica una versión nueva de la conexión, aparece la etiqueta *nueva versión* y el botón **Actualizar**; al actualizar se conservan el interruptor y los valores que hayas cambiado en las variables de entorno (un puerto, por ejemplo).
+La versión del programa está **fijada dentro de la conexión** (`uvx comfy-mcp==0.10.0`, `npx @playwright/mcp@0.0.83`): es la que se probó y clasificó. No cambia sola. Cuando el catálogo publica una versión nueva de la conexión, aparece la etiqueta *nueva versión* y el botón **Actualizar**; al actualizar se conservan el interruptor y los valores que hayas cambiado en las variables de entorno (un puerto, por ejemplo).
 
 Si un servidor publica una herramienta que la conexión no clasifica, aparece *N herramientas sin clasificar*: esas se tratan como el peor caso (leen y actúan) hasta que una versión nueva de la conexión las clasifique.
 

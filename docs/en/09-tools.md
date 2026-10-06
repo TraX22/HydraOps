@@ -123,7 +123,7 @@ The catalog accepts no other command. **View** tells you whether the launcher is
 ### Installing and using one
 
 1. In **Tools → Connections**, the **Available** table: **View** shows what it needs, the exact command it is started with and the classification of each tool. **Install** adds it.
-2. Give it to an agent: in **Agents → Tools**, add the line the panel shows (the connection's name in lowercase, for example `blender`). No agent gets a connection you did not give it.
+2. Give it to an agent: in **Agents → Tools**, add the line the panel shows (the connection's name in lowercase, for example `blenderlab`). No agent gets a connection you did not give it.
 3. That agent's worker connects it on its own within seconds. The **On this computer** table shows the state: *Connected*, *No answer · retried automatically* (the application was closed: open it, nothing needs restarting) or *No agent uses it yet*.
 
 The tool classes:
@@ -137,7 +137,7 @@ The tool classes:
 
 ### Versions and updates
 
-The program's version is **pinned inside the connection** (`uvx mcp-for-blender==2.1.3`, `npx @playwright/mcp@0.0.83`): it is the one that was tested and classified. It does not change on its own. When the catalog publishes a new version of the connection, the *new version* label and the **Update** button appear; updating keeps the switch and the values you changed in the environment variables (a port, for example).
+The program's version is **pinned inside the connection** (`uvx comfy-mcp==0.10.0`, `npx @playwright/mcp@0.0.83`): it is the one that was tested and classified. It does not change on its own. When the catalog publishes a new version of the connection, the *new version* label and the **Update** button appear; updating keeps the switch and the values you changed in the environment variables (a port, for example).
 
 If a server publishes a tool the connection does not classify, *N unclassified tools* appears: those are treated as the worst case (read and act) until a new version of the connection classifies them.
 
