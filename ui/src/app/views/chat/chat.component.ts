@@ -404,6 +404,10 @@ export class ChatComponent implements OnInit, OnDestroy {
     return ((msg.resultMeta as Record<string, unknown> | undefined)?.['modelUsed'] as string) || '';
   }
 
+  // "chatgpt:gpt-5.5" answered through the user's ChatGPT plan: the footer names the model and the plan.
+  viaChatGPT(msg: ChatMessage): boolean { return this.modelUsed(msg).startsWith('chatgpt:'); }
+  modelShown(msg: ChatMessage): string { return this.modelUsed(msg).replace(/^chatgpt:/, ''); }
+
   // The image/video engine that rendered the result, when there is one
   // (worker-graphic stores imageModel, worker-video videoModel). Shown next
   // to the LLM so the user sees both halves of a generation.

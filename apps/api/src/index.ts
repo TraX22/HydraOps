@@ -1231,6 +1231,16 @@ api.patch("/crons/:id/toggle", async (req, res) => {
 
 // --- Config Endpoints ---
 
+// The ChatGPT plan (Sign in with ChatGPT) lives in the key-proxy (apps/key-proxy/src/chatgpt.ts):
+// sign-in, tokens and the model list. The API only relays, so no credential passes through here.
+async function chatgptProxy(method: "GET" | "POST", p: string): Promise<any> {
+  const base = (process.env.KEY_PROXY_URL || "http://127.0.0.1:9099").replace(/\/$/, "");
+  const r = await fetch(`${base}/chatgpt${p}`, { method, signal: AbortSignal.timeout(15_000) });
+  const body: any = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(body?.error?.message || body?.error || `key-proxy answered ${r.status}`), { status: r.status, code: body?.error?.code });
+  return body;
+}
+
 const envMapping: Record<string, string> = {
   natsUrl: "NATS_URL",
   openaiKey: "OPENAI_API_KEY",
@@ -1399,6 +1409,23 @@ import {
   STEP_LIMIT_OPTIONS,
 } from "@hydraops/llm";
 
+// ── The ChatGPT plan (Sign in with ChatGPT) ──
+api.get("/config/chatgpt", async (_req, res) => {
+  try { res.json(await chatgptProxy("GET", "/status")); }
+  catch (e: any) { res.status(e.status && e.status !== 404 ? e.status : 503).json({ error: e.message, code: e.code }); }
+});
+for (const action of ["signin", "cancel", "signout", "models"] as const) {
+  api.post(`/config/chatgpt/${action}`, async (_req, res) => {
+    try {
+      const out = await chatgptProxy("POST", `/${action}`);
+      // The link only works in a browser on this machine (the callback is a loopback address),
+      // so in server mode it also goes to the console.
+      if (action === "signin" && out?.url) console.log(`[api] chatgpt: sign-in requested; open this link in a browser on this machine:\n[api]   ${out.url}`);
+      res.json(out);
+    } catch (e: any) { res.status(e.status && e.status !== 404 ? e.status : 503).json({ error: e.message, code: e.code }); }
+  });
+}
+
 api.get("/config/models", async (req, res) => {
   try {
     const allModels: { id: string; name: string; provider: string; type?: string; description?: string; inputTokenLimit?: string; outputTokenLimit?: string; isImage?: boolean; isVideo?: boolean; isCoder?: boolean; emoji?: string }[] = [];
@@ -1555,6 +1582,12 @@ api.get("/config/models", async (req, res) => {
       // both: default image engine AND the Motion 2.0 video engine.
       allModels.push({ id: 'leonardo-ai', name: viaKey('Leonardo: Signature (default)'), provider: 'leonardo', type: 'video', isImage: true, isVideo: true, emoji: '🎬' });
       allModels.push(...models.map(m => ({ id: m.id, name: viaKey(`Leonardo: ${m.name}`), provider: 'leonardo', type: 'image', isImage: true, emoji: '🎨' })));
+    }).catch(() => {}));
+
+    // The user's ChatGPT plan: the key-proxy lists what the plan serves to this app.
+    providerJobs.push(chatgptProxy("GET", "/status").then((s: any) => {
+      if (!s?.connected) return;
+      for (const m of s.models ?? []) allModels.push({ id: `chatgpt:${m.slug}`, name: `Login · ChatGPT: ${m.name || m.slug}`, provider: 'chatgpt', ...identify(m.slug) });
     }).catch(() => {}));
 
     await Promise.all(providerJobs);

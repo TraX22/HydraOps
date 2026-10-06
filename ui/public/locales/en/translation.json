@@ -6,7 +6,8 @@
       "malformed_model_response": "⚠️ The model returned a malformed response (internal tool syntax). Try again or rephrase your request.",
       "task_timed_out": "⚠️ The task timed out: its worker never finished it (it may have restarted mid-task). Please send it again.",
       "llm_timeout": "⏱️ The model did not finish in time: the task needed longer than allowed (10 minutes in the cloud, 15 with the local model). Try a narrower request or a faster model for this agent.",
-      "cron_sources_unread": "📭 The scheduled task did not open its sources this time, so it delivered nothing: an answer written without reading them could be made up. It will try again at its next run."
+      "cron_sources_unread": "📭 The scheduled task did not open its sources this time, so it delivered nothing: an answer written without reading them could be made up. It will try again at its next run.",
+      "chatgpt_limit": "⚠️ The weekly cap you set for HydraOps in your ChatGPT plan is used up. Raise it in ChatGPT → Settings → Usage, or switch this agent to another model (/model). Nothing was charged."
     }
   },
   "oneShot": {
@@ -65,6 +66,7 @@
     "downloadImage": "Download image",
     "downloadVideo": "Download video",
     "imageHint": "Click to view full size",
+    "chatgptPlan": "ChatGPT plan · no per-token cost",
     "power": {
       "title": {
         "shutdown": "Shut down HydraOps",
@@ -357,6 +359,30 @@
     "languages": "Languages",
     "localLlm": "Local LLM",
     "logLevel": "Log Level",
+    "chatgpt": {
+      "title": "ChatGPT (subscription)",
+      "preview": "OpenAI preview",
+      "intro": "Use your ChatGPT Plus or Pro plan instead of an OpenAI API key. HydraOps never sees your password or your conversations: it only gets a permission to query the models, charged to your plan.",
+      "notConnected": "Not connected",
+      "reauth": "The connection expired: sign in again.",
+      "connect": "Connect with ChatGPT",
+      "opensBrowser": "The browser on this computer opens to sign in and accept the permission.",
+      "waiting": "Waiting for the authorization in the browser…",
+      "noBrowser": "Nothing opened? Copy this link into a browser on the same machine HydraOps runs on (in server mode, through remote desktop for example):",
+      "copy": "Copy",
+      "copied": "Copied",
+      "connectedOn": "Connected on {{date}} · the permission renews itself as long as HydraOps is used at least once a month",
+      "refreshModels": "Refresh models",
+      "disconnect": "Disconnect",
+      "models": "Models your plan serves (OpenAI lists them when connecting):",
+      "noModels": "OpenAI has not listed any model yet: try \"Refresh models\".",
+      "whereTokens": "The access tokens stay on this computer, next to the keys (key-proxy), never in the database or the chat.",
+      "perAgent": "Each agent picks in its model selector: \"ChatGPT (plan)\" or \"APIkey · OpenAI\".",
+      "cap": "You set the weekly cap in ChatGPT → Settings → Usage. No per-token charges; when the cap is reached the agent says so in the chat.",
+      "worksFor": "Works for: chat, agents and their tools, scheduled tasks, Telegram.",
+      "notFor": "Not for: image or video generation, nor audio. Those keep using each provider's key.",
+      "error": "Could not connect: {{reason}}"
+    },
     "desktop": {
       "title": "Desktop",
       "closeToTray": "Closing the window keeps HydraOps running",
