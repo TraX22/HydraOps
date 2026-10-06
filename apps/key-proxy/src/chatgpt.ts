@@ -76,6 +76,12 @@ export interface ChatGPTStatus {
 export class ChatGPTError extends Error {
   constructor(public code: string, message: string, public status = 400) { super(message); }
 }
+/** What leaves this process about an error: a ChatGPTError says it all; anything else stays in the log. */
+function safeMessage(e: unknown, fallback: string): string {
+  if (e instanceof ChatGPTError) return e.message;
+  console.error(`[key-proxy] chatgpt: ${fallback}:`, e instanceof Error ? e.message : e);
+  return fallback;
+}
 
 // ─── Storage ────────────────────────────────────────────────────────────────
 
@@ -384,7 +390,7 @@ async function finishSignIn(p: Pending, code: string, returnedClientId: string):
     console.log(`[key-proxy] chatgpt: connected as ${maskEmail(who.email) ?? who.subject}`);
     await refreshModels().catch((e) => console.warn(`[key-proxy] chatgpt: models not listed yet: ${e?.message ?? e}`));
   } catch (e: any) {
-    lastError = e?.message ? String(e.message) : String(e);
+    lastError = safeMessage(e, "The sign-in could not be completed; try again.");
     console.error(`[key-proxy] chatgpt: sign-in failed: ${lastError}`);
   }
 }
@@ -500,7 +506,7 @@ function sendJson(res: http.ServerResponse, status: number, body: unknown): void
 export async function proxy(req: http.IncomingMessage, res: http.ServerResponse, targetPath: string): Promise<void> {
   let token: string;
   try { token = await accessToken(); }
-  catch (e: any) { return sendJson(res, e?.status ?? 401, { error: { code: e?.code ?? "chatgpt_not_connected", message: e?.message ?? String(e) } }); }
+  catch (e: any) { return sendJson(res, e instanceof ChatGPTError ? e.status : 503, { error: { code: e instanceof ChatGPTError ? e.code : "chatgpt_unavailable", message: safeMessage(e, "The ChatGPT connection is not usable right now.") } }); }
   const headers: Record<string, string> = {};
   for (const [name, value] of Object.entries(req.headers)) if (typeof value === "string" && !STRIP_REQUEST.has(name.toLowerCase())) headers[name] = value;
   headers["authorization"] = `Bearer ${token}`;
@@ -550,7 +556,7 @@ export async function handleControl(req: http.IncomingMessage, res: http.ServerR
     }
     return false;
   } catch (e: any) {
-    sendJson(res, e instanceof ChatGPTError ? e.status : 500, { error: { code: e?.code ?? "chatgpt_failed", message: e?.message ?? String(e) } });
+    sendJson(res, e instanceof ChatGPTError ? e.status : 500, { error: { code: e instanceof ChatGPTError ? e.code : "chatgpt_failed", message: safeMessage(e, "The request to ChatGPT failed.") } });
     return true;
   }
 }
