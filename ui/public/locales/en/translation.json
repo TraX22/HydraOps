@@ -65,6 +65,58 @@
     "downloadImage": "Download image",
     "downloadVideo": "Download video",
     "imageHint": "Click to view full size",
+    "power": {
+      "title": {
+        "shutdown": "Shut down HydraOps",
+        "restart": "Restart HydraOps"
+      },
+      "state": {
+        "pending": "expires in 60 s",
+        "confirmed": "confirmed",
+        "cancelled": "cancelled",
+        "expired": "expired"
+      },
+      "why": {
+        "shutdown": {
+          "desktop": "The whole application closes: agents, scheduled tasks and Telegram stop until you open it again.",
+          "server": "The whole server stops: agents, scheduled tasks and the Telegram bot stop.",
+          "none": ""
+        },
+        "restart": {
+          "desktop": "Every service stops and starts again. It takes about 20 seconds; the window reloads by itself.",
+          "server": "Every service stops and starts again. It takes about 20 seconds; the connection drops and comes back by itself.",
+          "none": ""
+        }
+      },
+      "running": "{{n}} task(s) in progress will be interrupted (up to 5 s to save their state).",
+      "noRunning": "No task is in progress.",
+      "scheduled": "{{n}} scheduled task(s) will not run while it is closed.",
+      "noScheduled": "No scheduled task is active.",
+      "keepScheduled": "Scheduled tasks keep their schedule after the restart.",
+      "back": {
+        "desktop": "To come back: open HydraOps from its shortcut.",
+        "server": "To turn it on again, someone has to log into the machine and start it; it cannot be done from Telegram.",
+        "none": ""
+      },
+      "confirm": {
+        "shutdown": "Shut down",
+        "restart": "Restart"
+      },
+      "cancel": "Cancel",
+      "orType": "or type {{cmd}}",
+      "done": {
+        "shutdown": {
+          "confirmed": "Shutting down HydraOps… Until next time.",
+          "cancelled": "Nothing was shut down. Type /exit again if you still want to.",
+          "expired": "It expired without confirmation: nothing was shut down."
+        },
+        "restart": {
+          "confirmed": "Restarting HydraOps… Back in about 20 seconds.",
+          "cancelled": "Nothing was restarted. Type /restart again if you still want to.",
+          "expired": "It expired without confirmation: nothing was restarted."
+        }
+      }
+    },
     "file": {
       "kind": {
         "image": "Image",
@@ -703,6 +755,8 @@
     "telegram": "Send a text to your Telegram",
     "oneshot": "Open the One Shot canvas",
     "whoami": "Who you are and which agent is active",
+    "exit": "Shut down HydraOps entirely (asks for confirmation)",
+    "restart": "Stop and start every service again (asks for confirmation)",
     "agentMessage": "Message {{name}} without switching tabs",
     "model": "Show or change the active agent's LLM",
     "engine": "Show or change the active agent's image/video engine",

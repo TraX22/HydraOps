@@ -407,3 +407,27 @@
 .msg-system.error { border-left-color: var(--status-error, #ef4444); color: var(--text-primary); }
 .msg-system code { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent); }
 .msg-system pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: inherit; }
+
+/* /exit and /restart: the confirmation card */
+.power-card {
+  margin: 6px 0 6px 52px; padding: 10px 12px 11px; max-width: 80%;
+  border: 1px solid var(--border-color); border-left: 3px solid var(--status-working);
+  border-radius: 8px; background: var(--bg-surface); font-size: 12.5px; color: var(--text-primary);
+}
+.power-card[data-action="restart"] { border-left-color: var(--accent); }
+.power-card[data-state="confirmed"] { border-left-color: var(--status-online); }
+.power-card[data-state="cancelled"], .power-card[data-state="expired"] { border-left-color: var(--text-muted); color: var(--text-secondary); }
+.power-head { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px; }
+.power-head app-icon svg { width: 14px; height: 14px; }
+.power-state { margin-left: auto; font-weight: 500; font-size: 12px; color: var(--text-secondary); }
+.power-why { margin: 6px 0 0; color: var(--text-secondary); }
+.power-list { margin: 6px 0 0; padding-left: 18px; color: var(--text-secondary); }
+.power-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.power-actions button {
+  padding: 5px 11px; border-radius: 6px; border: 1px solid var(--border-color); background: transparent;
+  color: var(--text-primary); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.power-actions button:disabled { opacity: .5; cursor: default; }
+.power-go { background: var(--accent) !important; border-color: var(--accent) !important; color: #fff !important; }
+.power-go.danger { background: var(--status-error) !important; border-color: var(--status-error) !important; }
+.power-hint { margin-left: auto; font-size: 12px; color: var(--text-muted); }

@@ -43,14 +43,21 @@ export class CommandService {
     return [...cmds, ...agents];
   }
 
-  run(line: string): void {
+  run(line: string, opts: { echo?: boolean } = {}): void {
     const channel = this.chat.activeTab();
-    this.chat.addSystemMessage(channel, line, 'echo');
+    if (opts.echo !== false) this.chat.addSystemMessage(channel, line, 'echo');
     this.running.set(true);
     this.api.runCommand(line, channel).subscribe({
       next: r => {
         this.running.set(false);
-        if (r.text) this.chat.addSystemMessage(channel, r.text, r.kind ?? 'info');
+        if (r.card?.kind === 'power') {
+          // A decision settles the card that asked for it; a new question (or an outcome with no card
+          // left to settle, after a reload) gets its own card.
+          const settled = r.card.state !== 'pending' && this.chat.settlePowerCard(channel, r.card, r.text);
+          if (!settled) this.chat.addSystemMessage(channel, r.text, r.kind ?? 'info', r.card);
+        } else if (r.text) {
+          this.chat.addSystemMessage(channel, r.text, r.kind ?? 'info');
+        }
         this.apply(r);
       },
       error: err => {

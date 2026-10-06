@@ -65,6 +65,58 @@
     "downloadImage": "Télécharger l'image",
     "downloadVideo": "Télécharger la vidéo",
     "imageHint": "Cliquez pour voir en taille réelle",
+    "power": {
+      "title": {
+        "shutdown": "Arrêter HydraOps",
+        "restart": "Redémarrer HydraOps"
+      },
+      "state": {
+        "pending": "expire dans 60 s",
+        "confirmed": "confirmé",
+        "cancelled": "annulé",
+        "expired": "expiré"
+      },
+      "why": {
+        "shutdown": {
+          "desktop": "Toute l'application se ferme : les agents, les tâches planifiées et Telegram s'arrêtent jusqu'à ce que vous la rouvriez.",
+          "server": "Tout le serveur s'arrête : les agents, les tâches planifiées et le bot Telegram s'arrêtent.",
+          "none": ""
+        },
+        "restart": {
+          "desktop": "Tous les services s'arrêtent et redémarrent. Cela prend environ 20 secondes ; la fenêtre se recharge d'elle-même.",
+          "server": "Tous les services s'arrêtent et redémarrent. Cela prend environ 20 secondes ; la connexion se coupe et revient d'elle-même.",
+          "none": ""
+        }
+      },
+      "running": "{{n}} tâche(s) en cours seront interrompues (jusqu'à 5 s pour enregistrer leur état).",
+      "noRunning": "Aucune tâche en cours.",
+      "scheduled": "{{n}} tâche(s) planifiée(s) ne s'exécuteront pas tant qu'il est fermé.",
+      "noScheduled": "Aucune tâche planifiée active.",
+      "keepScheduled": "Les tâches planifiées restent inchangées après le redémarrage.",
+      "back": {
+        "desktop": "Pour revenir : ouvrez HydraOps depuis son raccourci.",
+        "server": "Pour le rallumer, quelqu'un doit se connecter à la machine et le démarrer ; impossible depuis Telegram.",
+        "none": ""
+      },
+      "confirm": {
+        "shutdown": "Arrêter",
+        "restart": "Redémarrer"
+      },
+      "cancel": "Annuler",
+      "orType": "ou tapez {{cmd}}",
+      "done": {
+        "shutdown": {
+          "confirmed": "Arrêt de HydraOps… À la prochaine.",
+          "cancelled": "Rien n'a été arrêté. Tapez /exit à nouveau si vous le souhaitez.",
+          "expired": "Expiré sans confirmation : rien n'a été arrêté."
+        },
+        "restart": {
+          "confirmed": "Redémarrage de HydraOps… De retour dans environ 20 secondes.",
+          "cancelled": "Rien n'a été redémarré. Tapez /restart à nouveau si vous le souhaitez.",
+          "expired": "Expiré sans confirmation : rien n'a été redémarré."
+        }
+      }
+    },
     "file": {
       "kind": {
         "image": "Image",
@@ -703,6 +755,8 @@
     "telegram": "Envoie un texte sur votre Telegram",
     "oneshot": "Ouvre le canevas One Shot",
     "whoami": "Qui vous êtes et quel agent est actif",
+    "exit": "Arrête complètement HydraOps (demande confirmation)",
+    "restart": "Arrête et relance tous les services (demande confirmation)",
     "agentMessage": "Message à {{name}} sans changer d'onglet",
     "model": "Affiche ou change le LLM de l'agent actif",
     "engine": "Affiche ou change le moteur image/vidéo de l'agent actif",

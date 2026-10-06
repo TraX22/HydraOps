@@ -53,6 +53,41 @@
       @for (msg of messages; track trackMsg($index, msg)) {
         @if (msg.role === 'system') {
           <!-- Command echo / result: local, never stored, never sent to an agent -->
+          @if (msg.card; as card) {
+            <!-- /exit, /restart: the question and its outcome; the buttons run the command for the user -->
+            <div class="power-card" [attr.data-action]="card.action" [attr.data-state]="card.state">
+              <div class="power-head">
+                <app-icon [name]="card.action === 'shutdown' ? 'power' : 'refresh'" />
+                <span class="power-title">{{ ('chat.power.title.' + card.action) | translate }}</span>
+                <span class="power-state">{{ ('chat.power.state.' + card.state) | translate }}</span>
+              </div>
+              @if (card.state === 'pending') {
+                <p class="power-why">{{ ('chat.power.why.' + card.action + '.' + card.mode) | translate }}</p>
+                <ul class="power-list">
+                  <li>{{ (card.running ? 'chat.power.running' : 'chat.power.noRunning') | translate:{ n: card.running } }}</li>
+                  @if (card.action === 'shutdown') {
+                    <li>{{ (card.scheduled ? 'chat.power.scheduled' : 'chat.power.noScheduled') | translate:{ n: card.scheduled } }}</li>
+                    <li>{{ ('chat.power.back.' + card.mode) | translate }}</li>
+                  } @else {
+                    <li>{{ 'chat.power.keepScheduled' | translate }}</li>
+                  }
+                </ul>
+                <div class="power-actions">
+                  <button type="button" class="power-go" [class.danger]="card.action === 'shutdown'" [disabled]="commands.running()"
+                          (click)="commands.run((card.action === 'shutdown' ? '/exit' : '/restart') + ' confirm', { echo: false })">
+                    {{ ('chat.power.confirm.' + card.action) | translate }}
+                  </button>
+                  <button type="button" class="power-no" [disabled]="commands.running()"
+                          (click)="commands.run((card.action === 'shutdown' ? '/exit' : '/restart') + ' cancel', { echo: false })">
+                    {{ 'chat.power.cancel' | translate }}
+                  </button>
+                  <span class="power-hint">{{ 'chat.power.orType' | translate:{ cmd: card.action === 'shutdown' ? '/exit confirm' : '/restart confirm' } }}</span>
+                </div>
+              } @else {
+                <p class="power-why">{{ ('chat.power.done.' + card.action + '.' + card.state) | translate:{ n: card.running } }}</p>
+              }
+            </div>
+          } @else {
           <div class="msg-system" [class.echo]="msg.kind === 'echo'" [class.ok]="msg.kind === 'ok'" [class.error]="msg.kind === 'error'">
             @if (msg.kind === 'echo') {
               <code>{{ msg.content }}</code>
@@ -60,6 +95,7 @@
               <pre>{{ msg.content }}</pre>
             }
           </div>
+          }
         } @else {
         <div class="msg-row" [class.user]="msg.role === 'user'" [class.bot]="msg.role === 'assistant'" [attr.data-task-id]="msg.taskId">
           <!-- Doble clic en el avatar → ficha del agente (camino inverso al 💬 de esa vista) -->

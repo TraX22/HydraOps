@@ -1,5 +1,6 @@
 import type { Command, CommandContext, CommandResult, CommandSpec } from "./types.js";
 import { PHASE2_COMMANDS } from "./phase2.js";
+import { POWER_COMMANDS } from "./power.js";
 
 import { findAgent, fold } from "./util.js";
 export { findAgent, fold };
@@ -292,7 +293,7 @@ export const COMMANDS: Command[] = [
 ];
 
 // Phase 2 (configuration, scheduled tasks, UI switches) joins the same catalog.
-COMMANDS.push(...PHASE2_COMMANDS);
+COMMANDS.push(...PHASE2_COMMANDS, ...POWER_COMMANDS);
 
 /** The catalog a transport shows: everything but the handlers. */
 export function catalog(): CommandSpec[] {

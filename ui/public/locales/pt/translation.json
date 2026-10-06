@@ -65,6 +65,58 @@
     "downloadImage": "Baixar imagem",
     "downloadVideo": "Baixar vídeo",
     "imageHint": "Clique para ver em tamanho real",
+    "power": {
+      "title": {
+        "shutdown": "Desligar o HydraOps",
+        "restart": "Reiniciar o HydraOps"
+      },
+      "state": {
+        "pending": "expira em 60 s",
+        "confirmed": "confirmado",
+        "cancelled": "cancelado",
+        "expired": "expirado"
+      },
+      "why": {
+        "shutdown": {
+          "desktop": "O aplicativo inteiro fecha: agentes, tarefas agendadas e Telegram param até você abri-lo de novo.",
+          "server": "O servidor inteiro desliga: agentes, tarefas agendadas e o bot do Telegram param.",
+          "none": ""
+        },
+        "restart": {
+          "desktop": "Todos os serviços param e iniciam de novo. Leva uns 20 segundos; a janela recarrega sozinha.",
+          "server": "Todos os serviços param e iniciam de novo. Leva uns 20 segundos; a conexão cai e volta sozinha.",
+          "none": ""
+        }
+      },
+      "running": "{{n}} tarefa(s) em andamento serão interrompidas (até 5 s para salvar o estado).",
+      "noRunning": "Nenhuma tarefa em andamento.",
+      "scheduled": "{{n}} tarefa(s) agendada(s) não vão rodar enquanto estiver fechado.",
+      "noScheduled": "Nenhuma tarefa agendada ativa.",
+      "keepScheduled": "As tarefas agendadas continuam iguais depois do reinício.",
+      "back": {
+        "desktop": "Para voltar: abra o HydraOps pelo atalho.",
+        "server": "Para ligar de novo, alguém precisa entrar na máquina e iniciá-lo; pelo Telegram não dá.",
+        "none": ""
+      },
+      "confirm": {
+        "shutdown": "Desligar",
+        "restart": "Reiniciar"
+      },
+      "cancel": "Cancelar",
+      "orType": "ou digite {{cmd}}",
+      "done": {
+        "shutdown": {
+          "confirmed": "Desligando o HydraOps… Até a próxima.",
+          "cancelled": "Nada foi desligado. Digite /exit de novo se ainda quiser.",
+          "expired": "Expirou sem confirmação: nada foi desligado."
+        },
+        "restart": {
+          "confirmed": "Reiniciando o HydraOps… Volta em uns 20 segundos.",
+          "cancelled": "Nada foi reiniciado. Digite /restart de novo se ainda quiser.",
+          "expired": "Expirou sem confirmação: nada foi reiniciado."
+        }
+      }
+    },
     "file": {
       "kind": {
         "image": "Imagem",
@@ -703,6 +755,8 @@
     "telegram": "Envia um texto para o seu Telegram",
     "oneshot": "Abre a tela One Shot",
     "whoami": "Quem você é e qual agente está ativo",
+    "exit": "Desliga o HydraOps por completo (pede confirmação)",
+    "restart": "Para e inicia de novo todos os serviços (pede confirmação)",
     "agentMessage": "Mensagem para {{name}} sem trocar de aba",
     "model": "Mostra ou muda o LLM do agente ativo",
     "engine": "Mostra ou muda o motor de imagem/vídeo do agente ativo",

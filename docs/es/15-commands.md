@@ -46,6 +46,8 @@ Estos tres necesitan un chat de agente abierto: en el chat principal no hay "age
 | `/open <vista>` (`/abrir`, `/ir`, `/go`) | Salta a una vista: `chat`, `agents`, `system`, `config`, `tasks`, `addons`, `tools`, `stats`, `docs`, `me`. También entiende `agentes`, `sistema`, `ajustes`, `tareas`, `herramientas`, `estadisticas`, `documentacion`, `yo`. |
 | `/whatsnew` (`/novedades`, `/changelog`, `/news`) | Abre la pestaña Novedades con las notas de las últimas versiones. |
 | `/whoami` (`/quien`) | Quién sos y cuál es el agente activo. |
+| `/exit` (`/salir`, `/quit`) | Apaga HydraOps por completo. Primero te dice qué pasaría (tareas en curso que se interrumpen, tareas programadas que dejan de correr, cómo volver a encenderlo) y espera 60 segundos a `/exit confirmar`, el botón de la tarjeta en la app, o `/exit cancelar`. Solo quien lo pidió puede confirmar, desde el mismo chat. En el escritorio se cierra la ventana; en modo servidor termina el proceso y alguien tiene que arrancarlo de nuevo en el equipo. |
+| `/restart` (`/reiniciar`) | Detiene y vuelve a arrancar todos los servicios, con la misma confirmación. Tarda unos 20 segundos; la ventana se recarga sola y las tareas programadas siguen igual. Los dos comandos solo funcionan bajo la app de escritorio o `pnpm serve`; una pila arrancada a mano lo avisa. |
 
 
 ## Configuración rápida del agente activo

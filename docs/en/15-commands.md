@@ -46,6 +46,8 @@ These three need an agent chat open: the main chat has no "active agent". The sa
 | `/open <view>` (`/go`) | Jump to a view: `chat`, `agents`, `system`, `config`, `tasks`, `addons`, `tools`, `stats`, `docs`, `me`. |
 | `/whatsnew` (`/changelog`, `/news`) | Open the What's new tab with the latest release notes. |
 | `/whoami` | Who you are and which agent is active. |
+| `/exit` (`/quit`, `/salir`) | Shut down HydraOps as a whole. It first tells you what would happen (tasks in progress that get interrupted, scheduled tasks that stop, how to turn it on again) and waits 60 seconds for `/exit confirm`, the card's button in the app, or `/exit cancel`. Only the person who asked can confirm, from the same chat. On the desktop the window closes; in server mode the process ends and someone has to start it again on the machine. |
+| `/restart` (`/reiniciar`) | Stop and start every service again, with the same confirmation. It takes about 20 seconds; the window reloads by itself and scheduled tasks keep their schedule. Both commands only work under the desktop app or `pnpm serve`; a stack started by hand says so. |
 
 
 ## Quick configuration of the active agent

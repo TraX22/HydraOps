@@ -87,6 +87,8 @@ export interface CommandResult {
   text: string;
   kind?: "info" | "ok" | "error";
   action?: CommandAction;
+  /** A card the app renders instead of the plain text (other transports show the text). */
+  card?: PowerCard;
 }
 
 // Catalog entry: what the palette and /help show. `description` is the
@@ -129,6 +131,28 @@ export interface CommandApi {
   createCron(cron: { name: string; prompt: string; cronExpression: string; assignedAgent: string }): Promise<{ id: string }>;
   setCronStatus(id: string, status: "active" | "paused"): Promise<void>;
   runCron(id: string): Promise<void>;
+  // /exit and /restart (power.ts). What would happen, and the request itself: the API
+  // cancels the tasks in progress and hands the request to the supervisor.
+  powerPreview(): Promise<PowerPreview>;
+  power(action: PowerAction, by: string): Promise<{ mode: PowerPreview["mode"]; cancelled: number }>;
+}
+
+export type PowerAction = "shutdown" | "restart";
+export interface PowerPreview {
+  /** Who runs the stack: the desktop app, `pnpm serve`, or nobody that can stop it (development). */
+  mode: "desktop" | "server" | "none";
+  running: number;
+  scheduled: number;
+}
+/** The confirmation card the app shows for /exit and /restart; the text carries the same for other transports. */
+export interface PowerCard {
+  kind: "power";
+  action: PowerAction;
+  state: "pending" | "confirmed" | "cancelled" | "expired";
+  mode: PowerPreview["mode"];
+  running: number;
+  scheduled: number;
+  expiresAt: string;
 }
 
 export interface CommandContext {
