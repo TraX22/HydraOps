@@ -25,16 +25,24 @@
         <h3>{{ 'config.chatgpt.title' | translate }} <span class="cg-pill">{{ 'config.chatgpt.preview' | translate }}</span></h3>
         <p class="hint">{{ 'config.chatgpt.intro' | translate }}</p>
         @if (cg.pending; as p) {
-          <div class="cg-status">
-            <span class="cg-dot wait"></span>
-            <span>{{ 'config.chatgpt.waiting' | translate }}</span>
-            <span class="cg-right"><button class="level-btn" (click)="cancelChatGPT()">{{ 'common.cancel' | translate }}</button></span>
-          </div>
-          <p class="hint">{{ 'config.chatgpt.noBrowser' | translate }}</p>
-          <div class="cg-link">
-            <code class="net-token cg-url">{{ p.url }}</code>
-            <button class="level-btn" (click)="copyChatGPTLink()">{{ (chatgptCopied() ? 'config.chatgpt.copied' : 'config.chatgpt.copy') | translate }}</button>
-          </div>
+          @if (p.finishing) {
+            <!-- The browser came back; the key-proxy is exchanging the code (a second or two). -->
+            <div class="cg-status">
+              <span class="cg-dot wait"></span>
+              <span>{{ 'config.chatgpt.finishing' | translate }}</span>
+            </div>
+          } @else {
+            <div class="cg-status">
+              <span class="cg-dot wait"></span>
+              <span>{{ 'config.chatgpt.waiting' | translate }}</span>
+              <span class="cg-right"><button class="level-btn" (click)="cancelChatGPT()">{{ 'common.cancel' | translate }}</button></span>
+            </div>
+            <p class="hint">{{ 'config.chatgpt.noBrowser' | translate }}</p>
+            <div class="cg-link">
+              <code class="net-token cg-url">{{ p.url }}</code>
+              <button class="level-btn" (click)="copyChatGPTLink()">{{ (chatgptCopied() ? 'config.chatgpt.copied' : 'config.chatgpt.copy') | translate }}</button>
+            </div>
+          }
         } @else if (cg.connected) {
           <div class="cg-status">
             <span class="cg-dot on"></span>

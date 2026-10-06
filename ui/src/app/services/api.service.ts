@@ -446,7 +446,7 @@ export interface ChatGPTStatus {
   connectedAt?: string;
   models: { slug: string; name: string }[];
   modelsAt?: string;
-  pending: { url: string; expiresAt: string } | null;
+  pending: { url: string; expiresAt: string; finishing?: boolean } | null;
   lastError?: string;
 }
 
