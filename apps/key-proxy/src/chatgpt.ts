@@ -460,17 +460,38 @@ export function adaptResponsesBody(body: any): any {
   return out;
 }
 
-/** Parses an SSE stream of Responses events into the final response object. */
+/**
+ * Parses an SSE stream of Responses events into the final response object.
+ *
+ * On the plan route the closing event (response.completed) arrives with an EMPTY `output`:
+ * the items only travel in the `response.output_item.done` events (and the text in the
+ * deltas). The output is rebuilt from those, in order, so the caller gets the same object
+ * the non-streaming API would have returned.
+ */
 export async function collectResponsesStream(body: ReadableStream<Uint8Array>): Promise<{ status: number; json: any }> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
   let result: { status: number; json: any } | null = null;
+  const items = new Map<number, any>();
+  let text = "";
+  const finish = (response: any) => {
+    const out = response && typeof response === "object" ? { ...response } : { output: [] };
+    if (!Array.isArray(out.output) || out.output.length === 0) {
+      const list = [...items.entries()].sort((a, b) => a[0] - b[0]).map(([, item]) => item);
+      out.output = list.length ? list
+        : text ? [{ type: "message", id: "msg_collected", role: "assistant", status: "completed", content: [{ type: "output_text", text, annotations: [] }] }]
+        : [];
+    }
+    return out;
+  };
   const handle = (data: string) => {
     if (!data || data === "[DONE]") return;
     let ev: any;
     try { ev = JSON.parse(data); } catch { return; }
-    if (ev?.type === "response.completed" || ev?.type === "response.incomplete") result ??= { status: 200, json: ev.response };
+    if (ev?.type === "response.output_item.done" && ev.item && typeof ev.item === "object") items.set(Number(ev.output_index ?? items.size), ev.item);
+    else if (ev?.type === "response.output_text.delta" && typeof ev.delta === "string") text += ev.delta;
+    else if (ev?.type === "response.completed" || ev?.type === "response.incomplete") result ??= { status: 200, json: finish(ev.response) };
     else if (ev?.type === "response.failed") result ??= { status: 500, json: { error: ev.response?.error ?? { message: "The response failed." } } };
     else if (ev?.type === "error") result ??= { status: 500, json: { error: { code: ev.code, message: ev.message ?? "The response failed." } } };
   };
