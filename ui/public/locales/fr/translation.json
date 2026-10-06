@@ -368,6 +368,7 @@
       "connect": "Connecter ChatGPT",
       "opensBrowser": "Le navigateur de cet ordinateur s'ouvre pour vous connecter et accepter la permission.",
       "waiting": "En attente de l'autorisation dans le navigateur…",
+      "finishing": "Connexion… OpenAI a autorisé ; la permission et les modèles sont en cours d'enregistrement.",
       "noBrowser": "Rien ne s'est ouvert ? Copiez ce lien dans un navigateur de la machine où tourne HydraOps (en mode serveur, par bureau à distance par exemple) :",
       "copy": "Copier",
       "copied": "Copié",

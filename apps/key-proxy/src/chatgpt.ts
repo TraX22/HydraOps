@@ -67,7 +67,8 @@ export interface ChatGPTStatus {
   connectedAt?: string;
   models: ChatGPTModel[];
   modelsAt?: string;
-  pending: { url: string; expiresAt: string } | null;
+  /** The sign-in in progress: waiting for the browser, or (`finishing`) exchanging the code it brought back. */
+  pending: { url: string; expiresAt: string; finishing?: boolean } | null;
   lastError?: string;
 }
 
@@ -247,6 +248,9 @@ export async function refreshModels(): Promise<ChatGPTModel[]> {
 
 interface Pending { state: string; nonce: string; verifier: string; url: string; expiresAt: number; server: http.Server; timer: NodeJS.Timeout; redirectUri: string }
 let pending: Pending | null = null;
+// The callback arrived and the code is being exchanged: a second or two in which the status
+// must still say "in progress", or the app would show "not connected" and the user would start again.
+let finishing: Pending | null = null;
 let lastError: string | undefined;
 
 function closePending(): void {
@@ -337,7 +341,8 @@ function onCallback(req: http.IncomingMessage, res: http.ServerResponse): void {
   const clientId = url.searchParams.get("client_id") || "";
   res.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(page("HydraOps", "Listo: HydraOps está terminando de conectarse. Podés cerrar esta pestaña. · Done: HydraOps is finishing the connection; you can close this tab."));
   closePending();
-  void finishSignIn(p, code, clientId);
+  finishing = p;
+  void finishSignIn(p, code, clientId).finally(() => { if (finishing === p) finishing = null; });
 }
 
 async function finishSignIn(p: Pending, code: string, returnedClientId: string): Promise<void> {
@@ -418,7 +423,8 @@ export async function status(): Promise<ChatGPTStatus> {
     connectedAt: s.connectedAt,
     models: s.models ?? [],
     modelsAt: s.modelsAt,
-    pending: pending ? { url: pending.url, expiresAt: new Date(pending.expiresAt).toISOString() } : null,
+    pending: pending ? { url: pending.url, expiresAt: new Date(pending.expiresAt).toISOString() }
+      : finishing ? { url: finishing.url, expiresAt: new Date(finishing.expiresAt).toISOString(), finishing: true } : null,
     lastError,
   };
 }
