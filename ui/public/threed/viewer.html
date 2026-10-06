@@ -1,0 +1,176 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>HydraOps 3D viewer</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+  canvas { display: block; width: 100%; height: 100%; outline: none; touch-action: none; }
+</style>
+</head>
+<body>
+<script>
+// The chat's 3D viewer. This page runs inside <iframe sandbox="allow-scripts">, an opaque
+// origin: a model file, whatever it contains, can reach neither the app nor its cookies or
+// storage, and this page has no network access to the app either. Three.js arrives as text
+// from the parent and is imported from a blob URL (an opaque origin cannot import the
+// app's modules); the model arrives as bytes. Everything is postMessage, guarded by a
+// per-viewer nonce.
+//
+// In:  init {three, colors}, load {buffer}, view {mode: reset|wire|colors, value}
+// Out: ready, loaded {stats}, error {message}
+(() => {
+  let T = null, renderer, scene, camera, controls, model = null, grid = null, wires = [], nonce = null, wire = false;
+  let home = null, colors = { grid: "#8b8fa8", wire: "#818cf8" };
+  const post = (m) => parent.postMessage(m, "*");
+  const fail = (message) => post({ type: "error", message: String(message || "error").slice(0, 300) });
+
+  window.addEventListener("error", (e) => fail(e.message || e.error));
+  window.addEventListener("unhandledrejection", (e) => fail(e.reason?.message || e.reason));
+
+  window.addEventListener("message", async (e) => {
+    const d = e.data || {};
+    if (d.type === "init") { if (!T) { nonce = d.nonce; await init(d.three, d.colors); } return; }
+    if (!nonce || d.nonce !== nonce || !T) return;
+    if (d.type === "load") load(d.buffer);
+    else if (d.type === "view") view(d.mode, d.value);
+  });
+
+  async function init(src, c) {
+    try {
+      T = await import(URL.createObjectURL(new Blob([src], { type: "text/javascript" })));
+    } catch (err) {
+      T = null;
+      return fail("Three.js could not be loaded: " + (err?.message || err));
+    }
+    if (c) colors = { ...colors, ...c };
+    try {
+      renderer = new T.WebGLRenderer({ antialias: true, alpha: true });
+    } catch (err) {
+      return fail("webgl_unavailable");
+    }
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputColorSpace = T.SRGBColorSpace;
+    renderer.toneMapping = T.ACESFilmicToneMapping;
+    document.body.appendChild(renderer.domElement);
+    scene = new T.Scene();
+    scene.environment = new T.PMREMGenerator(renderer).fromScene(new T.RoomEnvironment(), 0.04).texture;
+    const sun = new T.DirectionalLight(0xffffff, 1.6);
+    sun.position.set(2, 3, 2.5);
+    scene.add(sun);
+    camera = new T.PerspectiveCamera(35, 1, 0.01, 1000);
+    controls = new T.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.addEventListener("change", draw);
+    new ResizeObserver(resize).observe(document.body);
+    resize();
+    (function tick() { requestAnimationFrame(tick); if (controls.update()) draw(); })();
+    post({ type: "ready" });
+  }
+
+  function resize() {
+    if (!renderer) return;
+    const w = Math.max(1, window.innerWidth), h = Math.max(1, window.innerHeight);
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    draw();
+  }
+  function draw() { if (renderer && scene && camera) renderer.render(scene, camera); }
+
+  function clear() {
+    for (const o of [model, grid]) {
+      if (!o) continue;
+      scene.remove(o);
+      o.traverse?.((n) => {
+        n.geometry?.dispose?.();
+        for (const m of [].concat(n.material || [])) {
+          for (const v of Object.values(m)) if (v && v.isTexture) v.dispose();
+          m.dispose?.();
+        }
+      });
+    }
+    model = grid = null; wires = []; home = null;
+  }
+
+  function load(buffer) {
+    if (!(buffer instanceof ArrayBuffer)) return fail("not_a_model");
+    clear();
+    let loader;
+    try { loader = new T.GLTFLoader(); } catch (err) { return fail(err?.message || err); }
+    // A file that is not glTF makes the loader throw at once instead of calling back.
+    try {
+      loader.parse(buffer, "", (gltf) => {
+        try { place(gltf.scene || gltf.scenes?.[0]); }
+        catch (err) { fail(err?.message || err); }
+      }, (err) => fail(err?.message || "not_a_model"));
+    } catch (err) {
+      fail(err?.message || "not_a_model");
+    }
+  }
+
+  function place(root) {
+    if (!root) return fail("not_a_model");
+    const box = new T.Box3().setFromObject(root);
+    if (box.isEmpty()) return fail("empty_model");
+    const size = box.getSize(new T.Vector3()), center = box.getCenter(new T.Vector3());
+    root.position.sub(center);
+    model = new T.Group();
+    model.add(root);
+    scene.add(model);
+
+    let triangles = 0, vertices = 0;
+    const textures = new Map();
+    root.traverse((o) => {
+      if (!o.isMesh || !o.geometry) return;
+      const g = o.geometry, pos = g.attributes.position;
+      if (pos) { vertices += pos.count; triangles += Math.floor((g.index ? g.index.count : pos.count) / 3); }
+      for (const m of [].concat(o.material || [])) {
+        for (const v of Object.values(m)) {
+          if (v && v.isTexture && v.image && !textures.has(v.source?.uuid ?? v.uuid)) textures.set(v.source?.uuid ?? v.uuid, [v.image.width || 0, v.image.height || 0]);
+        }
+      }
+      const lines = new T.LineSegments(new T.WireframeGeometry(g), new T.LineBasicMaterial({ color: colors.wire, transparent: true, opacity: 0.55 }));
+      lines.visible = wire;
+      o.add(lines);
+      wires.push(lines);
+    });
+
+    const span = Math.max(size.length(), 1e-6);
+    grid = new T.GridHelper(span * 2.2, 22, colors.grid, colors.grid);
+    grid.material.transparent = true;
+    grid.material.opacity = 0.22;
+    grid.position.y = -size.y / 2;
+    scene.add(grid);
+
+    camera.near = span / 200;
+    camera.far = span * 60;
+    camera.updateProjectionMatrix();
+    const r = span * 1.9, az = -0.75, el = 0.42;
+    home = new T.Vector3(Math.sin(az) * Math.cos(el) * r, Math.sin(el) * r, Math.cos(az) * Math.cos(el) * r);
+    controls.minDistance = span * 0.15;
+    controls.maxDistance = span * 12;
+    view("reset");
+    post({ type: "loaded", stats: { triangles, vertices, textures: [...textures.values()].slice(0, 32), size: [size.x, size.y, size.z] } });
+  }
+
+  function view(mode, value) {
+    if (mode === "reset" && home) {
+      camera.position.copy(home);
+      controls.target.set(0, 0, 0);
+      controls.update();
+    } else if (mode === "wire") {
+      wire = !!value;
+      for (const l of wires) l.visible = wire;
+    } else if (mode === "colors" && value) {
+      colors = { ...colors, ...value };
+      if (grid) { grid.material.color.set(colors.grid); }
+      for (const l of wires) l.material.color.set(colors.wire);
+    }
+    draw();
+  }
+})();
+</script>
+</body>
+</html>

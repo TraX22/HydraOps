@@ -196,6 +196,10 @@
                 </div>
               }
 
+              @for (model of modelFiles(msg); track model.path) {
+                <app-model-card [file]="model" />
+              }
+
               @if (hasVideo(msg)) {
                 <div class="video-frame">
                   <video [src]="getVideoUrl(msg)" controls preload="metadata" class="result-video"></video>
