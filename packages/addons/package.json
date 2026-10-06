@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@hydraops/config": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.19.1",
+    "@modelcontextprotocol/sdk": "^1.31.0",
     "ai": "latest",
     "cheerio": "^1.2.0",
     "turndown": "^7.2.4",
