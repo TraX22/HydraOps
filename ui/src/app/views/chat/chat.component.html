@@ -199,6 +199,9 @@
               @for (model of modelFiles(msg); track model.path) {
                 <app-model-card [file]="model" />
               }
+              @for (media of mediaFiles(msg); track media.path) {
+                <app-media-card [file]="media" (zoom)="lightboxUrl.set($event)" />
+              }
 
               @if (hasVideo(msg)) {
                 <div class="video-frame">

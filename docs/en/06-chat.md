@@ -27,6 +27,10 @@ The chat renders Markdown, and since v0.1.21 also **Mermaid diagrams**: when an 
 
 Results from image and video agents appear inline in the chat. Click an image to see it full size, and every result has its **download** button.
 
+## Files a task brings
+
+When a tool brings an image or a video into a task (for instance what a [ComfyUI](./09-tools.md) workflow saved), it appears under the reply as a card with its name, its size and a preview: click an image to see it full size, play a video in place, and use the card's button to **download** the file.
+
 ## 3D models
 
 When a task delivers a 3D model (a GLB file, for instance one generated with [ComfyUI](./09-tools.md)), a card appears under the reply with its name, size and triangle count. Nothing is downloaded until you ask:
