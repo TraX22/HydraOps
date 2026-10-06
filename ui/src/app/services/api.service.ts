@@ -66,6 +66,8 @@ export interface ChatMessage {
   content: string;
   // system notes only: how to style them ('echo' = the command line itself)
   kind?: 'echo' | 'info' | 'ok' | 'error';
+  /** A command's card (/exit, /restart): rendered instead of the text. */
+  card?: PowerCard;
   agentId?: string;
   agentName?: string;
   avatarUrl?: string;
@@ -177,6 +179,18 @@ export interface CommandResult {
   text: string;
   kind?: 'info' | 'ok' | 'error';
   action?: CommandAction;
+  /** /exit and /restart: the confirmation card the chat renders instead of the plain text. */
+  card?: PowerCard;
+}
+
+export interface PowerCard {
+  kind: 'power';
+  action: 'shutdown' | 'restart';
+  state: 'pending' | 'confirmed' | 'cancelled' | 'expired';
+  mode: 'desktop' | 'server' | 'none';
+  running: number;
+  scheduled: number;
+  expiresAt: string;
 }
 
 // ── What's new ──

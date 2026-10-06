@@ -577,6 +577,8 @@ async function boot() {
   }
   shellLog("datos listos, arrancando servicios");
 
+  // The children learn who runs the stack: /exit and /restart only work under a supervisor.
+  process.env.HYDRA_SUPERVISOR = "desktop";
   supervisor = new ServiceSupervisor({
     logDir: path.join(app.getPath("userData"), "logs"),
     dataRoot,
@@ -616,6 +618,24 @@ async function boot() {
       afterStart: () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.reload(); },
     });
   }
+
+  // /exit and /restart from the chat or Telegram: the API writes the request once the
+  // user confirmed; here it is carried out (see power.js). Quitting goes through the
+  // same path as the tray's Quit, with the reason in shell.log.
+  const { watchForPowerRequest } = require("./power");
+  watchForPowerRequest({
+    dataRoot,
+    log: (msg) => shellLog(`power: ${msg}`),
+    onShutdown: (req) => quitApp(`/exit command (${req.by})`),
+    onRestart: async (req) => {
+      if (quitting || !supervisor) return;
+      shellLog(`/restart command (${req.by}): restarting the stack`);
+      await supervisor.stopAll();
+      await supervisor.startAll(splashMessage);
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.reload();
+      shellLog("stack restarted");
+    },
+  });
 
   // La interfaz la sirve la propia API, en el mismo origen que los datos. Antes
   // había aquí un servidor estático en un puerto efímero, pero eso obligaba a la

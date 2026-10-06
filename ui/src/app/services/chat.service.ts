@@ -1,5 +1,5 @@
 import { Injectable, signal, inject } from '@angular/core';
-import { ApiService, ChatAttachment, ChatMessage, Task } from './api.service';
+import { ApiService, ChatAttachment, ChatMessage, Task, PowerCard } from './api.service';
 import { Subscription, interval, switchMap, catchError, EMPTY } from 'rxjs';
 
 // The "What's new" tab is not a chat: no history, no polling, no agent. It lives
@@ -59,9 +59,26 @@ export class ChatService {
     return this.messagesByChannel()[this.activeTab()] ?? [];
   }
 
-  addSystemMessage(channel: string, content: string, kind: NonNullable<ChatMessage['kind']>): void {
-    const note: ChatMessage = { id: `sys-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, role: 'system', kind, content, timestamp: new Date().toISOString() };
+  addSystemMessage(channel: string, content: string, kind: NonNullable<ChatMessage['kind']>, card?: PowerCard): void {
+    const note: ChatMessage = { id: `sys-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, role: 'system', kind, content, timestamp: new Date().toISOString(), ...(card ? { card } : {}) };
     this.systemByChannel.update(m => ({ ...m, [channel]: [...(m[channel] ?? []), note] }));
+  }
+
+  /**
+   * /exit and /restart: the pending card of that action in this chat takes the decision (confirmed,
+   * cancelled, expired) and shows the outcome text. Returns false when there was no card to settle.
+   */
+  settlePowerCard(channel: string, card: PowerCard, content: string): boolean {
+    let settled = false;
+    this.systemByChannel.update(m => ({
+      ...m,
+      [channel]: (m[channel] ?? []).map(n => {
+        if (settled || n.card?.kind !== 'power' || n.card.action !== card.action || n.card.state !== 'pending') return n;
+        settled = true;
+        return { ...n, content, card: { ...n.card, state: card.state, running: card.running } };
+      }),
+    }));
+    return settled;
   }
 
   switchTab(tabId: string): void {

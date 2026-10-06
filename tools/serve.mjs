@@ -42,6 +42,9 @@ try {
   }
 } catch { /* sin .env: valores por defecto */ }
 
+// The children learn who runs the stack: /exit and /restart only work under a supervisor.
+process.env.HYDRA_SUPERVISOR = "server";
+
 const require = createRequire(import.meta.url);
 const { ServiceSupervisor, UI_ROOT, NATS_BIN } = require(
   path.join(repoRoot, "apps", "desktop", "src", "services.js")
@@ -167,13 +170,29 @@ let stopping = false;
 async function shutdown(signal) {
   if (stopping) return;
   stopping = true;
-  console.log(`\n[serve] ${signal}: parando la pila…`);
+  console.log(`\n[serve] ${signal}: stopping the stack…`);
   await supervisor.stopAll();
-  console.log("[serve] pila detenida");
+  console.log("[serve] stack stopped");
   process.exit(0);
 }
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
+
+// /exit and /restart from the chat or Telegram: the API writes the request once the user
+// confirmed; here it is carried out (see apps/desktop/src/power.js).
+const { watchForPowerRequest } = require(path.join(repoRoot, "apps", "desktop", "src", "power.js"));
+watchForPowerRequest({
+  dataRoot,
+  log: (msg) => console.log(`[serve] ${msg}`),
+  onShutdown: (req) => shutdown(`/exit (${req.by})`),
+  onRestart: async (req) => {
+    if (stopping) return;
+    console.log(`[serve] /restart (${req.by}): restarting the stack…`);
+    await supervisor.stopAll();
+    await supervisor.startAll((msg) => console.log(`[serve] ${msg}`));
+    console.log("[serve] stack restarted");
+  },
+});
 
 // Los hijos mantienen vivo el proceso; esto cubre el caso extremo de que todos
 // mueran y agoten sus reintentos — el supervisor sigue siendo el ancla.

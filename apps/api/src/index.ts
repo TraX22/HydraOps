@@ -3794,7 +3794,31 @@ const commandApi: CommandApi = {
     const r = await fetch(`${selfUrl()}/api/crons/${encodeURIComponent(id)}/run`, { method: "POST", signal: AbortSignal.timeout(10_000) });
     if (!r.ok) throw new Error(`POST /api/crons/${id}/run ${r.status}`);
   },
+  // /exit and /restart. The supervisor (the desktop app or tools/serve.mjs) says which one
+  // it is through HYDRA_SUPERVISOR; without it this API was started by hand (development)
+  // and nothing here can stop the stack.
+  async powerPreview() {
+    const running = await (db as any).select({ id: tasks.id }).from(tasks).where(inArray(tasks.status, CANCELLABLE));
+    const scheduled = await (db as any).select({ id: cronJobs.id }).from(cronJobs).where(eq(cronJobs.status, "active"));
+    return { mode: supervisorMode(), running: running.length, scheduled: scheduled.length };
+  },
+  async power(action, by) {
+    const mode = supervisorMode();
+    if (mode === "none") throw new Error("no supervisor");
+    // The tasks in progress are cancelled first (their workers get the abort), then the
+    // request goes to the supervisor, which waits a few seconds before acting on it.
+    const rows = await (db as any).select().from(tasks).where(inArray(tasks.status, CANCELLABLE));
+    const cancelled = rows.length ? await cancelTaskRows(rows, by) : [];
+    await writeFile(powerRequestFile, JSON.stringify({ action, by, at: Date.now() }), "utf-8");
+    console.log(`[api] ${action} requested by ${by}: ${cancelled.length} task(s) cancelled, request handed to the ${mode} supervisor`);
+    return { mode, cancelled: cancelled.length };
+  },
 };
+const powerRequestFile = path.join(dataRoot, "power.request");
+function supervisorMode(): "desktop" | "server" | "none" {
+  const v = String(process.env.HYDRA_SUPERVISOR ?? "").trim().toLowerCase();
+  return v === "desktop" || v === "server" ? v : "none";
+}
 
 // Fire a scheduled task now. The orchestrator owns cron execution, so this only
 // queues a system.cron_run event through the outbox, like every other event.
