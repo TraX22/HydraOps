@@ -35,6 +35,10 @@
     "//overrides": "Parches de seguridad para dependencias transitivas (avisos de Dependabot). Acotados por major donde saltar de versión cambiaría la API. Revisar y retirar cuando los paquetes padre publiquen versiones que ya traigan estos mínimos.",
     "overrides": {
       "brace-expansion": ">=5.0.12",
+      "@modelcontextprotocol/sdk": ">=1.31.0",
+      "katex": ">=0.18.2",
+      "source-map-js": ">=1.2.2",
+      "proxy-addr": ">=2.0.8",
       "fast-uri": ">=4.1.5",
       "hono": ">=4.13.5",
       "js-yaml@>=4": ">=5.4.1",
