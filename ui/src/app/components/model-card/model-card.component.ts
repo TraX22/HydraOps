@@ -40,6 +40,8 @@ export class ModelCardComponent implements OnDestroy {
   readonly stats = signal<ModelStats | null>(null);
   readonly wire = signal(false);
   readonly expanded = signal(false);
+  /** "Open in Blender": idle, sending, done (with what Blender answered) or the reason it failed. */
+  readonly blender = signal<{ state: 'idle' | 'sending' | 'ok' | 'error'; collection?: string; error?: string }>({ state: 'idle' });
   /** Loading reached the point where the frame draws: the bar gives way to the canvas. */
   readonly drawing = computed(() => this.phase() === 'viewer');
 
@@ -165,6 +167,20 @@ export class ModelCardComponent implements OnDestroy {
     this.reset();
     this.error.set(code);
     this.phase.set('error');
+  }
+
+  // ── Open in Blender ──
+  sendToBlender(): void {
+    if (this.blender().state === 'sending') return;
+    this.blender.set({ state: 'sending' });
+    this.api.openInBlender(this.file.path).subscribe({
+      next: (r) => this.blender.set({ state: 'ok', collection: r.collection }),
+      error: (e) => {
+        const code = String(e?.error?.error ?? '');
+        const known = ['no_blender_agent', 'not_running', 'file_missing', 'timeout'];
+        this.blender.set({ state: 'error', error: known.includes(code) ? code : 'failed' });
+      },
+    });
   }
 
   // ── The viewer's buttons ──

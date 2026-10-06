@@ -73,6 +73,19 @@
       "download": "Scarica il file"
     },
     "model": {
+      "blender": {
+        "send": "A Blender",
+        "sending": "Invio…",
+        "title": "Apri questo modello nel tuo Blender",
+        "ok": "Importato in Blender, nella collezione {{collection}}. Nulla è stato rimosso dalla tua scena.",
+        "error": {
+          "no_blender_agent": "Nessun agente ha una connessione a Blender. Installa la connessione BlenderLab in Strumenti e assegnala a un agente.",
+          "not_running": "Blender non ha risposto. Deve essere aperto, con l'add-on della connessione avviato.",
+          "file_missing": "Blender non ha trovato il file. Deve essere in esecuzione sullo stesso computer di HydraOps.",
+          "timeout": "Blender ha impiegato troppo tempo a rispondere. Controlla in Blender se il modello è arrivato.",
+          "failed": "Blender non è riuscito a importare il modello."
+        }
+      },
       "kind": "Modello 3D",
       "mb": "{{n}} MB",
       "triangles": "{{n}} triangoli",
