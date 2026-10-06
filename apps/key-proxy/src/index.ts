@@ -15,6 +15,7 @@ import http from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { Readable } from "node:stream";
 import { keyStoreFile } from "@hydraops/config";
+import { handleControl as chatgptControl, isConnected as chatgptConnected, proxy as chatgptProxy } from "./chatgpt.js";
 
 const PORT = Number(process.env.KEY_PROXY_PORT || 9099);
 const KEYS_PATH = keyStoreFile;
@@ -79,7 +80,19 @@ const server = http.createServer(async (req, res) => {
       const configured = Object.entries(PROVIDERS)
         .filter(([, p]) => (keys[p.keyName] || "").trim())
         .map(([name]) => name);
+      // "chatgpt" is the user's ChatGPT plan (Sign in with ChatGPT), not a key.
+      if (await chatgptConnected()) configured.push("chatgpt");
       return sendJson(res, 200, { ok: true, configured });
+    }
+
+    // The ChatGPT plan: its own sign-in and token handling (chatgpt.ts), the same
+    // /<provider>/<path> shape for the model calls.
+    const chatgpt = url.match(/^\/chatgpt(\/.*)?$/);
+    if (chatgpt) {
+      const rest = chatgpt[1] || "/";
+      if (rest.startsWith("/v1/")) return chatgptProxy(req, res, rest);
+      if (await chatgptControl(req, res, rest.replace(/\?.*$/, ""))) return;
+      return sendJson(res, 404, { error: "Unknown chatgpt path" });
     }
 
     const match = url.match(/^\/([a-z]+)(\/.*)?$/);

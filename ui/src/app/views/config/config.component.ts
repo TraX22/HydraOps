@@ -1,7 +1,7 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { ApiService, AppConfig, ModelOption } from '../../services/api.service';
+import { ApiService, AppConfig, ChatGPTStatus, ModelOption } from '../../services/api.service';
 import { groupModels, modelLabel } from '../../shared/model-groups';
 import { IconComponent } from '../../components/icon/icon.component';
 
@@ -19,7 +19,7 @@ export interface DesktopSettings {
   templateUrl: './config.component.html',
   styleUrl: './config.component.css',
 })
-export class ConfigComponent implements OnInit {
+export class ConfigComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   translate = inject(TranslateService);
 
@@ -90,8 +90,89 @@ export class ConfigComponent implements OnInit {
     this.api.setSecurityMode(mode).subscribe();
   }
 
+  // The ChatGPT plan (Sign in with ChatGPT): who is connected, the sign-in in progress and the
+  // models the plan serves. Null while the key-proxy has not answered (or has no such support).
+  chatgpt = signal<ChatGPTStatus | null>(null);
+  chatgptBusy = signal(false);
+  chatgptCopied = signal(false);
+  private chatgptPoll?: ReturnType<typeof setInterval>;
+
+  // The connection date in the interface language (the DatePipe would use the browser's).
+  formatDate(iso?: string): string {
+    if (!iso) return '';
+    try { return new Date(iso).toLocaleDateString(this.translate.currentLang() || undefined, { day: 'numeric', month: 'short', year: 'numeric' }); } catch { return iso.slice(0, 10); }
+  }
+
+  loadChatGPT(): void {
+    this.api.getChatGPT().subscribe({ next: s => { this.chatgpt.set(s); if (s.pending) this.watchChatGPT(); }, error: () => this.chatgpt.set(null) });
+  }
+
+  // While the browser tab is open the status is polled: the callback lands in the key-proxy, not here.
+  private watchChatGPT(): void {
+    if (this.chatgptPoll) return;
+    this.chatgptPoll = setInterval(() => this.api.getChatGPT().subscribe({
+      next: s => {
+        this.chatgpt.set(s);
+        if (s.pending) return;
+        this.stopChatGPTWatch();
+        if (s.connected) this.api.getModels().subscribe(m => this.models.set(m));
+      },
+      error: () => {},
+    }), 2000);
+  }
+
+  private stopChatGPTWatch(): void {
+    if (this.chatgptPoll) clearInterval(this.chatgptPoll);
+    this.chatgptPoll = undefined;
+  }
+
+  ngOnDestroy(): void { this.stopChatGPTWatch(); }
+
+  connectChatGPT(): void {
+    this.chatgptBusy.set(true);
+    this.api.chatgptAction('signin').subscribe({
+      next: r => {
+        this.chatgptBusy.set(false);
+        // The system browser on the desktop (the shell routes window.open there); a tab in the browser.
+        if (r.url) window.open(r.url, '_blank', 'noopener');
+        this.loadChatGPT();
+      },
+      error: e => {
+        this.chatgptBusy.set(false);
+        this.chatgpt.update(s => ({ ...(s ?? { connected: false, status: 'disconnected', models: [], pending: null }), lastError: e?.error?.error || e?.message || 'unknown' }));
+      },
+    });
+  }
+
+  cancelChatGPT(): void {
+    this.api.chatgptAction('cancel').subscribe({ next: () => { this.stopChatGPTWatch(); this.loadChatGPT(); }, error: () => {} });
+  }
+
+  disconnectChatGPT(): void {
+    this.chatgptBusy.set(true);
+    this.api.chatgptAction('signout').subscribe({
+      next: () => { this.chatgptBusy.set(false); this.loadChatGPT(); this.api.getModels().subscribe(m => this.models.set(m)); },
+      error: () => this.chatgptBusy.set(false),
+    });
+  }
+
+  refreshChatGPTModels(): void {
+    this.chatgptBusy.set(true);
+    this.api.chatgptAction('models').subscribe({
+      next: () => { this.chatgptBusy.set(false); this.loadChatGPT(); this.api.getModels().subscribe(m => this.models.set(m)); },
+      error: () => this.chatgptBusy.set(false),
+    });
+  }
+
+  copyChatGPTLink(): void {
+    const u = this.chatgpt()?.pending?.url;
+    if (!u) return;
+    navigator.clipboard?.writeText(u).then(() => { this.chatgptCopied.set(true); setTimeout(() => this.chatgptCopied.set(false), 1500); }).catch(() => {});
+  }
+
   ngOnInit(): void {
     this.fetchConfig();
+    this.loadChatGPT();
     this.api.getSecurityMode().subscribe({ next: r => this.securityMode.set(r.mode), error: () => {} });
     this.api.getNetworkAccess().subscribe({ next: r => this.network.set(r), error: () => {} });
     this.desktop?.get().then(s => this.desktopSettings.set(s)).catch(() => {});

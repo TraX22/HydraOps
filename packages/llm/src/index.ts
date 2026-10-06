@@ -9,7 +9,7 @@ import { z } from 'zod';
 import * as cheerio from 'cheerio';
 import TurndownService from 'turndown';
 
-export type LLMProvider = 'openai' | 'anthropic' | 'google' | 'xai' | 'local' | 'groq' | 'leonardo' | 'openrouter' | 'mistral';
+export type LLMProvider = 'openai' | 'anthropic' | 'google' | 'xai' | 'local' | 'groq' | 'leonardo' | 'openrouter' | 'mistral' | 'chatgpt';
 
 export interface LLMConfig {
   provider: LLMProvider;
@@ -40,6 +40,28 @@ const PROXY_PREFIXES: [string, string][] = [
   ['https://api.minimax.io', 'minimax'],
 ];
 
+/** "chatgpt:gpt-5.5" → "gpt-5.5": the model behind a ChatGPT-plan id. */
+export const chatgptSlug = (model: string) => model.replace(/^chatgpt:/i, '');
+/** Under the ChatGPT plan, function tools must be declared inside a namespace; one is enough. */
+const CHATGPT_TOOL_NAMESPACE = { name: 'hydraops', description: 'The tools HydraOps grants this agent.' };
+const CHATGPT_LIMIT_TEXT = '⚠️ The weekly limit your ChatGPT plan allows HydraOps is used up. Raise it in ChatGPT → Settings → Usage, or switch this agent to another model (/model). Nothing was charged.';
+
+/** Everything an SDK error says, including the provider's body behind a RetryError. */
+function errorText(error: any): string {
+  const parts: string[] = [];
+  const seen = new Set<any>();
+  const walk = (e: any) => {
+    if (!e || typeof e !== 'object' || seen.has(e)) return;
+    seen.add(e);
+    if (typeof e.message === 'string') parts.push(e.message);
+    if (typeof e.responseBody === 'string') parts.push(e.responseBody);
+    walk(e.lastError); walk(e.cause);
+    if (Array.isArray(e.errors)) e.errors.forEach(walk);
+  };
+  walk(error);
+  return parts.join(' ');
+}
+
 /** The host of an address, lowercased; empty when it is not a valid URL. */
 function hostOf(url: string): string {
   try { return new URL(url).hostname.toLowerCase(); } catch { return ''; }
@@ -59,6 +81,13 @@ function proxied(url: string): string {
  */
 export function resolveLLMConfig(model: string, getGlobalConfig: (key: string, defaultValue: string) => string): LLMConfig {
   const m = model.toLowerCase();
+
+  // "chatgpt:<model>": the user's ChatGPT plan (Sign in with ChatGPT), served through the
+  // key-proxy. The prefix stays in config.model so logs, stats and the chat can tell the
+  // plan from an API key.
+  if (m.startsWith('chatgpt:')) {
+    return { provider: 'chatgpt', model, apiKey: 'proxy' };
+  }
 
   // 0. Leonardo, before any heuristic: its model ids are bare UUIDs and the
   // hex in them ("…9f1b…") used to pass for a "7b"-style parameter size,
@@ -304,6 +333,14 @@ function getModel(config: LLMConfig) {
       // is only safe when the baseURL is OpenAI's own (or unset).
       const isRealOpenAI = config.provider === 'openai' && (!config.baseURL || hostOf(config.baseURL) === 'api.openai.com');
       return isRealOpenAI ? openai(modelName) : openai.chat(modelName);
+    }
+    case 'chatgpt': {
+      // The key-proxy holds the plan's tokens and adapts the request to what the plan route
+      // accepts (apps/key-proxy/src/chatgpt.ts); without it there is nothing to call.
+      const proxyBase = (process.env.KEY_PROXY_URL || '').trim().replace(/\/$/, '');
+      if (!proxyBase) throw new Error('ChatGPT plan models need the key-proxy (KEY_PROXY_URL is not set).');
+      const openai = createOpenAI({ apiKey: 'proxy', baseURL: `${proxyBase}/chatgpt/v1` });
+      return openai.responses(chatgptSlug(modelName));
     }
     case 'anthropic': {
       const anthropic = createAnthropic({ apiKey: config.apiKey, baseURL: proxied('https://api.anthropic.com/v1'), fetch: withPromptCache() });
@@ -659,6 +696,7 @@ export function modelSeesImages(config: LLMConfig): boolean {
   if (config.provider === 'local') return process.env.LOCAL_LLM_VISION === '1';
   if (config.provider === 'anthropic') return true;
   if (config.provider === 'google') return m.includes('gemini');
+  if (config.provider === 'chatgpt') return /^(gpt-|chatgpt|o\d)/.test(chatgptSlug(m)) && !/audio|realtime/.test(m);
   // The host is compared whole: a substring test would also match "api.openai.com.evil.example".
   let host = '';
   try { host = config.baseURL ? new URL(config.baseURL).hostname.toLowerCase() : ''; } catch { host = 'invalid'; }
@@ -781,6 +819,14 @@ export async function generateText(
     const model = getModel(config);
 
     const isThinkingModel = config.model.toLowerCase().includes('thinking') || config.model.toLowerCase().includes('thought');
+    const providerOptions: any = (config.provider === 'google' && isThinkingModel)
+      ? { google: { thinkingConfig: { thinkingBudget: 0 } } }
+      // The plan route keeps nothing server-side and takes developer messages, not system ones.
+      : config.provider === 'chatgpt' ? { openai: { store: false, systemMessageMode: 'developer' } } : undefined;
+    // The SDK serialises the namespace on the tools and carries it back on every tool call.
+    const callTools: Record<string, any> | undefined = config.provider === 'chatgpt' && aiTools
+      ? Object.fromEntries(Object.entries(aiTools).map(([name, t]: [string, any]) => [name, { ...t, providerOptions: { ...(t?.providerOptions ?? {}), openai: { ...(t?.providerOptions?.openai ?? {}), namespace: CHATGPT_TOOL_NAMESPACE } } }]))
+      : aiTools;
 
     // Critical instruction to prevent the model from going silent after using tools
     const finalSystemPrompt = systemPrompt 
@@ -794,20 +840,14 @@ export async function generateText(
         model,
         system: finalSystemPrompt,
         messages,
-        tools: aiTools,
+        tools: callTools,
         // AI SDK v5+ replaced maxSteps with stopWhen; maxSteps is ignored and
         // the loop would stop after the first tool call without a text answer.
         stopWhen: hasTools ? stepCountIs(maxSteps) : undefined,
         prepareStep,
         onStepFinish,
         maxRetries: 2,
-        providerOptions: (config.provider === 'google' && isThinkingModel) ? {
-          google: {
-            thinkingConfig: {
-              thinkingBudget: 0,
-            },
-          },
-        } : undefined,
+        providerOptions,
       });
     } catch (toolError: any) {
       if (abortSignal?.aborted) throw toolError;
@@ -914,11 +954,12 @@ export async function generateText(
           model,
           system: finalSystemPrompt,
           messages: stripped as any,
-          tools: aiTools,
+          tools: callTools,
           stopWhen: hasTools ? stepCountIs(maxSteps) : undefined,
           prepareStep,
           onStepFinish,
           maxRetries: 1,
+          providerOptions,
         });
       // If the error seems related to tools and we are in local, we retry without them
       } else if (hasTools && (errorMsg.includes('tool') || errorMsg.includes('not supported') || errorMsg.includes('400') || errorMsg.includes('json') || errorMsg.includes('invalid'))) {
@@ -1052,11 +1093,15 @@ export async function generateText(
     }
     const lastError = error.message;
     console.error(`[LLM Error] Model ${config.model} failed: ${lastError}`);
+    // The weekly cap the user set for HydraOps in the ChatGPT plan: OpenAI answers 429 with
+    // this code, and the SDK keeps the body on the error.
+    const chatgptLimit = config.provider === 'chatgpt' && /subscription_sharing_usage_limit_exceeded|ChatGPT sharing limit/.test(errorText(error));
     return {
       text: '',
       usage: spent,
       success: false,
-      error: `Model ${config.model} failed: ${lastError}`,
+      error: chatgptLimit ? CHATGPT_LIMIT_TEXT : `Model ${config.model} failed: ${lastError}`,
+      ...(chatgptLimit ? { errorCode: 'chatgpt_limit' } : {}),
     };
   }
 }

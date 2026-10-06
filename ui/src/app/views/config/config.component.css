@@ -101,3 +101,24 @@
 
 /* A hint right under a model select needs air. */
 .model-select + .hint { margin-top: 8px; }
+
+/* The ChatGPT plan section */
+.cg-pill { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft, rgba(99,102,241,.12)); color: var(--accent); margin-left: 8px; vertical-align: middle; }
+.cg-status { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-surface-alt, var(--bg-surface)); margin-bottom: 12px; font-size: 13px; }
+.cg-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--text-muted); }
+.cg-dot.on { background: var(--status-online); }
+.cg-dot.wait { background: var(--status-working); }
+.cg-who { font-weight: 600; }
+.cg-meta { color: var(--text-secondary); font-size: 12.5px; }
+.cg-right { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.cg-link { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.cg-url { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--accent); }
+.cg-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.cg-chip { font-family: ui-monospace, monospace; font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--border-color); background: var(--bg-surface-alt, var(--bg-surface)); }
+.cg-list { margin: 0; padding-left: 18px; color: var(--text-secondary); font-size: 13px; line-height: 1.6; }
+.cg-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.cg-connect { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; }
+.cg-connect app-icon svg { width: 15px; height: 15px; }
+.cg-inline { margin: 0 !important; }
+.cg-tight { margin-bottom: 6px !important; }
+.cg-error { margin: 10px 0 0; font-size: 13px; color: var(--status-error); }

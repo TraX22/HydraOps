@@ -259,7 +259,7 @@
                      and, for generated media, which engine rendered it. -->
                 @if (msg.role === 'assistant' && (modelUsed(msg) || engineUsed(msg))) {
                   <span class="msg-llm" [title]="tokensTooltip(msg)">
-                    {{ modelUsed(msg) }}@if (tokensUsed(msg)) {&nbsp;·&nbsp;{{ tokensLabel(msg) }} tokens}@if (engineUsed(msg)) {@if (modelUsed(msg)) {&nbsp;·&nbsp;}{{ engineUsed(msg) }}}
+                    {{ modelShown(msg) }}@if (tokensUsed(msg)) {&nbsp;·&nbsp;{{ tokensLabel(msg) }} tokens}@if (viaChatGPT(msg)) {&nbsp;·&nbsp;{{ 'chat.chatgptPlan' | translate }}}@if (engineUsed(msg)) {@if (modelUsed(msg)) {&nbsp;·&nbsp;}{{ engineUsed(msg) }}}
                   </span>
                 }
               </div>

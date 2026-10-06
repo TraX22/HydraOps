@@ -6,7 +6,8 @@
       "malformed_model_response": "⚠️ El modelo devolvió una respuesta malformada (sintaxis interna de herramientas). Volvé a intentarlo o reformulá el pedido.",
       "task_timed_out": "⚠️ La tarea expiró: su worker nunca la terminó (puede haberse reiniciado a mitad de camino). Volvé a enviarla.",
       "llm_timeout": "⏱️ El modelo no terminó a tiempo: la tarea necesitó más de lo permitido (10 minutos en la nube, 15 con el modelo local). Probá con un pedido más acotado o con un modelo más rápido para este agente.",
-      "cron_sources_unread": "📭 La tarea programada no abrió sus fuentes esta vez, así que no entregó nada: una respuesta escrita sin leerlas podría ser inventada. Lo vuelve a intentar en la próxima ejecución."
+      "cron_sources_unread": "📭 La tarea programada no abrió sus fuentes esta vez, así que no entregó nada: una respuesta escrita sin leerlas podría ser inventada. Lo vuelve a intentar en la próxima ejecución.",
+      "chatgpt_limit": "⚠️ Se alcanzó el tope semanal que fijaste para HydraOps en tu plan de ChatGPT. Subilo en ChatGPT → Ajustes → Uso, o pasá este agente a otro modelo (/model). No se cobró nada."
     }
   },
   "oneShot": {
@@ -65,6 +66,7 @@
     "downloadImage": "Descargar imagen",
     "downloadVideo": "Descargar video",
     "imageHint": "Click para ver a tamaño completo",
+    "chatgptPlan": "plan ChatGPT · sin costo por token",
     "power": {
       "title": {
         "shutdown": "Apagar HydraOps",
@@ -357,6 +359,30 @@
     "languages": "Lenguajes",
     "localLlm": "LLM Local",
     "logLevel": "Nivel de Log",
+    "chatgpt": {
+      "title": "ChatGPT (suscripción)",
+      "preview": "vista previa de OpenAI",
+      "intro": "Usá tu plan Plus o Pro de ChatGPT en vez de una clave de OpenAI. HydraOps no ve tu contraseña ni tus conversaciones: solo recibe un permiso para consultar a los modelos, que se descuenta de tu plan.",
+      "notConnected": "Sin conectar",
+      "reauth": "La conexión venció: volvé a iniciar sesión.",
+      "connect": "Conectar con ChatGPT",
+      "opensBrowser": "Se abre el navegador de este equipo para iniciar sesión y aceptar el permiso.",
+      "waiting": "Esperando la autorización en el navegador…",
+      "noBrowser": "¿No se abrió nada? Copiá este enlace en un navegador del mismo equipo donde corre HydraOps (en modo servidor, por ejemplo por escritorio remoto):",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "connectedOn": "Conectado el {{date}} · el permiso se renueva solo mientras HydraOps se use al menos una vez al mes",
+      "refreshModels": "Actualizar modelos",
+      "disconnect": "Desconectar",
+      "models": "Modelos que tu plan habilita (los informa OpenAI al conectar):",
+      "noModels": "OpenAI todavía no informó modelos: probá \"Actualizar modelos\".",
+      "whereTokens": "Los tokens de acceso quedan en este equipo, junto a las claves (key-proxy), nunca en la base de datos ni en el chat.",
+      "perAgent": "Cada agente elige en su selector de modelo: \"ChatGPT (plan)\" o \"APIkey · OpenAI\".",
+      "cap": "El tope semanal lo fijás vos en ChatGPT → Ajustes → Uso. Sin cargos por token; al llegar al tope el agente avisa en el chat.",
+      "worksFor": "Sirve para: chat, agentes y sus herramientas, tareas programadas, Telegram.",
+      "notFor": "No sirve para: generar imágenes o video, ni audio. Para eso siguen las claves de cada proveedor.",
+      "error": "No se pudo conectar: {{reason}}"
+    },
     "desktop": {
       "title": "Escritorio",
       "closeToTray": "Cerrar la ventana deja HydraOps corriendo",

@@ -437,6 +437,19 @@ export interface ModelOption {
   emoji?: string;
 }
 
+/** The ChatGPT plan (Sign in with ChatGPT), as the key-proxy reports it. */
+export interface ChatGPTStatus {
+  connected: boolean;
+  status: 'disconnected' | 'connected' | 'reauth';
+  email?: string;
+  name?: string;
+  connectedAt?: string;
+  models: { slug: string; name: string }[];
+  modelsAt?: string;
+  pending: { url: string; expiresAt: string } | null;
+  lastError?: string;
+}
+
 export interface StatsData {
   tasks: { total: number; completed: number; failed: number; pending: number; cancelled?: number };
   avgResponseMs: number;
@@ -681,6 +694,16 @@ export class ApiService {
 
   saveConfig(config: Partial<AppConfig>): Observable<void> {
     return this.http.post<void>(`${this.base}/config`, config);
+  }
+
+  // ── The ChatGPT plan (Sign in with ChatGPT) ──
+  getChatGPT(): Observable<ChatGPTStatus> {
+    const params = new HttpParams().set('t', Date.now().toString());
+    return this.http.get<ChatGPTStatus>(`${this.base}/config/chatgpt`, { params });
+  }
+
+  chatgptAction(action: 'signin' | 'cancel' | 'signout' | 'models'): Observable<{ url?: string; expiresAt?: string; ok?: boolean }> {
+    return this.http.post<{ url?: string; expiresAt?: string; ok?: boolean }>(`${this.base}/config/chatgpt/${action}`, {});
   }
 
   // ── Crons ──

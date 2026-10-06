@@ -19,6 +19,62 @@
       </div>
     </section>
 
+    <!-- The ChatGPT plan (Sign in with ChatGPT): the user's Plus/Pro plan instead of an OpenAI key -->
+    @if (chatgpt(); as cg) {
+      <section class="config-section">
+        <h3>{{ 'config.chatgpt.title' | translate }} <span class="cg-pill">{{ 'config.chatgpt.preview' | translate }}</span></h3>
+        <p class="hint">{{ 'config.chatgpt.intro' | translate }}</p>
+        @if (cg.pending; as p) {
+          <div class="cg-status">
+            <span class="cg-dot wait"></span>
+            <span>{{ 'config.chatgpt.waiting' | translate }}</span>
+            <span class="cg-right"><button class="level-btn" (click)="cancelChatGPT()">{{ 'common.cancel' | translate }}</button></span>
+          </div>
+          <p class="hint">{{ 'config.chatgpt.noBrowser' | translate }}</p>
+          <div class="cg-link">
+            <code class="net-token cg-url">{{ p.url }}</code>
+            <button class="level-btn" (click)="copyChatGPTLink()">{{ (chatgptCopied() ? 'config.chatgpt.copied' : 'config.chatgpt.copy') | translate }}</button>
+          </div>
+        } @else if (cg.connected) {
+          <div class="cg-status">
+            <span class="cg-dot on"></span>
+            <div>
+              <div class="cg-who">{{ cg.email || cg.name }}</div>
+              <div class="cg-meta">{{ 'config.chatgpt.connectedOn' | translate:{ date: formatDate(cg.connectedAt) } }}</div>
+            </div>
+            <span class="cg-right">
+              <button class="level-btn" [disabled]="chatgptBusy()" (click)="refreshChatGPTModels()">{{ 'config.chatgpt.refreshModels' | translate }}</button>
+              <button class="level-btn" [disabled]="chatgptBusy()" (click)="disconnectChatGPT()">{{ 'config.chatgpt.disconnect' | translate }}</button>
+            </span>
+          </div>
+          <p class="hint cg-tight">{{ (cg.models.length ? 'config.chatgpt.models' : 'config.chatgpt.noModels') | translate }}</p>
+          @if (cg.models.length) {
+            <div class="cg-chips">@for (m of cg.models; track m.slug) { <span class="cg-chip">{{ m.slug }}</span> }</div>
+          }
+          <ul class="cg-list">
+            <li>{{ 'config.chatgpt.whereTokens' | translate }}</li>
+            <li>{{ 'config.chatgpt.perAgent' | translate }}</li>
+            <li>{{ 'config.chatgpt.cap' | translate }}</li>
+          </ul>
+        } @else {
+          <div class="cg-status">
+            <span class="cg-dot off"></span>
+            <span>{{ (cg.status === 'reauth' ? 'config.chatgpt.reauth' : 'config.chatgpt.notConnected') | translate }}</span>
+          </div>
+          <div class="cg-row">
+            <button class="save-btn cg-connect" [disabled]="chatgptBusy()" (click)="connectChatGPT()"><app-icon name="external-link" /> {{ 'config.chatgpt.connect' | translate }}</button>
+            <span class="hint cg-inline">{{ 'config.chatgpt.opensBrowser' | translate }}</span>
+          </div>
+          <ul class="cg-list">
+            <li>{{ 'config.chatgpt.worksFor' | translate }}</li>
+            <li>{{ 'config.chatgpt.notFor' | translate }}</li>
+            <li>{{ 'config.chatgpt.cap' | translate }}</li>
+          </ul>
+        }
+        @if (cg.lastError) { <p class="cg-error">{{ 'config.chatgpt.error' | translate:{ reason: cg.lastError } }}</p> }
+      </section>
+    }
+
     <!-- Default Model -->
     <section class="config-section">
       <h3>{{ 'config.defaultModel' | translate }}</h3>
