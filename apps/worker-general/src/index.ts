@@ -475,7 +475,7 @@ ${EXTERNAL_CONTENT_RULE}
     // already delivered so it reports only what is new (no duplicate news).
     const cronDedup = await buildCronDedupContext(db, taskId);
 
-    console.log(`[${consumerName}] Processing task ${taskId} for agent ${agentId} (${llmConfig.provider}:${llmConfig.model})...`);
+    console.log(`[${consumerName}] Processing task ${taskId} for agent ${agentId} (${llmConfig.model}, ${llmConfig.provider})...`);
     const controller = cancels.track(taskId);
     const userMessage = await buildUserMessage(userPrompt, rootDir);
     const runModel = (extra: any[] = []) => withTimeout(
