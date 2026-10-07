@@ -11,7 +11,7 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { cronUnreadSources, cronReadSourcesPrompt, addUsage, CRON_SOURCES_UNREAD, CRON_SOURCES_UNREAD_TEXT, createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, filterCronAnswer, cronNothingNewPrompt, CRON_NOTHING_NEW, loadRecentChannelHistory, historyBudgetChars, searchAgentTasks, isTaskCancelled, lastTaskToolNames } from "@hydraops/db";
+import { cronUnreadSources, cronReadSourcesPrompt, addUsage, CRON_SOURCES_UNREAD, CRON_SOURCES_UNREAD_TEXT, createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, filterCronAnswer, cronNothingNewPrompt, CRON_NOTHING_NEW, loadRecentChannelHistory, historyBudgetChars, searchAgentTasks, isTaskCancelled, lastTaskToolNames, taskChainAutoApproved } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
@@ -423,10 +423,12 @@ ${EXTERNAL_CONTENT_RULE}
     // A task carrying out a plan starts with what the planning task already read.
     if (taskRows[0]?.planOf) await vault.importFrom(path.join(storageDir, "results", String(taskRows[0].planOf), "vault")).catch(() => 0);
     if (continuationOf) await vault.importFrom(path.join(storageDir, "results", continuationOf, "vault")).catch(() => 0);
+    // Tools the user approved "for the rest of the task" on this chain: they no longer ask.
+    const autoApproved = await taskChainAutoApproved(db, taskId!).catch(() => [] as string[]);
     const taskSecurity = createTaskSecurity({
       mode: resolveSecurityMode(getGlobalConfig("security_mode", "ask"), cfgRows[0]?.securityMode),
       // One image per task is bound elsewhere; a video is held (it is the costly one).
-      neverHold: ["generate_image"],
+      neverHold: ["generate_image", ...autoApproved],
       // The agent's permanent memory: an injected rule saved there would outlive the task.
       alwaysHold: ["remember"],
       // Delegated by a task that had read outside content (delegate_task passes it on).

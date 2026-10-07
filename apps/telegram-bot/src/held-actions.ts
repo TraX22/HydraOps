@@ -19,7 +19,8 @@ export interface HeldActionsDeps {
 }
 
 const POLL_MS = 15_000;
-const CALLBACK = /^held:(a|r):([0-9a-f-]{36})$/i;
+// a: approve this call · t: approve it for the rest of the task · r: reject
+const CALLBACK = /^held:(a|t|r):([0-9a-f-]{36})$/i;
 
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n) + "…" : s);
 
@@ -81,10 +82,10 @@ async function notifyNew(deps: HeldActionsDeps): Promise<void> {
     // Mark first: a send failure must not turn into a message every 15 s.
     await deps.db.update(pendingActions).set({ notifiedAt: new Date() }).where(eq(pendingActions.id, a.id)).run();
     const reply_markup = {
-      inline_keyboard: [[
-        { text: "✅ Approve", callback_data: `held:a:${a.id}` },
-        { text: "❌ Reject", callback_data: `held:r:${a.id}` },
-      ]],
+      inline_keyboard: [
+        [{ text: "✅ Approve", callback_data: `held:a:${a.id}` }, { text: "❌ Reject", callback_data: `held:r:${a.id}` }],
+        [{ text: "✅✅ Approve for the rest of the task", callback_data: `held:t:${a.id}` }],
+      ],
     };
     const text = describe(a);
     for (const chatId of cfg.allowlist) {
@@ -169,17 +170,18 @@ export async function handleHeldActionCallback(deps: HeldActionsDeps, token: str
     await answer("🔒 Not authorized.");
     return true;
   }
-  const decision = m[1].toLowerCase() === "a" ? "approve" : "reject";
+  const kind = m[1].toLowerCase();
+  const decision = kind === "r" ? "reject" : "approve";
   let outcome: string;
   try {
     const res = await fetch(`${deps.apiUrl}/api/security/actions/${m[2]}/${decision}`, {
       method: "POST",
       headers: deps.apiHeaders({ "Content-Type": "application/json" }),
-      body: "{}",
+      body: JSON.stringify(kind === "t" ? { scope: "task" } : {}),
       signal: AbortSignal.timeout(10_000),
     });
     const data: any = await res.json().catch(() => ({}));
-    if (res.ok) outcome = decision === "approve" ? "✅ Approved — the agent's worker is running it." : "❌ Rejected — it will not run.";
+    if (res.ok) outcome = kind === "t" ? "✅✅ Approved for the rest of the task — this tool will not ask again in it." : decision === "approve" ? "✅ Approved — the agent's worker is running it." : "❌ Rejected — it will not run.";
     else if (data?.error === "already_decided") outcome = `Already decided (${data?.action?.status ?? "done"}).`;
     else if (data?.error === "expired") outcome = "⌛ Expired — it will not run.";
     else outcome = `⚠️ Could not ${decision}: ${data?.error ?? res.status}`;

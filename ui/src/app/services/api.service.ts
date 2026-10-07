@@ -146,6 +146,8 @@ export interface HeldAction {
   args: Record<string, unknown>;
   origins: { tool: string; ref?: string }[];
   status: 'pending' | 'approved' | 'executed' | 'failed' | 'rejected' | 'expired';
+  /** 'task': approved for the rest of the task (the same tool no longer asks in its continuations). */
+  scope?: 'call' | 'task';
   result: string | null;
   createdAt: string;
   expiresAt: string;
@@ -637,8 +639,8 @@ export class ApiService {
     return this.http.post<{ success: boolean }>(`${this.base}/tasks/${id}/cancel`, {});
   }
 
-  approveHeldAction(id: string): Observable<{ action: HeldAction }> {
-    return this.http.post<{ action: HeldAction }>(`${this.base}/security/actions/${id}/approve`, {});
+  approveHeldAction(id: string, scope: 'call' | 'task' = 'call'): Observable<{ action: HeldAction }> {
+    return this.http.post<{ action: HeldAction }>(`${this.base}/security/actions/${id}/approve`, { scope });
   }
 
   rejectHeldAction(id: string): Observable<{ action: HeldAction }> {

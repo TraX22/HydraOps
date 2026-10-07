@@ -190,6 +190,9 @@
       "whyAlways": "O agente propõe isto e nada acontece sem a sua aprovação. Revise e decida.",
       "approve": "Aprovar",
       "reject": "Rejeitar",
+      "approveTask": "Aprovar pelo resto da tarefa",
+      "approveTaskHint": "Executa esta chamada e as próximas da mesma ferramenta nesta tarefa não perguntam mais.",
+      "scopeTask": "Aprovada pelo resto da tarefa: as próximas chamadas desta ferramenta rodam sem perguntar.",
       "expires": "Expira em {{when}}",
       "result": "Resultado",
       "status": {

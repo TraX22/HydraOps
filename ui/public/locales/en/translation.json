@@ -190,6 +190,9 @@
       "whyAlways": "The agent proposes this and it doesn't happen without your approval. Review it and decide.",
       "approve": "Approve",
       "reject": "Reject",
+      "approveTask": "Approve for the rest of the task",
+      "approveTaskHint": "Runs this call, and the next calls of the same tool in this task no longer ask.",
+      "scopeTask": "Approved for the rest of the task: the next calls of this tool run without asking.",
       "expires": "Expires in {{when}}",
       "result": "Result",
       "status": {

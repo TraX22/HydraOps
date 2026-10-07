@@ -32,6 +32,9 @@ import { IconComponent } from '../icon/icon.component';
           <button class="held-approve" [disabled]="busy()" (click)="decide('approve')">
             <app-icon name="check" /> {{ 'chat.held.approve' | translate }}
           </button>
+          <button class="held-approve held-approve-task" [disabled]="busy()" (click)="decide('approveTask')" [title]="'chat.held.approveTaskHint' | translate">
+            <app-icon name="check" /> {{ 'chat.held.approveTask' | translate }}
+          </button>
           <button class="held-reject" [disabled]="busy()" (click)="decide('reject')">
             <app-icon name="x" /> {{ 'chat.held.reject' | translate }}
           </button>
@@ -43,6 +46,7 @@ import { IconComponent } from '../icon/icon.component';
           <pre>{{ action.result }}</pre>
         </details>
       }
+      @if (action.scope === 'task' && action.status !== 'pending') { <p class="held-why">{{ 'chat.held.scopeTask' | translate }}</p> }
       @if (error()) { <p class="held-error">{{ error() }}</p> }
     </div>
   `,
@@ -103,11 +107,11 @@ export class HeldActionComponent {
     return h >= 1 ? `${h} h` : `${Math.max(1, Math.round(ms / 60_000))} min`;
   }
 
-  decide(what: 'approve' | 'reject'): void {
+  decide(what: 'approve' | 'approveTask' | 'reject'): void {
     if (this.busy()) return;
     this.busy.set(true);
     this.error.set('');
-    const call = what === 'approve' ? this.api.approveHeldAction(this.action.id) : this.api.rejectHeldAction(this.action.id);
+    const call = what === 'reject' ? this.api.rejectHeldAction(this.action.id) : this.api.approveHeldAction(this.action.id, what === 'approveTask' ? 'task' : 'call');
     call.subscribe({
       next: r => { this.busy.set(false); this.action = r.action; this.decided.emit(r.action); },
       error: err => { this.busy.set(false); this.error.set(err?.error?.error || 'error'); this.decided.emit(this.action); },

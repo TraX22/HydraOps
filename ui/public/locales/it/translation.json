@@ -190,6 +190,9 @@
       "whyAlways": "L'agente lo propone e non avviene senza la tua approvazione. Controlla e decidi tu.",
       "approve": "Approva",
       "reject": "Rifiuta",
+      "approveTask": "Approva per il resto dell'attività",
+      "approveTaskHint": "Esegue questa chiamata e le successive dello stesso strumento in questa attività non chiedono più.",
+      "scopeTask": "Approvata per il resto dell'attività: le prossime chiamate di questo strumento vengono eseguite senza chiedere.",
       "expires": "Scade tra {{when}}",
       "result": "Risultato",
       "status": {
