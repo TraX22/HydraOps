@@ -359,6 +359,12 @@
     "languages": "Idiomas",
     "localLlm": "LLM Local",
     "logLevel": "Nível de Log",
+    "toolsOnDemand": {
+      "title": "Ferramentas sob demanda",
+      "on": "Ativado",
+      "off": "Desativado",
+      "hint": "Quando um agente tem mais de 12 ferramentas, o modelo recebe um índice (nome e uma linha por ferramenta) e carrega a definição completa só das que vai usar. Reduz muito os tokens de cada chamada. As ferramentas que você nomeia na mensagem e as que o chat usou na tarefa anterior já começam carregadas."
+    },
     "chatgpt": {
       "title": "ChatGPT (assinatura)",
       "preview": "prévia da OpenAI",

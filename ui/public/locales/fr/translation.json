@@ -359,6 +359,12 @@
     "languages": "Langues",
     "localLlm": "LLM Local",
     "logLevel": "Niveau de Log",
+    "toolsOnDemand": {
+      "title": "Outils à la demande",
+      "on": "Activé",
+      "off": "Désactivé",
+      "hint": "Quand un agent a plus de 12 outils, le modèle reçoit un index (nom et une ligne par outil) et ne charge la définition complète que de ceux qu'il va utiliser. Cela réduit beaucoup les jetons de chaque appel. Les outils que vous nommez dans le message et ceux que le chat a utilisés dans la tâche précédente sont déjà chargés."
+    },
     "chatgpt": {
       "title": "ChatGPT (abonnement)",
       "preview": "aperçu d'OpenAI",

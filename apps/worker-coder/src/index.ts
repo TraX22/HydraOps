@@ -9,12 +9,12 @@ import { loadEnv, envFile, dataRoot, storageDir, agentsDir, logsDir, usersDir, r
 
 loadDotenv({ path: envFile });
 
-import { cronUnreadSources, cronReadSourcesPrompt, addUsage, CRON_SOURCES_UNREAD, CRON_SOURCES_UNREAD_TEXT, createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, filterCronAnswer, cronNothingNewPrompt, CRON_NOTHING_NEW, loadRecentChannelHistory, historyBudgetChars, searchAgentTasks, isTaskCancelled } from "@hydraops/db";
+import { cronUnreadSources, cronReadSourcesPrompt, addUsage, CRON_SOURCES_UNREAD, CRON_SOURCES_UNREAD_TEXT, createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, filterCronAnswer, cronNothingNewPrompt, CRON_NOTHING_NEW, loadRecentChannelHistory, historyBudgetChars, searchAgentTasks, isTaskCancelled, lastTaskToolNames } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, resolveLLMConfig, resolveMaxSteps, buildUserMessage } from "@hydraops/llm";
-import { createResultFiles, mcpServerEnv, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan } from "@hydraops/addons";
+import { createResultFiles, mcpServerEnv, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan, setupToolsOnDemand } from "@hydraops/addons";
 
 const env = loadEnv({ ...process.env, SERVICE_NAME: process.env.SERVICE_NAME ?? "worker-coder" });
 const consumerName = env.SERVICE_NAME;
@@ -562,6 +562,22 @@ ${EXTERNAL_CONTENT_RULE}
     // full text is opened on demand with skills_view; see @hydraops/addons skills.ts).
     const skillsSection = await skillsPromptSection(allowedTools.filter((n: string) => globalNativeState[n] !== false)).catch(() => "");
     const aiTools = globalRegistry.getAiSdkTools(allowedTools, globalNativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink, vault);
+
+    // Tools on demand (see @hydraops/addons tools-on-demand.ts): above the threshold the model
+    // gets an index and loads full definitions as it needs them. What the same chat used in
+    // its previous task, the calls a continuation carries and whatever the message names
+    // start loaded. Off with TOOLS_ON_DEMAND=off (Config).
+    const onDemand = setupToolsOnDemand({
+      sources: globalRegistry.indexSources(),
+      allowedNames: allowedTools,
+      enabled: getGlobalConfig("TOOLS_ON_DEMAND", "on").trim().toLowerCase() !== "off",
+      text: userPrompt,
+      preload: [
+        ...(await lastTaskToolNames(db, channel).catch(() => [] as string[])),
+        ...(continuationOf ? (await loadTaskActions(db, continuationOf).catch(() => [] as any[])).map((a: any) => String(a.toolName)) : []),
+      ],
+    });
+    if (onDemand) console.log(`[worker-coder] tools on demand: ${onDemand.loader.summary().total} in the index, ${onDemand.loader.active().length - 1} preloaded`);
     const rawTools = globalRegistry.getRawTools(allowedTools, globalNativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink, vault);
     let proposedPlan: unknown = null;
     const planTools = planMode ? createPlanTools((proposal) => { proposedPlan = proposal; }) : null;
@@ -591,14 +607,15 @@ ${EXTERNAL_CONTENT_RULE}
 
     console.log(`[worker-coder] [LLM] Calling generateText with ${llmConfig.provider}:${llmConfig.model}...`);
     const controller = cancels.track(taskId);
+    const modelTools = { ...(planTools ? { ...aiTools, ...planTools.ai } : aiTools), ...(onDemand?.tools ?? {}) };
     const runModel = (extra: any[] = []) => withWorkerTimeout(
       llmGenerateText(
         llmConfig,
         [...finalMessages, ...extra],
-        systemPrompt + skillsSection + planSection + cronDedup + vault.promptSection(),
-        planTools ? { ...aiTools, ...planTools.ai } : aiTools,
+        systemPrompt + skillsSection + planSection + cronDedup + vault.promptSection() + (onDemand?.promptSection ?? ""),
+        modelTools,
         planTools ? [...rawTools, ...planTools.raw] : rawTools,
-        { abortSignal: controller.signal, prepareStep: (step: any) => vault.prepareStep(step), stepImages: stepToolImages, maxSteps: resolveMaxSteps(cfgRows[0]?.maxSteps) }
+        { abortSignal: controller.signal, prepareStep: (step: any) => vault.prepareStep(step), stepImages: stepToolImages, maxSteps: resolveMaxSteps(cfgRows[0]?.maxSteps), ...(onDemand ? onDemand.llmOptionsFor(modelTools) : {}) }
       ),
       LLM_TIMEOUT_MS(llmConfig.provider),
       `LLM call (${llmConfig.provider}:${llmConfig.model})`,
@@ -710,7 +727,7 @@ ${EXTERNAL_CONTENT_RULE}
       .set({ 
         status: "completed",
         ...(plan ? { plan } : {}),
-        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, completedAt: new Date().toISOString(), ...(resultFiles.list().length ? { files: resultFiles.list() } : {}), ...(plan ? { plan } : {}), ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), seenUrls: sourceCollector.seen(), ...(skillsUsed.length ? { skillsUsed } : {}), ...(vault.summary().docs ? { vault: vault.summary() } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) },
+        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, completedAt: new Date().toISOString(), ...(onDemand ? { toolsOnDemand: onDemand.loader.summary() } : {}), ...(resultFiles.list().length ? { files: resultFiles.list() } : {}), ...(plan ? { plan } : {}), ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), seenUrls: sourceCollector.seen(), ...(skillsUsed.length ? { skillsUsed } : {}), ...(vault.summary().docs ? { vault: vault.summary() } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) },
         updatedAt: new Date()
       })
       .where(and(eq(tasks.id, taskId), ne(tasks.status, "cancelled")));

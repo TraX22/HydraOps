@@ -359,6 +359,12 @@
     "languages": "Lingue",
     "localLlm": "LLM Locale",
     "logLevel": "Livello di Log",
+    "toolsOnDemand": {
+      "title": "Strumenti su richiesta",
+      "on": "Attivo",
+      "off": "Disattivo",
+      "hint": "Quando un agente ha più di 12 strumenti, il modello riceve un indice (nome e una riga per strumento) e carica la definizione completa solo di quelli che userà. Riduce molto i token di ogni chiamata. Gli strumenti che nomini nel messaggio e quelli usati dalla chat nell'attività precedente partono già caricati."
+    },
     "chatgpt": {
       "title": "ChatGPT (abbonamento)",
       "preview": "anteprima di OpenAI",

@@ -359,6 +359,12 @@
     "languages": "Lenguajes",
     "localLlm": "LLM Local",
     "logLevel": "Nivel de Log",
+    "toolsOnDemand": {
+      "title": "Herramientas bajo demanda",
+      "on": "Activado",
+      "off": "Desactivado",
+      "hint": "Cuando un agente tiene más de 12 herramientas, el modelo recibe un índice (nombre y una línea por herramienta) y carga la definición completa solo de las que va a usar. Baja mucho los tokens de cada llamada. Las herramientas que nombrás en el mensaje y las que el chat usó en la tarea anterior ya salen cargadas."
+    },
     "chatgpt": {
       "title": "ChatGPT (suscripción)",
       "preview": "vista previa de OpenAI",

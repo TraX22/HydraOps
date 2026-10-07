@@ -53,3 +53,5 @@ export * from './presets.js';
 export * from './result-files.js';
 export * from './blender-import.js';
 export * from './tool-images.js';
+export { setupToolsOnDemand, buildToolIndex, createToolLoader, preloadFromText, summarize, LOAD_TOOL_NAME, ON_DEMAND_MIN_TOOLS } from "./tools-on-demand.js";
+export type { ToolIndexEntry, ToolLoader, OnDemandSetup } from "./tools-on-demand.js";

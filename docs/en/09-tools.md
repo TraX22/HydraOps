@@ -102,6 +102,20 @@ Skills your agents create stay **on your computer**: they are not uploaded to an
 
 Skills cannot be edited from the app yet: to change one, edit its `SKILL.md` in the folder, or delete it and install it again.
 
+## Tools on demand
+
+Every call to the model carries the definitions of the tools the agent may use, and with a couple of connections that is tens of thousands of tokens even when the request is one line. So when an agent has **more than 12 tools**, HydraOps does not send the definitions: it sends an index, the name and one line per tool grouped by connection, plus one more tool, `load_tools`, with which the model loads the full definition of the ones it is going to use in its next step.
+
+To spare that loading round in the obvious cases, these start loaded:
+
+- the tools you name in the message, by the connection's name ("Blender", "Comfy") or by the tool's own name ("run workflow");
+- the ones the same chat used in its previous task;
+- the calls a task resumes after an approval.
+
+A tool the model calls stays loaded for the rest of the task, and the `load_tools` round does not count toward the agent's step limit. Approvals, the injection defense and the result vault work as before: only what the model sees before choosing changes. What each task loaded is kept with its data (`toolsOnDemand`).
+
+It can be turned off in **Settings → Tools on demand** (or with `TOOLS_ON_DEMAND=off`). With 12 tools or fewer nothing changes.
+
 ## Connections: ready-made MCP servers
 
 A **connection** is an MCP server that is already configured: Blender, a real browser, a document converter. It is what you could write by hand in [Add-ons → MCP servers](./08-addons.md), with the work done: how it is started, what your computer needs and, above all, **what each of its tools does** (its [`toolRisk`](./08-addons.md)). With that, the tools that only read run freely and the ones that change something are held for your approval only when they should be (see [Security](./13-security.md)), instead of everything asking for permission.

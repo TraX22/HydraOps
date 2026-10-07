@@ -103,6 +103,19 @@
       </select>
     </section>
 
+    <!-- Tools on demand: the model gets an index of its tools and loads definitions as it needs them -->
+    <section class="config-section">
+      <h3>{{ 'config.toolsOnDemand.title' | translate }}</h3>
+      <p class="hint">{{ 'config.toolsOnDemand.hint' | translate }}</p>
+      <div class="log-levels">
+        @for (v of ['on', 'off']; track v) {
+          <button class="level-btn" [class.active]="(config().toolsOnDemand || 'on') === v" (click)="updateField('toolsOnDemand', v)">
+            {{ ('config.toolsOnDemand.' + v) | translate }}
+          </button>
+        }
+      </div>
+    </section>
+
     <!-- Routing model: who hands out the main chat's messages (ROUTER_MODEL) -->
     <section class="config-section">
       <h3>{{ 'config.routerModel' | translate }}</h3>

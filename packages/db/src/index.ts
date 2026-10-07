@@ -33,6 +33,16 @@ export async function isTaskCancelled(db: any, taskId: string): Promise<boolean>
   return rows[0]?.status === "cancelled";
 }
 
+/** The tools the latest completed task of a chat called (preloaded for the next task of that chat). */
+export async function lastTaskToolNames(db: any, channel: string): Promise<string[]> {
+  const [last] = await db.select({ id: schema.tasks.id }).from(schema.tasks)
+    .where(and(eq(schema.tasks.channel, channel), eq(schema.tasks.status, "completed")))
+    .orderBy(desc(schema.tasks.createdAt)).limit(1);
+  if (!last) return [];
+  const rows = await db.select({ toolName: schema.toolUsage.toolName }).from(schema.toolUsage).where(eq(schema.toolUsage.taskId, last.id));
+  return [...new Set(rows.map((r: any) => String(r.toolName)))];
+}
+
 export async function recordToolUsage(
   db: any,
   agentId: string,
