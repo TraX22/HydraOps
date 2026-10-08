@@ -5,9 +5,10 @@
  * fetch_outputs answers with a temporary folder's path and the server's /view address, an
  * image or 3D server with the file it wrote. Natives report their files themselves
  * (addResultFile); an MCP server cannot, so its answer would stay a path in the text and
- * the user would see nothing. Here every image, video, audio or 3D file the result names
- * (an existing local path, or a /view address on this computer) is copied into the task's
- * folder and reported, so it gets its card under the reply like a generated image does.
+ * the user would see nothing. Here every image, video, audio or 3D file the result names is
+ * brought into the task's folder and reported, so it gets its card under the reply like a
+ * generated image does: from the server itself when the result gives a /view address on
+ * this computer (whatever the model or the file's name), else from the local path it names.
  *
  * Narrow on purpose: media extensions only, files up to MAX_BYTES, at most MAX_FILES per
  * result, addresses only on this computer (127.0.0.1 / localhost), and local files only
@@ -107,13 +108,31 @@ export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: strin
   if (!ctx.filesDir || !ctx.addResultFile) return 0;
   const found = findMediaRefs(result);
   const paths = found.paths;
-  // A result that names the saved file also gives its /view address (ComfyUI): the local
-  // copy is enough. The addresses count only when no path could be taken.
+  // Straight from the server first: a /view address on this computer is the file where
+  // ComfyUI saved it, under its own name. A local path is the fallback, for a result that
+  // names no address (or whose address does not answer).
   const urls = found.urls;
   if (!paths.length && !urls.length) return 0;
   let reported = 0;
   try {
     await mkdir(ctx.filesDir, { recursive: true });
+    for (const u of urls) {
+      if (reported >= MAX_FILES) break;
+      const name = safeName(new URL(u).searchParams.get("filename") ?? "file");
+      const kind = mediaKindOf(name);
+      if (!kind) continue;
+      const res = await fetch(u, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }).catch(() => null);
+      if (!res?.ok) continue;
+      const len = Number(res.headers.get("content-length") ?? 0);
+      if (len > MAX_BYTES) continue;
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (!buf.length || buf.length > MAX_BYTES) continue;
+      const { target, exists } = await freeName(ctx.filesDir, name, buf.length);
+      if (!exists) await writeFile(target, buf);
+      ctx.addResultFile({ absPath: target, kind, size: buf.length });
+      reported++;
+    }
+    if (reported) return reported;
     const taskDir = await realpath(ctx.filesDir);
     const roots = await outputRoots();
     for (const p of paths) {
@@ -133,22 +152,6 @@ export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: strin
       const { target, exists } = await freeName(ctx.filesDir, safeName(abs), st.size);
       if (!exists) await copyFile(abs, target);
       ctx.addResultFile({ absPath: target, kind, size: st.size });
-      reported++;
-    }
-    for (const u of reported ? [] : urls) {
-      if (reported >= MAX_FILES) break;
-      const name = safeName(new URL(u).searchParams.get("filename") ?? "file");
-      const kind = mediaKindOf(name);
-      if (!kind) continue;
-      const res = await fetch(u, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }).catch(() => null);
-      if (!res?.ok) continue;
-      const len = Number(res.headers.get("content-length") ?? 0);
-      if (len > MAX_BYTES) continue;
-      const buf = Buffer.from(await res.arrayBuffer());
-      if (!buf.length || buf.length > MAX_BYTES) continue;
-      const { target, exists } = await freeName(ctx.filesDir, name, buf.length);
-      if (!exists) await writeFile(target, buf);
-      ctx.addResultFile({ absPath: target, kind, size: buf.length });
       reported++;
     }
   } catch (e: any) {
