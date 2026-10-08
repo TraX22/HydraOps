@@ -214,7 +214,7 @@
                 <div class="tools-unused">
                   <span class="tools-unused-label">{{ 'agents.tools.grantedUnused' | translate }}:</span>
                   @for (g of unusedGranted(); track g.name) {
-                    <span class="tool-chip" [title]="g.description">{{ g.name }}</span>
+                    <span class="tool-chip" [class]="'tool-chip kind-' + (toolKind(g.name) ?? 'none')" [title]="g.description">{{ g.name }}</span>
                   }
                 </div>
               }
@@ -233,9 +233,15 @@
             } @else if (fileType(filename) === 'tools' && toolsMode() === 'tags') {
               <!-- Tag editor: chips with × + grouped dropdown, instead of raw bullets -->
               <div class="tools-editor">
+                <!-- Each kind of tool has its color: add-ons, built-in tools, MCP servers -->
+                <div class="tag-legend">
+                  @for (k of ['addons', 'integrations', 'mcp']; track k) {
+                    <span class="tag-legend-item"><span class="tag-dot" [class]="'tag-dot kind-' + k"></span>{{ toolGroupLabel($any(k)) | translate }}</span>
+                  }
+                </div>
                 <div class="tag-box" (click)="toolsDropdownOpen.set(true)">
                   @for (tag of toolTags(); track tag) {
-                    <span class="tool-tag" [class.tag-unknown]="!isKnownTag(tag)"
+                    <span [class]="'tool-tag kind-' + (toolKind(tag) ?? 'none')" [class.tag-unknown]="!isKnownTag(tag)"
                           [title]="isKnownTag(tag) ? tag : ('agents.toolsEditor.unknown' | translate)">
                       <button class="tag-x" (click)="removeToolTag(tag); $event.stopPropagation()">×</button>
                       {{ tag }}
@@ -250,7 +256,7 @@
                 @if (toolsDropdownOpen()) {
                   <div class="tag-dropdown">
                     @for (g of filteredToolGroups(); track g.group) {
-                      <div class="tag-group-label">{{ toolGroupLabel(g.group) | translate }}</div>
+                      <div class="tag-group-label"><span class="tag-dot" [class]="'tag-dot kind-' + g.group"></span>{{ toolGroupLabel(g.group) | translate }}</div>
                       @for (opt of g.options; track opt.name) {
                         <button class="tag-option" (click)="addToolTag(opt.name)">
                           <span class="tag-option-name">{{ opt.name }}</span>
