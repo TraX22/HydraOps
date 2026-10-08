@@ -419,7 +419,9 @@ export const comfyWorkflowsTool: HydraTool = {
   title: "ComfyUI Saved Workflows",
   description:
     "The workflows the user saved in their own ComfyUI (image, video, audio and 3D generation on their computer, free). Start here for any request to generate something with ComfyUI: a saved workflow already has its models installed. " +
-    "action \"list\" prints their names. action \"prepare\" makes one ready to run: it copies it into this task's folder, uploads the files the user attached and puts them in the workflow's inputs, and returns the file's path with the remaining steps for the ComfyUI connection's tools (validate_workflow, run_workflow, job). action \"collect\" brings a finished job's result (the files it saved, not its previews) into this task's folder and says what each one is.",
+    "Always \"list\" these BEFORE the connection's search_templates/fetch_template: those are online templates, they need the user's approval and may ask for models the user does not have. " +
+    "action \"list\" prints their names. action \"prepare\" makes one ready to run: it copies it into this task's folder, uploads the files the user attached and puts them in the workflow's inputs, and returns the file's path with the remaining steps for the ComfyUI connection's tools (validate_workflow, run_workflow, job). " +
+    "action \"collect\" brings a finished job's result (the files it saved, not its previews) into this task's folder so the user sees them in the chat, and says what each one is: use it for ANY finished job, also one started from an online template, instead of the connection's fetch_outputs (which leaves the files in a temporary folder the user never sees).",
   schema: z.object({
     action: z.enum(["list", "prepare", "collect"]).describe('"list" the saved workflows, "prepare" one to run, or "collect" the result of a finished job'),
     name: z.string().optional().describe('For "prepare": the workflow\'s name exactly as "list" prints it, e.g. "image_to_3d.json"'),
