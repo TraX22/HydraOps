@@ -9,11 +9,15 @@
  * (an existing local path, or a /view address on this computer) is copied into the task's
  * folder and reported, so it gets its card under the reply like a generated image does.
  *
- * Narrow on purpose: media extensions only, files up to MAX_BYTES, addresses only on this
- * computer (127.0.0.1 / localhost), at most MAX_FILES per result. The tool's answer to the
- * model is not changed.
+ * Narrow on purpose: media extensions only, files up to MAX_BYTES, at most MAX_FILES per
+ * result, addresses only on this computer (127.0.0.1 / localhost), and local files only
+ * from where a tool leaves its output: the system's temporary folder, the task's own
+ * folder, or a folder listed in HYDRA_MEDIA_DIRS. A path the answer merely mentions (a
+ * private picture a page talked a tool into naming) is not copied anywhere else. Paths are
+ * compared after resolving links. The tool's answer to the model is not changed.
  */
-import { copyFile, mkdir, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, realpath, stat, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import type { ReportedFile, ResultFileKind } from "./result-files.js";
 
@@ -27,6 +31,16 @@ const EXTS = Object.keys(EXT_KIND).map((e) => e.slice(1)).join("|");
 const MAX_BYTES = 300 * 1024 * 1024;
 const MAX_FILES = 8;
 const FETCH_TIMEOUT_MS = 60_000;
+
+const inside = (root: string, p: string) => { const rel = path.relative(root, p); return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel)); };
+
+/** Where a tool's output may be taken from: the temp folder plus HYDRA_MEDIA_DIRS, resolved. */
+async function outputRoots(): Promise<string[]> {
+  const listed = (process.env.HYDRA_MEDIA_DIRS ?? "").split(path.delimiter).map((d) => d.trim()).filter(Boolean);
+  const roots: string[] = [];
+  for (const d of [os.tmpdir(), ...listed]) { const r = await realpath(d).catch(() => null); if (r) roots.push(r); }
+  return roots;
+}
 
 const WIN_PATH = new RegExp(String.raw`[A-Za-z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]+\.(?:${EXTS})(?![A-Za-z0-9])`, "gi");
 const POSIX_PATH = new RegExp(String.raw`(?<![A-Za-z0-9:/.])/(?:[^\s"'<>|/]+/)+[^\s"'<>|/]+\.(?:${EXTS})(?![A-Za-z0-9])`, "gi");
@@ -89,37 +103,39 @@ async function freeName(dir: string, name: string, size: number): Promise<{ targ
  * Copies the media a result names into `filesDir` and reports each one. Best effort:
  * returns how many were reported, never throws.
  */
-export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: string; addResultFile?: (f: ReportedFile) => void; storageDir?: string }): Promise<number> {
+export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: string; addResultFile?: (f: ReportedFile) => void }): Promise<number> {
   if (!ctx.filesDir || !ctx.addResultFile) return 0;
   const found = findMediaRefs(result);
   const paths = found.paths;
   // A result that names the saved file also gives its /view address (ComfyUI): the local
-  // copy is enough. The addresses count only when no path came with them.
-  const urls = paths.length ? [] : found.urls;
-  // The task's folder is storage/results/<task>: its storage folder is two levels up.
-  const storageDir = ctx.storageDir ?? path.dirname(path.dirname(ctx.filesDir));
+  // copy is enough. The addresses count only when no path could be taken.
+  const urls = found.urls;
   if (!paths.length && !urls.length) return 0;
   let reported = 0;
   try {
     await mkdir(ctx.filesDir, { recursive: true });
+    const taskDir = await realpath(ctx.filesDir);
+    const roots = await outputRoots();
     for (const p of paths) {
       if (reported >= MAX_FILES) break;
       const kind = mediaKindOf(p);
-      const st = kind ? await stat(p).catch(() => null) : null;
-      if (!kind || !st?.isFile() || st.size === 0 || st.size > MAX_BYTES) continue;
-      const abs = path.resolve(p);
-      // Already inside the storage folder (a native tool's own file): report it as it is.
-      if (!path.relative(path.resolve(storageDir), abs).startsWith("..")) {
+      const abs = kind ? await realpath(p).catch(() => null) : null;
+      const st = abs ? await stat(abs).catch(() => null) : null;
+      if (!kind || !abs || !st?.isFile() || st.size === 0 || st.size > MAX_BYTES) continue;
+      // Already in this task's folder: report it as it is.
+      if (inside(taskDir, abs)) {
         ctx.addResultFile({ absPath: abs, kind, size: st.size });
         reported++;
         continue;
       }
+      // Anywhere else only from where tools leave their output.
+      if (!roots.some((r) => inside(r, abs))) continue;
       const { target, exists } = await freeName(ctx.filesDir, safeName(abs), st.size);
       if (!exists) await copyFile(abs, target);
       ctx.addResultFile({ absPath: target, kind, size: st.size });
       reported++;
     }
-    for (const u of urls) {
+    for (const u of reported ? [] : urls) {
       if (reported >= MAX_FILES) break;
       const name = safeName(new URL(u).searchParams.get("filename") ?? "file");
       const kind = mediaKindOf(name);
