@@ -214,6 +214,24 @@ export async function finishPendingAction(db: any, id: string, status: "executed
   await db.update(schema.pendingActions).set({ status, result, decidedAt: new Date() }).where(eq(schema.pendingActions.id, id)).run();
 }
 
+/**
+ * The tools approved "for the rest of the task": on this task or any task it continues
+ * (up to 25 back), a held call approved with scope "task" and run. The worker passes them
+ * as never-held, so the same tool no longer asks in the chain.
+ */
+export async function taskChainAutoApproved(db: any, taskId: string): Promise<string[]> {
+  const names = new Set<string>();
+  let id: string | null = taskId;
+  for (let hops = 0; id && hops < 25; hops++) {
+    const rows = await db.select({ toolName: schema.pendingActions.toolName, status: schema.pendingActions.status, scope: schema.pendingActions.scope })
+      .from(schema.pendingActions).where(eq(schema.pendingActions.taskId, id));
+    for (const r of rows) if (r.scope === "task" && (r.status === "approved" || r.status === "executed")) names.add(String(r.toolName));
+    const [t] = await db.select({ continuationOf: schema.tasks.continuationOf }).from(schema.tasks).where(eq(schema.tasks.id, id)).limit(1);
+    id = t?.continuationOf ? String(t.continuationOf) : null;
+  }
+  return [...names];
+}
+
 /** Every held call of a task (any status), oldest first. */
 export async function loadTaskActions(db: any, taskId: string): Promise<any[]> {
   return db.select().from(schema.pendingActions).where(eq(schema.pendingActions.taskId, taskId)).orderBy(schema.pendingActions.createdAt);

@@ -172,6 +172,9 @@ export const pendingActions = sqliteTable(
     origins: text("origins", { mode: "json" }).notNull(),
     // pending | approved | executed | failed | rejected | expired
     status: text("status").notNull().default("pending"),
+    // "call": this call only. "task": approved for the rest of the task, so the same tool
+    // runs without asking in the task's continuations (see taskChainAutoApproved).
+    scope: text("scope").notNull().default("call"),
     result: text("result"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
     expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),

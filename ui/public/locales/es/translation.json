@@ -190,6 +190,9 @@
       "whyAlways": "El agente propone esto y no se hace sin tu aprobación. Revisalo y decidí vos.",
       "approve": "Aprobar",
       "reject": "Rechazar",
+      "approveTask": "Aprobar por el resto de la tarea",
+      "approveTaskHint": "Ejecuta esta llamada y las siguientes de la misma herramienta en esta tarea no vuelven a preguntar.",
+      "scopeTask": "Aprobada por el resto de la tarea: las siguientes llamadas de esta herramienta corren sin preguntar.",
       "expires": "Vence en {{when}}",
       "result": "Resultado",
       "status": {

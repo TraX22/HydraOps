@@ -3949,7 +3949,7 @@ function publicPendingAction(a: any) {
   return {
     id: a.id, taskId: a.taskId, agentId: a.agentId, toolName: a.toolName,
     args: a.args ?? {}, origins: Array.isArray(a.origins) ? a.origins : [],
-    status: a.status, result: a.result ?? null,
+    status: a.status, scope: a.scope === "task" ? "task" : "call", result: a.result ?? null,
     createdAt: iso(a.createdAt), expiresAt: iso(a.expiresAt), decidedAt: a.decidedAt ? iso(a.decidedAt) : null,
   };
 }
@@ -3970,7 +3970,9 @@ api.get("/security/actions", securityLimiter, async (req, res) => {
   }
 });
 
-async function decidePendingAction(id: string, decision: "approved" | "rejected"): Promise<{ status: number; body: any }> {
+// scope "task": this call runs and the same tool no longer asks in the task's continuations
+// (the worker reads it through taskChainAutoApproved); tools that always ask keep asking.
+async function decidePendingAction(id: string, decision: "approved" | "rejected", scope: "call" | "task" = "call"): Promise<{ status: number; body: any }> {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { status: 400, body: { error: "invalid_id" } };
   const [row] = await (db as any).select().from(pendingActions).where(eq(pendingActions.id, id)).limit(1);
   if (!row) return { status: 404, body: { error: "not_found" } };
@@ -4000,18 +4002,18 @@ async function decidePendingAction(id: string, decision: "approved" | "rejected"
     data: { actionId: id, taskId: row.taskId, agentId: row.agentId, workerType, toolName: row.toolName },
   });
   await (db as any).transaction((tx: any) => {
-    tx.update(pendingActions).set({ status: "approved", decidedAt: now }).where(eq(pendingActions.id, id)).run();
+    tx.update(pendingActions).set({ status: "approved", scope, decidedAt: now }).where(eq(pendingActions.id, id)).run();
     tx.insert(eventsTable).values({
       id: eventId, type: ev.type, version: ev.version, occurredAt: now,
       producer: ev.producer, subjectEntity: ev.subject.entity, subjectId: ev.subject.id, payload: ev,
     }).run();
     tx.insert(outboxTable).values({ eventId, status: "pending", nextAttemptAt: now }).run();
   });
-  return { status: 200, body: { action: publicPendingAction({ ...row, status: "approved", decidedAt: now }) } };
+  return { status: 200, body: { action: publicPendingAction({ ...row, status: "approved", scope, decidedAt: now }) } };
 }
 
 api.post("/security/actions/:id/approve", securityLimiter, async (req, res) => {
-  try { const r = await decidePendingAction(String(req.params.id), "approved"); res.status(r.status).json(r.body); }
+  try { const r = await decidePendingAction(String(req.params.id), "approved", req.body?.scope === "task" ? "task" : "call"); res.status(r.status).json(r.body); }
   catch (err: any) { res.status(500).json({ error: err?.message ?? "approve failed" }); }
 });
 api.post("/security/actions/:id/reject", securityLimiter, async (req, res) => {

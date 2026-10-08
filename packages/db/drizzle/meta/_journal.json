@@ -78,6 +78,13 @@
       "when": 1791035883760,
       "tag": "0010_agent_step_limit",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1791387478830,
+      "tag": "0011_approval_scope",
+      "breakpoints": true
     }
   ]
 }
