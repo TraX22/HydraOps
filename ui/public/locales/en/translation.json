@@ -7,7 +7,8 @@
       "task_timed_out": "⚠️ The task timed out: its worker never finished it (it may have restarted mid-task). Please send it again.",
       "llm_timeout": "⏱️ The model did not finish in time: the task needed longer than allowed (10 minutes in the cloud, 15 with the local model). Try a narrower request or a faster model for this agent.",
       "cron_sources_unread": "📭 The scheduled task did not open its sources this time, so it delivered nothing: an answer written without reading them could be made up. It will try again at its next run.",
-      "chatgpt_limit": "⚠️ The weekly cap you set for HydraOps in your ChatGPT plan is used up. Raise it in ChatGPT → Settings → Usage, or switch this agent to another model (/model). Nothing was charged."
+      "chatgpt_limit": "⚠️ The weekly cap you set for HydraOps in your ChatGPT plan is used up. Raise it in ChatGPT → Settings → Usage, or switch this agent to another model (/model). Nothing was charged.",
+      "continuation_limit": "ℹ️ This task already chained 20 continuations after your decisions, so the agent is not called again. The calls you approved did run: {{reason}}. To go on, send a new message."
     }
   },
   "oneShot": {

@@ -43,6 +43,30 @@ export async function lastTaskToolNames(db: any, channel: string): Promise<strin
   return [...new Set(rows.map((r: any) => String(r.toolName)))];
 }
 
+/**
+ * The chain reached its limit: the decided calls ran, but no agent will report them. A
+ * completed task (no worker, no model) tells the chat what happened and how to go on; the
+ * UI renders it through llm.errors.continuation_limit with the outcomes as the reason.
+ */
+async function continuationLimitNotice(db: any, original: any, actions: any[], producer: string): Promise<string | null> {
+  const decided = actions.filter((a: any) => a.status === "executed" || a.status === "failed");
+  const outcomes = decided.map((a: any) => {
+    const result = typeof a.result === "string" ? a.result.replace(/\s+/g, " ").trim().slice(0, 300) : "";
+    return `${a.toolName} ${a.status === "executed" ? "✓" : "✗"}${result ? `: ${result}` : ""}`;
+  }).join(" · ");
+  const text = `ℹ️ This task already chained ${CONTINUATION_MAX_DEPTH} continuations after your decisions, so the agent is not called again. The decided calls did run: ${outcomes || "none"}. To go on, send a new message.`;
+  const taskId = randomUUID();
+  const now = new Date();
+  await db.insert(schema.tasks).values({
+    id: taskId,
+    prompt: `Decision outcome: ${decided.map((a: any) => `${a.toolName} ${a.status === "executed" ? "✓" : "✗"}`).join(", ")}`,
+    channel: original.channel, status: "completed", isRead: original.isRead ?? true,
+    continuationOf: original.id, createdAt: now, updatedAt: now,
+    resultMeta: { text, success: true, errorCode: CONTINUATION_LIMIT, error: outcomes || "none", modelUsed: "", completedAt: now.toISOString(), producer },
+  }).run();
+  return taskId;
+}
+
 export async function recordToolUsage(
   db: any,
   agentId: string,
@@ -195,7 +219,10 @@ export async function loadTaskActions(db: any, taskId: string): Promise<any[]> {
   return db.select().from(schema.pendingActions).where(eq(schema.pendingActions.taskId, taskId)).orderBy(schema.pendingActions.createdAt);
 }
 
-const CONTINUATION_MAX_DEPTH = 5;
+// Every continuation follows a decision a person took, so the chain is bounded by that person;
+// the limit only stops a runaway, and when it does the outcome is still told (see below).
+export const CONTINUATION_MAX_DEPTH = 20;
+export const CONTINUATION_LIMIT = "continuation_limit";
 
 /**
  * Once every call a task asked approval for has been decided (and at least one ran), the
@@ -203,7 +230,8 @@ const CONTINUATION_MAX_DEPTH = 5;
  * instead of stopping at "approve and I'll continue". The worker composes the real
  * message from the actions (see @hydraops/addons approvals.ts continuationPrompt); the
  * row's prompt is the short line the chat shows. Idempotent: one continuation per task,
- * chains stop after CONTINUATION_MAX_DEPTH, and a task still waiting on a decision, or
+ * chains stop after CONTINUATION_MAX_DEPTH (the chat then gets a completed notice with the
+ * outcome of the decided calls, never silence), and a task still waiting on a decision, or
  * that did not complete, gets none. Returns the new task id, or null when nothing was
  * created.
  */
@@ -221,7 +249,7 @@ export async function createContinuationTask(db: any, opts: { taskId: string; pr
     const [prev] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, cursor.continuationOf)).limit(1);
     cursor = prev;
   }
-  if (depth >= CONTINUATION_MAX_DEPTH) return null;
+  if (depth >= CONTINUATION_MAX_DEPTH) return continuationLimitNotice(db, original, actions, opts.producer);
 
   // The outside content that reached the original task reaches this one too.
   const origins: { tool: string; ref?: string }[] = [];

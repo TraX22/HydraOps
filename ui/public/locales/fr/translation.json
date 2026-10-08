@@ -7,7 +7,8 @@
       "task_timed_out": "⚠️ La tâche a expiré : son worker ne l'a jamais terminée (il a peut-être redémarré en cours de route). Renvoyez-la.",
       "llm_timeout": "⏱️ Le modèle n'a pas terminé à temps : la tâche a demandé plus que permis (10 minutes dans le cloud, 15 avec le modèle local). Essayez une demande plus ciblée ou un modèle plus rapide pour cet agent.",
       "cron_sources_unread": "📭 La tâche planifiée n'a pas ouvert ses sources cette fois, elle n'a donc rien livré : une réponse écrite sans les lire pourrait être inventée. Elle réessaiera à sa prochaine exécution.",
-      "chatgpt_limit": "⚠️ Le plafond hebdomadaire que vous avez fixé pour HydraOps dans votre forfait ChatGPT est atteint. Augmentez-le dans ChatGPT → Paramètres → Utilisation, ou passez cet agent sur un autre modèle (/model). Rien n'a été facturé."
+      "chatgpt_limit": "⚠️ Le plafond hebdomadaire que vous avez fixé pour HydraOps dans votre forfait ChatGPT est atteint. Augmentez-le dans ChatGPT → Paramètres → Utilisation, ou passez cet agent sur un autre modèle (/model). Rien n'a été facturé.",
+      "continuation_limit": "ℹ️ Cette tâche a déjà enchaîné 20 continuations après vos décisions, l'agent n'est donc plus rappelé. Les appels que vous avez approuvés ont bien été exécutés : {{reason}}. Pour continuer, envoyez un nouveau message."
     }
   },
   "oneShot": {

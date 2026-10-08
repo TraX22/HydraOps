@@ -7,7 +7,8 @@
       "task_timed_out": "⚠️ La tarea expiró: su worker nunca la terminó (puede haberse reiniciado a mitad de camino). Volvé a enviarla.",
       "llm_timeout": "⏱️ El modelo no terminó a tiempo: la tarea necesitó más de lo permitido (10 minutos en la nube, 15 con el modelo local). Probá con un pedido más acotado o con un modelo más rápido para este agente.",
       "cron_sources_unread": "📭 La tarea programada no abrió sus fuentes esta vez, así que no entregó nada: una respuesta escrita sin leerlas podría ser inventada. Lo vuelve a intentar en la próxima ejecución.",
-      "chatgpt_limit": "⚠️ Se alcanzó el tope semanal que fijaste para HydraOps en tu plan de ChatGPT. Subilo en ChatGPT → Ajustes → Uso, o pasá este agente a otro modelo (/model). No se cobró nada."
+      "chatgpt_limit": "⚠️ Se alcanzó el tope semanal que fijaste para HydraOps en tu plan de ChatGPT. Subilo en ChatGPT → Ajustes → Uso, o pasá este agente a otro modelo (/model). No se cobró nada.",
+      "continuation_limit": "ℹ️ Esta tarea ya encadenó 20 continuaciones después de tus decisiones, así que el agente no se vuelve a llamar. Las llamadas que aprobaste sí se ejecutaron: {{reason}}. Para seguir, escribí un mensaje nuevo."
     }
   },
   "oneShot": {
