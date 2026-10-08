@@ -424,6 +424,8 @@ export interface AppConfig {
   /** The model that picks the agent for a main-chat message; empty = the default model. */
   routerModel?: string;
   logLevel: string;
+  /** Tools on demand: 'on' (default) | 'off'. */
+  toolsOnDemand?: string;
 }
 
 export interface ModelOption {

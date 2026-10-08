@@ -102,6 +102,20 @@ Las skills que crean los agentes se quedan **en tu equipo**: no se suben a ning�
 
 Por ahora las skills no se editan desde la aplicación: para cambiar una, edita su `SKILL.md` en la carpeta o bórrala y vuelve a instalarla.
 
+## Herramientas bajo demanda
+
+Cada llamada al modelo lleva la definición de las herramientas que el agente puede usar, y con un par de conexiones eso son decenas de miles de tokens aunque el pedido sea una línea. Por eso, cuando un agente tiene **más de 12 herramientas**, HydraOps no le manda las definiciones: le manda un índice, con el nombre y una línea por herramienta agrupadas por conexión, y una herramienta más, `load_tools`, con la que el modelo carga la definición completa de las que va a usar en el paso siguiente.
+
+Para que no haga falta esa ronda de carga en los casos obvios, salen cargadas desde el principio:
+
+- las herramientas que nombrás en el mensaje, por el nombre de la conexión ("Blender", "Comfy") o por el nombre de la herramienta ("run workflow");
+- las que el mismo chat usó en su tarea anterior;
+- las llamadas que una tarea retoma después de una aprobación.
+
+Una herramienta que el modelo llama queda cargada por el resto de la tarea, y la ronda de `load_tools` no cuenta para el límite de pasos del agente. Las aprobaciones, la defensa contra inyección y el baúl de resultados funcionan igual: solo cambia lo que el modelo ve antes de elegir. Qué cargó cada tarea queda en sus datos (`toolsOnDemand`).
+
+Se desactiva en **Configuración → Herramientas bajo demanda** (o con `TOOLS_ON_DEMAND=off`). Con 12 herramientas o menos no cambia nada.
+
 ## Conexiones: servidores MCP listos para usar
 
 Una **conexión** es un servidor MCP ya configurado: Blender, un navegador real, un conversor de documentos. Es lo mismo que podrías escribir a mano en [Add-ons → Servidores MCP](./08-addons.md), pero con el trabajo hecho: cómo se arranca, qué necesita tu equipo y, sobre todo, **qué hace cada una de sus herramientas** (su [`toolRisk`](./08-addons.md)). Con eso las herramientas que solo leen corren libres y las que modifican algo se retienen para tu aprobación solo cuando corresponde (ver [Seguridad](./13-security.md)), en lugar de que todo pida permiso.

@@ -1266,6 +1266,8 @@ const envMapping: Record<string, string> = {
   defaultModel: "DEFAULT_MODEL",
   // The model that hands out the main chat's messages (see apps/orchestrator router.ts); empty = the default model.
   routerModel: "ROUTER_MODEL",
+  // Tools on demand (see @hydraops/addons tools-on-demand.ts): "on" (default) | "off".
+  toolsOnDemand: "TOOLS_ON_DEMAND",
   logLevel: "LOG_LEVEL"
 };
 

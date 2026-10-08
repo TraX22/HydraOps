@@ -359,6 +359,12 @@
     "languages": "Languages",
     "localLlm": "Local LLM",
     "logLevel": "Log Level",
+    "toolsOnDemand": {
+      "title": "Tools on demand",
+      "on": "On",
+      "off": "Off",
+      "hint": "When an agent has more than 12 tools, the model gets an index (name and one line per tool) and loads the full definition only of the ones it is going to use. It cuts the tokens of every call a lot. Tools you name in the message and the ones the chat used in its previous task start loaded."
+    },
     "chatgpt": {
       "title": "ChatGPT (subscription)",
       "preview": "OpenAI preview",

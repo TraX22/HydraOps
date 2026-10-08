@@ -1,4 +1,4 @@
-import { generateText as vercelGenerateText, stepCountIs, CoreMessage, tool } from 'ai';
+import { generateText as vercelGenerateText, stepCountIs, CoreMessage, tool, NoSuchToolError } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
@@ -778,6 +778,17 @@ export async function generateText(
     stepImages?: (messages: unknown[], o: { visible: boolean }) => unknown[] | undefined;
     /** Tool rounds this call may use (see resolveMaxSteps); the default when absent. */
     maxSteps?: number;
+    /**
+     * Tools on demand (see @hydraops/addons tools-on-demand.ts): the names whose full
+     * definition the model sees in the next step; undefined sends every tool as before.
+     */
+    activeTools?: () => string[] | undefined;
+    /** Called with every tool the model calls (a called tool stays loaded). */
+    onToolCalled?: (name: string) => void;
+    /** A step whose only calls are these does not count toward maxSteps (loading is free). */
+    uncountedTools?: string[];
+    /** The loader tool: a call to a known tool that is not loaded becomes a load of it. */
+    loadToolName?: string;
   } = {},
 ) {
   const abortSignal = opts.abortSignal;
@@ -785,7 +796,7 @@ export async function generateText(
   // Whether this model is shown the images; turned off for the rest of the task if the
   // provider rejects one.
   let imagesVisible = modelSeesImages(config);
-  const prepareStep = !opts.prepareStep && !opts.stepImages ? undefined : (step: any) => {
+  const prepareStepBase = !opts.prepareStep && !opts.stepImages ? undefined : (step: any) => {
     const base = opts.prepareStep?.(step);
     if (!opts.stepImages) return base;
     try {
@@ -796,11 +807,31 @@ export async function generateText(
       return base;
     }
   };
+  // Tools on demand: only the active tools' definitions travel; the tool map stays whole.
+  const prepareStep = !opts.activeTools ? prepareStepBase : (step: any) => {
+    const base = prepareStepBase?.(step);
+    const active = opts.activeTools?.();
+    return active ? { ...(base ?? {}), activeTools: active } : base;
+  };
+  const uncounted = new Set(opts.uncountedTools ?? []);
+  const countsAsStep = (step: any) => !(uncounted.size && Array.isArray(step?.toolCalls) && step.toolCalls.length && step.toolCalls.every((c: any) => uncounted.has(c?.toolName)));
+  const stopAtMaxSteps = uncounted.size
+    ? ({ steps }: { steps: any[] }) => steps.filter(countsAsStep).length >= maxSteps
+    : stepCountIs(maxSteps);
+  // The model called a tool it only knows from the index: load it instead of failing the call.
+  const repairToolCall = !opts.loadToolName ? undefined : async ({ toolCall, error }: any) => {
+    if (!NoSuchToolError.isInstance(error) || !aiTools || !(toolCall?.toolName in aiTools) || toolCall.toolName === opts.loadToolName) return null;
+    console.log(`[LLM] ${toolCall.toolName} called before being loaded: loading it`);
+    return { ...toolCall, toolName: opts.loadToolName, input: JSON.stringify({ names: [toolCall.toolName] }) };
+  };
   // What the rounds that did finish consumed. When a later round fails (no credit left, a rate
   // limit, the context too long) the SDK throws and its own total is lost, but those rounds
   // were billed: the failed task still reports them.
   let spent: any = null;
-  const onStepFinish = (step: any) => { spent = sumUsage(spent, step?.usage); };
+  const onStepFinish = (step: any) => {
+    spent = sumUsage(spent, step?.usage);
+    if (opts.onToolCalled && Array.isArray(step?.toolCalls)) for (const c of step.toolCalls) if (c?.toolName) opts.onToolCalled(String(c.toolName));
+  };
   try {
     const hasTools = aiTools && Object.keys(aiTools).length > 0;
     console.log(`[LLM] Attempting with model: ${config.model} (${config.provider}) | Tools: ${hasTools}`);
@@ -843,9 +874,10 @@ export async function generateText(
         tools: callTools,
         // AI SDK v5+ replaced maxSteps with stopWhen; maxSteps is ignored and
         // the loop would stop after the first tool call without a text answer.
-        stopWhen: hasTools ? stepCountIs(maxSteps) : undefined,
+        stopWhen: hasTools ? stopAtMaxSteps : undefined,
         prepareStep,
         onStepFinish,
+        experimental_repairToolCall: repairToolCall,
         maxRetries: 2,
         providerOptions,
       });
@@ -955,9 +987,10 @@ export async function generateText(
           system: finalSystemPrompt,
           messages: stripped as any,
           tools: callTools,
-          stopWhen: hasTools ? stepCountIs(maxSteps) : undefined,
+          stopWhen: hasTools ? stopAtMaxSteps : undefined,
           prepareStep,
           onStepFinish,
+          experimental_repairToolCall: repairToolCall,
           maxRetries: 1,
           providerOptions,
         });

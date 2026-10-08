@@ -239,6 +239,12 @@ export class McpClientManager {
   private appliedConfigs = new Map<string, string>();
   // The tools each server registered, to remove exactly those when it goes away.
   private serverTools = new Map<string, Set<string>>();
+
+  /** The server a registered tool came from (its display name), for the tool index. */
+  serverOfTool(toolName: string): string | undefined {
+    for (const [server, names] of this.serverTools) if (names.has(toolName)) return server;
+    return undefined;
+  }
   // When each server was last retried / restarted, to keep a broken one from costing
   // every task a connection timeout.
   private lastRetryAt = new Map<string, number>();

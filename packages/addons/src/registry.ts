@@ -141,6 +141,11 @@ export class ToolRegistry {
     });
   }
 
+  /** What tools-on-demand.ts needs to build the index: the tool maps and who owns each MCP tool. */
+  indexSources(): { nativeTools: Map<string, HydraTool>; mcpTools: Map<string, HydraTool>; serverOfTool: (name: string) => string | undefined } {
+    return { nativeTools: this.nativeTools, mcpTools: this.mcpManager.mcpTools, serverOfTool: (n) => this.mcpManager.serverOfTool(n) };
+  }
+
   // Metadata for the UI (no schema/execute)
   listNative(): { name: string; title?: string; description: string; source: string; requiresKey?: ToolKeyRequirement; risk: ToolRisk }[] {
     return [...this.nativeTools.values()].map(t => ({
