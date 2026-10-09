@@ -474,10 +474,8 @@ ${EXTERNAL_CONTENT_RULE}
       allowedNames: allowedTools,
       enabled: getGlobalConfig("TOOLS_ON_DEMAND", "on").trim().toLowerCase() !== "off",
       text: userPrompt,
-      preload: [
-        ...(await lastTaskToolNames(db, channel).catch(() => [] as string[])),
-        ...(continuationOf ? (await loadTaskActions(db, continuationOf).catch(() => [] as any[])).map((a: any) => String(a.toolName)) : []),
-      ],
+      preload: continuationOf ? (await loadTaskActions(db, continuationOf).catch(() => [] as any[])).map((a: any) => String(a.toolName)) : [],
+      previousTask: await lastTaskToolNames(db, channel).catch(() => [] as string[]),
     });
     if (onDemand) console.log(`[worker-general] tools on demand: ${onDemand.loader.summary().total} in the index, ${onDemand.loader.active().length - 1} preloaded`);
     const rawTools = globalRegistry.getRawTools(allowedTools, nativeState, usageSink, toolContext, sourceCollector.sink, taskSecurity, progress.sink, vault);
