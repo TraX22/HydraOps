@@ -501,9 +501,11 @@ ${EXTERNAL_CONTENT_RULE}
     console.log(`[${consumerName}] Processing task ${taskId} for agent ${agentId} (${llmConfig.model}, ${llmConfig.provider})...`);
     const controller = cancels.track(taskId);
     const userMessage = await buildUserMessage(userPrompt, rootDir);
+    // What each model step carried (see @hydraops/llm StepBreakdown), kept with the result.
+    let stepBreakdown: any[] = [];
     const modelTools = { ...(planTools ? { ...aiTools, ...planTools.ai } : aiTools), ...(onDemand?.tools ?? {}) };
     const runModel = (extra: any[] = []) => withTimeout(
-      llmGenerateText(llmConfig, [...history, userMessage, ...extra], systemPrompt + skillsSection + planSection + cronDedup + vault.promptSection() + (onDemand?.promptSection ?? ""), modelTools, planTools ? [...rawTools, ...planTools.raw] : rawTools, { abortSignal: controller.signal, prepareStep: (step: any) => vault.prepareStep(step), stepImages: stepToolImages, maxSteps: resolveMaxSteps(cfgRows[0]?.maxSteps), ...(onDemand ? onDemand.llmOptionsFor(modelTools) : {}) }),
+      llmGenerateText(llmConfig, [...history, userMessage, ...extra], systemPrompt + skillsSection + planSection + cronDedup + vault.promptSection() + (onDemand?.promptSection ?? ""), modelTools, planTools ? [...rawTools, ...planTools.raw] : rawTools, { abortSignal: controller.signal, prepareStep: (step: any) => vault.prepareStep(step), stepImages: stepToolImages, maxSteps: resolveMaxSteps(cfgRows[0]?.maxSteps), ...(onDemand ? onDemand.llmOptionsFor(modelTools) : {}), onBreakdown: (b: any[]) => { stepBreakdown = b; } }),
       LLM_TIMEOUT_MS(llmConfig.provider),
       `LLM call`,
       () => controller.abort(new Error("LLM call timed out")),
@@ -599,7 +601,7 @@ ${EXTERNAL_CONTENT_RULE}
       .set({
         status: "completed",
         ...(plan ? { plan } : {}),
-        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, completedAt: new Date().toISOString(), ...(onDemand ? { toolsOnDemand: onDemand.loader.summary() } : {}), ...(resultFiles.list().length ? { files: resultFiles.list() } : {}), ...(plan ? { plan } : {}), ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), seenUrls: sourceCollector.seen(), ...(skillsUsed.length ? { skillsUsed } : {}), ...(vault.summary().docs ? { vault: vault.summary() } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) },
+        resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, completedAt: new Date().toISOString(), ...(onDemand ? { toolsOnDemand: onDemand.loader.summary() } : {}), ...(stepBreakdown.length ? { steps: stepBreakdown } : {}), ...(resultFiles.list().length ? { files: resultFiles.list() } : {}), ...(plan ? { plan } : {}), ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), seenUrls: sourceCollector.seen(), ...(skillsUsed.length ? { skillsUsed } : {}), ...(vault.summary().docs ? { vault: vault.summary() } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) },
         updatedAt: new Date(),
       })
       .where(and(eq(tasks.id, taskId), ne(tasks.status, "cancelled")));
