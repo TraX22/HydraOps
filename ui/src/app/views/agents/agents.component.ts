@@ -317,6 +317,20 @@ export class AgentsComponent implements OnInit {
     });
   }
 
+  /**
+   * Which kind a tool name is, for its color: an add-on, one of the built-in tools
+   * ("Herramientas": Telegram, GitHub, Skills…) or an MCP server. A full MCP tool name
+   * (server_tool) or a prefix grant's tool (github_*) counts as its group; null when unknown.
+   */
+  toolKind(name: string): ToolOption['group'] | null {
+    const n = this.normTool(name);
+    const all = [...this.addonOptions(), ...this.mcpOptions()];
+    const exact = all.find(o => this.normTool(o.name) === n);
+    if (exact) return exact.group;
+    const prefix = all.find(o => (o.group === 'mcp' || o.group === 'integrations') && n.startsWith(this.normTool(o.name) + '_'));
+    return prefix ? prefix.group : null;
+  }
+
   // Same normalization as the worker gate (registry.resolveAllowedToolNames)
   private normTool(s: string): string {
     return s.trim().replace(/\s+/g, '_').toLowerCase();

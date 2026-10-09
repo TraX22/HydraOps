@@ -226,7 +226,16 @@
   padding: 3px 8px 3px 4px; font-size: 0.82rem; font-weight: 500;
   background: var(--accent); color: var(--text-inverse); border-radius: var(--radius-sm);
 }
-.tool-tag.tag-unknown { background: var(--status-error); }
+.tool-tag.tag-unknown { background: var(--status-error); color: #fff; }
+/* One color per kind of tool: add-ons blue, built-in tools teal, MCP servers violet. */
+.kind-addons { --kind: #3b82f6; }
+.kind-integrations { --kind: #0d9488; }
+.kind-mcp { --kind: #8b5cf6; }
+.tool-tag.kind-addons, .tool-tag.kind-integrations, .tool-tag.kind-mcp { background: var(--kind); color: #fff; }
+.tool-chip.kind-addons, .tool-chip.kind-integrations, .tool-chip.kind-mcp { border: 1px solid var(--kind); color: var(--kind); }
+.tag-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; background: var(--kind, var(--text-muted)); vertical-align: middle; }
+.tag-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.75rem; color: var(--text-secondary); }
+.tag-legend-item { display: inline-flex; align-items: center; }
 .tag-x {
   border: none; background: rgba(255, 255, 255, .25); color: inherit; cursor: pointer;
   width: 16px; height: 16px; line-height: 1; border-radius: 50%; font-size: 0.8rem; padding: 0;
