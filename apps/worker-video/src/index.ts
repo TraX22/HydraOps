@@ -18,7 +18,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, generateVideo, resolveLLMConfig, resolveMaxSteps, buildUserMessage, GROK_VIDEO_ASPECTS, isGrokVideoEngine } from "@hydraops/llm";
-import { createResultFiles, mcpServerEnv, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan, setupToolsOnDemand } from "@hydraops/addons";
+import { createResultFiles, mcpServerEnv, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan, setupToolsOnDemand, harvestMediaFiles } from "@hydraops/addons";
 import { tool } from "ai";
 import { z } from "zod";
 import { AckPolicy } from "nats";
@@ -548,6 +548,13 @@ ${EXTERNAL_CONTENT_RULE}
       // Files a tool leaves for the user: stored with the result, shown in the chat.
       addResultFile: resultFiles.add,
     };
+    // A continuation after approvals: the media those calls named (they ran without a task)
+    // is brought into this one, so it gets its card under the reply.
+    if (continuationOf) {
+      for (const a of await loadTaskActions(db, continuationOf).catch(() => [] as any[])) {
+        if (a.status === "executed" && a.result) await harvestMediaFiles(a.result, toolContext);
+      }
+    }
     // Installed skills, by name and description, for an agent that may use them (the
     // full text is opened on demand with skills_view; see @hydraops/addons skills.ts).
     const skillsSection = await skillsPromptSection(allowedTools.filter((n: string) => nativeState[n] !== false)).catch(() => "");

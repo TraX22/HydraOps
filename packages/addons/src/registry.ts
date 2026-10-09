@@ -1,3 +1,4 @@
+import { harvestMediaFiles } from './harvest-files.js';
 import { tool } from 'ai';
 import { HydraTool, ToolContext, ToolKeyRequirement } from './types.js';
 import { McpClientManager, McpServerStatus } from './mcp.js';
@@ -185,10 +186,14 @@ export class ToolRegistry {
         activeTools.push(finalize(nt, nt.source === 'my_addons' ? 'my_addons' : 'native'));
       }
 
-      // MCP tools
+      // MCP tools. Media a connection's tool names in its answer (a saved image's path, a
+      // /view address on this computer) is brought into the task so the chat shows it.
       const mt = this.mcpManager.mcpTools.get(name);
       if (mt) {
-        activeTools.push(finalize(mt, 'mcp'));
+        const harvesting: HydraTool = context?.addResultFile
+          ? { ...mt, execute: async (args: any, ctx?: ToolContext) => { const r = await mt.execute(args, ctx); await harvestMediaFiles(r, ctx ?? context); return r; } }
+          : mt;
+        activeTools.push(finalize(harvesting, 'mcp'));
       }
     }
     if (vault && activeTools.length) {
