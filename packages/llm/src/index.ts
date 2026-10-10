@@ -1,4 +1,4 @@
-import { generateText as vercelGenerateText, stepCountIs, CoreMessage, tool, NoSuchToolError } from 'ai';
+import { generateText as vercelGenerateText, stepCountIs, CoreMessage, tool, NoSuchToolError, asSchema } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
@@ -707,6 +707,55 @@ export function modelSeesImages(config: LLMConfig): boolean {
   return /claude|gemini|gpt-4o|gpt-4\.1|gpt-[5-9]|grok-[4-9]|pixtral|llava|[-_.]vl\b|vision|omni/.test(m);
 }
 
+/**
+ * What one model step carried, to see where a task's input tokens go: the tokens the
+ * provider counted (and how many came from its cache), and the characters of each part of
+ * the request. `history` is what the task started with (earlier messages of the chat and
+ * the user's message); `results` is what the task added since (tool calls and results);
+ * `tools` is the active tools' definitions.
+ */
+export interface StepBreakdown {
+  step: number;
+  inputTokens?: number;
+  cachedTokens?: number;
+  outputTokens?: number;
+  tools: number;
+  activeTools: number;
+  chars: { system: number; history: number; results: number; tools: number };
+  toolCalls?: string[];
+}
+
+/** The characters a message list would send (text and JSON; images and files count as their reference only). */
+function messageChars(list: unknown[]): number {
+  let n = 0;
+  for (const m of list ?? []) {
+    const c = (m as any)?.content;
+    if (typeof c === 'string') { n += c.length; continue; }
+    if (!Array.isArray(c)) continue;
+    for (const part of c) {
+      if (part?.type === 'image' || part?.type === 'file') { n += 50; continue; }
+      if (typeof part?.text === 'string') n += part.text.length;
+      else { try { n += JSON.stringify(part?.output ?? part?.input ?? part?.result ?? part ?? '').length; } catch { /* unserializable */ } }
+    }
+  }
+  return n;
+}
+
+/**
+ * Generates the answer of a task (see generateTextInner). The per-step breakdown is handed to
+ * `opts.onBreakdown` however the call ends.
+ */
+export async function generateText(...args: Parameters<typeof generateTextInner>): ReturnType<typeof generateTextInner> {
+  const opts: any = args[5] ?? {};
+  const collected: StepBreakdown[] = [];
+  const inner = { ...opts, onBreakdown: undefined, __breakdown: collected };
+  try {
+    return await generateTextInner(args[0], args[1], args[2], args[3], args[4], inner);
+  } finally {
+    if (opts.onBreakdown) { try { opts.onBreakdown(collected); } catch { /* reporting never breaks a task */ } }
+  }
+}
+
 /** Adds the token counts of one model call to a running total (same shape, numbers summed). */
 export function sumUsage(total: any, step: any): any {
   if (!step || typeof step !== 'object') return total;
@@ -758,7 +807,7 @@ export function shortErrorReason(error: unknown): string {
   return /[.!?…]$/.test(text) ? text : text + '.';
 }
 
-export async function generateText(
+async function generateTextInner(
   config: LLMConfig,
   messages: CoreMessage[],
   systemPrompt?: string,
@@ -789,6 +838,8 @@ export async function generateText(
     uncountedTools?: string[];
     /** The loader tool: a call to a known tool that is not loaded becomes a load of it. */
     loadToolName?: string;
+    /** Called once at the end with what each model step carried (see StepBreakdown). */
+    onBreakdown?: (steps: StepBreakdown[]) => void;
   } = {},
 ) {
   const abortSignal = opts.abortSignal;
@@ -808,10 +859,42 @@ export async function generateText(
     }
   };
   // Tools on demand: only the active tools' definitions travel; the tool map stays whole.
-  const prepareStep = !opts.activeTools ? prepareStepBase : (step: any) => {
+  const prepareStepTools = !opts.activeTools ? prepareStepBase : (step: any) => {
     const base = prepareStepBase?.(step);
     const active = opts.activeTools?.();
     return active ? { ...(base ?? {}), activeTools: active } : base;
+  };
+  // The breakdown: measured from what each step will actually send (after the vault's
+  // compaction and the active-tools filter), completed with the provider's counts when the
+  // step finishes.
+  const breakdown: StepBreakdown[] = (opts as any).__breakdown ?? [];
+  const toolChars = new Map<string, number>();
+  const sizeOfTool = async (name: string): Promise<number> => {
+    if (toolChars.has(name)) return toolChars.get(name)!;
+    const t: any = aiTools?.[name];
+    let n = name.length + String(t?.description ?? '').length;
+    try { n += JSON.stringify(await (asSchema(t?.inputSchema) as any).jsonSchema).length; } catch { /* no schema */ }
+    toolChars.set(name, n);
+    return n;
+  };
+  const initialCount = messages.length;
+  const historyChars = messageChars(messages as unknown[]);
+  const prepareStep = async (step: any) => {
+    const out = prepareStepTools ? await prepareStepTools(step) : undefined;
+    try {
+      const sent: unknown[] = out?.messages ?? step.messages ?? [];
+      const names: string[] = out?.activeTools ?? Object.keys(aiTools ?? {});
+      let tools = 0;
+      for (const n of names) tools += await sizeOfTool(n);
+      const system = String(out?.system ?? step.instructions ?? step.initialInstructions ?? '').length;
+      breakdown.push({
+        step: breakdown.length + 1,
+        tools: Object.keys(aiTools ?? {}).length,
+        activeTools: names.length,
+        chars: { system, history: historyChars, results: messageChars(sent.slice(initialCount)), tools },
+      });
+    } catch { /* measuring never breaks a call */ }
+    return out;
   };
   const uncounted = new Set(opts.uncountedTools ?? []);
   const countsAsStep = (step: any) => !(uncounted.size && Array.isArray(step?.toolCalls) && step.toolCalls.length && step.toolCalls.every((c: any) => uncounted.has(c?.toolName)));
@@ -828,8 +911,16 @@ export async function generateText(
   // limit, the context too long) the SDK throws and its own total is lost, but those rounds
   // were billed: the failed task still reports them.
   let spent: any = null;
+  let finished = 0;
   const onStepFinish = (step: any) => {
     spent = sumUsage(spent, step?.usage);
+    const b = breakdown[finished++];
+    if (b) {
+      b.inputTokens = step?.usage?.inputTokens;
+      b.cachedTokens = step?.usage?.inputTokenDetails?.cacheReadTokens ?? step?.usage?.cachedInputTokens;
+      b.outputTokens = step?.usage?.outputTokens;
+      if (Array.isArray(step?.toolCalls) && step.toolCalls.length) b.toolCalls = step.toolCalls.map((c: any) => String(c?.toolName));
+    }
     if (opts.onToolCalled && Array.isArray(step?.toolCalls)) for (const c of step.toolCalls) if (c?.toolName) opts.onToolCalled(String(c.toolName));
   };
   try {

@@ -5,6 +5,22 @@
  * the answer; the answer's text does not have to name a path for it.
  */
 import path from 'node:path';
+import { closeSync, openSync, readSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+
+/** Size plus a hash of the first and last MB: the same file brought in twice under two names is recognised. */
+function fingerprint(absPath: string, size: number): string | null {
+  try {
+    const fd = openSync(absPath, 'r');
+    try {
+      const h = createHash('sha1');
+      const chunk = Buffer.alloc(Math.min(size, 1 << 20));
+      h.update(chunk.subarray(0, readSync(fd, chunk, 0, chunk.length, 0)));
+      if (size > chunk.length) h.update(chunk.subarray(0, readSync(fd, chunk, 0, chunk.length, size - chunk.length)));
+      return `${size}:${h.digest('hex')}`;
+    } finally { closeSync(fd); }
+  } catch { return null; }
+}
 
 export type ResultFileKind = 'model' | 'image' | 'video' | 'audio' | 'file';
 
@@ -26,6 +42,7 @@ const MAX_FILES = 20;
 export function createResultFiles(storageDir: string): { add: (file: ReportedFile) => void; list: () => ResultFile[] } {
   const root = path.resolve(storageDir);
   const files: ResultFile[] = [];
+  const seen = new Set<string>();
   return {
     add(file) {
       if (!file || typeof file.absPath !== 'string' || files.length >= MAX_FILES) return;
@@ -36,6 +53,11 @@ export function createResultFiles(storageDir: string): { add: (file: ReportedFil
       const relPath = rel.split(path.sep).join('/');
       if (files.some((f) => f.path === relPath)) return;
       const size = Number(file.size);
+      // The same content under another name (a connection's tool and comfy_workflows collect
+      // both bringing the job's image): one card is enough.
+      const fp = Number.isFinite(size) && size > 0 ? fingerprint(abs, size) : null;
+      if (fp && seen.has(fp)) return;
+      if (fp) seen.add(fp);
       const triangles = Number(file.triangles);
       files.push({
         path: relPath,

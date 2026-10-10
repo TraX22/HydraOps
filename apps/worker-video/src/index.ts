@@ -639,6 +639,8 @@ ${EXTERNAL_CONTENT_RULE}
 
 
     console.log(`[${consumerName}] 💬 Task ${taskId} with ${llmConfig.provider}:${llmConfig.model}${explicitVideo ? " (explicit video request)" : ""}...`);
+    // What each model step carried (see @hydraops/llm StepBreakdown), kept with the result.
+    let stepBreakdown: any[] = [];
     const modelTools = { ...toolsForModel, ...(onDemand?.tools ?? {}) };
     const { text, usage, success, error, errorCode } = await llmGenerateText(
       llmConfig,
@@ -646,7 +648,7 @@ ${EXTERNAL_CONTENT_RULE}
       systemPrompt + skillsSection + planSection + vault.promptSection() + (onDemand?.promptSection ?? ""),
       modelTools,
       rawToolsForModel,
-      { abortSignal: controller.signal, prepareStep: (step: any) => vault.prepareStep(step), stepImages: stepToolImages, maxSteps: resolveMaxSteps(cfgRows[0]?.maxSteps), ...(onDemand ? onDemand.llmOptionsFor(modelTools) : {}) }
+      { abortSignal: controller.signal, prepareStep: (step: any) => vault.prepareStep(step), stepImages: stepToolImages, maxSteps: resolveMaxSteps(cfgRows[0]?.maxSteps), ...(onDemand ? onDemand.llmOptionsFor(modelTools) : {}), onBreakdown: (b: any[]) => { stepBreakdown = b; } }
     );
 
     // Explicit request but the model never rendered (weak/local models): fall
@@ -743,7 +745,7 @@ ${EXTERNAL_CONTENT_RULE}
         status: "completed",
         ...(plan ? { plan } : {}),
         resultRef: `results/${taskId}/result.json`,
-        resultMeta: { ...resultMeta, ...(plan ? { plan } : {}), ...(onDemand ? { toolsOnDemand: onDemand.loader.summary() } : {}), ...(resultFiles.list().length ? { files: resultFiles.list() } : {}), completedAt: new Date().toISOString() },
+        resultMeta: { ...resultMeta, ...(plan ? { plan } : {}), ...(onDemand ? { toolsOnDemand: onDemand.loader.summary() } : {}), ...(stepBreakdown.length ? { steps: stepBreakdown } : {}), ...(resultFiles.list().length ? { files: resultFiles.list() } : {}), completedAt: new Date().toISOString() },
         updatedAt: new Date(),
       })
       .where(and(eq(tasks.id, taskId), ne(tasks.status, "cancelled")));
