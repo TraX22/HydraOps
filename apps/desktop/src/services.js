@@ -1,19 +1,19 @@
 /**
- * services.js — supervisor de la pila HydraOps para el shell de escritorio.
+ * services.js — supervisor of the HydraOps stack for the desktop shell.
  *
- * Arranca y vigila los 9 procesos del backend (NATS, key-proxy, API,
- * orchestrator, outbox-worker y los 4 workers), en fases: cada fase espera a
- * que sus servicios respondan antes de lanzar la siguiente.
+ * Starts and watches the backend processes (NATS, key-proxy, API,
+ * orchestrator, outbox-worker, the 4 workers and the Telegram bot) in phases:
+ * each phase waits for its services to answer before launching the next one.
  *
- * Dos decisiones importantes:
- *  - Los hijos se lanzan con el Node QUE TRAE ELECTRON (process.execPath con
- *    ELECTRON_RUN_AS_NODE=1), así el usuario final no necesita Node instalado.
- *    Esto exige que los módulos nativos sean N-API: better-sqlite3 >= 12 lo es,
- *    y su binario precompilado sirve tal cual para los dos runtimes pese a
- *    tener ABIs distintos (Node del sistema 137 vs Electron 143).
- *  - Si un servicio YA responde en su puerto (porque el usuario lo arrancó con
- *    start-infra.ps1), se adopta como "externo": ni se relanza ni se mata al
- *    cerrar. Así la app convive con el flujo de desarrollo de siempre.
+ * Two important decisions:
+ *  - The children run with the Node THAT ELECTRON SHIPS (process.execPath with
+ *    ELECTRON_RUN_AS_NODE=1), so the end user needs no Node installed. This
+ *    requires native modules to be N-API: better-sqlite3 >= 12 is, and its
+ *    prebuilt binary works as is for both runtimes despite their different
+ *    ABIs (system Node 137 vs Electron 143).
+ *  - If a service ALREADY answers on its port (because the user started it
+ *    with start-infra.ps1), it is adopted as "external": neither relaunched
+ *    nor killed on close. That way the app coexists with the usual dev flow.
  */
 const { spawn, execFile } = require("node:child_process");
 const { EventEmitter } = require("node:events");
@@ -23,19 +23,19 @@ const net = require("node:net");
 const path = require("node:path");
 
 /**
- * Empaquetado, todo lo que viaja con la aplicación vive en resources/: el
- * backend construido en resources/backend, la UI en resources/ui, el binario de
- * NATS en resources/nats y la semilla de agentes en resources/seed. En
- * desarrollo todo eso cuelga de la raíz del repositorio.
+ * Packaged, everything that travels with the application lives in resources/:
+ * the built backend in resources/backend, the UI in resources/ui, the NATS
+ * binary in resources/nats and the agent seed in resources/seed. In
+ * development all of that hangs from the repository root.
  */
 const PACKAGED = __dirname.includes(`app.asar${path.sep}`) || __dirname.includes("app.asar/");
 const REPO = path.resolve(__dirname, "..", "..", "..");
 const HOME = PACKAGED ? process.resourcesPath || "" : REPO;
 
 /**
- * Raíz del código de los servicios. HYDRA_BACKEND_ROOT permite apuntar a un
- * backend ya construido (build/backend) sin llegar a empaquetar: es la forma de
- * probar el camino de instalación desde el repositorio.
+ * Root of the services' code. HYDRA_BACKEND_ROOT points at an already built
+ * backend (build/backend) without packaging: the way to test the installation
+ * path from the repository.
  */
 const REPO_ROOT = process.env.HYDRA_BACKEND_ROOT
   ? path.resolve(process.env.HYDRA_BACKEND_ROOT)
@@ -44,11 +44,12 @@ const REPO_ROOT = process.env.HYDRA_BACKEND_ROOT
     : REPO;
 
 /**
- * La versión de la aplicación vive en el package.json del escritorio, que se
- * empaqueta dentro del asar. Leerlo relativo a este archivo funciona en los tres
- * modos (escritorio empaquetado, headless y desarrollo). Se la pasamos a la API
- * por env: en el backend desplegado ya no existe apps/desktop/package.json, así
- * que su lectura directa daría null (y la vista no sabría qué versión corre).
+ * The application version lives in the desktop package.json, which is packed
+ * inside the asar. Reading it relative to this file works in all three modes
+ * (packaged desktop, headless and development). It is passed to the API by
+ * env: in the deployed backend apps/desktop/package.json no longer exists, so
+ * a direct read there would give null (and the view would not know which
+ * version runs).
  */
 const APP_VERSION = (() => {
   try {
@@ -57,10 +58,10 @@ const APP_VERSION = (() => {
 })();
 
 /**
- * El binario de NATS ya no lleva la ruta (ni la versión) fijada. Orden de
- * búsqueda: NATS_SERVER_BIN explícito → el que viaja empaquetado → cualquier
- * nats-server bajo nats/ en el repositorio (dev en Windows) → el PATH, que es
- * lo normal en un servidor headless (apt/brew/choco o el binario suelto).
+ * The NATS binary no longer has its path (or version) pinned. Lookup order:
+ * explicit NATS_SERVER_BIN → the one shipped packaged → any nats-server under
+ * nats/ in the repository (dev on Windows) → the PATH, which is the normal
+ * case on a headless server (apt/brew/choco or the bare binary).
  */
 const NATS_EXE = process.platform === "win32" ? "nats-server.exe" : "nats-server";
 function resolveNatsBin() {
@@ -75,20 +76,20 @@ function resolveNatsBin() {
       const candidate = path.join(natsDir, d, NATS_EXE);
       if (d.startsWith("nats-server") && fs.existsSync(candidate)) return candidate;
     }
-  } catch { /* sin carpeta nats/: un clon limpio, se busca en el PATH */ }
+  } catch { /* no nats/ folder: a clean clone, the PATH is searched */ }
   return NATS_EXE;
 }
 const NATS_BIN = resolveNatsBin();
 
-/** De dónde se copian agentes y add-ons de ejemplo al sembrar. */
+/** Where example agents and add-ons are copied from when seeding. */
 const SEED_ROOT = PACKAGED ? path.join(HOME, "seed") : REPO;
 
-/** Dónde está la UI compilada. */
+/** Where the built UI is. */
 const UI_ROOT = PACKAGED
   ? path.join(HOME, "ui")
   : path.join(REPO, "ui", "dist", "ui", "browser");
 
-/** Fase 0 arranca primero; dentro de una fase los servicios van en paralelo. */
+/** Phase 0 starts first; within a phase the services go in parallel. */
 const SERVICES = [
   { id: "nats",           label: "NATS JetStream", phase: 0, kind: "binary", port: 4222 },
   { id: "key-proxy",      label: "Key proxy",      phase: 0, kind: "node", app: "key-proxy",     port: 9099, healthPath: "/health" },
@@ -110,7 +111,7 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** ¿Hay algo escuchando ya en este puerto de loopback? */
+/** Is something already listening on this loopback port? */
 function portInUse(port, timeoutMs = 600) {
   return new Promise((resolve) => {
     const socket = new net.Socket();
@@ -127,13 +128,13 @@ function portInUse(port, timeoutMs = 600) {
 }
 
 /**
- * Qué apps de la pila tienen ya un proceso vivo, mirando las líneas de comando
- * de los `node` en ejecución.
+ * Which apps of the stack already have a live process, by looking at the
+ * command lines of the running `node` processes.
  *
- * Se hizo así porque orchestrator, outbox-worker y los workers no escuchan en
- * ningún puerto: no hay nada que sondear. El heartbeat que guardan en la BD
- * tampoco sirve — sobrevive varios minutos a la muerte del proceso, así que un
- * worker recién cerrado parecería vivo y nunca lo relanzaríamos.
+ * Done this way because orchestrator, outbox-worker and the workers listen on
+ * no port: there is nothing to probe. The heartbeat they keep in the DB is no
+ * use either — it outlives the process by several minutes, so a worker just
+ * closed would look alive and never be relaunched.
  */
 function detectRunningApps() {
   return new Promise((resolve) => {
@@ -142,8 +143,8 @@ function detectRunningApps() {
         resolve(err ? new Set() : parseAppNames(stdout));
       });
     } else {
-      // Se miran los dos ejecutables: node.exe si la pila se lanzó con los
-      // scripts de PowerShell, electron.exe si la lanzó otra instancia de la app.
+      // Both executables are checked: node.exe when the stack was launched with
+      // the PowerShell scripts, electron.exe when another instance of the app did.
       execFile(
         "powershell",
         [
@@ -172,7 +173,7 @@ function parseAppNames(output) {
   return names;
 }
 
-/** Espera a que el servicio responda: HTTP si tiene healthPath, TCP si no. */
+/** Waits for the service to answer: HTTP when it has a healthPath, TCP otherwise. */
 async function waitForService(service, timeoutMs = 60000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -198,13 +199,13 @@ async function waitForService(service, timeoutMs = 60000) {
 }
 
 /**
- * En Windows, matar el proceso padre deja huérfanos a los nietos: taskkill /T
- * se lleva el árbol entero.
+ * On Windows, killing the parent process orphans the grandchildren: taskkill /T
+ * takes the whole tree.
  */
 function killTree(pid) {
   return new Promise((resolve) => {
     if (process.platform !== "win32") {
-      try { process.kill(pid, "SIGTERM"); } catch { /* ya muerto */ }
+      try { process.kill(pid, "SIGTERM"); } catch { /* already dead */ }
       return resolve();
     }
     execFile("taskkill", ["/pid", String(pid), "/T", "/F"], () => resolve());
@@ -214,9 +215,9 @@ function killTree(pid) {
 class ServiceSupervisor extends EventEmitter {
   /**
    * @param {object} opts
-   * @param {string} opts.logDir    logs del supervisor (los servicios además
-   *                                escriben los suyos en <dataRoot>/storage/logs)
-   * @param {string} opts.dataRoot  se hereda a los hijos como HYDRA_DATA_DIR
+   * @param {string} opts.logDir    supervisor logs (the services also write
+   *                                their own in <dataRoot>/storage/logs)
+   * @param {string} opts.dataRoot  inherited by the children as HYDRA_DATA_DIR
    * @param {boolean} opts.isPackaged
    */
   constructor({ logDir, dataRoot, isPackaged }) {
@@ -266,14 +267,14 @@ class ServiceSupervisor extends EventEmitter {
   }
 
   /**
-   * Comando para un servicio Node. En desarrollo se ejecuta el TypeScript con
-   * tsx; empaquetado, el bundle ya construido en dist/.
+   * Command for a Node service. In development the TypeScript runs through
+   * tsx; packaged, the bundle already built in dist/.
    */
   #nodeCommand(service) {
     const appDir = path.join(REPO_ROOT, "apps", service.app);
     const distEntry = path.join(appDir, "dist", "index.js");
     const srcEntry = path.join(appDir, "src", "index.ts");
-    // El propio ejecutable de Electron hace de Node con ELECTRON_RUN_AS_NODE=1
+    // Electron's own executable acts as Node with ELECTRON_RUN_AS_NODE=1
     const command = process.execPath;
 
     if (this.isPackaged || (!fs.existsSync(srcEntry) && fs.existsSync(distEntry))) {
@@ -282,38 +283,41 @@ class ServiceSupervisor extends EventEmitter {
     const tsxCli = path.join(REPO_ROOT, "node_modules", "tsx", "dist", "cli.mjs");
     if (!fs.existsSync(tsxCli)) {
       if (fs.existsSync(distEntry)) return { command, args: [distEntry] };
-      throw new Error(`No encuentro tsx ni un bundle para ${service.id}`);
+      throw new Error(`Neither tsx nor a bundle found for ${service.id}`);
     }
     return { command, args: [tsxCli, srcEntry] };
   }
 
   #spawnService(service) {
-    // El almacén de JetStream es dato de usuario, no código: cuelga de dataRoot
-    // (que en desarrollo es la propia raíz del repositorio, así que no se mueve).
+    // The JetStream store is user data, not code: it hangs from dataRoot
+    // (which in development is the repository root itself, so it does not move).
     const natsStore = path.join(this.dataRoot, "nats", "jetstream");
+    // Every service talks to NATS over loopback, and the bus has no
+    // authentication: bound to 127.0.0.1 only, so nothing else on the network
+    // can publish tasks into it (nats-server listens on every interface by default).
     const { command, args } =
       service.kind === "binary"
-        ? { command: NATS_BIN, args: ["-js", "-sd", natsStore] }
+        ? { command: NATS_BIN, args: ["-a", "127.0.0.1", "-js", "-sd", natsStore] }
         : this.#nodeCommand(service);
 
-    // HYDRA_APP_ROOT se pasa explícito porque @hydraops/config lo deduce de su
-    // propia ubicación, y en un node_modules desplegado esa deducción no vale.
+    // HYDRA_APP_ROOT is passed explicitly because @hydraops/config infers it from
+    // its own location, and in a deployed node_modules that inference is wrong.
     const env = {
       ...process.env,
       FORCE_COLOR: "0",
       HYDRA_DATA_DIR: this.dataRoot,
       HYDRA_APP_ROOT: REPO_ROOT,
-      // La API sirve la interfaz. Empaquetada vive en resources/ui, que no
-      // guarda relación con el árbol del repositorio, así que hay que decírselo.
+      // The API serves the UI. Packaged it lives in resources/ui, unrelated to
+      // the repository tree, so it has to be told.
       HYDRA_UI_DIR: UI_ROOT,
-      // La versión instalada, para que la API la muestre (ver APP_VERSION arriba).
+      // The installed version, for the API to show it (see APP_VERSION above).
       HYDRA_APP_VERSION: APP_VERSION,
     };
     if (service.kind === "node") {
-      // Convierte el ejecutable de Electron en un Node a secas para el hijo
+      // Turns the Electron executable into a plain Node for the child
       env.ELECTRON_RUN_AS_NODE = "1";
     } else {
-      // Un binario externo (NATS) no debe heredarlo
+      // An external binary (NATS) must not inherit it
       delete env.ELECTRON_RUN_AS_NODE;
     }
 
@@ -355,7 +359,7 @@ class ServiceSupervisor extends EventEmitter {
     });
 
     child.on("error", (err) => {
-      this.#appendLog(service.id, `\n[desktop] no se pudo lanzar: ${err.message}\n`);
+      this.#appendLog(service.id, `\n[desktop] could not launch: ${err.message}\n`);
       this.#update(service.id, { status: "crashed", pid: null, detail: err.message });
     });
 
@@ -373,16 +377,16 @@ class ServiceSupervisor extends EventEmitter {
     entry.restarts += 1;
     setTimeout(() => {
       if (this.shuttingDown) return;
-      this.#appendLog(service.id, `\n[desktop] reiniciando (intento ${entry.restarts})\n`);
+      this.#appendLog(service.id, `\n[desktop] restarting (attempt ${entry.restarts})\n`);
       this.#spawnService(service);
     }, RESTART_DELAY_MS);
   }
 
-  /** Arranca todo por fases. onProgress recibe mensajes para el splash. */
+  /** Starts everything by phases. onProgress receives messages for the splash. */
   async startAll(onProgress = () => {}) {
     const phases = [...new Set(SERVICES.map((s) => s.phase))].sort();
-    // Una sola foto de los procesos existentes, tomada antes de lanzar nada:
-    // después nuestros propios hijos aparecerían en el listado.
+    // One single snapshot of the existing processes, taken before launching
+    // anything: afterwards our own children would show up in the listing.
     onProgress("Buscando servicios ya en marcha…");
     const alreadyRunning = await detectRunningApps();
 
@@ -390,7 +394,7 @@ class ServiceSupervisor extends EventEmitter {
       const inPhase = SERVICES.filter((s) => s.phase === phase);
 
       for (const service of inPhase) {
-        // Adoptar lo que ya esté levantado en vez de chocar con EADDRINUSE
+        // Adopt whatever is already up instead of clashing with EADDRINUSE
         if (service.port && (await portInUse(service.port))) {
           this.#update(service.id, {
             status: "external",
@@ -431,8 +435,8 @@ class ServiceSupervisor extends EventEmitter {
         });
       await Promise.all(waits);
 
-      // Los servicios sin puerto (workers, orchestrator) se dan por arrancados
-      // si siguen vivos tras un instante; su salud real la reporta /workers.
+      // Services without a port (workers, orchestrator) count as started when
+      // they are still alive after a moment; their real health is reported by /workers.
       await sleep(400);
       for (const service of inPhase) {
         const entry = this.state.get(service.id);
@@ -468,7 +472,7 @@ class ServiceSupervisor extends EventEmitter {
     return true;
   }
 
-  /** Para todo lo que hayamos lanzado nosotros; los externos se respetan. */
+  /** Stops everything we launched ourselves; external ones are left alone. */
   async stopAll() {
     this.shuttingDown = true;
     const kills = [];

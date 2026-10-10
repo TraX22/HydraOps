@@ -126,7 +126,7 @@ const authToken = process.env.HYDRA_AUTH_TOKEN?.trim() || "";
 const authStrict = process.env.HYDRA_AUTH_STRICT?.trim() === "1";
 
 if (authToken && authToken.length < 16) {
-  console.warn("[api] ⚠ HYDRA_AUTH_TOKEN tiene menos de 16 caracteres — usa uno largo y aleatorio");
+  console.warn("[api] ⚠ HYDRA_AUTH_TOKEN is shorter than 16 characters — use a long random one");
 }
 
 function isLoopbackAddress(addr: string | undefined): boolean {
@@ -3677,7 +3677,7 @@ if (existsSync(path.join(uiDir, "index.html"))) {
   });
   console.log(`[api] serving UI from ${uiDir}`);
 } else {
-  console.log(`[api] sin build de la interfaz en ${uiDir} — solo API (compílala con: pnpm --filter ui build)`);
+  console.log(`[api] no UI build in ${uiDir} — API only (build it with: pnpm --filter ui build)`);
 }
 
 // By default the API listens on loopback only: opening it to the network has to be
@@ -3925,15 +3925,16 @@ if (generatedToken) {
 }
 if (wantsNetwork && !authToken) {
   console.error(
-    `[api] ✖ HYDRA_HOST=${host} sin HYDRA_AUTH_TOKEN — la API NO se abre a la red sin token. ` +
-    `Define HYDRA_AUTH_TOKEN en el .env y reinicia; mientras tanto escucho solo en 127.0.0.1.`
+    `[api] ✖ HYDRA_HOST=${host} without HYDRA_AUTH_TOKEN — the API does NOT open to the network without a token. ` +
+    `Set HYDRA_AUTH_TOKEN in the .env and restart; until then it listens on 127.0.0.1 only.`
   );
   host = "127.0.0.1";
 }
 app.listen(port, host, () => {
-  console.log(`[api] listening on http://${host === "0.0.0.0" ? "127.0.0.1" : host}:${port}`);
+  // The address as bound, so the log never says "127.0.0.1" for a port open to the network.
+  console.log(`[api] listening on http://${host}:${port}`);
   if (host !== "127.0.0.1" && host !== "localhost") {
-    console.warn(`[api] ⚠ escuchando en ${host}: accesible desde la red, protegida por HYDRA_AUTH_TOKEN`);
+    console.warn(`[api] ⚠ listening on ${host}: reachable from the network, protected by HYDRA_AUTH_TOKEN`);
   }
 });
 

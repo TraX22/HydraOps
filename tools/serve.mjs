@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 /**
- * serve.mjs — arranque headless de la pila completa: `pnpm serve`.
+ * serve.mjs — headless start of the whole stack: `pnpm serve`.
  *
- * Levanta NATS + los 8 servicios sin Electron, pensado para un servidor
- * pequeño encendido 24/7 (y para cualquiera que prefiera el navegador a la
- * ventana). Reutiliza el supervisor del escritorio —fases, esperas de salud,
- * adopción de servicios ya vivos, reinicios— que es Node puro y no toca
- * Electron para nada; aquí los hijos corren con el Node del sistema
- * (ELECTRON_RUN_AS_NODE en el entorno es inofensivo bajo un node normal).
+ * Brings up NATS + the services without Electron, meant for a small server
+ * that stays on 24/7 (and for anyone who prefers the browser to the window).
+ * It reuses the desktop supervisor — phases, health waits, adoption of
+ * services already alive, restarts — which is plain Node and never touches
+ * Electron; here the children run with the system's Node
+ * (ELECTRON_RUN_AS_NODE in the environment is harmless under a normal node).
  *
- * Antes de arrancar ejecuta migraciones y sembrado de agentes, que son
- * idempotentes: un clon recién hecho funciona sin pasos previos de base de
- * datos, y una actualización aplica su esquema nuevo sola.
+ * Before starting it runs the migrations and the agent seeding, both
+ * idempotent: a fresh clone works with no database steps, and an update
+ * applies its new schema by itself.
  *
- * El binario de nats-server se busca en NATS_SERVER_BIN, en nats/ del
- * repositorio o en el PATH (ver resolveNatsBin en apps/desktop/src/services.js).
+ * The nats-server binary is looked up in NATS_SERVER_BIN, in nats/ of the
+ * repository or in the PATH (see resolveNatsBin in apps/desktop/src/services.js).
  */
 import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
@@ -29,18 +29,28 @@ const dataRoot = process.env.HYDRA_DATA_DIR
   ? path.resolve(process.env.HYDRA_DATA_DIR)
   : repoRoot;
 const logDir = path.join(dataRoot, "storage", "logs", "supervisor");
+const envFile = path.join(dataRoot, ".env");
 
-// El .env se carga ANTES de tocar services.js: la resolución del binario de
-// NATS (NATS_SERVER_BIN) ocurre al cargar ese módulo. Semántica dotenv: una
-// variable ya presente en el entorno real nunca se pisa. Los servicios cargan
-// su propio .env igualmente — esto es solo para el supervisor.
-try {
-  for (const line of fs.readFileSync(path.join(dataRoot, ".env"), "utf8").split(/\r?\n/)) {
-    if (line.trimStart().startsWith("#")) continue;
-    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
-    if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
-  }
-} catch { /* sin .env: valores por defecto */ }
+/** The variables of the .env, as written there (quotes stripped); empty without a file. */
+function readEnvFile() {
+  const values = {};
+  try {
+    for (const line of fs.readFileSync(envFile, "utf8").split(/\r?\n/)) {
+      if (line.trimStart().startsWith("#")) continue;
+      const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+      if (m) values[m[1]] = m[2].replace(/^["']|["']$/g, "");
+    }
+  } catch { /* no .env: defaults */ }
+  return values;
+}
+
+// The .env is loaded BEFORE touching services.js: the NATS binary lookup
+// (NATS_SERVER_BIN) happens when that module loads. dotenv semantics: a
+// variable already present in the real environment is never overwritten. The
+// services load their own .env anyway — this is only for the supervisor.
+for (const [name, value] of Object.entries(readEnvFile())) {
+  if (!(name in process.env)) process.env[name] = value;
+}
 
 // The children learn who runs the stack: /exit and /restart only work under a supervisor.
 process.env.HYDRA_SUPERVISOR = "server";
@@ -50,20 +60,20 @@ const { ServiceSupervisor, UI_ROOT, NATS_BIN } = require(
   path.join(repoRoot, "apps", "desktop", "src", "services.js")
 );
 
-// ─── Avisos tempranos: mejor un mensaje claro ahora que un fallo críptico luego ───
+// ─── Early warnings: a clear message now beats a cryptic failure later ───────
 
 if (!fs.existsSync(path.join(UI_ROOT, "index.html"))) {
-  console.warn(`[serve] ⚠ interfaz sin compilar en ${UI_ROOT} — la API servirá solo datos. Compílala con: pnpm --filter ui build`);
+  console.warn(`[serve] ⚠ UI not built in ${UI_ROOT} — the API will serve data only. Build it with: pnpm --filter ui build`);
 }
 
-// El supervisor lanzará NATS_BIN; si es un nombre a secas lo resolverá el PATH,
-// y ahí no podemos comprobar nada por adelantado — el fallo se verá al lanzar.
+// The supervisor launches NATS_BIN; a bare name is resolved by the PATH, and
+// there is nothing to check ahead of time — a failure shows up at launch.
 if (path.isAbsolute(NATS_BIN) && !fs.existsSync(NATS_BIN)) {
-  console.error(`[serve] ✖ no existe el binario de NATS en ${NATS_BIN}. Instala nats-server (o define NATS_SERVER_BIN).`);
+  console.error(`[serve] ✖ no NATS binary at ${NATS_BIN}. Install nats-server (or set NATS_SERVER_BIN).`);
   process.exit(1);
 }
 
-// ─── Migraciones + sembrado, idempotentes, en cada arranque ──────────────────
+// ─── Migrations + seeding, idempotent, on every start ────────────────────────
 
 function runOnce(scriptRel) {
   return new Promise((resolve) => {
@@ -82,24 +92,24 @@ function runOnce(scriptRel) {
   });
 }
 
-console.log("[serve] aplicando migraciones…");
+console.log("[serve] applying migrations…");
 const migrate = await runOnce(path.join("packages", "db", "src", "migrate.ts"));
 if (migrate.code !== 0) {
-  console.error(`[serve] ✖ las migraciones fallaron — no se arranca nada con la base de datos a medias:\n${migrate.output}`);
+  console.error(`[serve] ✖ migrations failed — nothing starts on a half-migrated database:\n${migrate.output}`);
   process.exit(1);
 }
 const seed = await runOnce(path.join("packages", "db", "src", "seed-agent-configs.ts"));
 if (seed.code !== 0) {
-  console.warn(`[serve] ⚠ el sembrado de agentes falló (la pila arranca igual):\n${seed.output}`);
+  console.warn(`[serve] ⚠ agent seeding failed (the stack starts anyway):\n${seed.output}`);
 }
 
-// ─── Arranque por fases con el supervisor del escritorio ─────────────────────
+// ─── Phased start with the desktop supervisor ────────────────────────────────
 
 const supervisor = new ServiceSupervisor({ logDir, dataRoot, isPackaged: false });
 
-// Toda la salida de los servicios pasa por aquí con su prefijo: en consola se
-// lee como docker compose, y bajo systemd acaba entera en el journal. Cada
-// servicio escribe además su propio archivo en storage/logs/.
+// Every service's output goes through here with its prefix: on a console it
+// reads like docker compose, and under systemd it all lands in the journal.
+// Each service also writes its own file in storage/logs/.
 supervisor.on("log", ({ id, chunk }) => {
   for (const line of String(chunk).split(/\r?\n/)) {
     if (line.trim()) console.log(`[${id}] ${line}`);
@@ -107,55 +117,57 @@ supervisor.on("log", ({ id, chunk }) => {
 });
 
 supervisor.on("status", (s) => {
-  if (s.status === "crashed") console.error(`[serve] ✖ ${s.label}: ${s.detail || "caído"}`);
+  if (s.status === "crashed") console.error(`[serve] ✖ ${s.label}: ${s.detail || "crashed"}`);
   if (s.status === "external") console.log(`[serve] ${s.label}: ${s.detail}`);
 });
 
 await supervisor.startAll((msg) => console.log(`[serve] ${msg}`));
 
-// Sin NATS o sin API la pila no es una pila: mejor pararlo todo y salir con
-// error (systemd lo reintentará) que quedarse a medias aparentando servicio.
+// Without NATS or the API the stack is no stack: better to stop everything and
+// exit with an error (systemd retries) than to stay half up pretending to serve.
 const snapshot = supervisor.snapshot();
 const essential = snapshot.filter((s) => s.id === "nats" || s.id === "api" || s.id === "key-proxy");
 const broken = essential.filter((s) => s.status === "crashed");
 if (broken.length) {
-  console.error(`[serve] ✖ no arrancó: ${broken.map((s) => s.label).join(", ")} — se detiene la pila`);
+  console.error(`[serve] ✖ did not start: ${broken.map((s) => s.label).join(", ")} — stopping the stack`);
   await supervisor.stopAll();
   process.exit(1);
 }
 
-// ─── Resumen y URL ───────────────────────────────────────────────────────────
+// ─── Summary and URLs ────────────────────────────────────────────────────────
 
 for (const s of snapshot) {
   const mark = s.status === "running" ? "✔" : s.status === "external" ? "≡" : "✖";
-  console.log(`[serve]  ${mark} ${s.label}${s.status === "external" ? " (adoptado)" : ""}`);
+  console.log(`[serve]  ${mark} ${s.label}${s.status === "external" ? " (adopted)" : ""}`);
 }
 
-// El .env (ya cargado arriba) manda sobre dónde escucha la API; aquí solo se
-// usa para imprimir la URL buena.
+// The .env (loaded above) decides where the API listens; here it is only used
+// to print the right URLs.
 const host = process.env.HYDRA_HOST?.trim() || "127.0.0.1";
 const port = process.env.PORT?.trim() || "3000";
 
-console.log(`[serve] interfaz en http://127.0.0.1:${port}`);
+console.log(`[serve] UI at http://127.0.0.1:${port}`);
 if (host === "0.0.0.0") {
-  // La API se niega a abrirse a la red sin token (cae a loopback): imprimir
-  // URLs de red sin token sería mentir.
-  if (process.env.HYDRA_AUTH_TOKEN?.trim()) {
+  // On its first start on the network the API generates HYDRA_AUTH_TOKEN itself and
+  // saves it in the .env, after this process loaded its environment: the file is
+  // the truth, not process.env. Without a token the API refuses the network and
+  // stays on loopback, so printing network URLs would be lying.
+  const token = process.env.HYDRA_AUTH_TOKEN?.trim() || readEnvFile().HYDRA_AUTH_TOKEN?.trim();
+  if (token) {
     for (const addrs of Object.values(os.networkInterfaces())) {
       for (const a of addrs ?? []) {
-        if (a.family === "IPv4" && !a.internal) console.log(`[serve]          http://${a.address}:${port} (red local)`);
+        if (a.family === "IPv4" && !a.internal) console.log(`[serve]       http://${a.address}:${port} (local network, asks for HYDRA_AUTH_TOKEN)`);
       }
     }
   } else {
-    console.warn("[serve] ⚠ HYDRA_HOST=0.0.0.0 sin HYDRA_AUTH_TOKEN: la API se queda en loopback");
+    console.warn("[serve] ⚠ HYDRA_HOST=0.0.0.0 but no HYDRA_AUTH_TOKEN could be saved in the .env: the API stays on loopback");
   }
 }
-console.log("[serve] Ctrl+C para parar la pila");
+console.log("[serve] Ctrl+C stops the stack");
 
-// ─── Autoactualización (botón "Actualizar" de la UI) ─────────────────────────
-// La API escribe la petición; aquí se ejecuta git+rebuild y se reinician los
-// servicios en sitio. Solo tiene efecto en un checkout de git (la API ya lo
-// comprueba antes de encolar).
+// ─── Self-update (the "Update" button of the UI) ─────────────────────────────
+// The API writes the request; here git+rebuild run and the services restart in
+// place. It only has an effect on a git checkout (the API checks before queueing).
 const { watchForUpdateRequest } = require(path.join(repoRoot, "apps", "desktop", "src", "self-update.js"));
 watchForUpdateRequest({
   repoRoot,
@@ -164,7 +176,7 @@ watchForUpdateRequest({
   startAll: () => supervisor.startAll((msg) => console.log(`[serve] ${msg}`)),
 });
 
-// ─── Apagado limpio ──────────────────────────────────────────────────────────
+// ─── Clean shutdown ──────────────────────────────────────────────────────────
 
 let stopping = false;
 async function shutdown(signal) {
@@ -194,6 +206,6 @@ watchForPowerRequest({
   },
 });
 
-// Los hijos mantienen vivo el proceso; esto cubre el caso extremo de que todos
-// mueran y agoten sus reintentos — el supervisor sigue siendo el ancla.
+// The children keep the process alive; this covers the edge case of all of them
+// dying and running out of retries — the supervisor remains the anchor.
 setInterval(() => {}, 1 << 30);

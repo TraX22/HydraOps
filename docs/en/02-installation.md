@@ -4,7 +4,7 @@
 
 1. Download `HydraOps-x.y.z-setup.exe` from the repository's *Releases* page.
 2. Run it and pick the installation folder. It needs no Node, no pnpm, nothing else: everything is inside.
-3. Open HydraOps from the Start menu. On first run it seeds an example agent and the sample add-ons.
+3. Open HydraOps from the Start menu. It starts with no agents: you create the first one from the Agents view (see [First steps](./03-first-steps.md)).
 
 Your data goes to `%APPDATA%\HydraOps` and your API keys to `%APPDATA%\hydraops\keys.json`, outside the installation folder: updating the application never deletes anything of yours.
 
