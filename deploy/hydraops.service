@@ -1,57 +1,56 @@
-# hydraops.service — HydraOps como servicio de systemd (modo headless).
+# hydraops.service — HydraOps as a systemd service (headless mode).
 #
-# Da por hecho un clon del repositorio ya preparado COMO EL USUARIO DEL
-# SERVICIO (pnpm install, pnpm build, pnpm --filter ui build, .env con
-# HYDRA_HOST y HYDRA_AUTH_TOKEN) y el binario nats-server accesible
-# (en el PATH del sistema o vía NATS_SERVER_BIN, abajo).
+# It assumes a clone of the repository already prepared AS THE SERVICE USER
+# (pnpm install, pnpm build, pnpm --filter ui build, a .env with HYDRA_HOST
+# and HYDRA_AUTH_TOKEN) and the nats-server binary reachable (on the system
+# PATH or through NATS_SERVER_BIN, below).
 #
-# Instalación — ajusta antes User=, WorkingDirectory=, ExecStart= y
-# ReadWritePaths= a tu usuario y a la ruta de tu clon:
+# Installation — first adjust User=, WorkingDirectory=, ExecStart= and
+# ReadWritePaths= to your user and the path of your clone:
 #
 #   sudo cp deploy/hydraops.service /etc/systemd/system/
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable --now hydraops
 #
-# Logs:    journalctl -u hydraops -f     (cada línea sale con su [servicio])
-# Estado:  systemctl status hydraops
-# Parar:   sudo systemctl stop hydraops  (SIGTERM → la pila entera para limpia)
+# Logs:    journalctl -u hydraops -f     (each line carries its [service])
+# Status:  systemctl status hydraops
+# Stop:    sudo systemctl stop hydraops  (SIGTERM → the whole stack stops cleanly)
 
 [Unit]
-Description=HydraOps — pila multiagente (NATS, key-proxy, API y workers)
+Description=HydraOps — multi-agent stack (NATS, key-proxy, API and workers)
 Documentation=https://github.com/TraX22/HydraOps
 Wants=network-online.target
 After=network-online.target
 
 [Service]
 Type=exec
-# El usuario dueño de la pila. Sus claves de API viven en
-# ~/.config/hydraops/keys.json — las gestiona el key-proxy, no este archivo.
+# The user that owns the stack. Their API keys live in
+# ~/.config/hydraops/keys.json — the key-proxy manages them, not this file.
 User=hydraops
 Group=hydraops
 
-# La raíz del clon.
+# The root of the clone.
 WorkingDirectory=/home/hydraops/HydraOps
-# La ruta de node la dice `which node`; la del script debe ser absoluta.
+# `which node` tells the path of node; the script path must be absolute.
 ExecStart=/usr/bin/node /home/hydraops/HydraOps/tools/serve.mjs
 
-# Si nats-server no está en el PATH que ve systemd (/usr/bin, /usr/local/bin):
+# If nats-server is not on the PATH systemd sees (/usr/bin, /usr/local/bin):
 #Environment=NATS_SERVER_BIN=/usr/local/bin/nats-server
 
-# serve.mjs para la pila entera al recibir SIGTERM; con "mixed", systemd se lo
-# manda solo al proceso principal (el apagado ordenado hace el resto) y remata
-# con SIGKILL a lo que siga vivo pasado el timeout.
+# serve.mjs stops the whole stack on SIGTERM; with "mixed", systemd sends it
+# only to the main process (the orderly shutdown does the rest) and finishes
+# with SIGKILL whatever is still alive after the timeout.
 KillMode=mixed
 TimeoutStopSec=30
 
-# serve sale con error si NATS, el key-proxy o la API no arrancan; un apagado
-# limpio (systemctl stop) no se reintenta.
+# serve exits with an error when NATS, the key-proxy or the API fail to start;
+# a clean stop (systemctl stop) is not retried.
 Restart=on-failure
 RestartSec=5
 
-# Endurecimiento: sistema de archivos de solo lectura salvo lo que la pila
-# escribe de verdad — el clon (BD, storage/, logs, nats/jetstream) y el
-# almacén de claves del usuario. Si mueves los datos con HYDRA_DATA_DIR,
-# añade esa ruta aquí.
+# Hardening: read-only file system except what the stack really writes — the
+# clone (database, storage/, logs, nats/jetstream) and the user's key store.
+# If you move the data with HYDRA_DATA_DIR, add that path here.
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
