@@ -1,4 +1,4 @@
-import { harvestMediaFiles } from './harvest-files.js';
+import { harvestMediaFiles, connectionOrigins } from './harvest-files.js';
 import { tool } from 'ai';
 import { HydraTool, ToolContext, ToolKeyRequirement } from './types.js';
 import { McpClientManager, McpServerStatus } from './mcp.js';
@@ -191,7 +191,13 @@ export class ToolRegistry {
       const mt = this.mcpManager.mcpTools.get(name);
       if (mt) {
         const harvesting: HydraTool = context?.addResultFile
-          ? { ...mt, execute: async (args: any, ctx?: ToolContext) => { const r = await mt.execute(args, ctx); await harvestMediaFiles(r, ctx ?? context); return r; } }
+          ? { ...mt, execute: async (args: any, ctx?: ToolContext) => {
+              const r = await mt.execute(args, ctx);
+              const c = ctx ?? context;
+              const server = this.mcpManager.serverOfTool(name);
+              await harvestMediaFiles(r, { ...c, allowedOrigins: server ? connectionOrigins(c?.connectionEnv?.(server)) : [] });
+              return r;
+            } }
           : mt;
         activeTools.push(finalize(harvesting, 'mcp'));
       }
