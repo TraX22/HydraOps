@@ -15,9 +15,13 @@
  * from where a tool leaves its output: the system's temporary folder, the task's own
  * folder, or a folder listed in HYDRA_MEDIA_DIRS. A path the answer merely mentions (a
  * private picture a page talked a tool into naming) is not copied anywhere else. Paths are
- * compared after resolving links. The tool's answer to the model is not changed.
+ * compared after resolving links. Addresses are fetched only from the origins the tool's own
+ * connection is configured with (its COMFYUI_URL, for instance), without following
+ * redirects, reading at most MAX_BYTES, and a result gets at most MAX_ATTEMPTS tries within
+ * TOTAL_BUDGET_MS. The tool's answer to the model is not changed.
  */
-import { copyFile, mkdir, realpath, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import type { ReportedFile, ResultFileKind } from "./result-files.js";
@@ -32,6 +36,49 @@ const EXTS = Object.keys(EXT_KIND).map((e) => e.slice(1)).join("|");
 const MAX_BYTES = 300 * 1024 * 1024;
 const MAX_FILES = 8;
 const FETCH_TIMEOUT_MS = 60_000;
+/** Addresses and paths tried per result, found or not: a result naming hundreds of dead addresses must not hold the worker. */
+const MAX_ATTEMPTS = 12;
+const TOTAL_BUDGET_MS = 180_000;
+
+const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
+
+/**
+ * The origins a connection is configured to reach on this computer: every value of its env
+ * that is an http(s) address on a loopback host (ComfyUI's COMFYUI_URL, for instance).
+ * Media addresses are fetched only from these.
+ */
+export function connectionOrigins(env: Record<string, string> | undefined): string[] {
+  const out = new Set<string>();
+  for (const v of Object.values(env ?? {})) {
+    try {
+      const u = new URL(String(v).trim());
+      if ((u.protocol === "http:" || u.protocol === "https:") && LOOPBACK.has(u.hostname)) out.add(u.origin);
+    } catch { /* not an address */ }
+  }
+  return [...out];
+}
+
+const sha1 = (b: Buffer) => createHash("sha1").update(b).digest("hex");
+
+/** Reads a response body, giving up past `max` bytes (a missing or false Content-Length must not fill the memory). */
+async function readCapped(res: Response, max: number): Promise<Buffer | null> {
+  const declared = Number(res.headers.get("content-length") ?? 0);
+  if (declared > max) { await res.body?.cancel().catch(() => {}); return null; }
+  if (!res.body) return null;
+  const reader = res.body.getReader();
+  const chunks: Buffer[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > max) { await reader.cancel().catch(() => {}); return null; }
+      chunks.push(Buffer.from(value));
+    }
+  } catch { return null; }
+  return Buffer.concat(chunks);
+}
 
 const inside = (root: string, p: string) => { const rel = path.relative(root, p); return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel)); };
 
@@ -88,14 +135,18 @@ export function findMediaRefs(result: unknown): { paths: string[]; urls: string[
 
 const safeName = (name: string) => path.basename(name).replace(/[^A-Za-z0-9 ._-]+/g, "_").slice(0, 120) || "file";
 
-async function freeName(dir: string, name: string, size: number): Promise<{ target: string; exists: boolean }> {
+/**
+ * Where to put a file in the task's folder: a free name, or the name already holding the
+ * same content (same size and same hash: brought in before, nothing to copy).
+ */
+async function freeName(dir: string, name: string, size: number, hash: () => Promise<string>): Promise<{ target: string; exists: boolean }> {
   const ext = path.extname(name);
   const stem = path.basename(name, ext);
   for (let i = 1; i < 100; i++) {
     const target = path.join(dir, i === 1 ? name : `${stem}_${i}${ext}`);
     const st = await stat(target).catch(() => null);
     if (!st) return { target, exists: false };
-    if (st.size === size) return { target, exists: true };   // the same file was already brought in
+    if (st.size === size && sha1(await readFile(target)) === await hash()) return { target, exists: true };
   }
   return { target: path.join(dir, `${stem}_${Date.now()}${ext}`), exists: false };
 }
@@ -104,30 +155,35 @@ async function freeName(dir: string, name: string, size: number): Promise<{ targ
  * Copies the media a result names into `filesDir` and reports each one. Best effort:
  * returns how many were reported, never throws.
  */
-export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: string; addResultFile?: (f: ReportedFile) => void }): Promise<number> {
+export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: string; addResultFile?: (f: ReportedFile) => void; allowedOrigins?: string[] }): Promise<number> {
   if (!ctx.filesDir || !ctx.addResultFile) return 0;
   const found = findMediaRefs(result);
   const paths = found.paths;
   // Straight from the server first: a /view address on this computer is the file where
   // ComfyUI saved it, under its own name. A local path is the fallback, for a result that
   // names no address (or whose address does not answer).
-  const urls = found.urls;
+  // Only the connection's own server: an address on another local port is never requested.
+  const origins = new Set(ctx.allowedOrigins ?? []);
+  const urls = found.urls.filter((u) => { try { return origins.has(new URL(u).origin); } catch { return false; } });
   if (!paths.length && !urls.length) return 0;
   let reported = 0;
+  let attempts = 0;
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
+  const spent = () => attempts >= MAX_ATTEMPTS || Date.now() > deadline;
   try {
     await mkdir(ctx.filesDir, { recursive: true });
     for (const u of urls) {
-      if (reported >= MAX_FILES) break;
+      if (reported >= MAX_FILES || spent()) break;
       const name = safeName(new URL(u).searchParams.get("filename") ?? "file");
       const kind = mediaKindOf(name);
       if (!kind) continue;
-      const res = await fetch(u, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }).catch(() => null);
-      if (!res?.ok) continue;
-      const len = Number(res.headers.get("content-length") ?? 0);
-      if (len > MAX_BYTES) continue;
-      const buf = Buffer.from(await res.arrayBuffer());
-      if (!buf.length || buf.length > MAX_BYTES) continue;
-      const { target, exists } = await freeName(ctx.filesDir, name, buf.length);
+      attempts++;
+      const left = Math.max(1_000, Math.min(FETCH_TIMEOUT_MS, deadline - Date.now()));
+      const res = await fetch(u, { redirect: "error", signal: AbortSignal.timeout(left) }).catch(() => null);
+      if (!res?.ok) { await res?.body?.cancel().catch(() => {}); continue; }
+      const buf = await readCapped(res, MAX_BYTES);
+      if (!buf?.length) continue;
+      const { target, exists } = await freeName(ctx.filesDir, name, buf.length, async () => sha1(buf));
       if (!exists) await writeFile(target, buf);
       ctx.addResultFile({ absPath: target, kind, size: buf.length });
       reported++;
@@ -136,7 +192,8 @@ export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: strin
     const taskDir = await realpath(ctx.filesDir);
     const roots = await outputRoots();
     for (const p of paths) {
-      if (reported >= MAX_FILES) break;
+      if (reported >= MAX_FILES || spent()) break;
+      attempts++;
       const kind = mediaKindOf(p);
       const abs = kind ? await realpath(p).catch(() => null) : null;
       const st = abs ? await stat(abs).catch(() => null) : null;
@@ -149,7 +206,7 @@ export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: strin
       }
       // Anywhere else only from where tools leave their output.
       if (!roots.some((r) => inside(r, abs))) continue;
-      const { target, exists } = await freeName(ctx.filesDir, safeName(abs), st.size);
+      const { target, exists } = await freeName(ctx.filesDir, safeName(abs), st.size, async () => sha1(await readFile(abs)));
       if (!exists) await copyFile(abs, target);
       ctx.addResultFile({ absPath: target, kind, size: st.size });
       reported++;

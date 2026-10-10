@@ -18,7 +18,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, generateVideo, resolveLLMConfig, resolveMaxSteps, buildUserMessage, GROK_VIDEO_ASPECTS, isGrokVideoEngine } from "@hydraops/llm";
-import { createResultFiles, mcpServerEnv, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan, setupToolsOnDemand, harvestMediaFiles } from "@hydraops/addons";
+import { createResultFiles, mcpServerEnv, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan, setupToolsOnDemand, harvestMediaFiles, connectionOrigins } from "@hydraops/addons";
 import { tool } from "ai";
 import { z } from "zod";
 import { AckPolicy } from "nats";
@@ -552,7 +552,9 @@ ${EXTERNAL_CONTENT_RULE}
     // is brought into this one, so it gets its card under the reply.
     if (continuationOf) {
       for (const a of await loadTaskActions(db, continuationOf).catch(() => [] as any[])) {
-        if (a.status === "executed" && a.result) await harvestMediaFiles(a.result, toolContext);
+        if (a.status !== "executed" || !a.result) continue;
+        const server = globalRegistry.indexSources().serverOfTool(String(a.toolName));
+        await harvestMediaFiles(a.result, { ...toolContext, allowedOrigins: server ? connectionOrigins(toolContext.connectionEnv(server)) : [] });
       }
     }
     // Installed skills, by name and description, for an agent that may use them (the
