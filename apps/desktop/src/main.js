@@ -609,13 +609,17 @@ async function boot() {
   // reinician los servicios, recargando la ventana al final. En el instalador
   // (packaged) no aplica — ahí actualiza electron-updater.
   if (!app.isPackaged) {
-    const { watchForUpdateRequest } = require("./self-update");
+    const { watchForUpdateRequest, finishRelaunch } = require("./self-update");
+    // This instance may be the one relaunched after an update: the stack is up,
+    // so the update is finished and the window can reload into the new build.
+    finishRelaunch(dataRoot);
     watchForUpdateRequest({
       repoRoot: REPO_ROOT,
       dataRoot,
       stopAll: () => supervisor.stopAll(),
       startAll: () => supervisor.startAll(splashMessage),
-      afterStart: () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.reload(); },
+      // The whole app restarts: this process and the modules it holds are the old version.
+      relaunch: () => { app.relaunch(); app.exit(0); },
     });
   }
 

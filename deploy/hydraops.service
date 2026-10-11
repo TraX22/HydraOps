@@ -5,9 +5,10 @@
 # and HYDRA_AUTH_TOKEN) and the nats-server binary reachable (on the system
 # PATH or through NATS_SERVER_BIN, below).
 #
-# Installation — first adjust User=, WorkingDirectory=, ExecStart= and
-# ReadWritePaths= to your user and the path of your clone:
+# Installation — first adjust User=, WorkingDirectory=, ExecStart=,
+# Environment=PATH and ReadWritePaths= to your user and the path of your clone:
 #
+#   mkdir -p ~/.cache ~/.local/share ~/.npm   # as the service user: the caches below
 #   sudo cp deploy/hydraops.service /etc/systemd/system/
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable --now hydraops
@@ -37,6 +38,10 @@ ExecStart=/usr/bin/node /home/hydraops/HydraOps/tools/serve.mjs
 # If nats-server is not on the PATH systemd sees (/usr/bin, /usr/local/bin):
 #Environment=NATS_SERVER_BIN=/usr/local/bin/nats-server
 
+# Connections (MCP servers) are started with uvx or npx. systemd's PATH does not
+# include the user's ~/.local/bin, where uv installs itself, so it is added here.
+Environment=PATH=/home/hydraops/.local/bin:/usr/local/bin:/usr/bin:/bin
+
 # serve.mjs stops the whole stack on SIGTERM; with "mixed", systemd sends it
 # only to the main process (the orderly shutdown does the rest) and finishes
 # with SIGKILL whatever is still alive after the timeout.
@@ -44,19 +49,29 @@ KillMode=mixed
 TimeoutStopSec=30
 
 # serve exits with an error when NATS, the key-proxy or the API fail to start;
-# a clean stop (systemctl stop) is not retried.
+# a clean stop (systemctl stop) is not retried. After a self-update (the
+# "Update" button) it exits with code 3 on purpose, so that systemd starts a
+# fresh supervisor running the new code: that exit is a success, and it restarts.
 Restart=on-failure
 RestartSec=5
+SuccessExitStatus=3
+RestartForceExitStatus=3
 
 # Hardening: read-only file system except what the stack really writes — the
-# clone (database, storage/, logs, nats/jetstream) and the user's key store.
-# If you move the data with HYDRA_DATA_DIR, add that path here.
+# clone (database, storage/, logs, nats/jetstream), the user's key store, and
+# the caches where uvx and npx keep the connections' servers (without them a
+# connection never starts). If you move the data with HYDRA_DATA_DIR, add that
+# path here.
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
 ReadWritePaths=/home/hydraops/HydraOps
 ReadWritePaths=/home/hydraops/.config/hydraops
+# The leading "-" lets the service start when a cache folder does not exist yet.
+ReadWritePaths=-/home/hydraops/.cache
+ReadWritePaths=-/home/hydraops/.local/share
+ReadWritePaths=-/home/hydraops/.npm
 
 [Install]
 WantedBy=multi-user.target

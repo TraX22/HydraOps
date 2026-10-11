@@ -42,17 +42,20 @@ Connections from the server's own machine never need the token. If the token can
 The repository ships a ready unit: [`deploy/hydraops.service`](../../deploy/hydraops.service), with installation instructions in its comments. In short:
 
 ```bash
+mkdir -p ~/.cache ~/.local/share ~/.npm   # the caches the unit lets the service write
 sudo cp deploy/hydraops.service /etc/systemd/system/
-# edit User=, WorkingDirectory=, ExecStart= and ReadWritePaths= to your user and path
+# edit User=, WorkingDirectory=, ExecStart=, Environment=PATH and ReadWritePaths= to your user and path
 sudo systemctl daemon-reload
 sudo systemctl enable --now hydraops
 ```
+
+The unit runs the stack with a read-only home, except the clone, the key store and the caches of `uvx` and `npx`, which is what starts the connections (MCP servers) and keeps their code; and it puts `~/.local/bin`, where `uv` installs itself, on the service's `PATH`. A unit installed before 0.1.59 lacks both: without them a connection such as BlenderLab never starts under the service (it does from a terminal). Add the `Environment=PATH=` line and the three extra `ReadWritePaths=` lines from the current `deploy/hydraops.service`, then `sudo systemctl daemon-reload && sudo systemctl restart hydraops`.
 
 Every service's logs end up in the journal: `journalctl -u hydraops -f`. Stopping with `systemctl stop hydraops` shuts the whole stack down cleanly.
 
 ## Updating a server
 
-The **Update** button of the System view works in server mode too (it `git pull`s, rebuilds and restarts the services in place). By hand:
+The **Update** button of the System view works in server mode too: it fetches the release, rebuilds, and then the supervisor hands over to a fresh one so the new code runs everywhere (under systemd it exits with code 3 and the unit starts it again; under a plain `pnpm serve` a new supervisor is started in place). A unit installed before 0.1.59 restarts it too, but logs that exit as a failure: add `SuccessExitStatus=3` and `RestartForceExitStatus=3` under `[Service]` (as the current `deploy/hydraops.service` has) and run `sudo systemctl daemon-reload` to make it clean. By hand:
 
 ```bash
 sudo systemctl stop hydraops      # or Ctrl+C if you started it with pnpm serve

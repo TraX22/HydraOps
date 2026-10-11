@@ -9,6 +9,12 @@ db.sqlite3.bak-*
 users/
 storage/
 .env
+# Requests the UI leaves for the supervisor and the state of the last self-update.
+# They live in the data root, which from source is the clone itself; left
+# untracked they would make `git status` dirty and the next update refuse to run.
+self-update.request
+self-update.state.json
+power.request
 # Installed skills are the user's own (catalog downloads, manual copies, the ones
 # their agents wrote): they never go to the repository.
 /skills/

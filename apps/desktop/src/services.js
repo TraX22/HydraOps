@@ -49,13 +49,15 @@ const REPO_ROOT = process.env.HYDRA_BACKEND_ROOT
  * (packaged desktop, headless and development). It is passed to the API by
  * env: in the deployed backend apps/desktop/package.json no longer exists, so
  * a direct read there would give null (and the view would not know which
- * version runs).
+ * version runs). Read every time a service is launched, not once at load: a
+ * self-update replaces that file under a supervisor that keeps running, and
+ * the services it relaunches must report the new version.
  */
-const APP_VERSION = (() => {
+function readAppVersion() {
   try {
     return JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8")).version || "";
   } catch { return ""; }
-})();
+}
 
 /**
  * The NATS binary no longer has its path (or version) pinned. Lookup order:
@@ -310,8 +312,8 @@ class ServiceSupervisor extends EventEmitter {
       // The API serves the UI. Packaged it lives in resources/ui, unrelated to
       // the repository tree, so it has to be told.
       HYDRA_UI_DIR: UI_ROOT,
-      // The installed version, for the API to show it (see APP_VERSION above).
-      HYDRA_APP_VERSION: APP_VERSION,
+      // The installed version, for the API to show it (see readAppVersion above).
+      HYDRA_APP_VERSION: readAppVersion(),
     };
     if (service.kind === "node") {
       // Turns the Electron executable into a plain Node for the child
@@ -486,4 +488,4 @@ class ServiceSupervisor extends EventEmitter {
   }
 }
 
-module.exports = { ServiceSupervisor, SERVICES, REPO_ROOT, SEED_ROOT, UI_ROOT, PACKAGED, NATS_BIN };
+module.exports = { ServiceSupervisor, SERVICES, REPO_ROOT, SEED_ROOT, UI_ROOT, PACKAGED, NATS_BIN, readAppVersion };

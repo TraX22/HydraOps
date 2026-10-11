@@ -166,19 +166,36 @@ if (host === "0.0.0.0") {
 console.log("[serve] Ctrl+C stops the stack");
 
 // ─── Self-update (the "Update" button of the UI) ─────────────────────────────
-// The API writes the request; here git+rebuild run and the services restart in
-// place. It only has an effect on a git checkout (the API checks before queueing).
-const { watchForUpdateRequest } = require(path.join(repoRoot, "apps", "desktop", "src", "self-update.js"));
+// The API writes the request; here git+rebuild run, the stack stops and a new
+// supervisor takes over, so the new code runs everywhere (this process and the
+// modules it holds are the old version). It only has an effect on a git
+// checkout (the API checks before queueing).
+const { watchForUpdateRequest, finishRelaunch, relaunchMode, reexecSupervisor, RELAUNCH_EXIT_CODE } =
+  require(path.join(repoRoot, "apps", "desktop", "src", "self-update.js"));
+
+// This process may be the one that replaced an updated supervisor: the stack is
+// up, so the update is finished.
+if (finishRelaunch(dataRoot)) console.log("[serve] update finished: this is the new supervisor");
+
+let stopping = false;
 watchForUpdateRequest({
   repoRoot,
   dataRoot,
   stopAll: () => supervisor.stopAll(),
   startAll: () => supervisor.startAll((msg) => console.log(`[serve] ${msg}`)),
+  relaunch: () => {
+    stopping = true; // the stack is already stopped; the signal handlers below must not run it again
+    if (relaunchMode() === "systemd") {
+      console.log(`[serve] updated: exiting with code ${RELAUNCH_EXIT_CODE} so systemd starts the new supervisor`);
+      process.exit(RELAUNCH_EXIT_CODE);
+    }
+    console.log("[serve] updated: starting the new supervisor in place…");
+    reexecSupervisor({ script: fileURLToPath(import.meta.url), args: process.argv.slice(2) });
+  },
 });
 
 // ─── Clean shutdown ──────────────────────────────────────────────────────────
 
-let stopping = false;
 async function shutdown(signal) {
   if (stopping) return;
   stopping = true;
