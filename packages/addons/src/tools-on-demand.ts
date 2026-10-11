@@ -21,8 +21,6 @@ export const LOAD_TOOL_NAME = "load_tools";
 export const ON_DEMAND_MIN_TOOLS = 12;
 /** A connection is loaded whole (named in the message, or asked for by `group`) only up to this many tools; past it, the model picks. */
 export const PRELOAD_GROUP_MAX = 15;
-/** A loaded tool the model has not called for this many steps leaves the active set (a call to it reloads it). */
-export const IDLE_STEPS = 3;
 const SUMMARY_MAX = 90;
 
 export interface ToolIndexEntry {
@@ -109,13 +107,13 @@ export interface ToolLoader {
   listGroup(group: string): ToolIndexEntry[] | null;
   /** A tool the model called: it stays loaded. */
   touched(name: string): void;
-  /** One more model step: tools idle for IDLE_STEPS leave the active set. */
+  /** One more model step (the step clock behind `summary().steps`). */
   tick(): void;
   /** The index for the system prompt. */
   promptSection(): string;
   /** The `load_tools` tool for the AI SDK. */
   aiTool(): any;
-  summary(): { total: number; preloaded: string[]; loaded: string[] };
+  summary(): { total: number; preloaded: string[]; loaded: string[]; steps: number };
 }
 
 export function createToolLoader(index: ToolIndexEntry[], preload: string[] = []): ToolLoader {
@@ -158,10 +156,12 @@ export function createToolLoader(index: ToolIndexEntry[], preload: string[] = []
     loadGroup,
     listGroup,
     touched: (name) => { if (known.has(name)) activate(name); },
-    tick: () => {
-      step++;
-      for (const [n, last] of active) if (step - last > IDLE_STEPS) active.delete(n);
-    },
+    // A loaded tool stays loaded for the rest of the task. Unloading idle ones (3 steps
+    // without a call, until 0.1.58) saved a few hundred tokens of definitions per step and
+    // cost the whole prompt cache: the tool list is the first thing in the request, so any
+    // change to it makes the provider re-read the entire conversation at the full price
+    // (measured on a Blender task with Opus: 50,000 full-price tokens to save 500).
+    tick: () => { step++; },
     promptSection: () => {
       const groups = new Map<string, ToolIndexEntry[]>();
       for (const e of index) groups.set(e.group, [...(groups.get(e.group) ?? []), e]);
@@ -171,7 +171,7 @@ export function createToolLoader(index: ToolIndexEntry[], preload: string[] = []
         "",
         "",
         `## Tools (${index.length})`,
-        `Only the tools listed as loaded carry their full definition right now. To use any other, call \`${LOAD_TOOL_NAME}\` with the names of the ones you need (several at once is fine); they are available from your next step. Load only what you are going to call: a tool you leave unused for a few steps is unloaded again. Do not say a tool is missing: load it.`,
+        `Only the tools listed as loaded carry their full definition right now. To use any other, call \`${LOAD_TOOL_NAME}\` with the names of the ones you need (several at once is fine); they are available from your next step and stay loaded for the rest of the task. Load in one call everything you are going to use, not one tool at a time: every load makes the next step more expensive. Do not say a tool is missing: load it.`,
         ...lines,
         `Loaded now: ${loaded.length ? loaded.join(", ") : "none"}.`,
       ].join("\n");
@@ -198,7 +198,7 @@ export function createToolLoader(index: ToolIndexEntry[], preload: string[] = []
         return parts.join(" ");
       },
     }),
-    summary: () => ({ total: index.length, preloaded, loaded: [...loadedByModel] }),
+    summary: () => ({ total: index.length, preloaded, loaded: [...loadedByModel], steps: step }),
   };
 }
 
@@ -248,7 +248,7 @@ export function setupToolsOnDemand(opts: {
     promptSection: loader.promptSection(),
     llmOptionsFor: (toolMap) => {
       const outside = Object.keys(toolMap ?? {}).filter((n) => !inIndex.has(n));
-      // activeTools runs once before every model step: that is the step clock for idle unloading.
+      // activeTools runs once before every model step: that is the step clock.
       return { activeTools: () => { loader.tick(); return [...new Set([...loader.active(), ...outside])]; }, onToolCalled: (n) => loader.touched(n), uncountedTools: [LOAD_TOOL_NAME], loadToolName: LOAD_TOOL_NAME };
     },
   };
