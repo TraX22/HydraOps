@@ -43,10 +43,12 @@ The repository ships a ready unit: [`deploy/hydraops.service`](../../deploy/hydr
 
 ```bash
 sudo cp deploy/hydraops.service /etc/systemd/system/
-# edit User=, WorkingDirectory=, ExecStart= and ReadWritePaths= to your user and path
+# edit User=, WorkingDirectory=, ExecStart=, Environment=PATH and ReadWritePaths= to your user and path
 sudo systemctl daemon-reload
 sudo systemctl enable --now hydraops
 ```
+
+The unit runs the stack with a read-only home, except the clone, the key store and the caches of `uvx` and `npx`, which is what starts the connections (MCP servers) and keeps their code; and it puts `~/.local/bin`, where `uv` installs itself, on the service's `PATH`. A unit installed before 0.1.59 lacks both: without them a connection such as BlenderLab never starts under the service (it does from a terminal). Add the `Environment=PATH=` line and the three extra `ReadWritePaths=` lines from the current `deploy/hydraops.service`, then `sudo systemctl daemon-reload && sudo systemctl restart hydraops`.
 
 Every service's logs end up in the journal: `journalctl -u hydraops -f`. Stopping with `systemctl stop hydraops` shuts the whole stack down cleanly.
 

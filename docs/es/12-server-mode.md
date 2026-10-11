@@ -43,10 +43,12 @@ En el repositorio hay una unidad lista: [`deploy/hydraops.service`](../../deploy
 
 ```bash
 sudo cp deploy/hydraops.service /etc/systemd/system/
-# edita User=, WorkingDirectory=, ExecStart= y ReadWritePaths= a tu usuario y tu ruta
+# edita User=, WorkingDirectory=, ExecStart=, Environment=PATH y ReadWritePaths= a tu usuario y tu ruta
 sudo systemctl daemon-reload
 sudo systemctl enable --now hydraops
 ```
+
+La unidad corre la pila con el home en solo lectura, salvo el clon, el almacén de claves y las cachés de `uvx` y `npx`, que es lo que arranca las conexiones (servidores MCP) y guarda su código; y pone `~/.local/bin`, donde `uv` se instala, en el `PATH` del servicio. Una unidad instalada antes de 0.1.59 no tiene ninguna de las dos cosas: sin ellas una conexión como BlenderLab nunca arranca bajo el servicio (desde una terminal sí). Añade la línea `Environment=PATH=` y las tres `ReadWritePaths=` extra del `deploy/hydraops.service` actual, y luego `sudo systemctl daemon-reload && sudo systemctl restart hydraops`.
 
 Los logs de todos los servicios acaban en el journal: `journalctl -u hydraops -f`. Parar con `systemctl stop hydraops` hace un apagado limpio de la pila entera.
 
