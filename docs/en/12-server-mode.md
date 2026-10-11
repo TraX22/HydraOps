@@ -52,7 +52,7 @@ Every service's logs end up in the journal: `journalctl -u hydraops -f`. Stoppin
 
 ## Updating a server
 
-The **Update** button of the System view works in server mode too: it fetches the release, rebuilds, and then the supervisor hands over to a fresh one so the new code runs everywhere (under systemd it exits with code 3 and the unit starts it again; under a plain `pnpm serve` a new supervisor is started in place). By hand:
+The **Update** button of the System view works in server mode too: it fetches the release, rebuilds, and then the supervisor hands over to a fresh one so the new code runs everywhere (under systemd it exits with code 3 and the unit starts it again; under a plain `pnpm serve` a new supervisor is started in place). A unit installed before 0.1.59 restarts it too, but logs that exit as a failure: add `SuccessExitStatus=3` and `RestartForceExitStatus=3` under `[Service]` (as the current `deploy/hydraops.service` has) and run `sudo systemctl daemon-reload` to make it clean. By hand:
 
 ```bash
 sudo systemctl stop hydraops      # or Ctrl+C if you started it with pnpm serve
