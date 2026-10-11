@@ -42,6 +42,7 @@ Las conexiones desde la propia máquina del servidor nunca necesitan token. Si e
 En el repositorio hay una unidad lista: [`deploy/hydraops.service`](../../deploy/hydraops.service), con las instrucciones de instalación en sus comentarios. En resumen:
 
 ```bash
+mkdir -p ~/.cache ~/.local/share ~/.npm   # las cachés que la unidad deja escribir al servicio
 sudo cp deploy/hydraops.service /etc/systemd/system/
 # edita User=, WorkingDirectory=, ExecStart=, Environment=PATH y ReadWritePaths= a tu usuario y tu ruta
 sudo systemctl daemon-reload

@@ -42,6 +42,7 @@ Connections from the server's own machine never need the token. If the token can
 The repository ships a ready unit: [`deploy/hydraops.service`](../../deploy/hydraops.service), with installation instructions in its comments. In short:
 
 ```bash
+mkdir -p ~/.cache ~/.local/share ~/.npm   # the caches the unit lets the service write
 sudo cp deploy/hydraops.service /etc/systemd/system/
 # edit User=, WorkingDirectory=, ExecStart=, Environment=PATH and ReadWritePaths= to your user and path
 sudo systemctl daemon-reload

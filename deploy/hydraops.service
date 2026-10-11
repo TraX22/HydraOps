@@ -8,6 +8,7 @@
 # Installation — first adjust User=, WorkingDirectory=, ExecStart=,
 # Environment=PATH and ReadWritePaths= to your user and the path of your clone:
 #
+#   mkdir -p ~/.cache ~/.local/share ~/.npm   # as the service user: the caches below
 #   sudo cp deploy/hydraops.service /etc/systemd/system/
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable --now hydraops
@@ -67,9 +68,10 @@ ProtectSystem=strict
 ProtectHome=read-only
 ReadWritePaths=/home/hydraops/HydraOps
 ReadWritePaths=/home/hydraops/.config/hydraops
-ReadWritePaths=/home/hydraops/.cache
-ReadWritePaths=/home/hydraops/.local/share
-ReadWritePaths=/home/hydraops/.npm
+# The leading "-" lets the service start when a cache folder does not exist yet.
+ReadWritePaths=-/home/hydraops/.cache
+ReadWritePaths=-/home/hydraops/.local/share
+ReadWritePaths=-/home/hydraops/.npm
 
 [Install]
 WantedBy=multi-user.target
