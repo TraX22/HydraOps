@@ -112,7 +112,7 @@ Para que no haga falta esa ronda de carga en los casos obvios, salen cargadas de
 - las que el mismo chat usó en su tarea anterior;
 - las llamadas que una tarea retoma después de una aprobación.
 
-Una herramienta que el modelo llama queda cargada por el resto de la tarea, y la ronda de `load_tools` no cuenta para el límite de pasos del agente. Las aprobaciones, la defensa contra inyección y el baúl de resultados funcionan igual: solo cambia lo que el modelo ve antes de elegir. Qué cargó cada tarea queda en sus datos (`toolsOnDemand`).
+Una herramienta cargada queda cargada por el resto de la tarea, la llame o no: la lista de herramientas es lo primero que va en cada petición, y cualquier cambio en ella hace que el proveedor vuelva a leer toda la conversación a precio completo en vez de desde su caché, que cuesta mucho más que unas definiciones ociosas. La ronda de `load_tools` no cuenta para el límite de pasos del agente. Las aprobaciones, la defensa contra inyección y el baúl de resultados funcionan igual: solo cambia lo que el modelo ve antes de elegir. Qué cargó cada tarea queda en sus datos (`toolsOnDemand`).
 
 Se desactiva en **Configuración → Herramientas bajo demanda** (o con `TOOLS_ON_DEMAND=off`). Con 12 herramientas o menos no cambia nada.
 
