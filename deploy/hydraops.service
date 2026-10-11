@@ -44,9 +44,13 @@ KillMode=mixed
 TimeoutStopSec=30
 
 # serve exits with an error when NATS, the key-proxy or the API fail to start;
-# a clean stop (systemctl stop) is not retried.
+# a clean stop (systemctl stop) is not retried. After a self-update (the
+# "Update" button) it exits with code 3 on purpose, so that systemd starts a
+# fresh supervisor running the new code: that exit is a success, and it restarts.
 Restart=on-failure
 RestartSec=5
+SuccessExitStatus=3
+RestartForceExitStatus=3
 
 # Hardening: read-only file system except what the stack really writes — the
 # clone (database, storage/, logs, nats/jetstream) and the user's key store.

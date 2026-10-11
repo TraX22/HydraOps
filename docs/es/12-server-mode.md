@@ -52,7 +52,7 @@ Los logs de todos los servicios acaban en el journal: `journalctl -u hydraops -f
 
 ## Actualizar un servidor
 
-El botón **Actualizar** de la vista Sistema también funciona en modo servidor (hace `git pull`, recompila y reinicia los servicios en sitio). A mano:
+El botón **Actualizar** de la vista Sistema también funciona en modo servidor: descarga la release, recompila y después el supervisor cede el lugar a uno nuevo para que el código nuevo corra en todas partes (bajo systemd sale con código 3 y la unidad lo vuelve a arrancar; con un `pnpm serve` a mano arranca un supervisor nuevo en el mismo lugar). A mano:
 
 ```bash
 sudo systemctl stop hydraops      # o Ctrl+C si lo arrancaste con pnpm serve
