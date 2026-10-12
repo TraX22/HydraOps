@@ -5,7 +5,7 @@
       "final_answer_empty": "⚠️ As ferramentas foram executadas, mas o modelo não escreveu a resposta final. O que as ferramentas fizeram é real; peça para continuar e obter o resumo.",
       "malformed_model_response": "⚠️ O modelo retornou uma resposta malformada (sintaxe interna de ferramentas). Tente novamente ou reformule o pedido.",
       "task_timed_out": "⚠️ A tarefa expirou: o worker nunca a concluiu (pode ter reiniciado no meio). Envie-a novamente.",
-      "llm_timeout": "⏱️ O modelo não terminou a tempo: a tarefa precisou de mais do que o permitido (10 minutos na nuvem, 15 com o modelo local). Tente um pedido mais específico ou um modelo mais rápido para este agente.",
+      "llm_timeout": "⏱️ O modelo não respondeu a tempo: uma rodada passou do máximo por resposta (10 minutos na nuvem, 15 com o modelo local; muda-se em Configuração). Tente de novo, com um pedido mais específico ou um modelo mais rápido para este agente.",
       "cron_sources_unread": "📭 A tarefa agendada não abriu suas fontes desta vez, então não entregou nada: uma resposta escrita sem lê-las poderia ser inventada. Ela tentará de novo na próxima execução.",
       "chatgpt_limit": "⚠️ O limite semanal que você definiu para o HydraOps no seu plano do ChatGPT foi atingido. Aumente-o em ChatGPT → Configurações → Uso, ou mude este agente para outro modelo (/model). Nada foi cobrado.",
       "continuation_limit": "ℹ️ Esta tarefa já encadeou 20 continuações depois das suas decisões, então o agente não é chamado de novo. As chamadas que você aprovou foram executadas: {{reason}}. Para seguir, envie uma mensagem nova."
@@ -368,6 +368,12 @@
       "on": "Ativado",
       "off": "Desativado",
       "hint": "Quando um agente tem mais de 12 ferramentas, o modelo recebe um índice (nome e uma linha por ferramenta) e carrega a definição completa só das que vai usar. Reduz muito os tokens de cada chamada. As ferramentas que você nomeia na mensagem e as que o chat usou na tarefa anterior já começam carregadas."
+    },
+    "roundTimeout": {
+      "title": "Tempo máximo por resposta do modelo",
+      "hint": "Quanto o modelo pode demorar para responder em cada rodada de uma tarefa. O relógio pausa enquanto as ferramentas rodam (cada conexão tem o seu próprio limite) e recomeça na rodada seguinte, então uma tarefa longa de muitas rodadas não é cortada; um modelo que não responde, sim. Vazio: 10 minutos na nuvem, 15 com o modelo local.",
+      "label": "Minutos por rodada (1 a 25)",
+      "placeholder": "10"
     },
     "chatgpt": {
       "title": "ChatGPT (assinatura)",

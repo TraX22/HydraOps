@@ -428,6 +428,8 @@ export interface AppConfig {
   logLevel: string;
   /** Tools on demand: 'on' (default) | 'off'. */
   toolsOnDemand?: string;
+  /** Minutes one model round may take to answer; empty = 10 in the cloud, 15 with the local model. */
+  roundTimeoutMin?: string;
 }
 
 export interface ModelOption {
