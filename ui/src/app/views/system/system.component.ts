@@ -3,11 +3,12 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { ApiService, SelfUpdateStatus, VersionInfo, Worker } from '../../services/api.service';
 import { IconComponent } from '../../components/icon/icon.component';
 import { SecurityLogComponent } from '../../components/security-log/security-log.component';
+import { BackupsCardComponent } from '../../components/backups-card/backups-card.component';
 
 @Component({
   selector: 'app-system',
   standalone: true,
-  imports: [TranslatePipe, IconComponent, SecurityLogComponent],
+  imports: [TranslatePipe, IconComponent, SecurityLogComponent, BackupsCardComponent],
   templateUrl: './system.component.html',
   styleUrl: './system.component.css',
 })

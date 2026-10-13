@@ -63,7 +63,7 @@ En Windows también puedes usar la ventana de escritorio desde el código con `p
 
 Hay dos formas; las dos conservan tus datos (agentes, base de datos, adjuntos y claves viven fuera del código).
 
-**Desde la aplicación.** Cuando hay una versión nueva, la vista **Sistema** muestra un aviso con el botón **Actualizar**. Al pulsarlo, HydraOps hace `git pull` de la última release, recompila y reinicia sus servicios solo; la interfaz se recarga al terminar. Solo funciona si la instalación es un clon de git sin cambios locales sin guardar (si los hay, te lo dice).
+**Desde la aplicación.** Cuando hay una versión nueva, la vista **Sistema** muestra un aviso con el botón **Actualizar**. Al pulsarlo, HydraOps hace `git pull` de la última release, recompila y reinicia sus servicios solo; la interfaz se recarga al terminar. Solo funciona si la instalación es un clon de git sin cambios locales sin guardar (si los hay, te lo dice). Antes se hace una copia de tus datos: si la versión nueva te da problemas, podés volver al estado anterior desde **Sistema → Copias de seguridad**.
 
 **A mano**, desde la carpeta del repositorio:
 

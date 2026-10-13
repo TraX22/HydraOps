@@ -23,7 +23,13 @@ import {
   docsDir,
   envFile,
   keyStoreFile,
+  keyStoreDir,
   readLocalLlmEnv, scenesDir, skillsDir, resultsDir } from "@hydraops/config";
+import { createRequire } from "node:module";
+// Copies of the installation and their restore requests: one module shared with both
+// supervisors (tools/serve.mjs and the desktop's main.js), plain CommonJS so the packaged
+// build ships it next to the services (see tools/build-backend.mjs).
+const backupLib = createRequire(import.meta.url)(path.join(appsDir, "desktop", "src", "backup.js"));
 
 loadDotenv({ path: envFile });
 
@@ -395,7 +401,17 @@ api.post("/self-update", async (_req, res) => {
     if (!(APP_VERSION && cmpSemver(latest, APP_VERSION) > 0)) {
       return res.status(400).json({ error: "up_to_date", message: "Ya estás en la última versión." });
     }
-    // 4. Encolar: el supervisor lo recoge, ejecuta y reinicia.
+    // 4. A copy of the installation first: if the update goes wrong, the user puts it back
+    //    from the System view. Without the copy, no update.
+    try {
+      const made = await backupLib.createBackup({ dataRoot, keyStoreDir, version: APP_VERSION, kind: "before-update", label: `${APP_VERSION}-to-${latest}`, copyDb: (dest: string) => sqliteClient.backup(dest) });
+      const pruned = await backupLib.pruneAutomatic(dataRoot);
+      console.log(`[api] backup ${made.name} made before updating${pruned.length ? ` (${pruned.length} older automatic copies removed)` : ""}`);
+    } catch (e: any) {
+      console.error("[api] POST /self-update: the backup before updating failed", e);
+      return res.status(500).json({ error: "backup_failed", message: `The copy of your installation could not be made, so the update was not started: ${e?.message ?? e}` });
+    }
+    // 5. Encolar: el supervisor lo recoge, ejecuta y reinicia.
     await writeFile(selfUpdateStateFile, JSON.stringify({ status: "queued", tag, log: "", startedAt: Date.now() }), "utf-8");
     await writeFile(selfUpdateRequestFile, JSON.stringify({ tag, at: Date.now() }), "utf-8");
     res.json({ started: true, tag });
@@ -3856,6 +3872,81 @@ function supervisorMode(): "desktop" | "server" | "none" {
   const v = String(process.env.HYDRA_SUPERVISOR ?? "").trim().toLowerCase();
   return v === "desktop" || v === "server" ? v : "none";
 }
+
+// --- Backups: copies of the installation (the System view), see apps/desktop/src/backup.js ---
+// Making a copy happens here (SQLite's online backup keeps it consistent while the stack
+// runs). Putting one back cannot: the request goes to the supervisor, which stops the
+// stack, keeps the current state as a copy, replaces the files and relaunches.
+const backupsLimiter = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: "draft-7", legacyHeaders: false });
+const backupSummary = (m: any) => ({ name: m.name, kind: m.kind, label: m.label ?? "", at: m.at, version: m.version, items: m.items, storage: !!m.storage, keys: !!m.keys, size: Number(m.size) || 0 });
+
+api.get("/backups", backupsLimiter, async (_req, res) => {
+  try {
+    const list = await backupLib.listBackups(dataRoot);
+    res.json({ dir: backupLib.backupsDir(dataRoot), supervisor: supervisorMode(), restore: backupLib.readRestoreState(dataRoot), backups: list.map(backupSummary) });
+  } catch (err: any) {
+    console.error("[api] GET /backups failed", err);
+    res.status(500).json({ error: "internal" });
+  }
+});
+
+api.post("/backups", backupsLimiter, async (req, res) => {
+  try {
+    const body = req.body ?? {};
+    const made = await backupLib.createBackup({
+      dataRoot, keyStoreDir, version: APP_VERSION, kind: "manual",
+      label: typeof body.label === "string" ? body.label : "",
+      storage: body.storage === true, keys: body.keys === true,
+      copyDb: (dest: string) => sqliteClient.backup(dest),
+    });
+    console.log(`[api] backup ${made.name} made${made.storage ? " with storage" : ""}${made.keys ? " with keys" : ""}`);
+    res.json(backupSummary(made));
+  } catch (err: any) {
+    console.error("[api] POST /backups failed", err);
+    res.status(500).json({ error: "backup_failed", message: String(err?.message ?? err) });
+  }
+});
+
+api.delete("/backups/:name", backupsLimiter, async (req, res) => {
+  try {
+    if (!backupLib.isValidName(req.params.name)) return res.status(400).json({ error: "invalid_name" });
+    await backupLib.deleteBackup(dataRoot, req.params.name);
+    res.json({ ok: true });
+  } catch (err: any) {
+    res.status(404).json({ error: "not_found", message: String(err?.message ?? err) });
+  }
+});
+
+api.post("/backups/:name/restore", backupsLimiter, async (req, res) => {
+  try {
+    const name = req.params.name;
+    if (!backupLib.isValidName(name)) return res.status(400).json({ error: "invalid_name" });
+    const m = await backupLib.readManifest(path.join(backupLib.backupsDir(dataRoot), name));
+    if (!m) return res.status(404).json({ error: "not_found" });
+    const mode = supervisorMode();
+    if (mode === "none") return res.status(409).json({ error: "no_supervisor", message: "This API was started by hand: nothing can stop the stack to put a copy back. Use the desktop app or pnpm serve." });
+    // A copy made by a newer version holds a database this version does not understand.
+    if (m.version && APP_VERSION && cmpSemver(m.version, APP_VERSION) > 0) {
+      return res.status(409).json({ error: "newer_version", message: `That copy was made by HydraOps ${m.version}; this is ${APP_VERSION}. Update first, then put it back.` });
+    }
+    const pending = backupLib.readRestoreState(dataRoot);
+    if (pending && (pending.status === "queued" || pending.status === "running")) return res.status(409).json({ error: "busy" });
+    // Like /exit and /restart: the tasks in progress are cancelled, then the supervisor takes over.
+    const rows = await (db as any).select().from(tasks).where(inArray(tasks.status, CANCELLABLE));
+    const cancelled = rows.length ? await cancelTaskRows(rows, "restore") : [];
+    backupLib.writeRestoreState(dataRoot, { status: "queued", name, startedAt: Date.now() });
+    await writeFile(backupLib.restoreRequestFile(dataRoot), JSON.stringify({ name, by: "system view", at: Date.now() }), "utf-8");
+    console.log(`[api] restore of ${name} requested: ${cancelled.length} task(s) cancelled, request handed to the ${mode} supervisor`);
+    res.json({ started: true, name, cancelled: cancelled.length });
+  } catch (err: any) {
+    console.error("[api] POST /backups/:name/restore failed", err);
+    res.status(500).json({ error: "internal" });
+  }
+});
+
+api.get("/backups/restore/status", backupsLimiter, (_req, res) => {
+  res.json(backupLib.readRestoreState(dataRoot) ?? { status: "idle" });
+});
 
 // Fire a scheduled task now. The orchestrator owns cron execution, so this only
 // queues a system.cron_run event through the outbox, like every other event.

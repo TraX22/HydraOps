@@ -63,7 +63,7 @@ On Windows you can also use the desktop window from source with `pnpm desktop`.
 
 Two ways; both keep your data (agents, database, attachments and keys live outside the code).
 
-**From the app.** When a new version is out, the **System** view shows a notice with an **Update** button. Pressing it makes HydraOps `git pull` the latest release, rebuild and restart its own services; the interface reloads when it is done. It only works when the installation is a git clone with no unsaved local changes (it tells you if there are).
+**From the app.** When a new version is out, the **System** view shows a notice with an **Update** button. Pressing it makes HydraOps `git pull` the latest release, rebuild and restart its own services; the interface reloads when it is done. It only works when the installation is a git clone with no unsaved local changes (it tells you if there are). A copy of your data is made first, so if the new version gives you trouble you can put the previous state back from **System → Backups**.
 
 **By hand**, from the repository folder:
 

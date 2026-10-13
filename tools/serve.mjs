@@ -223,6 +223,36 @@ watchForPowerRequest({
   },
 });
 
+// Putting a copy of the installation back (the System view): the API writes the request;
+// here the stack is stopped, the files replaced and a new supervisor started, whose boot
+// runs the migrations (see apps/desktop/src/backup.js).
+const { watchForRestoreRequest, finishRestore } = require(path.join(repoRoot, "apps", "desktop", "src", "backup.js"));
+const { readAppVersion } = require(path.join(repoRoot, "apps", "desktop", "src", "services.js"));
+// Where the key proxy keeps keys.json (packages/config's keyStoreDir, which this ESM script cannot import).
+const osHome = require("node:os").homedir();
+const keyStoreDir = process.platform === "win32"
+  ? path.join(process.env.APPDATA || path.join(osHome, "AppData", "Roaming"), "hydraops")
+  : process.platform === "darwin"
+    ? path.join(osHome, "Library", "Application Support", "hydraops")
+    : path.join(process.env.XDG_CONFIG_HOME || path.join(osHome, ".config"), "hydraops");
+if (finishRestore(dataRoot)) console.log("[serve] restore finished: the stack runs on the copy that was put back");
+watchForRestoreRequest({
+  dataRoot,
+  keyStoreDir,
+  version: readAppVersion(),
+  log: (msg) => console.log(`[serve] backup: ${msg}`),
+  stopAll: () => supervisor.stopAll(),
+  relaunch: () => {
+    stopping = true;
+    if (relaunchMode() === "systemd") {
+      console.log(`[serve] exiting with code ${RELAUNCH_EXIT_CODE} so systemd starts a fresh supervisor`);
+      process.exit(RELAUNCH_EXIT_CODE);
+    }
+    console.log("[serve] starting a fresh supervisor in place…");
+    reexecSupervisor({ script: fileURLToPath(import.meta.url), args: process.argv.slice(2) });
+  },
+});
+
 // The children keep the process alive; this covers the edge case of all of them
 // dying and running out of retries — the supervisor remains the anchor.
 setInterval(() => {}, 1 << 30);

@@ -214,6 +214,12 @@ async function main() {
   fs.cpSync(path.join(REPO, "skills-builtin"), path.join(OUT, "skills-builtin"), { recursive: true });
   log("copied the built-in skills (skills-builtin/)");
 
+  // Copies of the installation: the API makes them with the same module the desktop
+  // supervisor restores them with (plain CommonJS, loaded by path from appsDir).
+  fs.mkdirSync(path.join(OUT, "apps", "desktop", "src"), { recursive: true });
+  fs.copyFileSync(path.join(REPO, "apps", "desktop", "src", "backup.js"), path.join(OUT, "apps", "desktop", "src", "backup.js"));
+  log("copied the backup module (apps/desktop/src/backup.js)");
+
   for (const name of [...NATIVE, ...ADDON_RUNTIME]) copyPackage(name);
 
   // Un package.json mínimo para que Node trate los bundles como ESM.

@@ -349,6 +349,31 @@
         "sensitive_after_taint": "azione dopo",
         "held": "trattenuta"
       }
+    },
+    "backups": {
+      "title": "Copie di sicurezza",
+      "refresh": "Aggiorna",
+      "hint": "Una copia di ciò che rende tua questa installazione: agenti, skill, componenti, utenti, impostazioni e il database. Prima di ogni aggiornamento se ne fa una da sola. Ripristinare una copia riavvia l'app; anche lo stato precedente viene conservato come copia.",
+      "withStorage": "Includi i file delle attività (caricamenti, risultati)",
+      "withKeys": "Includi le chiavi API",
+      "make": "Crea una copia",
+      "making": "Creazione della copia…",
+      "empty": "Ancora nessuna copia.",
+      "restore": "Ripristina",
+      "restoring": "Ripristino della copia… l'app si riavvierà da sola.",
+      "restored": "Copia {{name}} ripristinata. Ricarico…",
+      "failed": "Impossibile ripristinare la copia. {{error}}",
+      "tooLong": "Il ripristino sta impiegando troppo. Controlla i log del server.",
+      "restoreConfirm": "Ripristinare la copia {{name}} (HydraOps {{version}})?\n\nL'app si fermerà, sostituirà i suoi dati con quelli della copia e si riavvierà. Le attività in corso vengono annullate. Lo stato attuale viene conservato come copia, quindi si può annullare.",
+      "deleteConfirm": "Eliminare la copia {{name}}? Non si può annullare.",
+      "folder": "Cartella:",
+      "hasStorage": "con file delle attività",
+      "hasKeys": "con chiavi",
+      "kind": {
+        "manual": "manuale",
+        "before-update": "prima dell'aggiornamento",
+        "before-restore": "prima del ripristino"
+      }
     }
   },
   "config": {
