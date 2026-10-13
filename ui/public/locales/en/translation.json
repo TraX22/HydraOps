@@ -5,7 +5,7 @@
       "final_answer_empty": "⚠️ The tools ran, but the model wrote no final answer. What the tools did is real; ask it to continue to get the summary.",
       "malformed_model_response": "⚠️ The model returned a malformed response (internal tool syntax). Try again or rephrase your request.",
       "task_timed_out": "⚠️ The task timed out: its worker never finished it (it may have restarted mid-task). Please send it again.",
-      "llm_timeout": "⏱️ The model did not finish in time: the task needed longer than allowed (10 minutes in the cloud, 15 with the local model). Try a narrower request or a faster model for this agent.",
+      "llm_timeout": "⏱️ The model did not answer in time: one round went past the longest answer allowed (10 minutes in the cloud, 15 with the local model; set in Config). Try again, with a narrower request or a faster model for this agent.",
       "cron_sources_unread": "📭 The scheduled task did not open its sources this time, so it delivered nothing: an answer written without reading them could be made up. It will try again at its next run.",
       "chatgpt_limit": "⚠️ The weekly cap you set for HydraOps in your ChatGPT plan is used up. Raise it in ChatGPT → Settings → Usage, or switch this agent to another model (/model). Nothing was charged.",
       "continuation_limit": "ℹ️ This task already chained 20 continuations after your decisions, so the agent is not called again. The calls you approved did run: {{reason}}. To go on, send a new message."
@@ -368,6 +368,12 @@
       "on": "On",
       "off": "Off",
       "hint": "When an agent has more than 12 tools, the model gets an index (name and one line per tool) and loads the full definition only of the ones it is going to use. It cuts the tokens of every call a lot. Tools you name in the message and the ones the chat used in its previous task start loaded."
+    },
+    "roundTimeout": {
+      "title": "Longest model answer",
+      "hint": "How long the model may take to answer in each round of a task. The clock pauses while the tools run (each connection has its own limit) and restarts on the next round, so a long task of many rounds is not cut; a model that never answers is. Empty: 10 minutes in the cloud, 15 with the local model.",
+      "label": "Minutes per round (1 to 25)",
+      "placeholder": "10"
     },
     "chatgpt": {
       "title": "ChatGPT (subscription)",

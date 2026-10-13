@@ -15,9 +15,9 @@ Los tres `LOCAL_LLM_*` viven en el `.env` — ver [Claves de API y modelos](./04
 
 El modelo del agente tiene que tener visión. Con modelo local, además, el servidor debe llevar el proyector multimodal cargado (en llama.cpp, el archivo `mmproj`); si el modelo es solo-texto, el agente inventará una descripción en vez de ver la imagen.
 
-## "El modelo no terminó a tiempo"
+## "El modelo no respondió a tiempo"
 
-Cada tarea puede tener al modelo trabajando hasta **10 minutos** con modelos en la nube y **15** con el modelo local, contando todas sus búsquedas y lecturas. Un análisis grande (decenas de páginas) con un modelo lento puede pasarse: la tarea se corta y el chat lo explica. Acotá el pedido (un país, un género, un período) o ponele a ese agente un modelo más rápido. En modo servidor, `HYDRA_LLM_TIMEOUT_MIN` en el `.env` cambia el límite (máximo 25 minutos).
+Cada **respuesta** del modelo puede tardar hasta **10 minutos** con modelos en la nube y **15** con el modelo local. El reloj corre por ronda: arranca cuando una ronda se envía al modelo, se pausa mientras corren las herramientas de esa ronda (una construcción en Blender o la lectura de una página tienen su propio límite, en la conexión) y vuelve a empezar en la ronda siguiente. Así, una tarea larga de muchas rondas nunca se corta por larga; lo que se corta es un proveedor que deja de responder. Cuando pasa, la tarea se cierra con lo que gastaron las rondas terminadas y el chat lo explica. **Configuración → Tiempo máximo por respuesta del modelo** cambia los minutos (de 1 a 25). Como último recurso, una corrida entera también se corta a los 25 minutos (`HYDRA_LLM_TIMEOUT_MIN` en el `.env` lo baja), por debajo del barrido de tareas atascadas de los 30 minutos.
 
 ## No arranca: NATS no se encuentra
 

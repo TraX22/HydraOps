@@ -116,6 +116,20 @@
       </div>
     </section>
 
+    <!-- Round timeout: how long one model answer may take (LLM_ROUND_TIMEOUT_MIN) -->
+    <section class="config-section">
+      <h3>{{ 'config.roundTimeout.title' | translate }}</h3>
+      <p class="hint">{{ 'config.roundTimeout.hint' | translate }}</p>
+      <div class="fields-grid">
+        <div class="field">
+          <label>{{ 'config.roundTimeout.label' | translate }}</label>
+          <input type="number" min="1" max="25" step="1" [value]="config().roundTimeoutMin ?? ''"
+                 [placeholder]="'config.roundTimeout.placeholder' | translate"
+                 (input)="updateField('roundTimeoutMin', $any($event.target).value)" />
+        </div>
+      </div>
+    </section>
+
     <!-- Routing model: who hands out the main chat's messages (ROUTER_MODEL) -->
     <section class="config-section">
       <h3>{{ 'config.routerModel' | translate }}</h3>

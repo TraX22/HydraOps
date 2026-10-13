@@ -1268,6 +1268,8 @@ const envMapping: Record<string, string> = {
   routerModel: "ROUTER_MODEL",
   // Tools on demand (see @hydraops/addons tools-on-demand.ts): "on" (default) | "off".
   toolsOnDemand: "TOOLS_ON_DEMAND",
+  // Minutes one model round may take to answer (the workers' round clock); empty = 10 in the cloud, 15 local.
+  roundTimeoutMin: "LLM_ROUND_TIMEOUT_MIN",
   logLevel: "LOG_LEVEL"
 };
 

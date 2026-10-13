@@ -218,14 +218,21 @@ async function writeLocalResult(taskId: string, payload: unknown) {
 // --- TIMEOUT HELPER ---
 // onTimeout lets the caller abort the underlying work: rejecting alone leaves the
 // model call running (and billing) in the background.
-// How long one task may keep the model working (tool calls included). A research task
-// is dozens of searches and page reads; 2 minutes cut those off and lost all the work.
-// Still well under the API's 30-minute sweep of stuck tasks, and the Stop button ends
-// a run early. HYDRA_LLM_TIMEOUT_MIN overrides both (minutes).
-const LLM_TIMEOUT_MS = (provider: string) => {
+// Two clocks on a model call. The round clock (@hydraops/llm roundTimeoutMs) is the one
+// that matters: the longest one model answer may take, paused while the round's tools
+// run; a Blender build of twenty rounds is fine, a provider that never answers is cut.
+// LLM_ROUND_TIMEOUT_MIN in Config sets it (minutes). The task clock below is only the
+// last resort for a run that keeps making rounds: well under the API's 30-minute sweep
+// of stuck tasks (HYDRA_LLM_TIMEOUT_MIN overrides it, 25 at most).
+const ROUND_TIMEOUT_MS = (provider: string, read: (key: string, def: string) => string) => {
+  const set = Number(read("LLM_ROUND_TIMEOUT_MIN", ""));
+  if (Number.isFinite(set) && set > 0) return Math.min(set, 25) * 60_000;
+  return provider === "local" ? 15 * 60_000 : 10 * 60_000;
+};
+const LLM_TIMEOUT_MS = () => {
   const override = Number(process.env.HYDRA_LLM_TIMEOUT_MIN);
   if (Number.isFinite(override) && override > 0) return Math.min(override, 25) * 60_000;
-  return provider === "local" ? 15 * 60_000 : 10 * 60_000;
+  return 25 * 60_000;
 };
 
 function withWorkerTimeout<T>(promise: Promise<T>, ms: number, label: string, onTimeout?: () => void): Promise<T> {
@@ -626,9 +633,9 @@ ${EXTERNAL_CONTENT_RULE}
         systemPrompt + skillsSection + planSection + cronDedup + vault.promptSection() + (onDemand?.promptSection ?? ""),
         modelTools,
         planTools ? [...rawTools, ...planTools.raw] : rawTools,
-        { abortSignal: controller.signal, prepareStep: (step: any) => vault.prepareStep(step), stepImages: stepToolImages, maxSteps: resolveMaxSteps(cfgRows[0]?.maxSteps), ...(onDemand ? onDemand.llmOptionsFor(modelTools) : {}), onBreakdown: (b: any[]) => { stepBreakdown = b; } }
+        { abortSignal: controller.signal, prepareStep: (step: any) => vault.prepareStep(step), stepImages: stepToolImages, maxSteps: resolveMaxSteps(cfgRows[0]?.maxSteps), roundTimeoutMs: ROUND_TIMEOUT_MS(llmConfig.provider, getGlobalConfig), ...(onDemand ? onDemand.llmOptionsFor(modelTools) : {}), onBreakdown: (b: any[]) => { stepBreakdown = b; } }
       ),
-      LLM_TIMEOUT_MS(llmConfig.provider),
+      LLM_TIMEOUT_MS(),
       `LLM call (${llmConfig.provider}:${llmConfig.model})`,
       () => controller.abort(new Error("LLM call timed out")),
     );

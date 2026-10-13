@@ -756,6 +756,19 @@ export async function generateText(...args: Parameters<typeof generateTextInner>
   }
 }
 
+/** One signal that aborts when either does (AbortSignal.any where Node has it). */
+function joinSignals(a: AbortSignal | undefined, b: AbortSignal): AbortSignal {
+  if (!a) return b;
+  const anyOf = (AbortSignal as any).any;
+  if (typeof anyOf === 'function') return anyOf([a, b]);
+  const c = new AbortController();
+  for (const s of [a, b]) {
+    if (s.aborted) { c.abort(s.reason); break; }
+    s.addEventListener('abort', () => c.abort(s.reason), { once: true });
+  }
+  return c.signal;
+}
+
 /** Adds the token counts of one model call to a running total (same shape, numbers summed). */
 export function sumUsage(total: any, step: any): any {
   if (!step || typeof step !== 'object') return total;
@@ -840,9 +853,38 @@ async function generateTextInner(
     loadToolName?: string;
     /** Called once at the end with what each model step carried (see StepBreakdown). */
     onBreakdown?: (steps: StepBreakdown[]) => void;
+    /**
+     * The longest one model round may take to answer: the clock starts when a round's request
+     * is prepared, pauses while the round's tools run (they have their own limits) and resets
+     * on the next round. Past it the call is aborted and returned as `llm_timeout`, with the
+     * usage of the rounds that did finish. Nothing without it.
+     */
+    roundTimeoutMs?: number;
   } = {},
 ) {
-  const abortSignal = opts.abortSignal;
+  // The round watchdog aborts through its own controller, joined with the caller's signal.
+  const roundMs = Number(opts.roundTimeoutMs) > 0 ? Number(opts.roundTimeoutMs) : 0;
+  const watchdog = roundMs ? new AbortController() : null;
+  const abortSignal = watchdog ? joinSignals(opts.abortSignal, watchdog.signal) : opts.abortSignal;
+  let roundTimer: ReturnType<typeof setTimeout> | undefined;
+  let round = 0;
+  let toolsRunning = 0;
+  const armRound = () => {
+    if (!watchdog || toolsRunning > 0) return;
+    clearTimeout(roundTimer);
+    roundTimer = setTimeout(() => watchdog.abort(new Error('round timeout')), roundMs);
+    if (typeof (roundTimer as any)?.unref === 'function') (roundTimer as any).unref();
+  };
+  const pauseRound = () => { toolsRunning++; clearTimeout(roundTimer); };
+  const resumeRound = () => { toolsRunning--; armRound(); };
+  // The same tools, with the watchdog paused while one of them runs.
+  const withWatchdog = (tools: Record<string, any> | undefined) => {
+    if (!watchdog || !tools) return tools;
+    return Object.fromEntries(Object.entries(tools).map(([name, t]: [string, any]) => [name, typeof t?.execute !== 'function' ? t : {
+      ...t,
+      execute: async (...a: any[]) => { pauseRound(); try { return await t.execute(...a); } finally { resumeRound(); } },
+    }]));
+  };
   const maxSteps = Math.max(1, Math.floor(Number(opts.maxSteps)) || MAX_TOOL_STEPS);
   // Whether this model is shown the images; turned off for the rest of the task if the
   // provider rejects one.
@@ -880,6 +922,8 @@ async function generateTextInner(
   const initialCount = messages.length;
   const historyChars = messageChars(messages as unknown[]);
   const prepareStep = async (step: any) => {
+    round++;
+    armRound();
     const out = prepareStepTools ? await prepareStepTools(step) : undefined;
     try {
       const sent: unknown[] = out?.messages ?? step.messages ?? [];
@@ -946,9 +990,9 @@ async function generateTextInner(
       // The plan route keeps nothing server-side and takes developer messages, not system ones.
       : config.provider === 'chatgpt' ? { openai: { store: false, systemMessageMode: 'developer' } } : undefined;
     // The SDK serialises the namespace on the tools and carries it back on every tool call.
-    const callTools: Record<string, any> | undefined = config.provider === 'chatgpt' && aiTools
+    const callTools: Record<string, any> | undefined = withWatchdog(config.provider === 'chatgpt' && aiTools
       ? Object.fromEntries(Object.entries(aiTools).map(([name, t]: [string, any]) => [name, { ...t, providerOptions: { ...(t?.providerOptions ?? {}), openai: { ...(t?.providerOptions?.openai ?? {}), namespace: CHATGPT_TOOL_NAMESPACE } } }]))
-      : aiTools;
+      : aiTools);
 
     // Critical instruction to prevent the model from going silent after using tools
     const finalSystemPrompt = systemPrompt 
@@ -1211,6 +1255,11 @@ async function generateTextInner(
       error: errorDetail,
     };
   } catch (error: any) {
+    if (watchdog?.signal.aborted) {
+      const minutes = Math.round(roundMs / 6000) / 10;
+      console.warn(`[LLM] ${config.model} gave no answer in ${minutes} min (round ${round}): call aborted.`);
+      return { text: '', usage: spent, success: false, errorCode: 'llm_timeout', error: `The model gave no answer within ${minutes} minutes (round ${round}).` };
+    }
     if (abortSignal?.aborted) {
       console.log(`[LLM] Call to ${config.model} aborted.`);
       return { text: '', usage: spent, success: false, aborted: true, error: 'Cancelled.' };

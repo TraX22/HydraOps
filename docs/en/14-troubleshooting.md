@@ -15,9 +15,9 @@ The three `LOCAL_LLM_*` variables live in the `.env` — see [API keys & models]
 
 The agent's model must have vision. With a local model, the server must also have the multimodal projector loaded (in llama.cpp, the `mmproj` file); if the model is text-only, the agent will invent a description instead of seeing the image.
 
-## "The model did not finish in time"
+## "The model did not answer in time"
 
-Each task can keep the model working for up to **10 minutes** with cloud models and **15** with the local model, counting all its searches and page reads. A big analysis (dozens of pages) with a slow model can go over: the task is cut and the chat explains it. Narrow the request (one country, one genre, one period) or give that agent a faster model. In server mode, `HYDRA_LLM_TIMEOUT_MIN` in the `.env` changes the limit (25 minutes at most).
+Each **answer** of the model may take up to **10 minutes** with cloud models and **15** with the local model. The clock runs per round: it starts when a round is sent to the model, pauses while that round's tools run (a Blender build or a page read has its own limit, set on the connection) and restarts on the next round. So a long task of many rounds is never cut for being long; what is cut is a provider that stops answering. When it happens, the task is closed with what the finished rounds spent and the chat explains it. **Config → Longest model answer** changes the minutes (1 to 25). As a last resort a whole run is also capped at 25 minutes (`HYDRA_LLM_TIMEOUT_MIN` in the `.env` lowers it), below the 30-minute sweep of stuck tasks.
 
 ## It won't start: NATS not found
 
