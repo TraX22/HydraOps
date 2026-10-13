@@ -373,7 +373,8 @@
         "manual": "manual",
         "before-update": "antes de atualizar",
         "before-restore": "antes de restaurar"
-      }
+      },
+      "lastRestore": "Última restauração: {{name}}, em {{date}}."
     }
   },
   "config": {

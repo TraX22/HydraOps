@@ -57,6 +57,9 @@ import { IconComponent } from '../icon/icon.component';
           </tbody>
         </table>
       }
+      @if (lastRestore(); as last) {
+        <p class="bk-dir">{{ 'system.backups.lastRestore' | translate:{ name: last.name, date: (last.at | date:'dd/MM/yyyy HH:mm') } }}</p>
+      }
       @if (info()?.dir) {
         <p class="bk-dir">{{ 'system.backups.folder' | translate }} <code>{{ info()!.dir }}</code></p>
       }
@@ -103,6 +106,7 @@ export class BackupsCardComponent implements OnInit, OnDestroy {
   making = signal(false);
   restoring = signal(false);
   restoreDone = signal('');
+  lastRestore = signal<{ name: string; at: number } | null>(null);
   error = signal('');
   withStorage = signal(false);
   withKeys = signal(false);
@@ -119,9 +123,10 @@ export class BackupsCardComponent implements OnInit, OnDestroy {
         this.info.set(i);
         this.backups.set(i.backups);
         this.loading.set(false);
-        // A restore finished while the app relaunched: say so once.
-        if (i.restore?.status === 'success' && i.restore.name && !this.restoring()) this.restoreDone.set(i.restore.name);
-        if (i.restore?.status === 'error' && i.restore.error) this.error.set(this.translate.instant('system.backups.failed', { error: i.restore.error }));
+        // The last restore, done while the app relaunched: one quiet line, or its error.
+        const r = i.restore;
+        this.lastRestore.set(r?.status === 'success' && r.name ? { name: r.name, at: Number(r.finishedAt) || Date.now() } : null);
+        if (r?.status === 'error' && r.error && !this.restoring()) this.error.set(this.translate.instant('system.backups.failed', { error: r.error }));
       },
       error: () => this.loading.set(false),
     });

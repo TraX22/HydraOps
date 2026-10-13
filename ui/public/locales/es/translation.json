@@ -353,7 +353,7 @@
     "backups": {
       "title": "Copias de seguridad",
       "refresh": "Actualizar",
-      "hint": "Una copia de lo que hace tuya esta instalación: agentes, skills, complementos, usuarios, configuración y la base de datos. Antes de cada actualización se hace una sola. Restaurar una copia reinicia la app; el estado anterior también queda guardado como copia.",
+      "hint": "Una copia de lo que hace tuya esta instalación: agentes, skills, complementos, usuarios, configuración y la base de datos. Antes de cada actualización se hace una automáticamente. Restaurar una copia reinicia la app; el estado anterior también queda guardado como copia.",
       "withStorage": "Incluir archivos de tareas (subidas, resultados)",
       "withKeys": "Incluir claves de API",
       "make": "Hacer una copia",
@@ -373,7 +373,8 @@
         "manual": "manual",
         "before-update": "antes de actualizar",
         "before-restore": "antes de restaurar"
-      }
+      },
+      "lastRestore": "Última restauración: {{name}}, el {{date}}."
     }
   },
   "config": {

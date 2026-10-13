@@ -517,6 +517,7 @@ export interface RestoreState {
   error?: string;
   kept?: string;
   restored?: string[];
+  finishedAt?: number;
 }
 
 export interface BackupsInfo {
