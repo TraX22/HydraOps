@@ -28,8 +28,10 @@ import {
 import { createRequire } from "node:module";
 // Copies of the installation and their restore requests: one module shared with both
 // supervisors (tools/serve.mjs and the desktop's main.js), plain CommonJS so the packaged
-// build ships it next to the services (see tools/build-backend.mjs).
-const backupLib = createRequire(import.meta.url)(path.join(appsDir, "desktop", "src", "backup.js"));
+// build ships it next to the services (see tools/build-backend.mjs). The .cjs extension is
+// what keeps it CommonJS there: the packaged backend's package.json says "type": "module",
+// and a .js file under it is read as ESM and dies on its first require.
+const backupLib = createRequire(import.meta.url)(path.join(appsDir, "desktop", "src", "backup.cjs"));
 
 loadDotenv({ path: envFile });
 
@@ -3873,7 +3875,7 @@ function supervisorMode(): "desktop" | "server" | "none" {
   return v === "desktop" || v === "server" ? v : "none";
 }
 
-// --- Backups: copies of the installation (the System view), see apps/desktop/src/backup.js ---
+// --- Backups: copies of the installation (the System view), see apps/desktop/src/backup.cjs ---
 // Making a copy happens here (SQLite's online backup keeps it consistent while the stack
 // runs). Putting one back cannot: the request goes to the supervisor, which stops the
 // stack, keeps the current state as a copy, replaces the files and relaunches.

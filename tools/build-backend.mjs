@@ -215,10 +215,12 @@ async function main() {
   log("copied the built-in skills (skills-builtin/)");
 
   // Copies of the installation: the API makes them with the same module the desktop
-  // supervisor restores them with (plain CommonJS, loaded by path from appsDir).
+  // supervisor restores them with (plain CommonJS, loaded by path from appsDir). It must
+  // keep the .cjs extension: this backend's package.json says "type": "module", so a .js
+  // file here would be read as ESM and the API would die on its first require.
   fs.mkdirSync(path.join(OUT, "apps", "desktop", "src"), { recursive: true });
-  fs.copyFileSync(path.join(REPO, "apps", "desktop", "src", "backup.js"), path.join(OUT, "apps", "desktop", "src", "backup.js"));
-  log("copied the backup module (apps/desktop/src/backup.js)");
+  fs.copyFileSync(path.join(REPO, "apps", "desktop", "src", "backup.cjs"), path.join(OUT, "apps", "desktop", "src", "backup.cjs"));
+  log("copied the backup module (apps/desktop/src/backup.cjs)");
 
   for (const name of [...NATIVE, ...ADDON_RUNTIME]) copyPackage(name);
 
