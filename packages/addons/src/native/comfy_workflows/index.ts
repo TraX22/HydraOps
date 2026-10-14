@@ -192,6 +192,81 @@ export function repairNumbersAsText(graph: unknown, nodeInfo: (type: string) => 
   return fixed;
 }
 
+// A plain object: a widget whose value is a record (ImageCropV2's crop_region, a BOUNDING_BOX).
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+// The strings the interface stores after a seed to say what to do with it on the next run.
+const CONTROL_MARKERS = new Set(["fixed", "increment", "decrement", "randomize"]);
+// The value kinds the interface draws as a plain widget; anything else declared as a type name is a socket.
+const PRIMITIVE_WIDGETS = new Set(["INT", "FLOAT", "STRING", "BOOLEAN", "COMBO"]);
+// Nodes with a 3D viewer keep buttons and a viewport record among their values: left alone.
+const VIEWER_TYPES = /3D/i;
+
+/** The widget inputs a node declares, in the order the interface stores their values; `record` marks an input whose value is not a primitive. */
+function widgetInputs(info: any): { name: string; record: boolean }[] {
+  const input = info?.input ?? {};
+  const out: { name: string; record: boolean }[] = [];
+  for (const section of ["required", "optional"] as const) {
+    const defs = input[section];
+    if (!defs || typeof defs !== "object") continue;
+    const order: string[] = Array.isArray(info?.input_order?.[section]) ? info.input_order[section] : Object.keys(defs);
+    for (const name of order) {
+      const spec = defs[name];
+      if (!Array.isArray(spec) || !spec.length) continue;
+      const options = spec[1] && typeof spec[1] === "object" ? spec[1] : {};
+      if (options.forceInput || options.defaultInput) continue;
+      const type = spec[0];
+      if (Array.isArray(type)) { out.push({ name, record: false }); continue; }
+      if (typeof options.widgetType === "string" && options.widgetType) { out.push({ name, record: !PRIMITIVE_WIDGETS.has(options.widgetType) }); continue; }
+      if (options.socketless) { out.push({ name, record: typeof type !== "string" || !PRIMITIVE_WIDGETS.has(type) }); continue; }
+      if (typeof type === "string" && PRIMITIVE_WIDGETS.has(type)) out.push({ name, record: false });
+    }
+  }
+  return out;
+}
+
+/**
+ * A widget whose value is a record (ImageCropV2's crop region: {x, y, width, height}) is
+ * stored by the interface in the node's positional value list, like any other. The tool
+ * that converts the file for the server takes a record in that list for a "Power Lora"
+ * entry and, finding none of those keys, drops it: the input then gets the node's default
+ * (a 512×512 crop at the origin), and four crops of a multiview workflow came out as the
+ * same corner of the picture. The same converter honours a value list written BY NAME, so
+ * such a node is rewritten that way: each widget input gets its value, as the interface
+ * itself pairs them when it submits a prompt. Only nodes whose values pair exactly with
+ * their declared widgets, with every record landing on a non-primitive input, are touched;
+ * a node whose values cannot be paired safely is left as saved. Returns what it changed.
+ */
+export function repairObjectWidgets(graph: unknown, nodeInfo: (type: string) => any): string[] {
+  const g = graph as any;
+  if (!g || !Array.isArray(g.nodes)) return []; // the API format already names every value
+  const fixed: string[] = [];
+  for (const n of g.nodes) {
+    if (!n || typeof n.type !== "string" || !Array.isArray(n.widgets_values) || VIEWER_TYPES.test(n.type)) continue;
+    const values: unknown[] = n.widgets_values;
+    const records = values.filter(isRecord);
+    if (!records.length) continue;
+    // A record with "type" or "lora" is a Power Lora entry: the converter reads those itself.
+    if (records.some((r) => "type" in r || "lora" in r)) continue;
+    const widgets = widgetInputs(nodeInfo(n.type));
+    if (!widgets.length) continue;
+    const pairs: [string, unknown][] = [];
+    let i = 0;
+    let aligned = true;
+    for (const w of widgets) {
+      if (i >= values.length) { aligned = false; break; }
+      const v = values[i++];
+      if (isRecord(v) !== w.record) { aligned = false; break; }
+      pairs.push([w.name, v]);
+      if (/seed/i.test(w.name) && typeof values[i] === "string" && CONTROL_MARKERS.has(values[i] as string)) i++;
+    }
+    if (!aligned || pairs.filter(([, v]) => isRecord(v)).length !== records.length) continue;
+    n.widgets_values = Object.fromEntries(pairs);
+    const named = pairs.filter(([, v]) => isRecord(v)).map(([k, v]) => `${k} = ${clip(JSON.stringify(v), 80)}`);
+    fixed.push(`node ${n.id} (${n.type}): values written by name so ${named.join(", ")} reaches the server as saved`);
+  }
+  return fixed;
+}
+
 // ── The user's files ───────────────────────────────────────────────────────────
 
 /** An attachment as the conversation names it ("storage/uploads/<name>" or the bare name), inside the uploads folder. */
@@ -263,10 +338,13 @@ async function prepare(base: string, name: string, files: string[], ctx: Prepare
     }
   }
 
-  // Numbers stored as text, checked against what each node takes today.
+  // Numbers stored as text and widgets holding a record, checked against what each node takes today.
   const infoCache = new Map<string, any>();
   const wanted = new Set<string>();
-  for (const n of graphNodes(graph).nodes) if (n.values.some((v) => typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v.trim()))) wanted.add(n.type);
+  for (const n of graphNodes(graph).nodes) {
+    if (n.values.some((v) => typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v.trim()))) wanted.add(n.type);
+    if (n.values.some(isRecord)) wanted.add(n.type);
+  }
   for (const type of [...wanted].slice(0, 40)) {
     try {
       const r = await request(`${base}/object_info/${encodeURIComponent(type)}`);
@@ -274,6 +352,7 @@ async function prepare(base: string, name: string, files: string[], ctx: Prepare
     } catch { /* without the node's definition nothing is repaired */ }
   }
   for (const f of repairNumbersAsText(graph, (t) => infoCache.get(t))) done.push(`repaired a number stored as text: ${f}`);
+  for (const f of repairObjectWidgets(graph, (t) => infoCache.get(t))) done.push(`kept a widget's record value: ${f}`);
 
   const target = path.join(ctx.filesDir, path.basename(name));
   await mkdir(ctx.filesDir, { recursive: true });

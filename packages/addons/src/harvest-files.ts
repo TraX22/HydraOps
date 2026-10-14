@@ -11,7 +11,8 @@
  * this computer (whatever the model or the file's name), else from the local path it names.
  *
  * Narrow on purpose: media extensions only, files up to MAX_BYTES, at most MAX_FILES per
- * result, addresses only on this computer (127.0.0.1 / localhost), and local files only
+ * result, what a job saved and not its previews (ComfyUI's "temp" type), addresses only
+ * on this computer (127.0.0.1 / localhost), and local files only
  * from where a tool leaves its output: the system's temporary folder, the task's own
  * folder, or a folder listed in HYDRA_MEDIA_DIRS. A path the answer merely mentions (a
  * private picture a page talked a tool into naming) is not copied anywhere else. Paths are
@@ -126,6 +127,11 @@ export function findMediaRefs(result: unknown): { paths: string[]; urls: string[
     for (const m of s.match(LOCAL_VIEW_URL) ?? []) {
       try {
         const u = new URL(m.replace(/&amp;/g, "&"));
+        // ComfyUI serves a job's previews (the "temp" type: a mask, a UV atlas, every
+        // baked texture map a PreviewImage node shows) at the same /view address as what
+        // the job saved. The user sees only what the workflow saved, as collect does;
+        // eight preview cards above one model told them nothing.
+        if (u.searchParams.get("type") === "temp") continue;
         if (mediaKindOf(u.searchParams.get("filename") ?? "")) urls.add(u.toString());
       } catch { /* not a URL */ }
     }
