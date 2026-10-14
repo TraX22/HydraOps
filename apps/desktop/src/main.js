@@ -625,8 +625,8 @@ async function boot() {
 
   // Putting a copy of the installation back (the System view): the API writes the
   // request; here the stack is stopped, the files replaced and the whole app relaunched,
-  // whose boot runs the migrations (see backup.js). Also in the packaged app.
-  const { watchForRestoreRequest, finishRestore } = require("./backup");
+  // whose boot runs the migrations (see backup.cjs). Also in the packaged app.
+  const { watchForRestoreRequest, finishRestore } = require("./backup.cjs");
   if (finishRestore(dataRoot)) shellLog("restore finished: the stack runs on the copy that was put back");
   watchForRestoreRequest({
     dataRoot,

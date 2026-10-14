@@ -225,8 +225,8 @@ watchForPowerRequest({
 
 // Putting a copy of the installation back (the System view): the API writes the request;
 // here the stack is stopped, the files replaced and a new supervisor started, whose boot
-// runs the migrations (see apps/desktop/src/backup.js).
-const { watchForRestoreRequest, finishRestore } = require(path.join(repoRoot, "apps", "desktop", "src", "backup.js"));
+// runs the migrations (see apps/desktop/src/backup.cjs).
+const { watchForRestoreRequest, finishRestore } = require(path.join(repoRoot, "apps", "desktop", "src", "backup.cjs"));
 const { readAppVersion } = require(path.join(repoRoot, "apps", "desktop", "src", "services.js"));
 // Where the key proxy keeps keys.json (packages/config's keyStoreDir, which this ESM script cannot import).
 const osHome = require("node:os").homedir();
