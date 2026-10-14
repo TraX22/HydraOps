@@ -47,7 +47,7 @@ Outside content also reaches a task by other roads, and the mark follows it:
 - **Memory.** `remember` after outside content is held even for a *Trusted* agent: a rule saved there would be read into every future task. Only the global *Off* lets it through.
 - **Recall.** When `recall` brings back a past answer that was written after reading outside content, that text reaches the model marked as data and the current task is marked too.
 - **Delegation.** A task that `delegate_task` creates from a marked task starts marked: the other agent's sensitive calls are held as well.
-- **Skills.** `create_skill` is **always** held, whether or not the task read outside content and whatever the setting (*Off* included): a skill becomes instructions for other agents. See [Skills](./09-tools.md#skills-know-how-for-the-agents).
+- **Skills.** `create_skill` is **always** held, whether or not the task read outside content and whatever the setting (*Off* included): a skill becomes instructions for other agents. A connection can mark tools of its own the same way (class `approve`, see [Connections](./09-tools.md#connections-ready-made-mcp-servers)): Unity's `eval` runs C# in the editor with your user account, so every call waits for you. See [Skills](./09-tools.md#skills-know-how-for-the-agents).
 
 **System → Security** shows the log: which tasks read outside content, the sensitive calls made after that, and every held call with its outcome.
 

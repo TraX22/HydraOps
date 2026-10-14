@@ -18,7 +18,7 @@ export { rememberTool };
 export { ToolRegistry };
 export { guardTool, checkToolArgs, redactSecrets, assertPublicUrl } from './guard.js';
 export type { McpServerState, McpServerStatus } from './mcp.js';
-export { filterMcpConfigForTools, mcpServerEnv } from './mcp.js';
+export { filterMcpConfigForTools, mcpServerEnv, mcpServerDirs } from './mcp.js';
 
 // User addons live in <dataRoot>/my_addons/<name>/index.ts, each exporting a
 // HydraTool. Override the location with MY_ADDONS_DIR.

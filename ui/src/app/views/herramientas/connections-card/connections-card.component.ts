@@ -178,13 +178,18 @@ export class ConnectionsCardComponent implements OnInit, OnDestroy {
 
   tools(p: PreviewState): { name: string; cls: McpToolClass }[] {
     const risk = p.data?.preset.toolRisk ?? {};
-    const order: McpToolClass[] = ['neutral', 'read', 'acts', 'both'];
+    const order: McpToolClass[] = ['neutral', 'read', 'acts', 'both', 'approve'];
     return Object.entries(risk).map(([name, cls]) => ({ name, cls })).sort((a, b) => order.indexOf(a.cls) - order.indexOf(b.cls) || a.name.localeCompare(b.name));
   }
 
   classesUsed(p: PreviewState): McpToolClass[] {
     const used = new Set(Object.values(p.data?.preset.toolRisk ?? {}));
-    return (['neutral', 'read', 'acts', 'both'] as McpToolClass[]).filter(c => used.has(c));
+    return (['neutral', 'read', 'acts', 'both', 'approve'] as McpToolClass[]).filter(c => used.has(c));
+  }
+
+  /** The environment variables the connection ships, with their values (an empty one is for the user to fill in). */
+  envEntries(p: PreviewState): { key: string; value: string }[] {
+    return Object.entries(p.data?.preset.server?.env ?? {}).map(([key, value]) => ({ key, value }));
   }
 
   /** What the preview's main button does, or null when there is nothing to do. */

@@ -83,6 +83,7 @@ Un servidor local que maneja una aplicación tuya (por `command`) también se co
 - `read`: trae contenido de terceros (una página, resultados de búsqueda); no cambia nada. Marca la tarea.
 - `acts`: cambia algo (ejecuta código, escribe, envía). Se retiene si la tarea ya leyó contenido de terceros.
 - `both`: las dos cosas.
+- `approve`: cada llamada espera tu aprobación, haya leído lo que haya leído la tarea y con cualquier ajuste de seguridad (código que corre dentro de la aplicación, un menú que puede hacer cualquier cosa). *Aprobar por el resto de la tarea* no la cubre.
 
 El nombre es el de la herramienta tal como la publica el servidor, sin el prefijo del servidor. Las que no listes siguen la regla de siempre: servidor conocido, anotación `readOnlyHint` del propio servidor, o el peor caso.
 

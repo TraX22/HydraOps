@@ -722,14 +722,18 @@
         "neutral": "consulta",
         "read": "lê de fora",
         "acts": "modifica",
-        "both": "lê e modifica"
+        "both": "lê e modifica",
+        "approve": "sempre pergunta"
       },
       "clsHint": {
         "neutral": "livre; não marca a tarefa",
         "read": "livre; marca a tarefa como tendo lido conteúdo de terceiros",
         "acts": "pede permissão se a tarefa já leu algo externo",
-        "both": "traz conteúdo de terceiros e também age: pede permissão se a tarefa já leu algo externo"
-      }
+        "both": "traz conteúdo de terceiros e também age: pede permissão se a tarefa já leu algo externo",
+        "approve": "cada chamada espera a sua aprovação, tenha a tarefa lido o que for e em qualquer modo de segurança (código executado dentro do aplicativo)"
+      },
+      "envHint": "Suas variáveis de ambiente, com os valores que traz. Altere-as em Complementos → Servidores MCP depois de instalar; a atualização mantém os seus valores.",
+      "envEmpty": "(vazia: preencha se precisar)"
     }
   },
   "addons": {

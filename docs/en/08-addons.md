@@ -83,6 +83,7 @@ A local server that drives an application of yours (through `command`) is config
 - `read`: brings in third-party content (a page, search results); changes nothing. Marks the task.
 - `acts`: changes something (runs code, writes, sends). Held if the task has already read third-party content.
 - `both`: both.
+- `approve`: every call waits for your approval, whatever the task read and whatever the security setting (code run inside the application, a menu that can do anything). *Approve for the rest of the task* does not cover it.
 
 The name is the tool's as the server publishes it, without the server prefix. Tools you do not list follow the usual rule: a known server, the server's own `readOnlyHint` annotation, or the worst case.
 

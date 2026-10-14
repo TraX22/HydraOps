@@ -131,6 +131,7 @@ Cada conexión usa el lanzador más liviano que sirva:
 | `uvx` | Ejecuta programas de Python sin instalarlos (viene con [uv](https://docs.astral.sh/uv/)) | Windows: `winget install astral-sh.uv` · macOS: `brew install uv` |
 | `npx` | Ejecuta programas de Node.js (viene con [Node.js](https://nodejs.org/)) | Windows: `winget install OpenJS.NodeJS.LTS` · macOS: `brew install node` |
 | `docker` | Solo para servidores que no se publican de otra forma | [Docker Desktop](https://docs.docker.com/get-started/get-docker/) |
+| `unity` | El [Unity CLI](https://docs.unity.com/en-us/unity-cli/use-unity-cli), el programa de Unity, para la conexión Unity | Lo instala Unity Hub · Windows: `winget install Unity.CLI` · macOS y Linux: `brew install --cask unity-cli` |
 
 El catálogo no acepta ningún otro comando. El botón **Ver** te dice si el lanzador está en tu equipo y, si falta, cómo instalarlo; también lista lo que HydraOps no puede comprobar (por ejemplo, que Blender esté abierto con su add-on activado).
 
@@ -148,10 +149,13 @@ Las clases de las herramientas:
 | lee de afuera | `read` | Corre libre; marca la tarea como que leyó contenido de terceros. |
 | modifica | `acts` | Se retiene para tu aprobación si la tarea ya leyó contenido de terceros. |
 | lee y modifica | `both` | Las dos cosas. |
+| siempre pregunta | `approve` | Cada llamada espera tu aprobación, haya leído lo que haya leído la tarea y con cualquier ajuste de seguridad: código que corre dentro de la aplicación (el `eval` de Unity), un menú que puede hacer cualquier cosa. |
 
 ### Versiones y actualizaciones
 
 La versión del programa está **fijada dentro de la conexión** (`uvx comfy-mcp==0.10.0`, `npx @playwright/mcp@0.0.83`): es la que se probó y clasificó. No cambia sola. Cuando el catálogo publica una versión nueva de la conexión, aparece la etiqueta *nueva versión* y el botón **Actualizar**; al actualizar se conservan el interruptor y los valores que hayas cambiado en las variables de entorno (un puerto, por ejemplo).
+
+Algunas conexiones llevan un valor tuyo en su línea de comandos: la conexión Unity arranca con `--project-path {{UNITY_PROJECT}}`, donde `{{UNITY_PROJECT}}` representa la variable de entorno de ese nombre. **Ver** lista las variables que trae la conexión y sus valores; una vacía es para que la completes vos, en [Complementos → Servidores MCP](./08-addons.md), después de instalar. Si queda vacía, el argumento se omite junto con su bandera y el programa usa su propio valor por defecto. Las carpetas que nombres ahí (un proyecto) cuentan como lugares donde las herramientas de la conexión dejan su salida: una imagen o un modelo que una herramienta guarde en ellas aparece debajo de la respuesta del agente.
 
 Si un servidor publica una herramienta que la conexión no clasifica, aparece *N herramientas sin clasificar*: esas se tratan como el peor caso (leen y actúan) hasta que una versión nueva de la conexión las clasifique.
 

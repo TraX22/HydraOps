@@ -722,14 +722,18 @@
         "neutral": "looks up",
         "read": "reads outside",
         "acts": "changes",
-        "both": "reads and changes"
+        "both": "reads and changes",
+        "approve": "always asks"
       },
       "clsHint": {
         "neutral": "runs freely; does not mark the task",
         "read": "runs freely; marks the task as having read third-party content",
         "acts": "asks for permission if the task has already read outside content",
-        "both": "brings in third-party content and also acts: asks for permission if the task has already read outside content"
-      }
+        "both": "brings in third-party content and also acts: asks for permission if the task has already read outside content",
+        "approve": "every call waits for your approval, whatever the task read and whatever the security mode (code run inside the application)"
+      },
+      "envHint": "Its environment variables, with the values it ships. Change them in Add-ons → MCP servers after installing; updating keeps your values.",
+      "envEmpty": "(empty: fill it in if you need it)"
     }
   },
   "addons": {

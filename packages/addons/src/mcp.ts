@@ -6,7 +6,8 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { HydraTool } from "./types.js";
 import { classifyMcpTool } from "./provenance.js";
-import { MIN_TOOL_TIMEOUT_SECONDS, MAX_TOOL_TIMEOUT_SECONDS } from "./presets.js";
+import path from "node:path";
+import { MIN_TOOL_TIMEOUT_SECONDS, MAX_TOOL_TIMEOUT_SECONDS, expandServerArgs } from "./presets.js";
 
 // --- Server state types ---
 export type McpServerState = 'connecting' | 'connected' | 'failed' | 'timeout' | 'disconnected';
@@ -188,19 +189,38 @@ const DOWNSTREAM_LOST = /\bnot connected\b|connection (?:refused|lost|closed|res
  * lines name (the server itself, or one of its tools). A worker connects only these, so
  * a server no agent of its kind was given is not started there at all.
  */
-/** The `env` of one server of the stored MCP config, by name (case and spaces do not matter); empty when there is none. */
-export function mcpServerEnv(configStr: string, serverName: string): Record<string, string> {
+/** One server's entry of the stored MCP config, by name (case and spaces do not matter); null when there is none. */
+function mcpServerEntry(configStr: string, serverName: string): any | null {
   const norm = (v: string) => v.replace(/\s+/g, '_').toLowerCase();
   try {
     const servers = JSON.parse(configStr || '{}')?.mcpServers;
-    if (!servers || typeof servers !== 'object') return {};
+    if (!servers || typeof servers !== 'object') return null;
     const key = Object.keys(servers).find((k) => norm(k) === norm(serverName));
-    const env = key ? servers[key]?.env : undefined;
-    if (!env || typeof env !== 'object' || Array.isArray(env)) return {};
-    return Object.fromEntries(Object.entries(env).filter(([, v]) => typeof v === 'string')) as Record<string, string>;
+    return key ? servers[key] ?? null : null;
   } catch {
-    return {};
+    return null;
   }
+}
+
+/** The `env` of one server of the stored MCP config, by name; empty when there is none. */
+export function mcpServerEnv(configStr: string, serverName: string): Record<string, string> {
+  const env = mcpServerEntry(configStr, serverName)?.env;
+  if (!env || typeof env !== 'object' || Array.isArray(env)) return {};
+  return Object.fromEntries(Object.entries(env).filter(([, v]) => typeof v === 'string')) as Record<string, string>;
+}
+
+/**
+ * The folders one server's entry points at: every argument (placeholders filled in) and env
+ * value that is an absolute path. They are where that connection's tools leave their output
+ * (a Unity project's captures), so the harvester may bring media from there into the task
+ * (see harvest-files.ts, which also checks that each one exists).
+ */
+export function mcpServerDirs(configStr: string, serverName: string): string[] {
+  const entry = mcpServerEntry(configStr, serverName);
+  if (!entry) return [];
+  const env = mcpServerEnv(configStr, serverName);
+  const values = [...expandServerArgs(entry.args, env), ...Object.values(env)].map((v) => v.trim());
+  return [...new Set(values.filter((v) => v && path.isAbsolute(v)))];
 }
 
 export function filterMcpConfigForTools(configStr: string, toolLines: string[]): string {
@@ -357,7 +377,8 @@ export class McpClientManager {
             console.log(`[MCP] Connecting to ${serverName} via STDIO (${config.command})...`);
             transport = new StdioClientTransport({
               command: config.command,
-              args: config.args || [],
+              // A catalog entry's arguments may carry {{VAR}} placeholders filled in from its env.
+              args: expandServerArgs(config.args || [], config.env || {}),
               env: { ...process.env, ...(config.env || {}) }
             });
             client = new Client({ name: "hydraops", version: "1.0.0" }, { capabilities: {} });
