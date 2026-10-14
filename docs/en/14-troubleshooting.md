@@ -41,6 +41,10 @@ It is in plain text in the server's `.env` (`HYDRA_AUTH_TOKEN`). Change it whene
 
 Close HydraOps before installing: the installer cannot overwrite files in use.
 
+## Something broke after an update
+
+Before every update from the **System** view, HydraOps makes a copy of your installation (agents, skills, users, settings, database). Open **System → Backups**, find the copy marked *before update* and press **Put back**: the app restarts on the data you had before. Your current state is kept as a copy too, so nothing is lost by trying. The copy belongs to the previous version, so the usual migrations bring it forward on start. See [Statistics & System](./11-stats-system.md#backups).
+
 ## A connection (MCP server) does not connect
 
 Open **Tools → Connections** and look at its state. *No agent uses it yet*: give it to an agent in Agents → Tools; a worker only starts the servers its agents were given. *No answer · retried automatically*: the application it drives is closed (open Blender, start the add-on's server) or the launcher is missing; **View** says whether `uvx`, `npx` or `docker` is installed and how to get it. Nothing needs restarting: it is retried on the next task. The first start of a server can take a minute or more, while it downloads itself.

@@ -623,6 +623,20 @@ async function boot() {
     });
   }
 
+  // Putting a copy of the installation back (the System view): the API writes the
+  // request; here the stack is stopped, the files replaced and the whole app relaunched,
+  // whose boot runs the migrations (see backup.js). Also in the packaged app.
+  const { watchForRestoreRequest, finishRestore } = require("./backup");
+  if (finishRestore(dataRoot)) shellLog("restore finished: the stack runs on the copy that was put back");
+  watchForRestoreRequest({
+    dataRoot,
+    keyStoreDir: path.join(app.getPath("appData"), "hydraops"),
+    version: app.getVersion(),
+    log: (msg) => shellLog(`backup: ${msg}`),
+    stopAll: () => supervisor.stopAll(),
+    relaunch: () => { quitting = true; app.relaunch(); app.exit(0); },
+  });
+
   // /exit and /restart from the chat or Telegram: the API writes the request once the
   // user confirmed; here it is carried out (see power.js). Quitting goes through the
   // same path as the tray's Quit, with the reason in shell.log.

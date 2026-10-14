@@ -41,6 +41,10 @@ Está en claro en el `.env` del servidor (`HYDRA_AUTH_TOKEN`). Cámbialo cuando 
 
 Cierra HydraOps antes de instalar: el instalador no puede sobrescribir archivos en uso.
 
+## Algo se rompió después de una actualización
+
+Antes de cada actualización desde la vista **Sistema**, HydraOps hace una copia de tu instalación (agentes, skills, usuarios, configuración, base de datos). Abrí **Sistema → Copias de seguridad**, buscá la copia marcada *antes de actualizar* y tocá **Restaurar**: la app se reinicia con los datos que tenías antes. Tu estado actual también queda guardado como copia, así que no se pierde nada por probar. La copia es de la versión anterior, así que las migraciones de siempre la ponen al día al arrancar. Ver [Estadísticas y Sistema](./11-stats-system.md#copias-de-seguridad).
+
 ## Una conexión (servidor MCP) no conecta
 
 Abre **Herramientas → Conexiones** y mira su estado. *Ningún agente la usa todavía*: dásela a un agente en Agentes → Herramientas; un worker solo arranca los servidores que tienen sus agentes. *Sin respuesta · se reintenta sola*: la aplicación que maneja está cerrada (abre Blender, inicia el servidor del add-on) o falta el lanzador; **Ver** dice si `uvx`, `npx` o `docker` está instalado y cómo conseguirlo. No hace falta reiniciar nada: se reintenta en la próxima tarea. El primer arranque de un servidor puede tardar un minuto o más, mientras se descarga.

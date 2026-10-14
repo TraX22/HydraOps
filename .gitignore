@@ -15,6 +15,11 @@ storage/
 self-update.request
 self-update.state.json
 power.request
+restore.request
+restore.state.json
+# Copies of the installation the user makes from the System view (and the automatic
+# ones before an update) live in the data root too.
+/backups/
 # Installed skills are the user's own (catalog downloads, manual copies, the ones
 # their agents wrote): they never go to the repository.
 /skills/

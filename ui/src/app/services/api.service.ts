@@ -499,6 +499,34 @@ export interface SelfUpdateStatus {
   error?: string;
 }
 
+export interface BackupEntry {
+  name: string;
+  kind: 'manual' | 'before-update' | 'before-restore';
+  label: string;
+  at: string;
+  version: string;
+  items: string[];
+  storage: boolean;
+  keys: boolean;
+  size: number;
+}
+
+export interface RestoreState {
+  status: 'idle' | 'queued' | 'running' | 'restarting' | 'success' | 'error';
+  name?: string;
+  error?: string;
+  kept?: string;
+  restored?: string[];
+  finishedAt?: number;
+}
+
+export interface BackupsInfo {
+  dir: string;
+  supervisor: 'desktop' | 'server' | 'none';
+  restore: RestoreState | null;
+  backups: BackupEntry[];
+}
+
 export interface DocsPage {
   slug: string;
   file: string;
@@ -540,6 +568,27 @@ export class ApiService {
 
   selfUpdateStatus(): Observable<SelfUpdateStatus> {
     return this.http.get<SelfUpdateStatus>(`${this.base}/self-update/status`);
+  }
+
+  // ── Backups (copies of the installation, System view) ──
+  getBackups(): Observable<BackupsInfo> {
+    return this.http.get<BackupsInfo>(`${this.base}/backups`);
+  }
+
+  createBackup(opts: { storage: boolean; keys: boolean; label?: string }): Observable<BackupEntry> {
+    return this.http.post<BackupEntry>(`${this.base}/backups`, opts);
+  }
+
+  deleteBackup(name: string): Observable<{ ok: boolean }> {
+    return this.http.delete<{ ok: boolean }>(`${this.base}/backups/${encodeURIComponent(name)}`);
+  }
+
+  restoreBackup(name: string): Observable<{ started: boolean; name: string; cancelled: number }> {
+    return this.http.post<{ started: boolean; name: string; cancelled: number }>(`${this.base}/backups/${encodeURIComponent(name)}/restore`, {});
+  }
+
+  restoreStatus(): Observable<RestoreState> {
+    return this.http.get<RestoreState>(`${this.base}/backups/restore/status`);
   }
 
   // ── Docs ──

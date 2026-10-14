@@ -20,3 +20,13 @@ The **System** view shows the moving parts:
 - **Logs** — each service's output, to see what is actually going on.
 
 Logs are also kept as files in `storage/logs/` inside the data folder, one per service. If something fails and you can't see why, the full story is there — and it is what you should copy when [reporting a problem](./14-troubleshooting.md).
+
+## Backups
+
+The **Backups** section of the same view keeps copies of what makes the installation yours: the agents (prompts, tools, memory), the installed skills and add-ons, the users, the settings and the database with every chat, task, schedule and connection. A copy is a folder under `backups/` inside the data folder, with a `manifest.json` that says when it was made and by which version; nothing to unpack, and you can copy the folder to another disk or delete it.
+
+- **Make a copy** whenever you want. Two options are off by default: *task files* (the attachments and results of every task, which can weigh a lot) and *API keys* (a copy that holds them is a copy to keep private).
+- **Before every update** HydraOps makes a copy on its own, marked *before update*; the five newest automatic copies are kept.
+- **Put back** replaces the current data with the copy and restarts the app: tasks in progress are cancelled, the services stop, the files are swapped and everything starts again. The state you had right before is kept as a copy too (*before restore*), so a restore can itself be undone. A copy without task files or keys leaves the current ones alone.
+
+A copy made by a newer version than the one running is refused: update first, then put it back. A copy from an older version is brought forward by the usual migrations when the app starts.

@@ -349,6 +349,32 @@
         "sensitive_after_taint": "ação depois",
         "held": "retida"
       }
+    },
+    "backups": {
+      "title": "Cópias de segurança",
+      "refresh": "Atualizar",
+      "hint": "Uma cópia do que torna esta instalação sua: agentes, skills, complementos, usuários, configurações e o banco de dados. Antes de cada atualização uma é feita sozinha. Restaurar uma cópia reinicia o app; o estado anterior também fica guardado como cópia.",
+      "withStorage": "Incluir arquivos das tarefas (envios, resultados)",
+      "withKeys": "Incluir chaves de API",
+      "make": "Fazer uma cópia",
+      "making": "Fazendo a cópia…",
+      "empty": "Ainda não há cópias.",
+      "restore": "Restaurar",
+      "restoring": "Restaurando a cópia… o app vai reiniciar sozinho.",
+      "restored": "Cópia {{name}} restaurada. Recarregando…",
+      "failed": "Não foi possível restaurar a cópia. {{error}}",
+      "tooLong": "A restauração está demorando demais. Veja os logs do servidor.",
+      "restoreConfirm": "Restaurar a cópia {{name}} (HydraOps {{version}})?\n\nO app vai parar, substituir seus dados pelos dessa cópia e reiniciar. As tarefas em andamento são canceladas. O estado atual fica guardado como cópia, então dá para desfazer.",
+      "deleteConfirm": "Apagar a cópia {{name}}? Não dá para desfazer.",
+      "folder": "Pasta:",
+      "hasStorage": "com arquivos das tarefas",
+      "hasKeys": "com chaves",
+      "kind": {
+        "manual": "manual",
+        "before-update": "antes de atualizar",
+        "before-restore": "antes de restaurar"
+      },
+      "lastRestore": "Última restauração: {{name}}, em {{date}}."
     }
   },
   "config": {
