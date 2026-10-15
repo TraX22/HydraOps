@@ -37,13 +37,16 @@ export interface ToolRisk {
  * - read:    returns third-party content (a page, search results), changes nothing
  * - acts:    changes something (runs code, writes, sends); what it returns is not third-party
  * - both:    reads third-party content and acts
+ * - approve: every call waits for the user's approval, whatever the task read and whatever
+ *            the security mode (code run inside an application, a menu that can do anything)
  */
-export type McpToolClass = 'neutral' | 'read' | 'acts' | 'both';
+export type McpToolClass = 'neutral' | 'read' | 'acts' | 'both' | 'approve';
 const MCP_CLASS_RISK: Record<McpToolClass, ToolRisk> = {
   neutral: {},
   read: { readsExternal: true },
   acts: { sensitive: true },
   both: { readsExternal: true, sensitive: true },
+  approve: { sensitive: true, approval: 'always' },
 };
 export const isMcpToolClass = (v: unknown): v is McpToolClass => typeof v === 'string' && Object.prototype.hasOwnProperty.call(MCP_CLASS_RISK, v);
 

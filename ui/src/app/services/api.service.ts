@@ -324,7 +324,7 @@ export interface SkillPreview {
 }
 
 // ── Connections (Herramientas → Connections): MCP servers from the catalog ──
-export type McpToolClass = 'neutral' | 'read' | 'acts' | 'both';
+export type McpToolClass = 'neutral' | 'read' | 'acts' | 'both' | 'approve';
 
 export interface ConnectionServer {
   name: string;
@@ -354,6 +354,7 @@ export interface ConnectionPreview {
   preset: {
     name: string; title: string; description: string; version: string; author: string; homepage?: string;
     requires: { launcher: string; notes: string[]; setup: { run?: string; then?: string }[] };
+    server: { command?: string; args?: string[]; env?: Record<string, string>; url?: string; toolTimeoutSeconds?: number };
     toolRisk: Record<string, McpToolClass>;
     toolsMd: string;
     tips: string[];

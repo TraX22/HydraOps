@@ -131,6 +131,7 @@ Each connection uses the lightest launcher that works:
 | `uvx` | Runs Python programs without installing them (comes with [uv](https://docs.astral.sh/uv/)) | Windows: `winget install astral-sh.uv` · macOS: `brew install uv` |
 | `npx` | Runs Node.js programs (comes with [Node.js](https://nodejs.org/)) | Windows: `winget install OpenJS.NodeJS.LTS` · macOS: `brew install node` |
 | `docker` | Only for servers that are not published any other way | [Docker Desktop](https://docs.docker.com/get-started/get-docker/) |
+| `unity` | The [Unity CLI](https://docs.unity.com/en-us/unity-cli/use-unity-cli), Unity's own program, for the Unity connection | Unity Hub installs it · Windows: `winget install Unity.CLI` · macOS and Linux: `brew install --cask unity-cli` |
 
 The catalog accepts no other command. **View** tells you whether the launcher is on your computer and, if it is missing, how to install it; it also lists what HydraOps cannot check (for example, that Blender is open with its add-on enabled).
 
@@ -148,10 +149,13 @@ The tool classes:
 | reads outside | `read` | Runs freely; marks the task as having read third-party content. |
 | changes | `acts` | Held for your approval if the task has already read third-party content. |
 | reads and changes | `both` | Both. |
+| always asks | `approve` | Every call waits for your approval, whatever the task read and whatever the security setting: code run inside the application (Unity's `eval`), a menu that can do anything. |
 
 ### Versions and updates
 
 The program's version is **pinned inside the connection** (`uvx comfy-mcp==0.10.0`, `npx @playwright/mcp@0.0.83`): it is the one that was tested and classified. It does not change on its own. When the catalog publishes a new version of the connection, the *new version* label and the **Update** button appear; updating keeps the switch and the values you changed in the environment variables (a port, for example).
+
+Some connections take a value of yours on their command line: the Unity connection is started with `--project-path {{UNITY_PROJECT}}`, where `{{UNITY_PROJECT}}` stands for the environment variable of that name. **View** lists the variables the connection ships and their values; an empty one is for you to fill in, in [Add-ons → MCP servers](./08-addons.md), after installing. Left empty, the argument is dropped together with its flag and the program uses its own default. The folders you name there (a project) count as places where the connection's tools leave their output: an image or a model a tool saves in them appears under the agent's reply.
 
 If a server publishes a tool the connection does not classify, *N unclassified tools* appears: those are treated as the worst case (read and act) until a new version of the connection classifies them.
 

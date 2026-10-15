@@ -50,6 +50,9 @@ export interface ToolContext {
   // name: a native tool that works next to a connection reads the same address the user
   // set there instead of asking for it twice.
   connectionEnv?: (serverName: string) => Record<string, string>;
+  // The folders a connection is configured with (the absolute paths in its arguments and
+  // env, a Unity project for instance): media its tools leave there is brought into the task.
+  connectionDirs?: (serverName: string) => string[];
   // A file this tool left for the user in the task's folder (see result-files.ts): the
   // worker stores it with the task's result and the chat shows it next to the answer.
   addResultFile?: (file: ReportedFile) => void;

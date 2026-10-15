@@ -722,14 +722,18 @@
         "neutral": "consulta",
         "read": "legge da fuori",
         "acts": "modifica",
-        "both": "legge e modifica"
+        "both": "legge e modifica",
+        "approve": "chiede sempre"
       },
       "clsHint": {
         "neutral": "libero; non segna l'attività",
         "read": "libero; segna l'attività come se avesse letto contenuti di terzi",
         "acts": "chiede il permesso se l'attività ha già letto qualcosa di esterno",
-        "both": "porta contenuti di terzi e in più agisce: chiede il permesso se l'attività ha già letto qualcosa di esterno"
-      }
+        "both": "porta contenuti di terzi e in più agisce: chiede il permesso se l'attività ha già letto qualcosa di esterno",
+        "approve": "ogni chiamata attende la tua approvazione, qualunque cosa abbia letto l'attività e con qualsiasi modalità di sicurezza (codice eseguito dentro l'applicazione)"
+      },
+      "envHint": "Le sue variabili d'ambiente, con i valori forniti. Modificale in Componenti → Server MCP dopo l'installazione; l'aggiornamento conserva i tuoi valori.",
+      "envEmpty": "(vuota: compilala se ti serve)"
     }
   },
   "addons": {

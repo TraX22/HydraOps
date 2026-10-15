@@ -161,6 +161,12 @@
         <h4>{{ 'herramientas.connections.startsWith' | translate }}</h4>
         <pre>{{ d.commandLine }}</pre>
         <div class="req-row"><small>{{ 'herramientas.connections.pinnedHint' | translate }}</small></div>
+        @if (envEntries(p).length) {
+          <div class="req-row"><small>{{ 'herramientas.connections.envHint' | translate }}</small></div>
+          @for (v of envEntries(p); track v.key) {
+            <div class="req-row"><code>{{ v.key }}</code><small> = {{ v.value || ('herramientas.connections.envEmpty' | translate) }}</small></div>
+          }
+        }
       </div>
 
       <div class="box">

@@ -195,7 +195,11 @@ export class ToolRegistry {
               const r = await mt.execute(args, ctx);
               const c = ctx ?? context;
               const server = this.mcpManager.serverOfTool(name);
-              await harvestMediaFiles(r, { ...c, allowedOrigins: server ? connectionOrigins(c?.connectionEnv?.(server)) : [] });
+              await harvestMediaFiles(r, {
+                ...c,
+                allowedOrigins: server ? connectionOrigins(c?.connectionEnv?.(server)) : [],
+                extraRoots: server ? c?.connectionDirs?.(server) ?? [] : [],
+              });
               return r;
             } }
           : mt;

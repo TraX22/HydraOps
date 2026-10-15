@@ -30,4 +30,5 @@
 .cls.neutral { background: color-mix(in srgb, #6b7280 14%, transparent); color: var(--text-secondary); }
 .cls.read { background: color-mix(in srgb, #2563eb 14%, transparent); color: #3b82f6; }
 .cls.acts, .cls.both { background: color-mix(in srgb, #d97706 18%, transparent); color: #d97706; }
+.cls.approve { background: color-mix(in srgb, #dc2626 16%, transparent); color: #dc2626; }
 .legend { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--text-muted); margin-top: 10px; }

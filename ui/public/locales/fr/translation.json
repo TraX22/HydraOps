@@ -722,14 +722,18 @@
         "neutral": "consulte",
         "read": "lit à l'extérieur",
         "acts": "modifie",
-        "both": "lit et modifie"
+        "both": "lit et modifie",
+        "approve": "demande toujours"
       },
       "clsHint": {
         "neutral": "libre ; ne marque pas la tâche",
         "read": "libre ; marque la tâche comme ayant lu du contenu tiers",
         "acts": "demande l'autorisation si la tâche a déjà lu du contenu extérieur",
-        "both": "apporte du contenu tiers et agit en plus : demande l'autorisation si la tâche a déjà lu du contenu extérieur"
-      }
+        "both": "apporte du contenu tiers et agit en plus : demande l'autorisation si la tâche a déjà lu du contenu extérieur",
+        "approve": "chaque appel attend votre approbation, quoi que la tâche ait lu et quel que soit le mode de sécurité (du code exécuté dans l'application)"
+      },
+      "envHint": "Ses variables d'environnement, avec les valeurs fournies. Modifiez-les dans Compléments → Serveurs MCP après l'installation ; la mise à jour conserve vos valeurs.",
+      "envEmpty": "(vide : remplissez-la si besoin)"
     }
   },
   "addons": {

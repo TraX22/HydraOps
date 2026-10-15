@@ -12,8 +12,11 @@
 import { createHash } from 'node:crypto';
 import { isMcpToolClass, type McpToolClass } from './provenance.js';
 
-/** What may start a catalog server. Anything else in `server.command` is refused. */
-export const PRESET_LAUNCHERS = ['uvx', 'npx', 'docker'] as const;
+/**
+ * What may start a catalog server. Anything else in `server.command` is refused. `unity` is
+ * Unity's own CLI, a native program Unity publishes (it has no uvx or npx form).
+ */
+export const PRESET_LAUNCHERS = ['uvx', 'npx', 'docker', 'unity'] as const;
 export type PresetLauncher = (typeof PRESET_LAUNCHERS)[number] | 'none';
 
 export interface ConnectionPreset {
@@ -43,6 +46,9 @@ const TOOL_RE = /^[A-Za-z0-9_.-]{1,80}$/;
 // No control characters, and nothing a shell would treat specially: arguments are passed
 // as an array (no shell), this only keeps a catalog entry from looking like a command line.
 const SAFE_ARG_RE = /^[^\x00-\x1f\x7f`$|&<>]{1,300}$/;
+// A placeholder in an argument, filled in from the entry's env when the server starts
+// (`--project-path {{UNITY_PROJECT}}`). See expandServerArgs.
+const PLACEHOLDER_RE = /\{\{([A-Z][A-Z0-9_]{0,63})\}\}/g;
 
 /** The limits of a connection's tool-call timeout; the minimum is the default. */
 export const MIN_TOOL_TIMEOUT_SECONDS = 30;
@@ -88,10 +94,18 @@ export function parsePreset(raw: unknown): { preset: ConnectionPreset } | { erro
     if (!srv.env || typeof srv.env !== 'object' || Array.isArray(srv.env)) return { error: 'server.env must be a map' };
     const env: Record<string, string> = {};
     for (const [k, v] of Object.entries(srv.env).slice(0, 24)) {
-      if (!ENV_KEY_RE.test(k) || typeof v !== 'string' || !SAFE_ARG_RE.test(v)) return { error: `server.env.${k} is not valid` };
+      // An empty value is a variable the user fills in after installing (a project folder).
+      if (!ENV_KEY_RE.test(k) || typeof v !== 'string' || (v !== '' && !SAFE_ARG_RE.test(v))) return { error: `server.env.${k} is not valid` };
       env[k] = v;
     }
     if (Object.keys(env).length) server.env = env;
+  }
+  // Every placeholder an argument carries must name a variable the preset declares, so the
+  // user sees in the env what the command line needs.
+  for (const arg of server.args ?? []) {
+    for (const m of arg.matchAll(PLACEHOLDER_RE)) {
+      if (!(server.env && m[1] in server.env)) return { error: `server.args uses {{${m[1]}}}, which server.env does not define` };
+    }
   }
 
   // How long one tool call of this server may take (see toolCallTimeoutMs in mcp.ts). Only a
@@ -135,6 +149,34 @@ export function parsePreset(raw: unknown): { preset: ConnectionPreset } | { erro
       tips: strList(p.tips, 6, 300),
     },
   };
+}
+
+/**
+ * The arguments a server is started with, once its placeholders are filled in from its env:
+ * `{{UNITY_PROJECT}}` becomes the value of UNITY_PROJECT. A placeholder whose variable is empty
+ * (the user left it blank) drops its argument, and the flag before it when there is one, so
+ * `--project-path {{UNITY_PROJECT}}` disappears whole and the server falls back to its own
+ * default. An argument without placeholders is passed as it is.
+ */
+export function expandServerArgs(args: unknown, env: unknown): string[] {
+  const vars = env && typeof env === 'object' && !Array.isArray(env) ? (env as Record<string, unknown>) : {};
+  const list = Array.isArray(args) ? args.filter((a): a is string => typeof a === 'string') : [];
+  const out: string[] = [];
+  for (const arg of list) {
+    let blank = false;
+    const value = arg.replace(PLACEHOLDER_RE, (_m, name: string) => {
+      const v = vars[name];
+      if (typeof v === 'string' && v.trim()) return v.trim();
+      blank = true;
+      return '';
+    });
+    if (blank && !value.trim()) {
+      if (out.length && out[out.length - 1].startsWith('-')) out.pop();
+      continue;
+    }
+    out.push(value);
+  }
+  return out;
 }
 
 /** What identifies an installed entry as "untouched since it was installed" (env and the switch are the user's). */
@@ -191,5 +233,9 @@ export function launcherInstallHint(launcher: PresetLauncher, platform: string =
   }
   if (launcher === 'npx') return { ...(platform === 'win32' ? { command: 'winget install OpenJS.NodeJS.LTS' } : platform === 'darwin' ? { command: 'brew install node' } : {}), url: 'https://nodejs.org/' };
   if (launcher === 'docker') return { url: 'https://docs.docker.com/get-started/get-docker/' };
+  if (launcher === 'unity') {
+    // Unity Hub installs the CLI too; these are the stand-alone installs Unity documents.
+    return { command: platform === 'win32' ? 'winget install Unity.CLI' : 'brew install --cask unity-cli', url: 'https://docs.unity.com/en-us/unity-cli/use-unity-cli' };
+  }
   return null;
 }

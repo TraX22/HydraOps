@@ -14,7 +14,8 @@
  * result, what a job saved and not its previews (ComfyUI's "temp" type), addresses only
  * on this computer (127.0.0.1 / localhost), and local files only
  * from where a tool leaves its output: the system's temporary folder, the task's own
- * folder, or a folder listed in HYDRA_MEDIA_DIRS. A path the answer merely mentions (a
+ * folder, a folder listed in HYDRA_MEDIA_DIRS, or a folder the tool's own connection is
+ * configured with (a Unity project, see mcpServerDirs in mcp.ts). A path the answer merely mentions (a
  * private picture a page talked a tool into naming) is not copied anywhere else. Paths are
  * compared after resolving links. Addresses are fetched only from the origins the tool's own
  * connection is configured with (its COMFYUI_URL, for instance), without following
@@ -83,11 +84,14 @@ async function readCapped(res: Response, max: number): Promise<Buffer | null> {
 
 const inside = (root: string, p: string) => { const rel = path.relative(root, p); return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel)); };
 
-/** Where a tool's output may be taken from: the temp folder plus HYDRA_MEDIA_DIRS, resolved. */
-async function outputRoots(): Promise<string[]> {
+/** Where a tool's output may be taken from: the temp folder, HYDRA_MEDIA_DIRS and the connection's own folders, resolved; only folders that exist. */
+async function outputRoots(extra: string[]): Promise<string[]> {
   const listed = (process.env.HYDRA_MEDIA_DIRS ?? "").split(path.delimiter).map((d) => d.trim()).filter(Boolean);
   const roots: string[] = [];
-  for (const d of [os.tmpdir(), ...listed]) { const r = await realpath(d).catch(() => null); if (r) roots.push(r); }
+  for (const d of [os.tmpdir(), ...listed, ...extra]) {
+    const r = await realpath(d).catch(() => null);
+    if (r && (await stat(r).catch(() => null))?.isDirectory()) roots.push(r);
+  }
   return roots;
 }
 
@@ -161,7 +165,7 @@ async function freeName(dir: string, name: string, size: number, hash: () => Pro
  * Copies the media a result names into `filesDir` and reports each one. Best effort:
  * returns how many were reported, never throws.
  */
-export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: string; addResultFile?: (f: ReportedFile) => void; allowedOrigins?: string[] }): Promise<number> {
+export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: string; addResultFile?: (f: ReportedFile) => void; allowedOrigins?: string[]; extraRoots?: string[] }): Promise<number> {
   if (!ctx.filesDir || !ctx.addResultFile) return 0;
   const found = findMediaRefs(result);
   const paths = found.paths;
@@ -196,7 +200,7 @@ export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: strin
     }
     if (reported) return reported;
     const taskDir = await realpath(ctx.filesDir);
-    const roots = await outputRoots();
+    const roots = await outputRoots(ctx.extraRoots ?? []);
     for (const p of paths) {
       if (reported >= MAX_FILES || spent()) break;
       attempts++;

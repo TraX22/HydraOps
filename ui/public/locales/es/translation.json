@@ -722,14 +722,18 @@
         "neutral": "consulta",
         "read": "lee de afuera",
         "acts": "modifica",
-        "both": "lee y modifica"
+        "both": "lee y modifica",
+        "approve": "siempre pregunta"
       },
       "clsHint": {
         "neutral": "libre; no marca la tarea",
         "read": "libre; marca la tarea como que leyó contenido de terceros",
         "acts": "pide permiso si la tarea ya leyó algo de afuera",
-        "both": "trae contenido de terceros y además actúa: pide permiso si la tarea ya leyó algo de afuera"
-      }
+        "both": "trae contenido de terceros y además actúa: pide permiso si la tarea ya leyó algo de afuera",
+        "approve": "cada llamada espera tu aprobación, haya leído lo que haya leído la tarea y con cualquier modo de seguridad (código que corre dentro de la aplicación)"
+      },
+      "envHint": "Sus variables de entorno, con los valores que trae. Cámbialas en Complementos → Servidores MCP después de instalar; al actualizar se conservan tus valores.",
+      "envEmpty": "(vacía: completala si la necesitas)"
     }
   },
   "addons": {
