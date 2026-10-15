@@ -106,7 +106,8 @@ export class ConnectionsCardComponent implements OnInit, OnDestroy {
 
   stateText(s: ConnectionServer): string {
     const t = (k: string, p?: object) => this.translate.instant('herramientas.connections.state.' + k, p);
-    if (s.state === 'connected') return t(s.toolCount === 1 ? 'connectedOne' : 'connected', { n: s.toolCount });
+    // Connected with nothing to offer: the program it drives is not open (Unity's editor, say). Retried by itself.
+    if (s.state === 'connected') return t(s.toolCount === 0 ? 'connectedNone' : s.toolCount === 1 ? 'connectedOne' : 'connected', { n: s.toolCount });
     if (s.state === 'off') return t('off');
     if (s.state === 'connecting') return t('connecting');
     if (s.state === 'failed' || s.state === 'timeout') return t('waiting');
@@ -147,6 +148,27 @@ export class ConnectionsCardComponent implements OnInit, OnDestroy {
     if (c === 'manual' && !confirm(this.translate.instant('herramientas.connections.replaceConfirm', { name: p.title }))) return;
     if (c === 'modified' && !confirm(this.translate.instant('herramientas.connections.modifiedConfirm', { name: p.title }))) return;
     this.install(p.name, { replace: c === 'manual' || c === 'modified' });
+  }
+
+  /** A worker runs this connection (it reports a state), so there is a server to restart. */
+  canReconnect(s: ConnectionServer): boolean {
+    return s.switch === 'on' && s.state !== 'off' && s.state !== 'unknown';
+  }
+
+  reconnect(s: ConnectionServer): void {
+    if (this.busy()) return;
+    this.busy.set(s.name);
+    this.error.set('');
+    this.notice.set(null);
+    this.api.reconnectConnection(s.name).subscribe({
+      next: () => {
+        this.busy.set(null);
+        this.notice.set({ kind: 'ok', text: this.translate.instant('herramientas.connections.reconnecting', { name: s.name }) });
+        // The worker acts on its next heartbeat (20 s at most), then connects: look again a few times.
+        for (const ms of [6000, 15000, 30000, 60000]) this.timers.push(setTimeout(() => this.reload(), ms));
+      },
+      error: () => { this.busy.set(null); this.error.set(this.translate.instant('herramientas.connections.reconnectError', { name: s.name })); },
+    });
   }
 
   remove(s: ConnectionServer): void {

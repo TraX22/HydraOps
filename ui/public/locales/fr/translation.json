@@ -676,6 +676,10 @@
       "update": "Mettre à jour",
       "replace": "Remplacer la mienne",
       "remove": "Retirer",
+      "reconnect": "Reconnecter",
+      "reconnectHint": "Redémarre la connexion maintenant, sans attendre le nouvel essai automatique.",
+      "reconnecting": "« {{name}} » se reconnecte ; son état se met à jour dans quelques secondes.",
+      "reconnectError": "Impossible de demander la reconnexion de « {{name}} ».",
       "modified": "modifiée à la main",
       "fromCatalog": "du catalogue · {{v}}",
       "newVersion": "nouvelle version {{v}}",
@@ -712,6 +716,7 @@
       "state": {
         "connected": "Connectée · {{n}} outils",
         "connectedOne": "Connectée · 1 outil",
+        "connectedNone": "Connectée · aucun outil · nouvel essai automatique",
         "connecting": "Connexion…",
         "waiting": "Pas de réponse · nouvel essai automatique",
         "off": "Éteinte",
