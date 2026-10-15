@@ -676,6 +676,10 @@
       "update": "Update",
       "replace": "Replace mine",
       "remove": "Remove",
+      "reconnect": "Reconnect",
+      "reconnectHint": "Restarts the connection now, without waiting for the automatic retry.",
+      "reconnecting": "“{{name}}” is reconnecting; its state updates in a few seconds.",
+      "reconnectError": "Could not ask “{{name}}” to reconnect.",
       "modified": "edited by hand",
       "fromCatalog": "from the catalog · {{v}}",
       "newVersion": "new version {{v}}",
@@ -712,6 +716,7 @@
       "state": {
         "connected": "Connected · {{n}} tools",
         "connectedOne": "Connected · 1 tool",
+        "connectedNone": "Connected · no tools · retried automatically",
         "connecting": "Connecting…",
         "waiting": "No answer · retried automatically",
         "off": "Off",

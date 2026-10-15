@@ -139,7 +139,7 @@ The catalog accepts no other command. **View** tells you whether the launcher is
 
 1. In **Tools → Connections**, the **Available** table: **View** shows what it needs, the exact command it is started with and the classification of each tool. **Install** adds it.
 2. Give it to an agent: in **Agents → Tools**, add the line the panel shows (the connection's name in lowercase, for example `blenderlab`). No agent gets a connection you did not give it.
-3. That agent's worker connects it on its own within seconds. The **On this computer** table shows the state: *Connected*, *No answer · retried automatically* (the application was closed: open it, nothing needs restarting) or *No agent uses it yet*.
+3. That agent's worker connects it on its own within seconds. The **On this computer** table shows the state: *Connected*, *No answer · retried automatically* (the application was closed: open it, nothing needs restarting), *Connected · no tools · retried automatically* (the server runs but the program it drives is not open, Unity's editor for example: open it and the tools appear within a minute) or *No agent uses it yet*. **Reconnect** restarts a connection right away instead of waiting for that retry.
 
 The tool classes:
 
@@ -163,4 +163,4 @@ If you edited the command or the classification of an installed connection by ha
 
 ### The ones you set up by hand
 
-The servers you added in Add-ons are listed under **On this computer** as *set up by you*, with their state and the agents that use them, but they are left alone here: edit and remove them in Add-ons. If the catalog has a connection with the same name, installing it asks before replacing yours.
+The servers you added in Add-ons are listed under **On this computer** as *set up by you*, with their state and the agents that use them, but they are left alone here: edit and remove them in Add-ons (**Reconnect** works for them too). If the catalog has a connection with the same name, installing it asks before replacing yours.

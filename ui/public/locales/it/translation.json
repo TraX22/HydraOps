@@ -676,6 +676,10 @@
       "update": "Aggiorna",
       "replace": "Sostituisci la mia",
       "remove": "Rimuovi",
+      "reconnect": "Riconnetti",
+      "reconnectHint": "Riavvia la connessione adesso, senza aspettare il nuovo tentativo automatico.",
+      "reconnecting": "«{{name}}» si sta riconnettendo; il suo stato si aggiorna tra pochi secondi.",
+      "reconnectError": "Non è stato possibile chiedere la riconnessione di «{{name}}».",
       "modified": "modificata a mano",
       "fromCatalog": "dal catalogo · {{v}}",
       "newVersion": "nuova versione {{v}}",
@@ -712,6 +716,7 @@
       "state": {
         "connected": "Connessa · {{n}} strumenti",
         "connectedOne": "Connessa · 1 strumento",
+        "connectedNone": "Connessa · nessuno strumento · riprova da sola",
         "connecting": "Connessione…",
         "waiting": "Nessuna risposta · riprova da sola",
         "off": "Spenta",

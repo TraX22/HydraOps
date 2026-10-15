@@ -93,6 +93,11 @@
             <td class="actions">
               @if (s.preset; as p) {
                 <button class="ibtn" (click)="open(p.name, s.name, p.version)">{{ 'herramientas.skills.view' | translate }}</button>
+              }
+              @if (canReconnect(s)) {
+                <button class="ibtn" [disabled]="!!busy()" [title]="'herramientas.connections.reconnectHint' | translate" (click)="reconnect(s)"><app-icon name="refresh" /> {{ 'herramientas.connections.reconnect' | translate }}</button>
+              }
+              @if (s.preset; as p) {
                 @if (newerVersion(s)) {
                   <button class="ibtn ok" [disabled]="!!busy()" (click)="p.modified ? open(p.name, s.name, p.version) : install(p.name)">{{ 'herramientas.connections.update' | translate }}</button>
                 }

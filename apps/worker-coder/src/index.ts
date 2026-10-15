@@ -116,6 +116,11 @@ async function storedMcpConfig(): Promise<string> {
   const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, "mcp_servers_config")).limit(1);
   return rows[0]?.value || process.env.mcp_servers_config || '{"mcpServers":{}}';
 }
+/** The last Reconnect the user asked for in Tools → Connections (`{ server, at }`), or nothing. */
+async function storedReconnectRequest(): Promise<string | null> {
+  const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, "mcp_servers_reconnect")).limit(1);
+  return rows[0]?.value ?? null;
+}
 // They start connecting now, in the background: a server can take longer than a task is
 // willing to wait, and the first task should find them ready.
 (async () => {
@@ -129,6 +134,8 @@ async function sendHeartbeat() {
   try {
     // A connection installed from Herramientas, or a change in an agent's tools, takes effect here.
     storedMcpConfig().then(mcpConfigForMyAgents).then((c) => globalRegistry.mcpManager.ensure(c, 0)).catch(() => {});
+    // Tools → Connections → Reconnect: the worker that runs that server restarts it now.
+    storedReconnectRequest().then((r) => globalRegistry.mcpManager.applyReconnectRequest(r)).catch(() => {});
     const agentDirs = (await import("node:fs/promises")).readdir(agentsDir)
       .catch(() => [] as string[]);
     const dirs = await agentDirs;

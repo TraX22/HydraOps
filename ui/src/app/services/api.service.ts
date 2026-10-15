@@ -874,6 +874,11 @@ export class ApiService {
     return this.http.delete<{ success: boolean }>(`${this.base}/connections/${encodeURIComponent(server)}`);
   }
 
+  /** Restarts a connection now, through the worker that runs it. */
+  reconnectConnection(server: string): Observable<{ success: boolean }> {
+    return this.http.post<{ success: boolean }>(`${this.base}/connections/${encodeURIComponent(server)}/reconnect`, {});
+  }
+
   // ── Skills ──
   getSkills(): Observable<SkillsState> {
     return this.http.get<SkillsState>(`${this.base}/skills`);

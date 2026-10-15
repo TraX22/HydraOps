@@ -177,7 +177,8 @@ function sanitizeMcpContent(content: any[], toolName: string): string {
   return out;
 }
 
-// A server that did not connect is retried by the next task, not more often than this.
+// A server that did not connect, or connected with nothing to offer, is retried by the next
+// task or heartbeat, not more often than this.
 const RETRY_COOLDOWN_MS = 60_000;
 // A server that reports a lost connection is restarted, not more often than this.
 const RESTART_COOLDOWN_MS = 30_000;
@@ -268,14 +269,17 @@ export class McpClientManager {
   // When each server was last retried / restarted, to keep a broken one from costing
   // every task a connection timeout.
   private lastRetryAt = new Map<string, number>();
+  // The newest reconnect request (Tools → Connections → Reconnect) this manager has acted
+  // on. Starts at "now": a request stored before this worker started is not for it.
+  private reconnectRequestAt = Date.now();
 
   /**
    * Brings the MCP servers in line with `configStr` and returns once they are usable or
    * `waitMs` has passed (the round goes on in the background). A different config
    * touches only the servers that were added, removed or changed — the rest keep their
-   * connection; the same config retries the servers that failed or timed out, at most
-   * once a minute each. Called at worker start and on its heartbeat (waitMs 0) and
-   * before every task.
+   * connection; the same config retries the servers that failed, timed out or connected
+   * with no tools, at most once a minute each. Called at worker start and on its heartbeat
+   * (waitMs 0) and before every task.
    */
   async ensure(configStr: string, waitMs = 15_000): Promise<void> {
     const settle = (ms: number) => (this.round && ms > 0 ? Promise.race([this.round, new Promise<void>((r) => setTimeout(r, ms))]) : Promise.resolve());
@@ -323,17 +327,57 @@ export class McpClientManager {
     this.round = p;
   }
 
-  /** Reconnects the servers left in `failed` / `timeout`, each at most once per RETRY_COOLDOWN_MS. */
+  /**
+   * Reconnects the servers left in `failed` / `timeout`, and the ones that connected but
+   * registered no tool (a server that talks to a program which was not open: Unity's CLI
+   * answers without tools until the editor is), each at most once per RETRY_COOLDOWN_MS,
+   * counted from the last attempt or the connection itself.
+   */
   async retryFailed(): Promise<number> {
     const now = Date.now();
+    const cooldown = this.opts.retryCooldownMs ?? RETRY_COOLDOWN_MS;
+    const since = (st: McpServerStatus) => Math.max(this.lastRetryAt.get(st.name) ?? 0, st.connectedAt ? Date.parse(st.connectedAt) : 0);
     const due = [...this.serverStatuses.values()].filter((st) =>
-      (st.state === 'failed' || st.state === 'timeout') && this.serverConfigs.has(st.name)
-      && now - (this.lastRetryAt.get(st.name) ?? 0) >= (this.opts.retryCooldownMs ?? RETRY_COOLDOWN_MS));
+      (st.state === 'failed' || st.state === 'timeout' || (st.state === 'connected' && st.toolCount === 0))
+      && this.serverConfigs.has(st.name) && now - since(st) >= cooldown);
     if (!due.length) return 0;
     for (const st of due) this.lastRetryAt.set(st.name, now);
-    console.log(`[MCP] Retrying ${due.length} server(s) that did not connect: ${due.map((d) => d.name).join(', ')}`);
+    const empty = due.filter((d) => d.state === 'connected').map((d) => d.name);
+    const down = due.filter((d) => d.state !== 'connected').map((d) => d.name);
+    if (down.length) console.log(`[MCP] Retrying ${down.length} server(s) that did not connect: ${down.join(', ')}`);
+    if (empty.length) console.log(`[MCP] Retrying ${empty.length} server(s) that connected without tools: ${empty.join(', ')}`);
     await Promise.allSettled(due.map((st) => this.reconnectServer(st.name, this.serverConfigs.get(st.name))));
     return due.length;
+  }
+
+  /**
+   * Restarts one server now, whatever its state and cooldown (the user asked for it).
+   * False when this manager does not run that server: a worker only connects the servers
+   * its agents use, so the one that does answers the request.
+   */
+  async reconnect(serverName: string): Promise<boolean> {
+    const norm = (v: string) => v.replace(/\s+/g, '_').toLowerCase();
+    const name = [...this.serverConfigs.keys()].find((k) => norm(k) === norm(serverName));
+    if (!name) return false;
+    this.lastRetryAt.set(name, Date.now());
+    console.log(`[MCP] Reconnecting ${name} (asked by the user)...`);
+    await this.reconnectServer(name, this.serverConfigs.get(name));
+    return true;
+  }
+
+  /**
+   * Acts on the stored reconnect request (`{ server, at }`, written by the API when the
+   * user presses Reconnect) if it is newer than the last one acted on. Called on the
+   * worker's heartbeat with the raw stored value, or nothing.
+   */
+  async applyReconnectRequest(raw: string | null | undefined): Promise<boolean> {
+    if (!raw) return false;
+    let req: any;
+    try { req = JSON.parse(raw); } catch { return false; }
+    const at = Number(req?.at);
+    if (!Number.isFinite(at) || at <= this.reconnectRequestAt || typeof req?.server !== 'string') return false;
+    this.reconnectRequestAt = at;
+    return this.reconnect(req.server);
   }
 
   async connectServers(mcpConfig: any) {

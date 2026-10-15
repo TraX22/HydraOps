@@ -139,7 +139,7 @@ El catálogo no acepta ningún otro comando. El botón **Ver** te dice si el lan
 
 1. En **Herramientas → Conexiones**, tabla **Disponibles**: **Ver** muestra qué necesita, el comando exacto con que se arranca y la clasificación de cada herramienta. **Instalar** la agrega.
 2. Dásela a un agente: en **Agentes → Herramientas**, agrega la línea que indica el panel (el nombre de la conexión en minúsculas, por ejemplo `blenderlab`). Ningún agente recibe una conexión que no le diste.
-3. El worker de ese agente la conecta solo en unos segundos. La tabla **En este equipo** muestra el estado: *Conectada*, *Sin respuesta · se reintenta sola* (la aplicación estaba cerrada: ábrela, no hace falta reiniciar nada) o *Ningún agente la usa todavía*.
+3. El worker de ese agente la conecta solo en unos segundos. La tabla **En este equipo** muestra el estado: *Conectada*, *Sin respuesta · se reintenta sola* (la aplicación estaba cerrada: ábrela, no hace falta reiniciar nada), *Conectada · sin herramientas · se reintenta sola* (el servidor corre pero el programa que maneja no está abierto, el editor de Unity por ejemplo: ábrelo y las herramientas aparecen en menos de un minuto) o *Ningún agente la usa todavía*. **Reconectar** reinicia una conexión en el acto en vez de esperar ese reintento.
 
 Las clases de las herramientas:
 
@@ -163,4 +163,4 @@ Si editaste a mano el comando o la clasificación de una conexión instalada, qu
 
 ### Las que configuraste a mano
 
-Los servidores que agregaste en Add-ons aparecen en **En este equipo** como *configurada por vos*, con su estado y los agentes que los usan, pero desde acá no se tocan: se editan y se quitan en Add-ons. Si el catálogo tiene una conexión con el mismo nombre, instalarla te pregunta antes de reemplazar la tuya.
+Los servidores que agregaste en Add-ons aparecen en **En este equipo** como *configurada por vos*, con su estado y los agentes que los usan, pero desde acá no se tocan: se editan y se quitan en Add-ons (**Reconectar** sí funciona para ellos). Si el catálogo tiene una conexión con el mismo nombre, instalarla te pregunta antes de reemplazar la tuya.

@@ -676,6 +676,10 @@
       "update": "Actualizar",
       "replace": "Reemplazar la mía",
       "remove": "Quitar",
+      "reconnect": "Reconectar",
+      "reconnectHint": "Reinicia la conexión ahora, sin esperar al reintento automático.",
+      "reconnecting": "«{{name}}» se está reconectando; en unos segundos se actualiza su estado.",
+      "reconnectError": "No se pudo pedir la reconexión de «{{name}}».",
       "modified": "modificada a mano",
       "fromCatalog": "del catálogo · {{v}}",
       "newVersion": "nueva versión {{v}}",
@@ -712,6 +716,7 @@
       "state": {
         "connected": "Conectada · {{n}} herramientas",
         "connectedOne": "Conectada · 1 herramienta",
+        "connectedNone": "Conectada · sin herramientas · se reintenta sola",
         "connecting": "Conectando…",
         "waiting": "Sin respuesta · se reintenta sola",
         "off": "Apagada",

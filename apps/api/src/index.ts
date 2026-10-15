@@ -3256,6 +3256,25 @@ api.delete("/connections/:server", connectionsLimiter, async (req, res) => {
   }
 });
 
+// Tools → Connections → Reconnect. The request is stored; the worker that runs the server
+// reads it on its heartbeat (20 s at most) and restarts the server at once, whatever its
+// state. For a hand-made server too: restarting is not editing.
+api.post("/connections/:server/reconnect", connectionsLimiter, async (req, res) => {
+  try {
+    const server = String(req.params.server);
+    const config = await readMcpConfig();
+    if (!Object.prototype.hasOwnProperty.call(config.mcpServers, server)) return res.status(404).json({ error: "not_found" });
+    if (config.mcpServers[server]?.switch === "off") return res.status(409).json({ error: "off" });
+    const value = JSON.stringify({ server, at: Date.now() });
+    await (db as any).insert(systemConfigs).values({ key: "mcp_servers_reconnect", value, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: systemConfigs.key, set: { value, updatedAt: new Date() } }).run();
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("[api] POST /connections/:server/reconnect failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
 // --- /plan: approve, discard or revise a proposed plan (see @hydraops/addons plan.ts) ---
 const plansLimiter = rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: "draft-7", legacyHeaders: false });
 
