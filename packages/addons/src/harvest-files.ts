@@ -15,7 +15,9 @@
  * on this computer (127.0.0.1 / localhost), and local files only
  * from where a tool leaves its output: the system's temporary folder, the task's own
  * folder, a folder listed in HYDRA_MEDIA_DIRS, or a folder the tool's own connection is
- * configured with (a Unity project, see mcpServerDirs in mcp.ts). A path the answer merely mentions (a
+ * configured with (a Unity project, see mcpServerDirs in mcp.ts). A relative path
+ * ("Assets/Screenshots/view.png", the way Unity's capture tools answer) is looked for under
+ * the connection's own folders only. A path the answer merely mentions (a
  * private picture a page talked a tool into naming) is not copied anywhere else. Paths are
  * compared after resolving links. Addresses are fetched only from the origins the tool's own
  * connection is configured with (its COMFYUI_URL, for instance), without following
@@ -84,19 +86,31 @@ async function readCapped(res: Response, max: number): Promise<Buffer | null> {
 
 const inside = (root: string, p: string) => { const rel = path.relative(root, p); return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel)); };
 
+/** The folders among `dirs` that exist, resolved. */
+async function existingDirs(dirs: string[]): Promise<string[]> {
+  const out: string[] = [];
+  for (const d of dirs) {
+    const r = await realpath(d).catch(() => null);
+    if (r && (await stat(r).catch(() => null))?.isDirectory()) out.push(r);
+  }
+  return out;
+}
+
 /** Where a tool's output may be taken from: the temp folder, HYDRA_MEDIA_DIRS and the connection's own folders, resolved; only folders that exist. */
 async function outputRoots(extra: string[]): Promise<string[]> {
   const listed = (process.env.HYDRA_MEDIA_DIRS ?? "").split(path.delimiter).map((d) => d.trim()).filter(Boolean);
-  const roots: string[] = [];
-  for (const d of [os.tmpdir(), ...listed, ...extra]) {
-    const r = await realpath(d).catch(() => null);
-    if (r && (await stat(r).catch(() => null))?.isDirectory()) roots.push(r);
-  }
-  return roots;
+  return existingDirs([os.tmpdir(), ...listed, ...extra]);
 }
 
 const WIN_PATH = new RegExp(String.raw`[A-Za-z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]+\.(?:${EXTS})(?![A-Za-z0-9])`, "gi");
 const POSIX_PATH = new RegExp(String.raw`(?<![A-Za-z0-9:/.])/(?:[^\s"'<>|/]+/)+[^\s"'<>|/]+\.(?:${EXTS})(?![A-Za-z0-9])`, "gi");
+/**
+ * A path relative to a folder the tool's connection is configured with: at least one
+ * folder, either slash, no drive and no leading slash ("Assets/Screenshots/view.png").
+ * Not preceded by a path character, so the tail of an absolute path or an address is
+ * not read as one.
+ */
+const REL_PATH = new RegExp(String.raw`(?<![A-Za-z0-9:/\\.])(?:[^\s"'<>|/\\:*?]+[/\\])+[^\s"'<>|/\\:*?]+\.(?:${EXTS})(?![A-Za-z0-9])`, "gi");
 const LOCAL_VIEW_URL = /https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?\/(?:api\/)?view\?[^\s"'<>)\]]+/gi;
 
 export const mediaKindOf = (name: string): ResultFileKind | null => EXT_KIND[path.extname(name).toLowerCase()] ?? null;
@@ -118,9 +132,10 @@ function strings(value: unknown, out: string[] = [], depth = 0): string[] {
   return out;
 }
 
-/** The media files and local /view addresses a result names, without duplicates. */
-export function findMediaRefs(result: unknown): { paths: string[]; urls: string[] } {
+/** The media files (absolute, and relative to the connection's folders) and local /view addresses a result names, without duplicates. */
+export function findMediaRefs(result: unknown): { paths: string[]; relative: string[]; urls: string[] } {
   const paths = new Set<string>();
+  const relative = new Set<string>();
   const urls = new Set<string>();
   for (const raw of strings(result)) {
     // A JSON text followed by a note does not parse: its Windows paths still carry escaped
@@ -128,6 +143,7 @@ export function findMediaRefs(result: unknown): { paths: string[]; urls: string[
     const s = raw.includes("\\\\") ? raw.replace(/\\\\/g, "\\") : raw;
     for (const m of s.match(WIN_PATH) ?? []) paths.add(m);
     for (const m of s.match(POSIX_PATH) ?? []) paths.add(m);
+    for (const m of s.match(REL_PATH) ?? []) relative.add(m);
     for (const m of s.match(LOCAL_VIEW_URL) ?? []) {
       try {
         const u = new URL(m.replace(/&amp;/g, "&"));
@@ -140,7 +156,7 @@ export function findMediaRefs(result: unknown): { paths: string[]; urls: string[
       } catch { /* not a URL */ }
     }
   }
-  return { paths: [...paths], urls: [...urls] };
+  return { paths: [...paths], relative: [...relative], urls: [...urls] };
 }
 
 const safeName = (name: string) => path.basename(name).replace(/[^A-Za-z0-9 ._-]+/g, "_").slice(0, 120) || "file";
@@ -168,7 +184,15 @@ async function freeName(dir: string, name: string, size: number, hash: () => Pro
 export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: string; addResultFile?: (f: ReportedFile) => void; allowedOrigins?: string[]; extraRoots?: string[] }): Promise<number> {
   if (!ctx.filesDir || !ctx.addResultFile) return 0;
   const found = findMediaRefs(result);
-  const paths = found.paths;
+  // A relative path is tried under each of the connection's own folders (a Unity capture's
+  // "Assets/Screenshots/view.png" under the project) and must stay inside the one it was
+  // joined to: "../x.png" is dropped even when it lands in another allowed folder.
+  const own = await existingDirs(ctx.extraRoots ?? []);
+  const candidates: { p: string; within?: string }[] = [
+    ...found.paths.map((p) => ({ p })),
+    ...found.relative.flatMap((rel) => own.map((root) => ({ p: path.join(root, rel), within: root }))),
+  ];
+  const paths = candidates.filter((c, i) => candidates.findIndex((o) => o.p === c.p) === i);
   // Straight from the server first: a /view address on this computer is the file where
   // ComfyUI saved it, under its own name. A local path is the fallback, for a result that
   // names no address (or whose address does not answer).
@@ -201,13 +225,14 @@ export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: strin
     if (reported) return reported;
     const taskDir = await realpath(ctx.filesDir);
     const roots = await outputRoots(ctx.extraRoots ?? []);
-    for (const p of paths) {
+    for (const { p, within } of paths) {
       if (reported >= MAX_FILES || spent()) break;
       attempts++;
       const kind = mediaKindOf(p);
       const abs = kind ? await realpath(p).catch(() => null) : null;
       const st = abs ? await stat(abs).catch(() => null) : null;
       if (!kind || !abs || !st?.isFile() || st.size === 0 || st.size > MAX_BYTES) continue;
+      if (within && !inside(within, abs)) continue;
       // Already in this task's folder: report it as it is.
       if (inside(taskDir, abs)) {
         ctx.addResultFile({ absPath: abs, kind, size: st.size });
