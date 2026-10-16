@@ -29,7 +29,7 @@ Los resultados de los agentes de imagen y vídeo aparecen en línea en el chat. 
 
 ## Archivos que trae una tarea
 
-Cuando una herramienta trae una imagen o un vídeo a una tarea (por ejemplo lo que guardó un flujo de [ComfyUI](./09-tools.md)), aparece debajo de la respuesta como una tarjeta con su nombre, su tamaño y una vista previa: clic en una imagen para verla a tamaño completo, el vídeo se reproduce ahí mismo, y el botón de la tarjeta **descarga** el archivo.
+Cuando una herramienta trae una imagen o un vídeo a una tarea (lo que guardó un flujo de [ComfyUI](./09-tools.md), o una imagen que la herramienta de una conexión devuelve en el momento, como una captura de Unity o de Blender o una captura de pantalla del navegador), aparece debajo de la respuesta como una tarjeta con su nombre, su tamaño y una vista previa: clic en una imagen para verla a tamaño completo, el vídeo se reproduce ahí mismo, y el botón de la tarjeta **descarga** el archivo.
 
 ## Modelos 3D
 

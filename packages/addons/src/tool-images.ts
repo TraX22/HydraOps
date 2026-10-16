@@ -66,6 +66,17 @@ export function toolImageMarker(id: string, mime: string, kb: number): string {
 
 const MARK_RE = /\[image ([\w/+.-]+) ~(\d+) KB #img:([a-f0-9]{12})\]/g;
 
+/** The ids of the kept images a text's markers name, in order, without duplicates. */
+export function toolImageIdsIn(text: string): string[] {
+  return [...new Set([...text.matchAll(MARK_RE)].map((m) => m[3]))];
+}
+
+/** A kept image by id (the picture a marker stands for), or null once it is gone. */
+export function getToolImage(id: string): { mime: string; data: Buffer } | null {
+  const img = store.get(id);
+  return img ? { mime: img.mime, data: Buffer.from(img.data, 'base64') } : null;
+}
+
 // The text of a tool-result part and a copy of it with other text (AI SDK shapes: `output.value` or `result`).
 function partText(part: any): string | null {
   if (!part || part.type !== 'tool-result') return null;
