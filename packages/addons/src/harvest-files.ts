@@ -8,7 +8,8 @@
  * the user would see nothing. Here every image, video, audio or 3D file the result names is
  * brought into the task's folder and reported, so it gets its card under the reply like a
  * generated image does: from the server itself when the result gives a /view address on
- * this computer (whatever the model or the file's name), else from the local path it names.
+ * this computer (whatever the model or the file's name), else from the local path it names,
+ * else from the picture the tool returned inline (kept for the model, see tool-images.ts).
  *
  * Narrow on purpose: media extensions only, files up to MAX_BYTES, at most MAX_FILES per
  * result, what a job saved and not its previews (ComfyUI's "temp" type), addresses only
@@ -29,6 +30,10 @@ import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import type { ReportedFile, ResultFileKind } from "./result-files.js";
+import { getToolImage, toolImageIdsIn } from "./tool-images.js";
+
+/** The file extension for an inline image's media type. */
+const IMAGE_EXT: Record<string, string> = { "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp", "image/gif": ".gif" };
 
 const EXT_KIND: Record<string, ResultFileKind> = {
   ".png": "image", ".jpg": "image", ".jpeg": "image", ".webp": "image", ".gif": "image", ".bmp": "image",
@@ -132,11 +137,16 @@ function strings(value: unknown, out: string[] = [], depth = 0): string[] {
   return out;
 }
 
-/** The media files (absolute, and relative to the connection's folders) and local /view addresses a result names, without duplicates. */
-export function findMediaRefs(result: unknown): { paths: string[]; relative: string[]; urls: string[] } {
+/**
+ * The media files (absolute, and relative to the connection's folders), the local /view
+ * addresses and the inline images (by the id of their marker, see tool-images.ts) a result
+ * names, without duplicates.
+ */
+export function findMediaRefs(result: unknown): { paths: string[]; relative: string[]; urls: string[]; images: string[] } {
   const paths = new Set<string>();
   const relative = new Set<string>();
   const urls = new Set<string>();
+  const images = new Set<string>();
   for (const raw of strings(result)) {
     // A JSON text followed by a note does not parse: its Windows paths still carry escaped
     // backslashes ("C:\\Users\\…"), read here as single ones.
@@ -144,6 +154,7 @@ export function findMediaRefs(result: unknown): { paths: string[]; relative: str
     for (const m of s.match(WIN_PATH) ?? []) paths.add(m);
     for (const m of s.match(POSIX_PATH) ?? []) paths.add(m);
     for (const m of s.match(REL_PATH) ?? []) relative.add(m);
+    for (const id of toolImageIdsIn(s)) images.add(id);
     for (const m of s.match(LOCAL_VIEW_URL) ?? []) {
       try {
         const u = new URL(m.replace(/&amp;/g, "&"));
@@ -156,7 +167,7 @@ export function findMediaRefs(result: unknown): { paths: string[]; relative: str
       } catch { /* not a URL */ }
     }
   }
-  return { paths: [...paths], relative: [...relative], urls: [...urls] };
+  return { paths: [...paths], relative: [...relative], urls: [...urls], images: [...images] };
 }
 
 const safeName = (name: string) => path.basename(name).replace(/[^A-Za-z0-9 ._-]+/g, "_").slice(0, 120) || "file";
@@ -181,7 +192,7 @@ async function freeName(dir: string, name: string, size: number, hash: () => Pro
  * Copies the media a result names into `filesDir` and reports each one. Best effort:
  * returns how many were reported, never throws.
  */
-export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: string; addResultFile?: (f: ReportedFile) => void; allowedOrigins?: string[]; extraRoots?: string[] }): Promise<number> {
+export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: string; addResultFile?: (f: ReportedFile) => void; allowedOrigins?: string[]; extraRoots?: string[]; label?: string }): Promise<number> {
   if (!ctx.filesDir || !ctx.addResultFile) return 0;
   const found = findMediaRefs(result);
   // A relative path is tried under each of the connection's own folders (a Unity capture's
@@ -199,7 +210,7 @@ export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: strin
   // Only the connection's own server: an address on another local port is never requested.
   const origins = new Set(ctx.allowedOrigins ?? []);
   const urls = found.urls.filter((u) => { try { return origins.has(new URL(u).origin); } catch { return false; } });
-  if (!paths.length && !urls.length) return 0;
+  if (!paths.length && !urls.length && !found.images.length) return 0;
   let reported = 0;
   let attempts = 0;
   const deadline = Date.now() + TOTAL_BUDGET_MS;
@@ -245,6 +256,24 @@ export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: strin
       if (!exists) await copyFile(abs, target);
       ctx.addResultFile({ absPath: target, kind, size: st.size });
       reported++;
+    }
+    // An image the tool returned inline (a Unity or Blender capture, a browser screenshot)
+    // is kept in memory for the model (tool-images.ts); when no file came in from this
+    // answer it is written here and gets its card, so "show me a capture" needs no path
+    // and nothing in the application's own folders. A file that did come in is the same
+    // picture at full size: one card.
+    if (!reported) {
+      const stem = safeName(ctx.label ?? "image").replace(/\.[^.]*$/, "") || "image";
+      for (const id of found.images) {
+        if (reported >= MAX_FILES) break;
+        const img = getToolImage(id);
+        const ext = img ? IMAGE_EXT[img.mime] : undefined;
+        if (!img || !ext || !img.data.length) continue;
+        const { target, exists } = await freeName(ctx.filesDir, `${stem}-${id}${ext}`, img.data.length, async () => sha1(img.data));
+        if (!exists) await writeFile(target, img.data);
+        ctx.addResultFile({ absPath: target, kind: "image", size: img.data.length });
+        reported++;
+      }
     }
   } catch (e: any) {
     console.warn(`[harvest] could not bring a tool's media into the task: ${e?.message ?? e}`);

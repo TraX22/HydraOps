@@ -199,6 +199,7 @@ export class ToolRegistry {
                 ...c,
                 allowedOrigins: server ? connectionOrigins(c?.connectionEnv?.(server)) : [],
                 extraRoots: server ? c?.connectionDirs?.(server) ?? [] : [],
+                label: name,
               });
               return r;
             } }
