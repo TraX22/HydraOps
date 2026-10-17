@@ -5,11 +5,20 @@
  * (tools/serve.mjs and main.js, which put a copy back while the stack is stopped), the
  * same way self-update.js and power.js are.
  *
- * A copy is a folder under <dataRoot>/backups/<name>/ with a manifest.json and the items
- * it holds: the database, agents/, skills/, my_addons/, users/ and .env always; storage/
- * (uploads, results, scenes; never the logs) and the keys (keys.json and chatgpt.json,
- * which live outside the data folder) only when asked. A folder, not an archive: nothing
- * to unpack, the user can look inside, copy it elsewhere or delete it.
+ * A copy is a folder <backups>/<name>/ with a manifest.json and the items it holds: the
+ * database, agents/, skills/, my_addons/, users/ and .env always; storage/ (uploads,
+ * results, scenes; never the logs) and the keys (keys.json and chatgpt.json, which live
+ * outside the data folder) only when asked. A folder, not an archive: nothing to unpack,
+ * the user can look inside, copy it elsewhere or delete it.
+ *
+ * Copies live OUTSIDE the data folder, in the user's own configuration folder
+ * (%APPDATA%\HydraOps\backups on Windows, ~/.config/HydraOps/backups on Linux,
+ * ~/Library/Application Support/HydraOps/backups on macOS; HYDRA_BACKUPS_DIR in the
+ * environment moves them), one subfolder per installation, named after the data folder
+ * and a hash of its path. Running from source, the data folder is the clone itself: a
+ * copy kept inside it was lost with it the day the clone was deleted and made again.
+ * Copies made before this (under <dataRoot>/backups/) are still listed, put back and
+ * deleted from where they are.
  *
  * Putting one back cannot happen from the API: eight services hold the database open.
  * The API writes restore.request in dataRoot; the supervisor watching it stops the stack,
@@ -19,7 +28,9 @@
  */
 const fs = require("node:fs");
 const fsp = require("node:fs/promises");
+const os = require("node:os");
 const path = require("node:path");
+const { createHash } = require("node:crypto");
 
 const BACKUPS_DIR = "backups";
 const DB_FILE = "db.sqlite3";
@@ -33,7 +44,31 @@ const KINDS = new Set(["manual", "before-update", "before-restore"]);
 const KEEP_AUTO = 5;
 const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,120}$/;
 
-const backupsDir = (dataRoot) => path.join(dataRoot, BACKUPS_DIR);
+/** The user's configuration folder (the same rule as packages/config's configHome, which this CommonJS module cannot import). */
+function configHome() {
+  if (process.platform === "win32") return process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
+  if (process.platform === "darwin") return path.join(os.homedir(), "Library", "Application Support");
+  return process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
+}
+
+/** Where every installation's copies go: HYDRA_BACKUPS_DIR, else <config>/HydraOps/backups. Read when asked, so a test can point it elsewhere. */
+function backupsHome() {
+  const forced = String(process.env.HYDRA_BACKUPS_DIR || "").trim();
+  return forced ? path.resolve(forced) : path.join(configHome(), "HydraOps", BACKUPS_DIR);
+}
+
+/** One installation's subfolder: the data folder's name and a hash of its path, so two installations on one computer never mix their copies. */
+function installationSlug(dataRoot) {
+  const abs = path.resolve(dataRoot);
+  const hash = createHash("sha1").update(process.platform === "win32" ? abs.toLowerCase() : abs).digest("hex").slice(0, 8);
+  const base = path.basename(abs).replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "data";
+  return `${base}-${hash}`;
+}
+
+/** Where this installation's copies are made. */
+const backupsDir = (dataRoot) => path.join(backupsHome(), installationSlug(dataRoot));
+/** Where copies were made before they moved out of the data folder; still read. */
+const legacyBackupsDir = (dataRoot) => path.join(dataRoot, BACKUPS_DIR);
 const restoreRequestFile = (dataRoot) => path.join(dataRoot, "restore.request");
 const restoreStateFile = (dataRoot) => path.join(dataRoot, "restore.state.json");
 
@@ -63,16 +98,34 @@ async function readManifest(dir) {
   }
 }
 
-/** The copies that exist, newest first. A folder without a readable manifest is not one. */
+/**
+ * The copies that exist, newest first, from this installation's folder and from the old
+ * place inside the data folder (`legacy: true`, with `dir` saying where each one is). A
+ * folder without a readable manifest is not one; a name found in both places is the new one.
+ */
 async function listBackups(dataRoot) {
-  const root = backupsDir(dataRoot);
   const out = [];
-  for (const e of await fsp.readdir(root, { withFileTypes: true }).catch(() => [])) {
-    if (!e.isDirectory() || !isValidName(e.name)) continue;
-    const m = await readManifest(path.join(root, e.name));
-    if (m && m.name === e.name) out.push(m);
+  const seen = new Set();
+  for (const [root, legacy] of [[backupsDir(dataRoot), false], [legacyBackupsDir(dataRoot), true]]) {
+    for (const e of await fsp.readdir(root, { withFileTypes: true }).catch(() => [])) {
+      if (!e.isDirectory() || !isValidName(e.name) || seen.has(e.name)) continue;
+      const dir = path.join(root, e.name);
+      const m = await readManifest(dir);
+      if (m && m.name === e.name) { out.push({ ...m, dir, legacy }); seen.add(e.name); }
+    }
   }
   return out.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+}
+
+/** The folder of the copy called `name`, wherever it is (this installation's folder first, then the data folder), or null when there is no such copy. */
+async function backupDirOf(dataRoot, name) {
+  if (!isValidName(name)) return null;
+  for (const root of [backupsDir(dataRoot), legacyBackupsDir(dataRoot)]) {
+    const dir = path.join(root, name);
+    const m = await readManifest(dir);
+    if (m && m.name === name) return dir;
+  }
+  return null;
 }
 
 async function copyItem(from, to, filter) {
@@ -124,6 +177,8 @@ async function createBackup({ dataRoot, keyStoreDir, version, kind = "manual", l
       label: safeLabel,
       at: new Date().toISOString(),
       version: String(version || ""),
+      // Which installation it came from: a reader of the folder can tell copies apart.
+      dataRoot: path.resolve(dataRoot),
       items,
       storage: items.includes(STORAGE_ITEM),
       keys: items.includes(KEYS_ITEM),
@@ -138,22 +193,22 @@ async function createBackup({ dataRoot, keyStoreDir, version, kind = "manual", l
   }
 }
 
-/** Removes a copy. Only a name that lists as a copy is accepted. */
+/** Removes a copy, wherever it is. Only a name that lists as a copy is accepted. */
 async function deleteBackup(dataRoot, name) {
   if (!isValidName(name)) throw new Error("invalid name");
-  const dir = path.join(backupsDir(dataRoot), name);
-  if (!(await readManifest(dir))) throw new Error("no such copy");
+  const dir = await backupDirOf(dataRoot, name);
+  if (!dir) throw new Error("no such copy");
   await fsp.rm(dir, { recursive: true, force: true });
 }
 
-/** Keeps the newest `keep` automatic copies of each kind (before-update, before-restore); manual ones stay. */
+/** Keeps the newest `keep` automatic copies of each kind (before-update, before-restore), old place included; manual ones stay. */
 async function pruneAutomatic(dataRoot, keep = KEEP_AUTO) {
   const removed = [];
   const all = await listBackups(dataRoot);
   for (const kind of ["before-update", "before-restore"]) {
     const ofKind = all.filter((m) => m.kind === kind);
     for (const m of ofKind.slice(keep)) {
-      await fsp.rm(path.join(backupsDir(dataRoot), m.name), { recursive: true, force: true }).catch(() => {});
+      await fsp.rm(m.dir, { recursive: true, force: true }).catch(() => {});
       removed.push(m.name);
     }
   }
@@ -167,8 +222,8 @@ async function pruneAutomatic(dataRoot, keep = KEEP_AUTO) {
  */
 async function restoreBackup({ dataRoot, keyStoreDir, name, version, log = () => {} }) {
   if (!isValidName(name)) throw new Error("invalid name");
-  const dir = path.join(backupsDir(dataRoot), name);
-  const m = await readManifest(dir);
+  const dir = await backupDirOf(dataRoot, name);
+  const m = dir ? await readManifest(dir) : null;
   if (!m) throw new Error(`there is no copy named "${name}"`);
   const kept = await createBackup({ dataRoot, keyStoreDir, version, kind: "before-restore", label: m.name.slice(0, 19), storage: m.items.includes(STORAGE_ITEM), keys: m.items.includes(KEYS_ITEM) });
   log(`current state kept as ${kept.name}`);
@@ -271,7 +326,7 @@ function finishRestore(dataRoot) {
 }
 
 module.exports = {
-  BACKUPS_DIR, KEEP_AUTO, backupsDir, restoreRequestFile, restoreStateFile, isValidName,
+  BACKUPS_DIR, KEEP_AUTO, backupsHome, backupsDir, legacyBackupsDir, installationSlug, backupDirOf, restoreRequestFile, restoreStateFile, isValidName,
   listBackups, readManifest, createBackup, deleteBackup, pruneAutomatic, restoreBackup,
   readRestoreState, writeRestoreState, takeRestoreRequest, watchForRestoreRequest, finishRestore,
 };

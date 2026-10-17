@@ -59,6 +59,8 @@ Eso levanta la pila entera y deja la aplicación en `http://127.0.0.1:3000`. La 
 
 En Windows también puedes usar la ventana de escritorio desde el código con `pnpm desktop`.
 
+**Tus datos viven en el clon.** Al correr desde el código, los agentes, los chats (la base de datos), las skills, las subidas y la configuración se guardan en la propia carpeta del repositorio (`agents/`, `db.sqlite3`, `skills/`, `storage/`, `.env`; git los ignora a todos). Actualizar es siempre `git pull`, como se explica más abajo; nunca borres la carpeta para volver a clonar y "reinstalar", porque se lleva los datos. Si necesitas tocar la carpeta, haz antes una copia desde **Sistema → Copias de seguridad**: las copias se guardan fuera de ella (ver [Estadísticas y Sistema](./11-stats-system.md#copias-de-seguridad)).
+
 ### Actualizar (Linux, macOS y Windows desde el código)
 
 Hay dos formas; las dos conservan tus datos (agentes, base de datos, adjuntos y claves viven fuera del código).

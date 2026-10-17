@@ -353,7 +353,7 @@
     "backups": {
       "title": "Copias de seguridad",
       "refresh": "Actualizar",
-      "hint": "Una copia de lo que hace tuya esta instalación: agentes, skills, complementos, usuarios, configuración y la base de datos. Antes de cada actualización se hace una automáticamente. Restaurar una copia reinicia la app; el estado anterior también queda guardado como copia.",
+      "hint": "Una copia de lo que hace tuya esta instalación: agentes, skills, complementos, usuarios, configuración y la base de datos. Antes de cada actualización se hace una automáticamente. Las copias se guardan fuera de la carpeta de datos, así que sobreviven aunque esa carpeta se borre o se reinstale. Restaurar una copia reinicia la app; el estado anterior también queda guardado como copia.",
       "withStorage": "Incluir archivos de tareas (subidas, resultados)",
       "withKeys": "Incluir claves de API",
       "make": "Hacer una copia",
@@ -367,6 +367,7 @@
       "restoreConfirm": "¿Restaurar la copia {{name}} (HydraOps {{version}})?\n\nLa app se detendrá, reemplazará sus datos por los de esa copia y se reiniciará. Las tareas en curso se cancelan. El estado actual queda guardado como copia, así que se puede deshacer.",
       "deleteConfirm": "¿Borrar la copia {{name}}? No se puede deshacer.",
       "folder": "Carpeta:",
+      "inDataFolder": "en la carpeta de datos",
       "hasStorage": "con archivos de tareas",
       "hasKeys": "con claves",
       "kind": {
