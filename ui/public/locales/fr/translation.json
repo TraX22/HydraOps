@@ -353,7 +353,7 @@
     "backups": {
       "title": "Sauvegardes",
       "refresh": "Actualiser",
-      "hint": "Une copie de ce qui fait de cette installation la vôtre : agents, skills, modules, utilisateurs, réglages et base de données. Une copie est faite d'elle-même avant chaque mise à jour. Restaurer une copie redémarre l'application ; l'état précédent est lui aussi conservé comme copie.",
+      "hint": "Une copie de ce qui fait de cette installation la vôtre : agents, skills, modules, utilisateurs, réglages et base de données. Une copie est faite d'elle-même avant chaque mise à jour. Les copies sont conservées hors du dossier de données : elles survivent si ce dossier est supprimé ou réinstallé. Restaurer une copie redémarre l'application ; l'état précédent est lui aussi conservé comme copie.",
       "withStorage": "Inclure les fichiers des tâches (envois, résultats)",
       "withKeys": "Inclure les clés API",
       "make": "Faire une copie",
@@ -367,6 +367,7 @@
       "restoreConfirm": "Restaurer la copie {{name}} (HydraOps {{version}}) ?\n\nL'application va s'arrêter, remplacer ses données par celles de cette copie et redémarrer. Les tâches en cours sont annulées. L'état actuel est conservé comme copie, donc l'opération peut être annulée.",
       "deleteConfirm": "Supprimer la copie {{name}} ? Cette action est irréversible.",
       "folder": "Dossier :",
+      "inDataFolder": "dans le dossier de données",
       "hasStorage": "avec fichiers des tâches",
       "hasKeys": "avec clés",
       "kind": {

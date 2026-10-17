@@ -59,6 +59,8 @@ That brings up the whole stack and leaves the application at `http://127.0.0.1:3
 
 On Windows you can also use the desktop window from source with `pnpm desktop`.
 
+**Your data lives in the clone.** Running from source, the agents, the chats (the database), the skills, the uploads and the settings are kept in the repository folder itself (`agents/`, `db.sqlite3`, `skills/`, `storage/`, `.env`; git ignores them all). Updating is always `git pull`, as described below; never delete the folder and clone again to "reinstall", since that takes the data with it. Make a copy first from **System → Backups** if you need to touch the folder: copies are kept outside it (see [Statistics & System](./11-stats-system.md#backups)).
+
 ### Updating (Linux, macOS and Windows from source)
 
 Two ways; both keep your data (agents, database, attachments and keys live outside the code).

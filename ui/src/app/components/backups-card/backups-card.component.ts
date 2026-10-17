@@ -46,7 +46,7 @@ import { IconComponent } from '../icon/icon.component';
               <tr>
                 <td class="when">{{ b.at | date:'dd/MM/yyyy HH:mm' }}</td>
                 <td><span class="kind" [attr.data-kind]="b.kind">{{ ('system.backups.kind.' + b.kind) | translate }}</span></td>
-                <td class="detail" [title]="b.name">v{{ b.version }}@if (b.label) { · {{ b.label }} }@if (b.storage) { · {{ 'system.backups.hasStorage' | translate }} }@if (b.keys) { · {{ 'system.backups.hasKeys' | translate }} }</td>
+                <td class="detail" [title]="b.name">v{{ b.version }}@if (b.label) { · {{ b.label }} }@if (b.storage) { · {{ 'system.backups.hasStorage' | translate }} }@if (b.keys) { · {{ 'system.backups.hasKeys' | translate }} }@if (b.legacy) { · {{ 'system.backups.inDataFolder' | translate }} }</td>
                 <td class="size">{{ size(b.size) }}</td>
                 <td class="actions">
                   <button class="bk-btn" (click)="restore(b)" [disabled]="restoring() || making()">{{ 'system.backups.restore' | translate }}</button>

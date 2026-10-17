@@ -3899,7 +3899,8 @@ function supervisorMode(): "desktop" | "server" | "none" {
 // runs). Putting one back cannot: the request goes to the supervisor, which stops the
 // stack, keeps the current state as a copy, replaces the files and relaunches.
 const backupsLimiter = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: "draft-7", legacyHeaders: false });
-const backupSummary = (m: any) => ({ name: m.name, kind: m.kind, label: m.label ?? "", at: m.at, version: m.version, items: m.items, storage: !!m.storage, keys: !!m.keys, size: Number(m.size) || 0 });
+// `legacy`: a copy still in the old place, inside the data folder (see backup.cjs).
+const backupSummary = (m: any) => ({ name: m.name, kind: m.kind, label: m.label ?? "", at: m.at, version: m.version, items: m.items, storage: !!m.storage, keys: !!m.keys, size: Number(m.size) || 0, legacy: !!m.legacy });
 
 api.get("/backups", backupsLimiter, async (_req, res) => {
   try {
@@ -3942,7 +3943,8 @@ api.post("/backups/:name/restore", backupsLimiter, async (req, res) => {
   try {
     const name = req.params.name;
     if (!backupLib.isValidName(name)) return res.status(400).json({ error: "invalid_name" });
-    const m = await backupLib.readManifest(path.join(backupLib.backupsDir(dataRoot), name));
+    const dir = await backupLib.backupDirOf(dataRoot, name);
+    const m = dir ? await backupLib.readManifest(dir) : null;
     if (!m) return res.status(404).json({ error: "not_found" });
     const mode = supervisorMode();
     if (mode === "none") return res.status(409).json({ error: "no_supervisor", message: "This API was started by hand: nothing can stop the stack to put a copy back. Use the desktop app or pnpm serve." });

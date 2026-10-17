@@ -510,6 +510,8 @@ export interface BackupEntry {
   storage: boolean;
   keys: boolean;
   size: number;
+  /** Still in the old place, inside the data folder. */
+  legacy?: boolean;
 }
 
 export interface RestoreState {

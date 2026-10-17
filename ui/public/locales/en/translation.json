@@ -353,7 +353,7 @@
     "backups": {
       "title": "Backups",
       "refresh": "Refresh",
-      "hint": "A copy of what makes this installation yours: agents, skills, add-ons, users, settings and the database. One is made on its own before every update. Putting a copy back restarts the app; the state before it is kept as a copy too.",
+      "hint": "A copy of what makes this installation yours: agents, skills, add-ons, users, settings and the database. One is made on its own before every update. Copies are kept outside the data folder, so they survive that folder being deleted or set up again. Putting a copy back restarts the app; the state before it is kept as a copy too.",
       "withStorage": "Include task files (uploads, results)",
       "withKeys": "Include API keys",
       "make": "Make a copy",
@@ -367,6 +367,7 @@
       "restoreConfirm": "Put back the copy {{name}} (HydraOps {{version}})?\n\nThe app will stop, replace its data with that copy and restart. Tasks in progress are cancelled. The current state is kept as a copy, so this can be undone.",
       "deleteConfirm": "Delete the copy {{name}}? This cannot be undone.",
       "folder": "Folder:",
+      "inDataFolder": "in the data folder",
       "hasStorage": "with task files",
       "hasKeys": "with keys",
       "kind": {
