@@ -330,6 +330,10 @@
     "newWorker": "Nouveau Worker",
     "workerName": "Nom du worker",
     "logs": "Journaux",
+    "dataDir": {
+      "label": "Dossier de données (agents, chats, réglages) :",
+      "fromSource": "C'est le clone lui-même : mettez à jour avec git pull et ne le supprimez jamais pour réinstaller ; faites une copie depuis Sauvegardes avant d'y toucher."
+    },
     "update": {
       "title": "Mise à jour disponible",
       "cta": "Mettre à jour",

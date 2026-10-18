@@ -330,6 +330,10 @@
     "newWorker": "Novo Worker",
     "workerName": "Nome do worker",
     "logs": "Logs",
+    "dataDir": {
+      "label": "Pasta de dados (agentes, chats, configurações):",
+      "fromSource": "É o próprio clone: atualize com git pull e nunca o apague para reinstalar; faça uma cópia em Cópias de segurança antes de mexer nele."
+    },
     "update": {
       "title": "Atualização disponível",
       "cta": "Atualizar",

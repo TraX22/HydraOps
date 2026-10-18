@@ -305,7 +305,9 @@ api.get("/version", async (_req, res) => {
   }
   const latest = versionCache.latest;
   const updateAvailable = Boolean(APP_VERSION && latest && cmpSemver(latest, APP_VERSION) > 0);
-  res.json({ current: APP_VERSION, latest, updateAvailable, url: versionCache.url });
+  // Where the user's data lives, shown in the System view: running from source it is
+  // the clone itself (fromSource), which a "reinstall" by deleting the folder takes away.
+  res.json({ current: APP_VERSION, latest, updateAvailable, url: versionCache.url, dataDir: dataRoot, fromSource: path.resolve(dataRoot) === path.resolve(appRoot) });
 });
 
 // ── What's new ──────────────────────────────────────────────────────────────
@@ -1548,8 +1550,10 @@ api.get("/config/models", async (req, res) => {
     const anthropicKey = getKey("ANTHROPIC_API_KEY");
     if (anthropicKey) providerJobs.push(listAvailableAnthropicModels(anthropicKey).then(models => {
       if (models.length === 0) {
-        // Discovery endpoint unavailable → sensible fallback
-        allModels.push({ id: 'claude-sonnet-4-5', name: viaKey('Anthropic: Claude Sonnet 4.5'), provider: 'anthropic', type: 'chat', emoji: '🧠' });
+        // Discovery endpoint unavailable (no network, or a key the endpoint refuses) → the current family
+        for (const [id, label] of [['claude-sonnet-5-5', 'Claude Sonnet 5.5'], ['claude-haiku-5-5', 'Claude Haiku 5.5'], ['claude-opus-5-5', 'Claude Opus 5.5']]) {
+          allModels.push({ id, name: viaKey(`Anthropic: ${label}`), provider: 'anthropic', type: 'chat', emoji: '🧠' });
+        }
       } else {
         allModels.push(...models.map(m => ({ id: m, name: viaKey(`Anthropic: ${m}`), provider: 'anthropic', ...identify(m) })));
       }

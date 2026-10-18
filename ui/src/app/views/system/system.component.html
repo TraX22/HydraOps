@@ -5,6 +5,13 @@
          funciones en una actualización futura (el POST /workers sigue ahí). -->
   </div>
 
+  @if (version()?.dataDir) {
+    <p class="data-dir">
+      <app-icon name="storage" /> {{ 'system.dataDir.label' | translate }} <code>{{ version()!.dataDir }}</code>
+      @if (version()!.fromSource) { <span class="data-dir-note">{{ 'system.dataDir.fromSource' | translate }}</span> }
+    </p>
+  }
+
   @if (version()?.updateAvailable || updating() || updateDone()) {
     <div class="update-card">
       @if (updateDone()) {

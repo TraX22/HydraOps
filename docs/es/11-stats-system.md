@@ -14,7 +14,7 @@ Si un agente acumula fallos, su desglose es el primer sitio donde mirar; el segu
 
 ## Sistema
 
-La vista **Sistema** enseña las tripas en marcha:
+La vista **Sistema** enseña las tripas en marcha. Arriba dice dónde está tu **carpeta de datos**: ahí viven los agentes, los chats (la base de datos), las skills, las subidas y la configuración, y es la carpeta que una copia de seguridad protege. Al correr desde el código es el propio clon, y la vista lo avisa: actualízalo con `git pull`, nunca lo borres para reinstalar.
 
 - **Los workers** — cada servicio con su estado en vivo (los workers laten cada pocos segundos; si uno deja de latir, aparece caído).
 - **Logs** — la salida de cada servicio, para ver qué está pasando de verdad.

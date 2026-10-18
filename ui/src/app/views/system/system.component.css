@@ -1,6 +1,10 @@
 .system-view { padding: 24px; height: 100vh; overflow-y: auto; }
 .system-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
 .system-header h2 { font-size: 20px; font-weight: 600; color: var(--text-primary); }
+.data-dir { margin: -8px 0 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-muted); }
+.data-dir app-icon svg { width: 14px; height: 14px; }
+.data-dir code { font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--text-primary); user-select: all; }
+.data-dir-note { flex-basis: 100%; }
 .add-btn { padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: var(--radius-sm); cursor: pointer; }
 
 .workers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
