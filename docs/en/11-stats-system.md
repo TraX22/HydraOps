@@ -14,7 +14,7 @@ If an agent accumulates failures, its breakdown is the first place to look; the 
 
 ## System
 
-The **System** view shows the moving parts:
+The **System** view shows the moving parts. At the top it says where your **data folder** is: the agents, the chats (the database), the skills, the uploads and the settings all live there, and that is the folder a copy protects. Running from source it is the clone itself, and the view says so: update it with `git pull`, never delete it to reinstall.
 
 - **The workers** — every service with its live status (workers heartbeat every few seconds; if one stops, it shows as down).
 - **Logs** — each service's output, to see what is actually going on.

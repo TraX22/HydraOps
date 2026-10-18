@@ -330,6 +330,10 @@
     "newWorker": "New Worker",
     "workerName": "Worker name",
     "logs": "Logs",
+    "dataDir": {
+      "label": "Data folder (agents, chats, settings):",
+      "fromSource": "It is the clone itself: update with git pull and never delete it to reinstall; make a copy from Backups before touching it."
+    },
     "update": {
       "title": "Update available",
       "cta": "Update",

@@ -330,6 +330,10 @@
     "newWorker": "Nuevo Worker",
     "workerName": "Nombre del worker",
     "logs": "Logs",
+    "dataDir": {
+      "label": "Carpeta de datos (agentes, chats, configuración):",
+      "fromSource": "Es la carpeta del propio clon: actualizá con git pull y nunca la borres para reinstalar; hacé una copia desde Copias de seguridad antes de tocarla."
+    },
     "update": {
       "title": "Actualización disponible",
       "cta": "Actualizar",

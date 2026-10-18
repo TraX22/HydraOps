@@ -491,6 +491,10 @@ export interface VersionInfo {
   latest: string | null;
   updateAvailable: boolean;
   url: string | null;
+  /** Where the agents, chats and settings live. */
+  dataDir?: string;
+  /** Running from source: the data folder is the clone itself. */
+  fromSource?: boolean;
 }
 
 export interface SelfUpdateStatus {
