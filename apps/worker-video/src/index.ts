@@ -13,7 +13,7 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, loadRecentChannelHistory, historyBudgetChars, searchAgentTasks, isTaskCancelled, lastTaskToolNames, taskChainAutoApproved } from "@hydraops/db";
+import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, loadRecentChannelHistory, historyBudgetChars, searchAgentTasks, isTaskCancelled, modelNeverAnswered, lastTaskToolNames, taskChainAutoApproved } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { and, desc, eq, ne } from "drizzle-orm";
@@ -754,10 +754,11 @@ ${EXTERNAL_CONTENT_RULE}
     });
     await publishJson(js, subjectForType(generated.type), generated);
 
+    const neverAnswered = modelNeverAnswered(resultMeta);
     const plan = planMode ? (proposedPlan ? planFromProposal(proposedPlan, { version: planVersion, request: planSeed?.request ?? userPrompt, parentTaskId: planSeed?.parentTaskId }) : planFromText(String(resultMeta.text ?? ""), { version: planVersion, request: planSeed?.request ?? userPrompt, parentTaskId: planSeed?.parentTaskId })) : null;
     await (db as any).update(tasks)
       .set({
-        status: "completed",
+        status: neverAnswered ? "failed" : "completed",
         ...(plan ? { plan } : {}),
         resultRef: `results/${taskId}/result.json`,
         resultMeta: { ...resultMeta, ...(plan ? { plan } : {}), ...(onDemand ? { toolsOnDemand: onDemand.loader.summary() } : {}), ...(stepBreakdown.length ? { steps: stepBreakdown } : {}), ...(resultFiles.list().length ? { files: resultFiles.list() } : {}), completedAt: new Date().toISOString() },
@@ -765,7 +766,22 @@ ${EXTERNAL_CONTENT_RULE}
       })
       .where(and(eq(tasks.id, taskId), ne(tasks.status, "cancelled")));
 
-    console.log(`[${consumerName}] Task ${taskId} completed.`);
+    console.log(`[${consumerName}] Task ${taskId} ${neverAnswered ? "failed (the model never answered)" : "completed"}.`);
+    if (neverAnswered) {
+      // The same event a crash publishes, so a cron's subscribers (the Telegram bot) hear of it.
+      try {
+        const failed = buildEnvelope({
+          id: randomUUID(),
+          type: "task.failed",
+          version: 1,
+          occurredAt: new Date().toISOString(),
+          producer: consumerName,
+          subject: { entity: "task", id: taskId },
+          data: { taskId, error: String(resultMeta.error).slice(0, 2000), durationMs: Date.now() - started },
+        });
+        await publishJson(js, subjectForType(failed.type), failed);
+      } catch (e) { console.error(`[${consumerName}] failed to publish task.failed`, e); }
+    }
     cancels.release(taskId);
     m.ack();
   } catch (err: any) {
