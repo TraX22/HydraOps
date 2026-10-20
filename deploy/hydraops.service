@@ -8,7 +8,7 @@
 # Installation — first adjust User=, WorkingDirectory=, ExecStart=,
 # Environment=PATH and ReadWritePaths= to your user and the path of your clone:
 #
-#   mkdir -p ~/.cache ~/.local/share ~/.npm   # as the service user: the caches below
+#   mkdir -p ~/.cache ~/.local/share ~/.npm ~/.config/comfy-cli   # as the service user: the folders below
 #   sudo cp deploy/hydraops.service /etc/systemd/system/
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable --now hydraops
@@ -68,10 +68,15 @@ ProtectSystem=strict
 ProtectHome=read-only
 ReadWritePaths=/home/hydraops/HydraOps
 ReadWritePaths=/home/hydraops/.config/hydraops
-# The leading "-" lets the service start when a cache folder does not exist yet.
+# The leading "-" lets the service start when a folder does not exist yet — but a
+# folder skipped that way stays read-only, so create them before the first start.
 ReadWritePaths=-/home/hydraops/.cache
 ReadWritePaths=-/home/hydraops/.local/share
 ReadWritePaths=-/home/hydraops/.npm
+# The ComfyUI connection (comfy-cli) records every job it submits under
+# ~/.config/comfy-cli; read-only, run_workflow fails after ComfyUI already took
+# the job ("Read-only file system: ~/.config/comfy-cli/jobs").
+ReadWritePaths=-/home/hydraops/.config/comfy-cli
 
 [Install]
 WantedBy=multi-user.target
