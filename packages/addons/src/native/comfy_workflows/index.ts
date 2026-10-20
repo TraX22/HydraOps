@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { HydraTool } from "../../types.js";
 import type { ReportedFile, ResultFileKind } from "../../result-files.js";
@@ -14,9 +14,12 @@ import type { ReportedFile, ResultFileKind } from "../../result-files.js";
 // into the task's folder (the user's original is never touched), uploads the files the
 // user attached and puts them in the workflow's file inputs, and repairs the one defect
 // a saved workflow commonly carries (a number stored as text). What is left for the
-// agent is to validate, run and wait. When the job is done, "collect" brings back what it
-// SAVED (not the previews every workflow also makes, and one copy of files that are the
-// same), under a name the user can recognize, and says exactly what it brought.
+// agent is to validate and run. "collect" then waits a little and, when the job is done,
+// brings back what it SAVED (not the previews every workflow also makes, and one copy of
+// files that are the same), under a name the user can recognize, and says exactly what it
+// brought. A job that is still going is not waited for: collect says where it stands and
+// the agent hands the turn back; the job is noted per agent, so a later "did it finish?"
+// or "cancel it" (action "cancel") finds it without the model keeping the id.
 //
 // The address is configuration, never an argument (the model cannot point this tool at
 // another host): the COMFYUI_URL of the ComfyUI connection when it is installed, else the
@@ -371,9 +374,8 @@ async function prepare(base: string, name: string, files: string[], ctx: Prepare
       "What is left, with the ComfyUI connection's tools:",
       `1. validate_workflow on that file. If it reports a missing model or node, name what is missing to the user and stop: it has to be installed in ComfyUI. Do not look for another workflow because of it.`,
       `2. run_workflow with that file and wait: false; keep the prompt_id.`,
-      `3. job with action "wait" and that prompt_id until it finishes. A generation can take many minutes; a wait that times out is not a failure: wait again, never run the workflow a second time.`,
-      `4. comfy_workflows with action "collect" and that prompt_id (and "name": a short name for the result, e.g. "stone_tower"). It copies the finished result into this task's folder and tells you what it is.`,
-      "5. Report to the user what collect returned: the file, its size and what it measured. You have not seen the result: say it was generated, not how it looks.",
+      `3. comfy_workflows with action "collect" and that prompt_id (and "name": a short name for the result, e.g. "stone_tower"). It waits a little: when the job has finished it copies the result into this task's folder and tells you what it is; when the job is still going it says so, and then you tell the user the generation is running in ComfyUI and that they can ask you later whether it finished, and end your reply. Never wait with the connection's job tool, never run the workflow a second time.`,
+      "4. Report to the user what collect returned: the file, its size and what it measured. You have not seen the result: say it was generated, not how it looks.",
     ].join("\n"),
   ].filter(Boolean).join("\n\n");
 }
@@ -439,18 +441,154 @@ export function resultBaseName(raw: unknown): string {
   return String(raw ?? "").normalize("NFKD").replace(/[^A-Za-z0-9 _-]+/g, "").trim().replace(/\s+/g, "_").slice(0, 48);
 }
 
-async function collect(base: string, promptId: string, name: unknown, filesDir: string | undefined, report?: (file: ReportedFile) => void): Promise<string> {
-  if (!PROMPT_ID_RE.test(promptId)) return 'comfy_workflows: "prompt_id" must be the id run_workflow returned.';
-  if (!filesDir) return "comfy_workflows: this task has no folder to bring the result into.";
-  let item: any;
+// ── the job the agent launched, and where it stands ────────────────────────────
+
+// How long "collect" waits for a job that is still going before handing the turn back:
+// enough for a quick workflow to finish within one call, short enough that a long one is
+// released, not sat on (a generation can take an hour on a modest GPU, and a task that
+// waits for it is cut by the task's own time limit).
+const COLLECT_WAIT_MS = Math.max(0, Number(process.env.COMFY_COLLECT_WAIT_MS ?? 120000)) || 0;
+const POLL_MS = 5000;
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+interface JobContext { filesDir?: string; uploadsDir?: string; agentId?: string; report?: (file: ReportedFile) => void }
+interface JobNote { promptId: string; name?: string; firstSeenAt: number }
+
+// The last job this agent launched is noted next to the uploads folder
+// (storage/comfy-jobs/<agent>.json), so "did it finish?" works in a later task — also
+// when the task that launched it was cut short — without the model remembering the id.
+function jobNotePath(ctx: JobContext): string | null {
+  if (!ctx.uploadsDir || !ctx.agentId || !/^[A-Za-z0-9_-]{1,64}$/.test(ctx.agentId)) return null;
+  return path.join(path.dirname(ctx.uploadsDir), "comfy-jobs", `${ctx.agentId}.json`);
+}
+async function rememberJob(ctx: JobContext, note: JobNote): Promise<void> {
+  const p = jobNotePath(ctx);
+  if (!p) return;
+  try { await mkdir(path.dirname(p), { recursive: true }); await writeFile(p, JSON.stringify(note)); } catch { /* a note is a convenience, never a failure */ }
+}
+async function recallJob(ctx: JobContext): Promise<JobNote | null> {
+  const p = jobNotePath(ctx);
+  if (!p) return null;
   try {
-    const res = await request(`${base}/history/${promptId}`);
-    if (!res.ok) return `comfy_workflows: ComfyUI answered HTTP ${res.status} for that job.`;
-    item = ((await res.json()) as any)?.[promptId];
+    const j = JSON.parse(await readFile(p, "utf-8"));
+    if (!PROMPT_ID_RE.test(j?.promptId)) return null;
+    return { promptId: j.promptId, name: typeof j.name === "string" ? j.name : undefined, firstSeenAt: Number(j.firstSeenAt) || Date.now() };
+  } catch { return null; }
+}
+async function forgetJob(ctx: JobContext): Promise<void> {
+  const p = jobNotePath(ctx);
+  if (p) await rm(p, { force: true }).catch(() => { /* ignore */ });
+}
+
+export interface QueueState { state: "running" | "queued" | "unknown"; ahead: number; createdAt: number | null }
+
+/** Where a job stands in ComfyUI's queue (GET /queue, which every version serves). Pending items
+ *  come as a heap, not in order: what is ahead of a job is everything running plus the pending
+ *  items with a lower number. */
+export function queueStateOf(queue: any, promptId: string): QueueState {
+  const running: any[] = Array.isArray(queue?.queue_running) ? queue.queue_running : [];
+  const pending: any[] = Array.isArray(queue?.queue_pending) ? queue.queue_pending : [];
+  const createdOf = (item: any): number | null => (Number.isFinite(item?.[3]?.create_time) ? Number(item[3].create_time) : null);
+  const run = running.find((it) => Array.isArray(it) && it[1] === promptId);
+  if (run) return { state: "running", ahead: 0, createdAt: createdOf(run) };
+  const mine = pending.find((it) => Array.isArray(it) && it[1] === promptId);
+  if (mine) {
+    const ahead = running.length + pending.filter((it) => Array.isArray(it) && it !== mine && Number(it[0]) < Number(mine[0])).length;
+    return { state: "queued", ahead, createdAt: createdOf(mine) };
+  }
+  return { state: "unknown", ahead: 0, createdAt: null };
+}
+
+const fmtElapsed = (ms: number) => (ms >= 90_000 ? `${Math.round(ms / 60_000)} min` : `${Math.max(1, Math.round(ms / 1000))} s`);
+
+function stillRunning(st: QueueState, firstSeenAt: number): string {
+  const elapsed = fmtElapsed(Date.now() - (st.createdAt ?? firstSeenAt));
+  const where = st.state === "running"
+    ? `the job is still running in ComfyUI (${elapsed} so far; ComfyUI gives no percentage).`
+    : `the job is waiting in ComfyUI's queue with ${st.ahead} job(s) ahead of it (${elapsed} since it was submitted).`;
+  return [
+    `comfy_workflows: ${where}`,
+    'Tell the user the generation is still going in ComfyUI, how long it has been going, and offer to cancel it (if they want that, use action "cancel" when they answer). Then end your reply.',
+    'Do not wait, poll or run the workflow again in this task: the user will ask later whether it finished, and "collect" (with no prompt_id) answers from this same job.',
+  ].join("\n");
+}
+
+async function readQueue(base: string): Promise<any> {
+  const res = await request(`${base}/queue`);
+  return res.ok ? await res.json() : null;
+}
+
+async function collect(base: string, promptIdRaw: string, name: unknown, ctx: JobContext): Promise<string> {
+  let note: JobNote | null = null;
+  let promptId = promptIdRaw;
+  if (!promptId) {
+    note = await recallJob(ctx);
+    if (!note) return 'comfy_workflows: there is no job to collect: pass the prompt_id run_workflow returned (this agent has no job noted).';
+    promptId = note.promptId;
+  }
+  if (!PROMPT_ID_RE.test(promptId)) return 'comfy_workflows: "prompt_id" must be the id run_workflow returned.';
+  if (!ctx.filesDir) return "comfy_workflows: this task has no folder to bring the result into.";
+  const firstSeenAt = note?.firstSeenAt ?? Date.now();
+  const resultName = resultBaseName(name) || note?.name;
+  const deadline = Date.now() + COLLECT_WAIT_MS;
+  for (;;) {
+    let item: any;
+    try {
+      const res = await request(`${base}/history/${promptId}`);
+      if (!res.ok) return `comfy_workflows: ComfyUI answered HTTP ${res.status} for that job.`;
+      item = ((await res.json()) as any)?.[promptId];
+    } catch { return NOT_RUNNING(base); }
+    if (item) {
+      const out = await collectFinished(base, item, resultName, ctx.filesDir, ctx.report);
+      await forgetJob(ctx);
+      return out;
+    }
+    let st: QueueState;
+    try { st = queueStateOf(await readQueue(base), promptId); } catch { return NOT_RUNNING(base); }
+    if (st.state === "unknown") {
+      await forgetJob(ctx);
+      return "comfy_workflows: ComfyUI does not know that job: it finished and its history is gone (ComfyUI was restarted), or the id is wrong. Nothing to collect; if the user still wants the result, the workflow has to run again.";
+    }
+    if (!note) {
+      note = { promptId, name: resultName, firstSeenAt };
+      await rememberJob(ctx, note);
+    }
+    if (Date.now() >= deadline) return stillRunning(st, firstSeenAt);
+    await sleep(Math.min(POLL_MS, Math.max(1, deadline - Date.now())));
+  }
+}
+
+async function cancel(base: string, promptIdRaw: string, ctx: JobContext): Promise<string> {
+  let promptId = promptIdRaw;
+  if (!promptId) {
+    const note = await recallJob(ctx);
+    if (!note) return "comfy_workflows: there is no job to cancel: this agent has no job noted, and no prompt_id was given.";
+    promptId = note.promptId;
+  }
+  if (!PROMPT_ID_RE.test(promptId)) return 'comfy_workflows: "prompt_id" must be the id run_workflow returned.';
+  let st: QueueState;
+  try { st = queueStateOf(await readQueue(base), promptId); } catch { return NOT_RUNNING(base); }
+  if (st.state === "unknown") {
+    await forgetJob(ctx);
+    return 'comfy_workflows: that job is not running or queued any more (it finished, failed, or ComfyUI was restarted). Nothing to cancel; "collect" tells whether it left a result.';
+  }
+  const headers = { "content-type": "application/json" };
+  try {
+    // A running job: ComfyUI stops it at the end of the current step. A queued one: it never starts.
+    if (st.state === "running") await request(`${base}/interrupt`, { method: "POST", headers, body: JSON.stringify({ prompt_id: promptId }) });
+    else await request(`${base}/queue`, { method: "POST", headers, body: JSON.stringify({ delete: [promptId] }) });
   } catch { return NOT_RUNNING(base); }
-  if (!item) return `comfy_workflows: that job has not finished (ComfyUI has no result for it yet). Wait for it with the connection's job tool (action "wait"), then collect again.`;
+  await forgetJob(ctx);
+  return st.state === "running"
+    ? "comfy_workflows: the running job was interrupted; ComfyUI drops it at the end of the current step and saves nothing. Tell the user it was cancelled."
+    : "comfy_workflows: the job was removed from ComfyUI's queue before it started. Tell the user it was cancelled.";
+}
+
+async function collectFinished(base: string, item: any, name: string | undefined, filesDir: string, report?: (file: ReportedFile) => void): Promise<string> {
   if (item.status?.status_str === "error") {
-    const err = (item.status.messages ?? []).find((m: any) => Array.isArray(m) && m[0] === "execution_error")?.[1];
+    const messages: any[] = Array.isArray(item.status.messages) ? item.status.messages : [];
+    if (messages.some((m: any) => Array.isArray(m) && m[0] === "execution_interrupted")) return "comfy_workflows: that job was cancelled before it finished. Nothing was collected; if the user wants the result after all, the workflow has to run again.";
+    const err = messages.find((m: any) => Array.isArray(m) && m[0] === "execution_error")?.[1];
     return `comfy_workflows: that job failed${err ? ` at node ${clip(err.node_id, 20)} (${clip(err.node_type, 60)}): ${clip(err.exception_message, 400)}` : ""}. Nothing was collected.`;
   }
   const files = savedOutputs(item);
@@ -499,17 +637,21 @@ export const comfyWorkflowsTool: HydraTool = {
   description:
     "The workflows the user saved in their own ComfyUI (image, video, audio and 3D generation on their computer, free). Start here for any request to generate something with ComfyUI: a saved workflow already has its models installed. " +
     "Always \"list\" these BEFORE the connection's search_templates/fetch_template: those are online templates, they need the user's approval and may ask for models the user does not have. " +
-    "action \"list\" prints their names. action \"prepare\" makes one ready to run: it copies it into this task's folder, uploads the files the user attached and puts them in the workflow's inputs, and returns the file's path with the remaining steps for the ComfyUI connection's tools (validate_workflow, run_workflow, job). " +
-    "action \"collect\" brings a finished job's result (the files it saved, not its previews) into this task's folder so the user sees them in the chat, and says what each one is: use it for ANY finished job, also one started from an online template, instead of the connection's fetch_outputs (which leaves the files in a temporary folder the user never sees).",
+    "action \"list\" prints their names. action \"prepare\" makes one ready to run: it copies it into this task's folder, uploads the files the user attached and puts them in the workflow's inputs, and returns the file's path with the remaining steps for the ComfyUI connection's tools (validate_workflow, run_workflow) and for this one. " +
+    "action \"collect\" brings a job's result (the files it saved, not its previews) into this task's folder so the user sees them in the chat, and says what each one is: use it for ANY job, also one started from an online template, instead of the connection's fetch_outputs (which leaves the files in a temporary folder the user never sees). " +
+    "It waits a little; when the job is still going it says so (how long, and how many jobs are ahead of it) instead of waiting: then tell the user and end, they will ask again later. " +
+    "action \"cancel\" stops a job the user no longer wants: a running one is interrupted, a queued one is removed. Both remember the last job this agent launched, so \"did it finish?\" and \"cancel it\" need no prompt_id.",
   schema: z.object({
-    action: z.enum(["list", "prepare", "collect"]).describe('"list" the saved workflows, "prepare" one to run, or "collect" the result of a finished job'),
-    name: z.string().optional().describe('For "prepare": the workflow\'s name exactly as "list" prints it, e.g. "image_to_3d.json"'),
-    prompt_id: z.string().optional().describe('For "collect": the prompt_id run_workflow returned. With "collect", "name" is a short name for the result file (e.g. "stone_tower").'),
+    action: z.enum(["list", "prepare", "collect", "cancel"]).describe('"list" the saved workflows, "prepare" one to run, "collect" a job\'s result (or learn that it is still going), or "cancel" a job'),
+    name: z.string().optional().describe('For "prepare": the workflow\'s name exactly as "list" prints it, e.g. "image_to_3d.json". For "collect": a short name for the result file (e.g. "stone_tower").'),
+    prompt_id: z.string().optional().describe('For "collect" and "cancel": the prompt_id run_workflow returned. Omit it to use the last job this agent launched.'),
     files: z.array(z.string()).optional().describe('For "prepare": the files the user attached, as the conversation names them (e.g. "storage/uploads/1791-photo.jpg"), in the order of the workflow\'s file inputs. Omit for a workflow that reads no file.'),
   }),
   execute: async ({ action, name, files, prompt_id }, context) => {
     const base = comfyBaseUrl(context?.connectionEnv?.("comfyui")?.COMFYUI_URL || process.env.COMFYUI_URL);
-    if (action === "collect") return collect(base, String(prompt_id ?? "").trim(), name, context?.filesDir, context?.addResultFile);
+    const jobCtx: JobContext = { filesDir: context?.filesDir, uploadsDir: context?.uploadsDir, agentId: context?.agentId, report: context?.addResultFile };
+    if (action === "collect") return collect(base, String(prompt_id ?? "").trim(), name, jobCtx);
+    if (action === "cancel") return cancel(base, String(prompt_id ?? "").trim(), jobCtx);
     if (action !== "prepare") return listSaved(base);
     const list = Array.isArray(files) ? files.map((f) => String(f)) : [];
     return prepare(base, String(name ?? ""), list, { filesDir: context?.filesDir, uploadsDir: context?.uploadsDir });
