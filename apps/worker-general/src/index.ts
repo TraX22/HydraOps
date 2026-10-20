@@ -11,7 +11,7 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { cronUnreadSources, cronReadSourcesPrompt, addUsage, CRON_SOURCES_UNREAD, CRON_SOURCES_UNREAD_TEXT, createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, filterCronAnswer, cronNothingNewPrompt, CRON_NOTHING_NEW, loadRecentChannelHistory, historyBudgetChars, searchAgentTasks, isTaskCancelled, lastTaskToolNames, taskChainAutoApproved } from "@hydraops/db";
+import { cronUnreadSources, cronReadSourcesPrompt, addUsage, CRON_SOURCES_UNREAD, CRON_SOURCES_UNREAD_TEXT, createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, filterCronAnswer, cronNothingNewPrompt, CRON_NOTHING_NEW, loadRecentChannelHistory, historyBudgetChars, searchAgentTasks, isTaskCancelled, modelNeverAnswered, lastTaskToolNames, taskChainAutoApproved } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
@@ -616,19 +616,35 @@ ${EXTERNAL_CONTENT_RULE}
     await publishJson(js, subjectForType(generated.type), generated);
 
     progress.stop();
+    const neverAnswered = modelNeverAnswered({ success, text, error });
     const installedSkillNames = skillsOpened.size ? new Set((await listInstalledSkills().catch(() => [])).map((k) => k.name)) : new Set<string>();
     const skillsUsed = [...skillsOpened].filter((n) => installedSkillNames.has(n));
     const plan = planMode ? (proposedPlan ? planFromProposal(proposedPlan, { version: planVersion, request: planSeed?.request ?? userPrompt, parentTaskId: planSeed?.parentTaskId }) : planFromText(text ?? "", { version: planVersion, request: planSeed?.request ?? userPrompt, parentTaskId: planSeed?.parentTaskId })) : null;
     await (db as any).update(tasks)
       .set({
-        status: "completed",
+        status: neverAnswered ? "failed" : "completed",
         ...(plan ? { plan } : {}),
         resultMeta: { text, usage, success, error, errorCode, modelUsed: llmConfig.model, completedAt: new Date().toISOString(), ...(onDemand ? { toolsOnDemand: onDemand.loader.summary() } : {}), ...(stepBreakdown.length ? { steps: stepBreakdown } : {}), ...(resultFiles.list().length ? { files: resultFiles.list() } : {}), ...(plan ? { plan } : {}), ...(sourceCollector.list().length ? { sources: sourceCollector.list() } : {}), seenUrls: sourceCollector.seen(), ...(skillsUsed.length ? { skillsUsed } : {}), ...(vault.summary().docs ? { vault: vault.summary() } : {}), ...(taskSecurity.summary() ? { security: taskSecurity.summary() } : {}) },
         updatedAt: new Date(),
       })
       .where(and(eq(tasks.id, taskId), ne(tasks.status, "cancelled")));
 
-    console.log(`[${consumerName}] Task ${taskId} completed.`);
+    console.log(`[${consumerName}] Task ${taskId} ${neverAnswered ? "failed (the model never answered)" : "completed"}.`);
+    if (neverAnswered) {
+      // The same event a crash publishes, so a cron's subscribers (the Telegram bot) hear of it.
+      try {
+        const failed = buildEnvelope({
+          id: randomUUID(),
+          type: "task.failed",
+          version: 1,
+          occurredAt: new Date().toISOString(),
+          producer: consumerName,
+          subject: { entity: "task", id: taskId },
+          data: { taskId, error: String(error).slice(0, 2000), durationMs: Date.now() - started },
+        });
+        await publishJson(js, subjectForType(failed.type), failed);
+      } catch (e) { console.error(`[${consumerName}] failed to publish task.failed`, e); }
+    }
     cancels.release(taskId);
     m.ack();
   } catch (err: any) {

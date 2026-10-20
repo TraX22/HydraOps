@@ -28,6 +28,14 @@ export * from "./recall.js";
  * tracking must never break task processing, so callers wrap this in try/catch.
  */
 /** True when the user cancelled this task (the API sets the status; workers must not overwrite it). */
+/** A task whose model never answered (a rejected key, a spend limit reached, a timeout before
+ *  any text): that is a failure, not a completion — the status says so and task.failed goes
+ *  out as for a crash. A model that answered and then reported a problem is a completed task
+ *  with an error inside, as before. */
+export function modelNeverAnswered(meta: { success?: unknown; text?: unknown; error?: unknown }): boolean {
+  return meta.success === false && !String(meta.text ?? "").trim() && !!meta.error;
+}
+
 export async function isTaskCancelled(db: any, taskId: string): Promise<boolean> {
   const rows = await db.select({ status: schema.tasks.status }).from(schema.tasks).where(eq(schema.tasks.id, taskId)).limit(1);
   return rows[0]?.status === "cancelled";

@@ -627,6 +627,7 @@ async function collectFinished(base: string, item: any, name: string | undefined
     lines.join("\n"),
     duplicates ? `${duplicates} more file(s) the workflow saved had exactly the same content and were not copied twice.` : "",
     "The previews the workflow made along the way were not copied. The originals stay in ComfyUI's output folder.",
+    "The user already sees these files as cards under your reply: you do not need (and have no tool) to attach them; name them, say what each one is, and do not tell the user to fetch them by hand.",
     "Report these files, sizes and counts as they are; other numbers a job prints (such as a vertex count from an early stage) describe an intermediate step, not this file.",
   ].filter(Boolean).join("\n\n");
 }
