@@ -567,6 +567,7 @@ ${EXTERNAL_CONTENT_RULE}
           allowedOrigins: server ? connectionOrigins(toolContext.connectionEnv(server)) : [],
           extraRoots: server ? toolContext.connectionDirs(server) : [],
           label: String(a.toolName),
+          since: started,
         });
       }
     }
