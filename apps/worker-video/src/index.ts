@@ -18,7 +18,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, generateVideo, resolveLLMConfig, resolveMaxSteps, buildUserMessage, GROK_VIDEO_ASPECTS, isGrokVideoEngine } from "@hydraops/llm";
-import { createResultFiles, mcpServerEnv, mcpServerDirs, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan, setupToolsOnDemand, harvestMediaFiles, connectionOrigins } from "@hydraops/addons";
+import { createResultFiles, mcpServerEnv, mcpServerDirs, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, carriedSkillsPrompt, noteSkillsOpened, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan, setupToolsOnDemand, harvestMediaFiles, connectionOrigins } from "@hydraops/addons";
 import { tool } from "ai";
 import { z } from "zod";
 import { AckPolicy } from "nats";
@@ -414,10 +414,16 @@ for await (const m of sub) {
     // A continuation: the user decided on the calls held in the original task; the message
     // carries the outcomes so the agent picks up where it stopped (see approvals.ts).
     const continuationOf = taskRows[0]?.continuationOf ? String(taskRows[0].continuationOf) : null;
+    // The skills the original task had opened come along: a continuation is a new task whose
+    // model never saw them, and without them it drifts from the procedure it was following.
+    let carriedSkills: string[] = [];
     if (continuationOf) {
       const decided = await loadTaskActions(db, continuationOf);
-      const originalRows = await (db as any).select({ prompt: tasks.prompt }).from(tasks).where(eq(tasks.id, continuationOf)).limit(1);
+      const originalRows = await (db as any).select({ prompt: tasks.prompt, resultMeta: tasks.resultMeta }).from(tasks).where(eq(tasks.id, continuationOf)).limit(1);
       if (decided.length) userPrompt = continuationPrompt(String(originalRows[0]?.prompt ?? ""), decided);
+      const carried = await carriedSkillsPrompt((originalRows[0]?.resultMeta as any)?.skillsUsed).catch(() => ({ text: "", names: [] as string[] }));
+      if (carried.text) { userPrompt += `\n\n${carried.text}`; carriedSkills = carried.names; }
+      if (carriedSkills.length) console.log(`[${consumerName}] continuation of ${continuationOf} carries the skills it had open: ${carriedSkills.join(", ")}`);
     }
     if (!userPrompt) {
       m.ack();
@@ -506,7 +512,7 @@ ${EXTERNAL_CONTENT_RULE}
     // DB after the LLM finishes so we can report what each agent actually uses.
     const toolUsageLog: { toolName: string; source: string; status: string }[] = [];
     // Skills this task opened (skills_view), by name: stored with the result for Statistics.
-    const skillsOpened = new Set<string>();
+    const skillsOpened = new Set<string>(carriedSkills);
     const usageSink = (toolName: string, source: string, status: 'ok' | 'blocked' | 'error' | 'held', args?: unknown) => {
       toolUsageLog.push({ toolName, source, status });
       const skill = (args as { name?: unknown } | undefined)?.name;
@@ -556,6 +562,7 @@ ${EXTERNAL_CONTENT_RULE}
       // Files a tool leaves for the user: stored with the result, shown in the chat.
       addResultFile: resultFiles.add,
     };
+    noteSkillsOpened(toolContext, carriedSkills);
     // A continuation after approvals: the media those calls named (they ran without a task)
     // is brought into this one, so it gets its card under the reply.
     if (continuationOf) {
