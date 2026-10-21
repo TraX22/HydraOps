@@ -13,6 +13,15 @@ import {
 // can be tens of kilobytes that every later step would carry again.
 const openedByTask = new WeakMap<object, Set<string>>();
 
+/** A continuation already carries these skills' text in its prompt (see carriedSkillsPrompt):
+ *  opening one again in that task gets the short "already opened" answer, not the file. */
+export function noteSkillsOpened(ctx: ToolContext | undefined, names: string[]): void {
+  if (!ctx) return;
+  const opened = openedByTask.get(ctx) ?? new Set<string>();
+  openedByTask.set(ctx, opened);
+  for (const name of names) if (isValidSkillName(name)) opened.add(`${name}/${SKILL_FILE}`);
+}
+
 async function viewSkill(name: string, file?: string, ctx?: ToolContext): Promise<string> {
   if (!isValidSkillName(name)) return `"${name}" is not a valid skill name. Use a name from the installed skills list.`;
   const skills = await listInstalledSkills();

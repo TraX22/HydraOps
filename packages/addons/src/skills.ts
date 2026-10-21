@@ -450,3 +450,45 @@ export async function skillsPromptSection(allowedTools: string[], root = skillsD
   }
   return lines.join('\n');
 }
+
+// ── Skills a continuation carries over ─────────────────────────────────────────
+
+/** What a continuation gets of the skills in total: a few skills fit, a library does not. */
+const CARRIED_SKILLS_MAX_CHARS = 60_000;
+
+/**
+ * The skills a task had opened, as text for the task that continues it after the user's
+ * decision on a held call. A continuation is a new task: its model never saw the parent's
+ * tool results, so without this it works from the chat's history alone and drifts away
+ * from the procedure it was following (it reaches for code where the skill told it to use
+ * the typed tools). The text is what skills_view would return, so opening the skill again
+ * is never needed; names that are not installed any more are left out.
+ */
+export async function carriedSkillsPrompt(names: unknown, root = skillsDir, builtinRoot = builtinSkillsDir): Promise<{ text: string; names: string[] }> {
+  const wanted = Array.isArray(names) ? [...new Set(names.filter((n): n is string => typeof n === 'string' && isValidSkillName(n)))] : [];
+  if (!wanted.length) return { text: '', names: [] };
+  const installed = new Set((await listInstalledSkills(root, builtinRoot).catch(() => [])).filter((s) => !s.invalid).map((s) => s.name));
+  const blocks: string[] = [];
+  const carried: string[] = [];
+  let total = 0;
+  for (const name of wanted) {
+    if (!installed.has(name)) continue;
+    const r = await readSkillFile(name, SKILL_FILE, root, builtinRoot);
+    if (!r.ok) continue;
+    let text = r.content;
+    if (text.length > SKILL_LIMITS.maxViewChars) text = text.slice(0, SKILL_LIMITS.maxViewChars) + '\n\n[… cut: the file is longer than this returns]';
+    if (total + text.length > CARRIED_SKILLS_MAX_CHARS) break;
+    total += text.length;
+    carried.push(name);
+    blocks.push(`### Skill "${name}" (SKILL.md)\n${text}`);
+  }
+  if (!carried.length) return { text: '', names: [] };
+  return {
+    names: carried,
+    text:
+      `[SKILLS YOU HAD OPEN] Before the user's decision you had opened ${carried.length === 1 ? 'this skill' : 'these skills'} and were following ${carried.length === 1 ? 'it' : 'them'}. ` +
+      `${carried.length === 1 ? 'It is' : 'They are'} repeated here so you need not open ${carried.length === 1 ? 'it' : 'them'} again; keep following ${carried.length === 1 ? 'it' : 'them'}.\n\n` +
+      blocks.join('\n\n') +
+      `\n[END SKILLS YOU HAD OPEN]`,
+  };
+}
