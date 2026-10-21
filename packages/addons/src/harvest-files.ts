@@ -192,7 +192,13 @@ async function freeName(dir: string, name: string, size: number, hash: () => Pro
  * Copies the media a result names into `filesDir` and reports each one. Best effort:
  * returns how many were reported, never throws.
  */
-export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: string; addResultFile?: (f: ReportedFile) => void; allowedOrigins?: string[]; extraRoots?: string[]; label?: string }): Promise<number> {
+// A file in a connection's folder that is older than the task is the project's own asset
+// (a model a search listed, a texture a tool mentioned), not something this task made:
+// only a file written since the task started comes into the chat. Clocks and file systems
+// round mtimes, so the task's start gets a little slack.
+const SINCE_SLACK_MS = 5_000;
+
+export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: string; addResultFile?: (f: ReportedFile) => void; allowedOrigins?: string[]; extraRoots?: string[]; label?: string; since?: number }): Promise<number> {
   if (!ctx.filesDir || !ctx.addResultFile) return 0;
   const found = findMediaRefs(result);
   // A relative path is tried under each of the connection's own folders (a Unity capture's
@@ -250,8 +256,10 @@ export async function harvestMediaFiles(result: unknown, ctx: { filesDir?: strin
         reported++;
         continue;
       }
-      // Anywhere else only from where tools leave their output.
+      // Anywhere else only from where tools leave their output, and only what was written
+      // during this task: an older file there is the project's own, not a result.
       if (!roots.some((r) => inside(r, abs))) continue;
+      if (ctx.since !== undefined && st.mtimeMs < ctx.since - SINCE_SLACK_MS) continue;
       const { target, exists } = await freeName(ctx.filesDir, safeName(abs), st.size, async () => sha1(await readFile(abs)));
       if (!exists) await copyFile(abs, target);
       ctx.addResultFile({ absPath: target, kind, size: st.size });
