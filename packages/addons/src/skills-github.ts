@@ -211,13 +211,20 @@ const fileStatus = (p: string, size: number): GitHubFileStatus => {
 
 const installableStatus = (s: GitHubFileStatus) => s === 'text' || s === 'code' || s === 'script';
 
+/** `a/b///` -> `a/b`. A loop, not a regex: the folder comes from the address the user typed. */
+function trimSlashes(s: string): string {
+  let end = s.length;
+  while (end > 0 && s[end - 1] === '/') end--;
+  return s.slice(0, end);
+}
+
 function hiddenOrSkipped(folder: string): boolean {
   return folder.split('/').some((seg) => seg.startsWith('.') || SKIPPED_DIRS.has(seg));
 }
 
 /** The skill folders a tree holds under `base`: every folder with a SKILL.md, hidden ones left out. */
 export function skillFoldersIn(files: TreeEntry[], base: string): { folders: string[]; skipped: number } {
-  const prefix = base ? base.replace(/\/+$/, '') + '/' : '';
+  const prefix = base ? trimSlashes(base) + '/' : '';
   const folders: string[] = [];
   let skipped = 0;
   for (const f of files) {
