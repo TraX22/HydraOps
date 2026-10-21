@@ -44,6 +44,14 @@ export const SKILL_LIMITS = {
 /** Text files only. Script files may travel with a skill, but HydraOps never runs them. */
 const TEXT_EXTENSIONS = new Set(['.md', '.txt', '.json', '.yaml', '.yml', '.csv']);
 const SCRIPT_EXTENSIONS = new Set(['.py', '.js', '.mjs', '.ts', '.sh', '.ps1', '.bat', '.cmd', '.rb']);
+/** Source code a skill ships as reference (a Unity C# example, a shader, a template): read as
+ *  text by the agent, never compiled or run by HydraOps. */
+const CODE_EXTENSIONS = new Set([
+  '.cs', '.cpp', '.cc', '.cxx', '.c', '.h', '.hpp', '.hlsl', '.glsl', '.shader', '.cginc', '.compute',
+  '.java', '.kt', '.swift', '.go', '.rs', '.php', '.lua', '.sql', '.r', '.m', '.mm', '.pl', '.scala', '.dart',
+  '.jsx', '.tsx', '.vue', '.svelte', '.html', '.htm', '.css', '.scss', '.less', '.xml', '.toml', '.ini', '.cfg',
+  '.conf', '.proto', '.graphql', '.gql', '.tf', '.gradle', '.cmake', '.mk', '.rst', '.adoc', '.tex',
+]);
 
 export interface SkillMeta {
   name: string;
@@ -55,10 +63,13 @@ export interface SkillMeta {
 }
 
 export interface InstalledSkill extends SkillMeta {
-  /** catalog = downloaded from the skills repository; agent = written by an agent and
+  /** catalog = downloaded from the skills repository; github = fetched from a GitHub
+   *  repository the user named (see skills-github.ts); agent = written by an agent and
    *  approved; manual = copied into the folder by hand; builtin = ships with the app
    *  (read-only, cannot be deleted or shadowed). */
-  source: 'catalog' | 'agent' | 'manual' | 'builtin';
+  source: 'catalog' | 'github' | 'agent' | 'manual' | 'builtin';
+  /** github: where it came from, so it can be checked and updated. */
+  origin?: { repo: string; ref: string; commit: string; path: string };
   agentId?: string;
   installedAt?: string;
   files: string[];
@@ -182,7 +193,8 @@ export function skillFilePath(name: string, relPath: string, root = skillsDir): 
 
 const extOf = (p: string) => path.extname(p).toLowerCase();
 export const isScriptPath = (p: string) => SCRIPT_EXTENSIONS.has(extOf(p));
-export const isAllowedSkillPath = (p: string) => TEXT_EXTENSIONS.has(extOf(p)) || isScriptPath(p);
+export const isCodePath = (p: string) => CODE_EXTENSIONS.has(extOf(p));
+export const isAllowedSkillPath = (p: string) => TEXT_EXTENSIONS.has(extOf(p)) || isScriptPath(p) || isCodePath(p);
 
 async function listFilesRec(dir: string, prefix = ''): Promise<string[]> {
   const out: string[] = [];
@@ -207,9 +219,14 @@ async function readInstalled(name: string, root: string, builtin = false): Promi
   if (!builtin) {
     try { sidecar = JSON.parse(await readFile(path.join(dir, SKILL_SIDECAR), 'utf-8')); } catch { /* manual copy */ }
   }
-  const source: InstalledSkill['source'] = builtin ? 'builtin' : sidecar.source === 'catalog' || sidecar.source === 'agent' ? sidecar.source : 'manual';
+  const source: InstalledSkill['source'] = builtin ? 'builtin' : sidecar.source === 'catalog' || sidecar.source === 'agent' || sidecar.source === 'github' ? sidecar.source : 'manual';
+  const o = sidecar.origin;
+  const origin = source === 'github' && o && typeof o === 'object' && typeof o.repo === 'string' && typeof o.ref === 'string' && typeof o.commit === 'string' && typeof o.path === 'string'
+    ? { repo: String(o.repo), ref: String(o.ref), commit: String(o.commit), path: String(o.path) }
+    : undefined;
   const base = {
     source,
+    ...(origin ? { origin } : {}),
     ...(typeof sidecar.agentId === 'string' ? { agentId: sidecar.agentId } : {}),
     ...(typeof sidecar.installedAt === 'string' ? { installedAt: sidecar.installedAt } : {}),
     files,

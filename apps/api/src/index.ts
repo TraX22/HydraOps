@@ -37,6 +37,7 @@ loadDotenv({ path: envFile });
 
 import {
   createRegistry, rememberTool, listInstalledSkills, readSkillFile, scanSkill, writeSkillFolder, deleteSkill,
+  previewGitHubSkills, readGitHubSkill, latestCommitOf, originUrl, originFrom, GitHubError,
   isValidSkillName, isAllowedSkillPath, skillFilePath, SKILL_LIMITS, builtinSkillNames,
   renderPlanText, executionPrompt, type Plan, sweepVaults,
   parsePreset, presetServerEntry, presetMarkerOf, isPresetEntryModified, presetCommandLine, launcherInstallHint,
@@ -2968,7 +2969,13 @@ ${String(args.instructions ?? "")}` },
       ];
       return { ...a, findings: scanSkill(files) };
     });
-    res.json({ enabled: await skillsEnabled(), dir: skillsDir, installed, agents, pending });
+    // A skill from GitHub says whether its folder has moved on since it was installed (one
+    // question per repository and ref, remembered a while; unanswerable = unknown).
+    const withUpdates = await Promise.all(installed.map(async (s) => {
+      const updateAvailable = await githubUpdateAvailable(s);
+      return updateAvailable === undefined ? s : { ...s, updateAvailable };
+    }));
+    res.json({ enabled: await skillsEnabled(), dir: skillsDir, installed: withUpdates, agents, pending });
   } catch (err: any) {
     console.error("[api] GET /skills failed", err);
     res.status(500).json({ error: "internal_error" });
@@ -3033,6 +3040,110 @@ api.post("/skills/catalog/:name/install", skillsLimiter, async (req, res) => {
     console.error("[api] POST /skills/catalog/:name/install failed", err);
     res.status(502).json({ error: "install_failed", detail: String(err?.message ?? err).slice(0, 200) });
   }
+});
+
+// ── Skills from GitHub ─────────────────────────────────────────────────────────
+// Any public repository that keeps skills in the Agent Skills format (a folder with a
+// SKILL.md): preview what an address holds, read one skill in full (its text, its files,
+// the safety scan), install the chosen ones with their origin, and update one from it.
+// Nothing is fetched as the user typed it: skills-github.ts rebuilds every address from the
+// parsed owner, repository, ref and path, and only github.com is read.
+
+function githubFailure(res: express.Response, err: any): void {
+  if (err instanceof GitHubError) {
+    const status = err.code === "bad_url" ? 400 : err.code === "not_found" || err.code === "no_skills" ? 404 : err.code === "rate_limited" ? 429 : err.code === "too_large" ? 413 : 502;
+    res.status(status).json({ error: err.code, message: err.message });
+    return;
+  }
+  console.error("[api] skills from GitHub failed", err);
+  res.status(502).json({ error: "github_error", message: "GitHub could not be read." });
+}
+
+/** The newest commit of each origin, remembered a while: opening the Skills view asks once per repository and ref. */
+const githubHeadCache = new Map<string, { at: number; commit: string }>();
+async function githubUpdateAvailable(skill: { source: string; origin?: { repo: string; ref: string; commit: string; path: string } }): Promise<boolean | undefined> {
+  if (skill.source !== "github" || !skill.origin) return undefined;
+  const key = `${skill.origin.repo}@${skill.origin.ref}`;
+  const hit = githubHeadCache.get(key);
+  let commit = hit && Date.now() - hit.at < SKILLS_CATALOG_TTL_MS ? hit.commit : undefined;
+  if (!commit) {
+    try { commit = await latestCommitOf(skill.origin); githubHeadCache.set(key, { at: Date.now(), commit }); } catch { return undefined; }
+  }
+  return commit !== skill.origin.commit;
+}
+
+api.get("/skills/github/preview", skillsLimiter, async (req, res) => {
+  try {
+    const url = String(req.query.url ?? "");
+    const preview = await previewGitHubSkills(url);
+    const installed = await listInstalledSkills();
+    const skills = preview.skills.map((s) => {
+      const existing = installed.find((k) => k.name === s.name);
+      const sameOrigin = existing?.source === "github" && existing.origin?.repo === `${preview.owner}/${preview.repo}` && existing.origin?.path === s.path;
+      return { ...s, installed: existing ? (sameOrigin ? "same" : "other") : undefined };
+    });
+    res.json({ ...preview, skills });
+  } catch (err: any) { githubFailure(res, err); }
+});
+
+api.get("/skills/github/skill", skillsLimiter, async (req, res) => {
+  try {
+    const url = String(req.query.url ?? "");
+    const commit = typeof req.query.commit === "string" ? req.query.commit : undefined;
+    const detail = await readGitHubSkill(url, { commit });
+    const findings = scanSkill(detail.files);
+    const existing = (await listInstalledSkills()).find((k) => k.name === detail.preview.name);
+    const sameOrigin = existing?.source === "github" && existing.origin?.repo === detail.origin.repo && existing.origin?.path === detail.origin.path;
+    res.json({ ...detail, findings, installed: existing ? (sameOrigin ? "same" : "other") : undefined });
+  } catch (err: any) { githubFailure(res, err); }
+});
+
+api.post("/skills/github/install", skillsLimiter, async (req, res) => {
+  try {
+    const url = String(req.body?.url ?? "");
+    const commit = typeof req.body?.commit === "string" ? req.body.commit : undefined;
+    const replace = req.body?.replace === true;
+    // Several folders of one repository at once: each is read and written on its own.
+    const paths: string[] | undefined = Array.isArray(req.body?.paths) ? req.body.paths.map((p: unknown) => String(p)).slice(0, 50) : undefined;
+    const preview = paths ? await previewGitHubSkills(url, { maxDescriptions: 0 }) : null;
+    const targets = preview ? paths!.map((p) => `https://github.com/${preview.owner}/${preview.repo}/tree/${encodeURIComponent(preview.ref)}${p ? "/" + p.split("/").map(encodeURIComponent).join("/") : ""}`) : [url];
+    const results: { name: string; path?: string; ok: boolean; error?: string }[] = [];
+    for (const target of targets) {
+      let name = "";
+      try {
+        const detail = await readGitHubSkill(target, { commit: preview ? preview.commit : commit });
+        name = detail.preview.name;
+        if (!detail.preview.installable) { results.push({ name, path: detail.origin.path, ok: false, error: detail.preview.reason ?? "not installable" }); continue; }
+        const existing = (await listInstalledSkills()).find((k) => k.name === name);
+        const sameOrigin = existing?.source === "github" && existing.origin?.repo === detail.origin.repo && existing.origin?.path === detail.origin.path;
+        // A skill of the same name from elsewhere (the catalog, by hand, another repository) only on the user's say-so.
+        if (existing && !sameOrigin && !replace) { results.push({ name, path: detail.origin.path, ok: false, error: "name_taken" }); continue; }
+        await writeSkillFolder(name, detail.files, { source: "github", version: detail.origin.commit.slice(0, 7), origin: detail.origin }, { replace: !!existing });
+        results.push({ name, path: detail.origin.path, ok: true });
+      } catch (err: any) {
+        results.push({ name, ok: false, error: err instanceof GitHubError ? err.message : String(err?.message ?? err).slice(0, 200) });
+      }
+    }
+    res.json({ results, installed: results.filter((r) => r.ok).length });
+  } catch (err: any) { githubFailure(res, err); }
+});
+
+api.post("/skills/github/update", skillsLimiter, async (req, res) => {
+  try {
+    const name = String(req.body?.name ?? "");
+    if (!isValidSkillName(name)) return res.status(400).json({ error: "invalid_name" });
+    const existing = (await listInstalledSkills()).find((k) => k.name === name);
+    const origin = existing?.source === "github" ? originFrom(existing.origin) : null;
+    if (!existing || !origin) return res.status(404).json({ error: "not_github" });
+    const latest = await latestCommitOf(origin);
+    if (latest === origin.commit) return res.json({ updated: false, commit: latest });
+    const detail = await readGitHubSkill(originUrl(origin), { commit: latest });
+    if (!detail.preview.installable) return res.status(409).json({ error: "not_installable", message: detail.preview.reason });
+    if (detail.preview.name !== name) return res.status(409).json({ error: "renamed", message: `the folder now holds a skill named "${detail.preview.name}"` });
+    await writeSkillFolder(name, detail.files, { source: "github", version: latest.slice(0, 7), origin: detail.origin }, { replace: true });
+    githubHeadCache.set(`${origin.repo}@${origin.ref}`, { at: Date.now(), commit: latest });
+    res.json({ updated: true, commit: latest, findings: scanSkill(detail.files) });
+  } catch (err: any) { githubFailure(res, err); }
 });
 
 api.get("/skills/installed/:name", skillsLimiter, async (req, res) => {

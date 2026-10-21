@@ -81,6 +81,18 @@ The **Available** table reads the official catalog, the public [HydraOps-Skills]
 
 Skills are text: HydraOps **never runs** any scripts a skill may include.
 
+### Installing from GitHub
+
+Any public GitHub repository that keeps skills in the same open format (a folder with a `SKILL.md`) is a source too: Unity's official skills, the lists the community maintains, a repository of your own. Paste its address in **Install from GitHub**: the repository, one folder of it, or the `SKILL.md` itself (`https://github.com/owner/repo/tree/main/skills/my-skill`). Nothing is installed yet: HydraOps reads the repository and shows what it holds.
+
+- A repository with many skills lists them with their description, files and size; copies kept for other agents under hidden folders (`.gemini/`, `.codex/`…) are left out, and a skill whose name you already have installed from elsewhere is marked. Pick the ones you want.
+- One skill shows the summary: name, description, author and version from its `SKILL.md`, the repository's license and the one the skill declares, the files that will be installed and the ones that will not (an image, a file over the size limit), the **safety scan**, and a warning when the skill was written for an agent with a terminal: in HydraOps the agent translates those commands into the tools of its connections, and the ones that run code wait for your approval. You can read the whole `SKILL.md` before confirming.
+- Source code a skill ships (`.cs`, `.cpp`, `.hlsl`, `.js`…) is installed as **read-only text**: the agent can open it as reference; HydraOps never compiles or runs it.
+
+The installed skill keeps its origin: repository, branch or tag, commit and folder. Opening the Skills view asks GitHub, once per repository, whether that folder has moved on; when it has, **Update** reinstalls it from the same place, after the safety scan runs again. GitHub allows 60 of those questions an hour per computer without a token; a preview spends three.
+
+HydraOps redistributes nothing: the skill comes from its author's repository, under the license the repository and the skill declare, and the preview shows both so you can decide.
+
 ### Installing by hand
 
 You can also copy a skill by hand: the whole folder (with its `SKILL.md`) into the skills folder of your data:

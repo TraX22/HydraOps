@@ -46,6 +46,7 @@ export * from './sources.js';
 export * from './provenance.js';
 export * from './approvals.js';
 export * from './skills.js';
+export * from './skills-github.js';
 export { noteSkillsOpened } from './native/skills/index.js';
 export * from './progress.js';
 export * from './plan.js';
