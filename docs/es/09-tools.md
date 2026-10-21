@@ -81,6 +81,18 @@ La tabla **Disponibles** lee el catálogo oficial, el repositorio público [Hydr
 
 Las skills son texto: HydraOps **nunca ejecuta** los scripts que pueda traer una skill.
 
+### Instalar desde GitHub
+
+Cualquier repositorio público de GitHub que guarde skills en el mismo formato abierto (una carpeta con un `SKILL.md`) también es una fuente: las skills oficiales de Unity, las listas que mantiene la comunidad, un repositorio tuyo. Pegá su dirección en **Instalar desde GitHub**: el repositorio, una carpeta de él, o el `SKILL.md` mismo (`https://github.com/owner/repo/tree/main/skills/mi-skill`). Todavía no se instala nada: HydraOps lee el repositorio y muestra qué tiene.
+
+- Un repositorio con muchas skills las lista con su descripción, archivos y tamaño; las copias para otros agentes en carpetas ocultas (`.gemini/`, `.codex/`…) quedan afuera, y una skill cuyo nombre ya tenés instalado de otro lado aparece marcada. Elegís las que querés.
+- Una sola skill muestra el resumen: nombre, descripción, autor y versión de su `SKILL.md`, la licencia del repositorio y la que declara la skill, los archivos que se instalan y los que no (una imagen, un archivo que supera el límite de tamaño), el **análisis de seguridad**, y un aviso cuando la skill fue escrita para un agente con terminal: en HydraOps el agente traduce esos comandos a las herramientas de sus conexiones, y las que ejecutan código esperan tu aprobación. Podés leer el `SKILL.md` entero antes de confirmar.
+- El código fuente que traiga una skill (`.cs`, `.cpp`, `.hlsl`, `.js`…) se instala como **texto de solo lectura**: el agente lo puede abrir como referencia; HydraOps nunca lo compila ni lo ejecuta.
+
+La skill instalada guarda su origen: repositorio, rama o etiqueta, commit y carpeta. Al abrir la vista Skills se le pregunta a GitHub, una vez por repositorio, si esa carpeta cambió; cuando cambió, **Actualizar** la reinstala desde el mismo lugar, después de volver a correr el análisis de seguridad. GitHub permite 60 de esas preguntas por hora y por computadora sin token; una vista previa gasta tres.
+
+HydraOps no redistribuye nada: la skill viene del repositorio de su autor, con la licencia que declaran el repositorio y la skill, y la vista previa muestra las dos para que decidas.
+
 ### Instalar a mano
 
 También puedes copiar una skill a mano: la carpeta entera (con su `SKILL.md`) dentro de la carpeta de skills de tus datos:
