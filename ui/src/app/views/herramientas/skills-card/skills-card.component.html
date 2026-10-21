@@ -26,6 +26,90 @@
       <p class="tool-hint">{{ 'herramientas.skills.permHint' | translate }}</p>
     </div>
 
+    <!-- From GitHub: any public repository in the Agent Skills format -->
+    <div class="sec">
+      <h3><app-icon name="github" class="sec-icon" /> {{ 'herramientas.skills.github.title' | translate }}</h3>
+    </div>
+    <p class="tool-hint gh-hint">{{ 'herramientas.skills.github.hint' | translate }}</p>
+    <form class="gh-form" (submit)="$event.preventDefault(); lookGitHub()">
+      <input class="search gh-url" type="url" inputmode="url" spellcheck="false" [placeholder]="'herramientas.skills.github.placeholder' | translate"
+             [value]="githubUrl()" (input)="githubUrl.set($any($event.target).value)" [attr.aria-label]="'herramientas.skills.github.title' | translate" />
+      <button class="ibtn primary" type="submit" [disabled]="githubLoading() || !githubUrl().trim()">
+        {{ (githubLoading() ? 'herramientas.skills.github.looking' : 'herramientas.skills.github.look') | translate }}
+      </button>
+    </form>
+    @if (githubError()) { <p class="notice bad">{{ githubError() }}</p> }
+    @if (repo(); as r) {
+      <div class="gh-repo">
+        <div class="gh-head">
+          <a class="gh-name" [href]="repoUrl(r)" target="_blank" rel="noopener noreferrer">{{ r.owner }}/{{ r.repo }}</a>
+          <span class="gh-meta">
+            {{ 'herramientas.skills.github.branch' | translate:{ ref: r.ref } }} · {{ r.commit.slice(0, 7) }}
+            @if (r.stars) { · {{ 'herramientas.skills.github.stars' | translate:{ n: starsText(r.stars) } }} }
+          </span>
+          <button class="icon-btn" type="button" (click)="closeRepo()" [attr.aria-label]="'common.close' | translate"><app-icon name="x" /></button>
+        </div>
+        @if (r.description) { <p class="gh-desc">{{ r.description }}</p> }
+        <div class="chips">
+          <span class="chip">{{ (r.skills.length === 1 ? 'herramientas.skills.github.foundOne' : 'herramientas.skills.github.found') | translate:{ n: r.skills.length } }}</span>
+          @if (r.skipped) { <span class="chip" [title]="'herramientas.skills.github.skippedHint' | translate">{{ 'herramientas.skills.github.skipped' | translate:{ n: r.skipped } }}</span> }
+          @if (r.license) {
+            <span class="chip ok">{{ 'herramientas.skills.github.license' | translate:{ license: r.license } }}</span>
+          } @else {
+            <span class="chip warn" [title]="'herramientas.skills.github.noLicenseHint' | translate">{{ 'herramientas.skills.github.noLicense' | translate }}</span>
+          }
+          @if (r.truncated) { <span class="chip bad">{{ 'herramientas.skills.github.truncated' | translate }}</span> }
+        </div>
+        @if (r.skills.length > 6) {
+          <input class="search gh-filter" type="search" [placeholder]="'herramientas.skills.search' | translate"
+                 [value]="repoFilter()" (input)="repoFilter.set($any($event.target).value)" />
+        }
+        <div class="tscroll">
+          <table>
+            <thead><tr><th class="pick"></th><th>{{ 'herramientas.skills.colSkill' | translate }}</th><th>{{ 'herramientas.skills.github.colFolder' | translate }}</th><th>{{ 'herramientas.skills.github.colFiles' | translate }}</th><th></th></tr></thead>
+            <tbody>
+              @for (k of repoRows(); track k.path) {
+                <tr [class.chosen]="isChosen(k.path)" [class.muted]="!canChoose(k)">
+                  <td class="pick">
+                    <input type="checkbox" [checked]="isChosen(k.path)" [disabled]="!canChoose(k) || !!busy()" (change)="toggleChosen(k)" [attr.aria-label]="k.name" />
+                  </td>
+                  <td>
+                    <div class="name">{{ k.name }}</div>
+                    <div class="desc" [title]="k.description">{{ k.description || ('herramientas.skills.github.noDescription' | translate) }}</div>
+                    <div class="chips">
+                      @if (k.installed === 'same') { <span class="installed-tag"><app-icon name="check" /> {{ 'herramientas.skills.installed' | translate }}</span> }
+                      @else if (k.installed === 'other') { <span class="chip warn" [title]="'herramientas.skills.github.nameTakenHint' | translate">{{ 'herramientas.skills.taken' | translate }}</span> }
+                      @if (!k.installable) { <span class="chip bad">{{ reasonText(k.reason) }}</span> }
+                      @if (k.needsTerminal) { <span class="chip warn" [title]="'herramientas.skills.github.needsTerminalHint' | translate">{{ 'herramientas.skills.github.needsTerminal' | translate }}</span> }
+                      @if (hasScripts(k)) { <span class="chip warn">{{ 'herramientas.skills.hasScripts' | translate }}</span> }
+                      @if (hasCode(k)) { <span class="chip" [title]="'herramientas.skills.github.codeHint' | translate">{{ 'herramientas.skills.github.code' | translate }}</span> }
+                      @if (k.license) { <span class="chip">{{ k.license }}</span> }
+                      @if (k.tools.length) { <span class="chip req">{{ 'herramientas.skills.uses' | translate }}: {{ k.tools.join(', ') }}</span> }
+                    </div>
+                  </td>
+                  <td class="author folder" [title]="k.path || '/'">{{ k.path || '/' }}</td>
+                  <td class="ver">{{ fileSummary(k) }}</td>
+                  <td class="actions"><button class="ibtn" type="button" (click)="previewGitHub(k)">{{ 'herramientas.skills.view' | translate }}</button></td>
+                </tr>
+              } @empty {
+                <tr><td colspan="5" class="empty-cell">{{ 'herramientas.skills.noneAvailable' | translate }}</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="gh-foot">
+          <span class="gh-count">
+            @if (repoRows().length !== r.skills.length) { {{ 'herramientas.skills.github.showing' | translate:{ shown: repoRows().length, total: r.skills.length } }} · }
+            {{ (chosenRows().length === 1 ? 'herramientas.skills.github.chosenOne' : 'herramientas.skills.github.chosen') | translate:{ n: chosenRows().length, kb: (chosenBytes() / 1024).toFixed(0) } }}
+          </span>
+          <button class="ibtn primary" type="button" [disabled]="!chosenRows().length || !!busy()" (click)="installChosen()">
+            <app-icon name="download" /> {{ (chosenRows().length === 1 ? 'herramientas.skills.github.installOne' : 'herramientas.skills.github.installMany') | translate:{ n: chosenRows().length } }}
+          </button>
+        </div>
+      </div>
+    }
+    @if (notice()) { <p class="notice good">{{ notice() }}</p> }
+
     <!-- Available: the catalog -->
     <div class="sec">
       <h3>{{ 'herramientas.skills.available' | translate }} <span class="count">{{ catalog().length }}</span></h3>
@@ -103,16 +187,23 @@
                 <div class="name">{{ k.name }}</div>
                 <div class="desc" [title]="k.description">{{ k.description }}</div>
                 <div class="chips">
-                  <span class="chip" [class.agent]="k.source === 'agent'" [class.ok]="k.source === 'builtin'" [title]="k.source === 'builtin' ? ('herramientas.skills.builtinHint' | translate) : ''">{{ sourceLabel(k) }}</span>
+                  <span class="chip" [class.agent]="k.source === 'agent'" [class.ok]="k.source === 'builtin'"
+                        [title]="k.source === 'builtin' ? ('herramientas.skills.builtinHint' | translate) : k.source === 'github' ? originTitle(k) : ''">{{ sourceLabel(k) }}</span>
                   @if (newerVersion(k); as v) { <span class="chip ok">{{ 'herramientas.skills.newVersion' | translate:{ v } }}</span> }
+                  @if (k.updateAvailable) { <span class="chip ok">{{ 'herramientas.skills.github.updateAvailable' | translate }}</span> }
                   @if (k.hasScripts) { <span class="chip warn">{{ 'herramientas.skills.hasScripts' | translate }}</span> }
                   @if (k.invalid) { <span class="chip bad">{{ 'herramientas.skills.invalid' | translate }}: {{ k.invalid }}</span> }
                 </div>
               </td>
               <td class="author">{{ k.author || '—' }}</td>
-              <td class="ver">{{ k.version || '—' }}</td>
+              <td class="ver" [title]="k.source === 'github' ? originTitle(k) : ''">{{ versionText(k) }}</td>
               <td class="actions">
                 <button class="ibtn" (click)="previewInstalled(k)">{{ 'herramientas.skills.view' | translate }}</button>
+                @if (k.source === 'github') {
+                  <button class="ibtn" [class.ok]="k.updateAvailable" [disabled]="!!busy()" (click)="updateGitHub(k)" [title]="'herramientas.skills.github.updateHint' | translate">
+                    <app-icon name="refresh" /> {{ 'herramientas.skills.update' | translate }}
+                  </button>
+                }
                 @if (k.source !== 'builtin') {
                   <button class="ibtn danger" [disabled]="!!busy()" (click)="remove(k)"><app-icon name="trash" /> {{ 'herramientas.skills.delete' | translate }}</button>
                 }
@@ -147,6 +238,26 @@
       @if (p.action?.kind === 'pending') {
         <div class="scan warn">{{ 'herramientas.skills.pendingHint' | translate }}</div>
       }
+      @if (p.github; as g) {
+        <!-- Where it comes from, under what terms, and what it expects of the agent -->
+        <div class="gh-origin">
+          <div>{{ 'herramientas.skills.github.origin' | translate:{ repo: g.origin.repo, ref: g.origin.ref, commit: g.origin.commit.slice(0, 7), path: g.origin.path || '/' } }}</div>
+          <div class="chips">
+            @if (g.preview.license) {
+              <span class="chip ok">{{ 'herramientas.skills.github.license' | translate:{ license: g.preview.license } }}</span>
+            } @else if (repo()?.license; as l) {
+              <span class="chip ok">{{ 'herramientas.skills.github.license' | translate:{ license: l } }}</span>
+            } @else {
+              <span class="chip warn">{{ 'herramientas.skills.github.noLicense' | translate }}</span>
+            }
+            @if (g.installed === 'same') { <span class="installed-tag"><app-icon name="check" /> {{ 'herramientas.skills.installed' | translate }}</span> }
+            @if (g.preview.tools.length) { <span class="chip req">{{ 'herramientas.skills.uses' | translate }}: {{ g.preview.tools.join(', ') }}</span> }
+          </div>
+        </div>
+        @if (!g.preview.installable) { <div class="scan bad">{{ reasonText(g.preview.reason) }}</div> }
+        @if (g.installed === 'other') { <div class="scan warn">{{ 'herramientas.skills.github.nameTakenHint' | translate }}</div> }
+        @if (g.preview.needsTerminal) { <div class="scan warn">{{ 'herramientas.skills.github.needsTerminalHint' | translate }}</div> }
+      }
       @if (highFindings(p).length) {
         <div class="scan warn">
           <strong>{{ 'herramientas.skills.scanWarn' | translate }}</strong>
@@ -160,11 +271,18 @@
       @for (f of infoFindings(p); track f.code + f.file) {
         <p class="tool-hint">{{ findingText(f.code) }}: {{ f.detail }}</p>
       }
+      @if (p.github?.skipped?.length) {
+        <p class="tool-hint">
+          {{ 'herramientas.skills.github.skippedFiles' | translate }}
+          @for (f of p.github!.skipped; track f.path) { <code>{{ f.path }}</code> ({{ fileStatusText(f.status) }}){{ $last ? '' : ', ' }} }
+        </p>
+      }
       <div class="files">
         @for (f of d.files; track f.path) {
           <button class="file-tab" [class.on]="f.path === p.file" (click)="selectFile(f.path)">{{ f.path }}</button>
         }
       </div>
+      @if (currentIsCode(p)) { <p class="tool-hint code-hint">{{ 'herramientas.skills.github.codeHint' | translate }}</p> }
       <pre class="content">{{ currentContent(p) }}</pre>
     }
     <div class="drawer-foot">
@@ -173,6 +291,12 @@
         @if (act.kind === 'pending') {
           <button class="ibtn danger" [disabled]="!!busy()" (click)="decide(act.held, 'reject')">{{ 'chat.held.reject' | translate }}</button>
           <button class="ibtn ok" [disabled]="!!busy()" (click)="decide(act.held, 'approve')">{{ 'chat.held.approve' | translate }}</button>
+        } @else if (act.kind === 'github') {
+          @if (!p.loading && !p.error && p.github && p.github.preview.installable && p.github.installed !== 'same') {
+            <button class="ibtn primary" [disabled]="!!busy()" (click)="installChosen([act.path])">
+              <app-icon name="download" /> {{ (p.github.installed === 'other' ? 'herramientas.skills.github.replace' : 'herramientas.skills.install') | translate }}
+            </button>
+          }
         } @else if (!p.loading && !p.error) {
           <button class="ibtn primary" [disabled]="!!busy()" (click)="install(act.name)">
             {{ (act.kind === 'update' ? 'herramientas.skills.update' : 'herramientas.skills.install') | translate }}

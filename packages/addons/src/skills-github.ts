@@ -9,7 +9,9 @@
 // (raw.githubusercontent.com), with every address built from the parsed owner, repository,
 // ref and path: no address from the outside is ever fetched as it came. The public API allows
 // 60 requests an hour without a token; a preview spends three of them (the repository, the
-// commit, the tree) and the files come from the raw host, which does not count.
+// commit, the tree), the files come from the raw host, which does not count, and what the
+// API answered is remembered a while so reading and installing what was just previewed
+// spends none.
 import path from 'node:path';
 import {
   SKILL_FILE, SKILL_LIMITS, isValidSkillName, isAllowedSkillPath, isScriptPath, isCodePath,
@@ -167,36 +169,73 @@ export class GitHubError extends Error {
   }
 }
 
-interface RepoInfo { description: string; stars: number; license: string | null; defaultBranch: string }
+// ── A short memory of what the API answered ──
+// Without a token GitHub allows 60 API requests an hour from one address, and one skill
+// goes through the API several times on its way in: the preview, the full read behind
+// "View", the install (which reads the folder again at the previewed commit). What was
+// answered a moment ago is kept here, so those later steps spend nothing: a repository's
+// facts and where a ref points for a few minutes (the preview shows the commit it read),
+// a tree for longer, since a commit's tree never changes. The explicit update check asks
+// GitHub again (`latestCommitOf`), so "is there a newer version?" is never answered from here.
+const REMEMBER_REPO_MS = 10 * 60_000;
+const REMEMBER_TREE_MS = 30 * 60_000;
+const REMEMBER_MAX = 64;
+const remembered = new Map<string, { until: number; value: Promise<unknown> }>();
 
-async function repoInfo(fetchImpl: FetchLike, ref: GitHubRef): Promise<RepoInfo> {
-  const j = await apiJson(fetchImpl, `/repos/${enc(ref.owner)}/${enc(ref.repo)}`);
-  return {
-    description: typeof j?.description === 'string' ? j.description : '',
-    stars: Number.isFinite(j?.stargazers_count) ? Number(j.stargazers_count) : 0,
-    license: typeof j?.license?.spdx_id === 'string' && j.license.spdx_id !== 'NOASSERTION' ? j.license.spdx_id : null,
-    defaultBranch: typeof j?.default_branch === 'string' ? j.default_branch : 'main',
-  };
+async function remember<T>(key: string, ttlMs: number, load: () => Promise<T>): Promise<T> {
+  const hit = remembered.get(key);
+  if (hit && hit.until > Date.now()) return hit.value as Promise<T>;
+  const value = load();
+  remembered.set(key, { until: Date.now() + ttlMs, value });
+  // A failed request is not kept: the next try asks GitHub again.
+  value.catch(() => { if (remembered.get(key)?.value === value) remembered.delete(key); });
+  while (remembered.size > REMEMBER_MAX) remembered.delete(remembered.keys().next().value!);
+  return value;
 }
 
-/** The commit a branch, tag or commit id points at right now. */
-export async function headCommit(fetchImpl: FetchLike, ref: GitHubRef, refName: string): Promise<string> {
-  const j = await apiJson(fetchImpl, `/repos/${enc(ref.owner)}/${enc(ref.repo)}/commits/${enc(refName)}`);
-  const sha = typeof j?.sha === 'string' ? j.sha : '';
-  if (!/^[0-9a-f]{40}$/.test(sha)) throw new GitHubError('github_error', 'GitHub gave no commit for that ref.');
-  return sha;
+/** Drops everything remembered (tests, or a user who wants GitHub asked again right now). */
+export function forgetGitHubAnswers(): void {
+  remembered.clear();
+}
+
+interface RepoInfo { description: string; stars: number; license: string | null; defaultBranch: string }
+
+function repoInfo(fetchImpl: FetchLike, ref: GitHubRef): Promise<RepoInfo> {
+  return remember(`repo:${ref.owner}/${ref.repo}`, REMEMBER_REPO_MS, async () => {
+    const j = await apiJson(fetchImpl, `/repos/${enc(ref.owner)}/${enc(ref.repo)}`);
+    return {
+      description: typeof j?.description === 'string' ? j.description : '',
+      stars: Number.isFinite(j?.stargazers_count) ? Number(j.stargazers_count) : 0,
+      license: typeof j?.license?.spdx_id === 'string' && j.license.spdx_id !== 'NOASSERTION' ? j.license.spdx_id : null,
+      defaultBranch: typeof j?.default_branch === 'string' ? j.default_branch : 'main',
+    };
+  });
+}
+
+/** The commit a branch, tag or commit id points at right now (`fresh`: asked again, not remembered). */
+export function headCommit(fetchImpl: FetchLike, ref: GitHubRef, refName: string, fresh = false): Promise<string> {
+  const load = async () => {
+    const j = await apiJson(fetchImpl, `/repos/${enc(ref.owner)}/${enc(ref.repo)}/commits/${enc(refName)}`);
+    const sha = typeof j?.sha === 'string' ? j.sha : '';
+    if (!/^[0-9a-f]{40}$/.test(sha)) throw new GitHubError('github_error', 'GitHub gave no commit for that ref.');
+    return sha;
+  };
+  if (fresh) { remembered.delete(`head:${ref.owner}/${ref.repo}@${refName}`); return load(); }
+  return remember(`head:${ref.owner}/${ref.repo}@${refName}`, REMEMBER_REPO_MS, load);
 }
 
 interface TreeEntry { path: string; size: number }
 
-async function tree(fetchImpl: FetchLike, ref: GitHubRef, commit: string): Promise<{ files: TreeEntry[]; truncated: boolean }> {
-  const j = await apiJson(fetchImpl, `/repos/${enc(ref.owner)}/${enc(ref.repo)}/git/trees/${enc(commit)}?recursive=1`);
-  const files: TreeEntry[] = [];
-  for (const e of Array.isArray(j?.tree) ? j.tree : []) {
-    if (e?.type !== 'blob' || typeof e.path !== 'string') continue;
-    files.push({ path: e.path, size: Number.isFinite(e.size) ? Number(e.size) : 0 });
-  }
-  return { files, truncated: j?.truncated === true };
+function tree(fetchImpl: FetchLike, ref: GitHubRef, commit: string): Promise<{ files: TreeEntry[]; truncated: boolean }> {
+  return remember(`tree:${ref.owner}/${ref.repo}@${commit}`, REMEMBER_TREE_MS, async () => {
+    const j = await apiJson(fetchImpl, `/repos/${enc(ref.owner)}/${enc(ref.repo)}/git/trees/${enc(commit)}?recursive=1`);
+    const files: TreeEntry[] = [];
+    for (const e of Array.isArray(j?.tree) ? j.tree : []) {
+      if (e?.type !== 'blob' || typeof e.path !== 'string') continue;
+      files.push({ path: e.path, size: Number.isFinite(e.size) ? Number(e.size) : 0 });
+    }
+    return { files, truncated: j?.truncated === true };
+  });
 }
 
 // ── What a folder holds ────────────────────────────────────────────────────────
@@ -350,7 +389,7 @@ export async function readGitHubSkill(input: string, opts: { fetch?: FetchLike; 
 /** The commit an installed skill's ref points at now (to tell whether its folder moved on). */
 export async function latestCommitOf(origin: GitHubOrigin, fetchImpl: FetchLike = fetch): Promise<string> {
   const [owner, repo] = origin.repo.split('/');
-  return headCommit(fetchImpl, { owner, repo, ref: origin.ref, path: origin.path }, origin.ref);
+  return headCommit(fetchImpl, { owner, repo, ref: origin.ref, path: origin.path }, origin.ref, true);
 }
 
 /** The address of a skill folder, for a later read or update from its origin. */

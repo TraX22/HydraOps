@@ -286,13 +286,66 @@ export interface InstalledSkill {
   author: string;
   version: string;
   tools: string[];
-  source: 'catalog' | 'agent' | 'manual' | 'builtin';
+  source: 'catalog' | 'github' | 'agent' | 'manual' | 'builtin';
+  /** github: where it came from, so it can be updated. */
+  origin?: { repo: string; ref: string; commit: string; path: string };
+  /** github: the folder in the repository moved on since the install (asked when the view opens). */
+  updateAvailable?: boolean;
   agentId?: string;
   installedAt?: string;
   files: string[];
   hasScripts: boolean;
   invalid?: string;
 }
+
+// ── Skills from GitHub (any public repository in the Agent Skills format) ──
+export interface GitHubSkillFile { path: string; size: number; status: 'text' | 'code' | 'script' | 'too-large' | 'not-allowed' }
+
+export interface GitHubSkillPreview {
+  name: string;
+  description: string;
+  author: string;
+  version: string;
+  tools: string[];
+  /** The folder in the repository ('' = root). */
+  path: string;
+  folder: string;
+  license: string;
+  needsTerminal: boolean;
+  files: GitHubSkillFile[];
+  totalBytes: number;
+  installable: boolean;
+  reason?: string;
+  unread?: boolean;
+  /** Already installed under this name: from this same origin, or from elsewhere. */
+  installed?: 'same' | 'other';
+}
+
+export interface GitHubRepoPreview {
+  owner: string;
+  repo: string;
+  ref: string;
+  commit: string;
+  description: string;
+  stars: number;
+  license: string | null;
+  path: string;
+  skills: GitHubSkillPreview[];
+  skipped: number;
+  truncated: boolean;
+}
+
+export interface GitHubSkillDetail {
+  preview: GitHubSkillPreview;
+  text: string;
+  files: { path: string; content: string }[];
+  skipped: GitHubSkillFile[];
+  origin: { repo: string; ref: string; commit: string; path: string };
+  findings: SkillFinding[];
+  installed?: 'same' | 'other';
+}
+
+export interface GitHubInstallResult { results: { name: string; path?: string; ok: boolean; error?: string }[]; installed: number }
 
 export interface CatalogSkill {
   name: string;
@@ -912,6 +965,27 @@ export class ApiService {
 
   deleteSkill(name: string): Observable<{ success: boolean }> {
     return this.http.delete<{ success: boolean }>(`${this.base}/skills/installed/${encodeURIComponent(name)}`);
+  }
+
+  // ── Skills from GitHub ──
+  /** Every skill folder under an address: a repository, one of its folders, or a SKILL.md. */
+  previewGitHubSkills(url: string): Observable<GitHubRepoPreview> {
+    return this.http.get<GitHubRepoPreview>(`${this.base}/skills/github/preview`, { params: { url } });
+  }
+
+  /** One skill folder in full (its files as text, the safety scan), at the previewed commit. */
+  getGitHubSkill(url: string, commit?: string): Observable<GitHubSkillDetail> {
+    return this.http.get<GitHubSkillDetail>(`${this.base}/skills/github/skill`, { params: commit ? { url, commit } : { url } });
+  }
+
+  /** Installs the chosen folders (`paths`) of the repository at `url`, or the one skill the address names. */
+  installGitHubSkills(url: string, opts: { paths?: string[]; commit?: string; replace?: boolean } = {}): Observable<GitHubInstallResult> {
+    return this.http.post<GitHubInstallResult>(`${this.base}/skills/github/install`, { url, ...opts });
+  }
+
+  /** Reads the skill's origin folder again and replaces the installed copy when the repository moved on. */
+  updateGitHubSkill(name: string): Observable<{ updated: boolean; commit: string; findings?: SkillFinding[] }> {
+    return this.http.post<{ updated: boolean; commit: string; findings?: SkillFinding[] }>(`${this.base}/skills/github/update`, { name });
   }
 
   // ── User ──
