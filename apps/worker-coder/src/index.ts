@@ -390,6 +390,7 @@ for await (const m of sub) {
       if (decided.length) userPrompt = continuationPrompt(String(originalRows[0]?.prompt ?? ""), decided);
       const carried = await carriedSkillsPrompt((originalRows[0]?.resultMeta as any)?.skillsUsed).catch(() => ({ text: "", names: [] as string[] }));
       if (carried.text) { userPrompt += `\n\n${carried.text}`; carriedSkills = carried.names; }
+      if (carriedSkills.length) console.log(`[worker-coder] continuation of ${continuationOf} carries the skills it had open: ${carriedSkills.join(", ")}`);
     }
     
     // If no prompt from any source, something went wrong

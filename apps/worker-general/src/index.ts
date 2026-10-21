@@ -338,6 +338,7 @@ for await (const m of sub) {
       if (decided.length) userPrompt = continuationPrompt(String(originalRows[0]?.prompt ?? ""), decided);
       const carried = await carriedSkillsPrompt((originalRows[0]?.resultMeta as any)?.skillsUsed).catch(() => ({ text: "", names: [] as string[] }));
       if (carried.text) { userPrompt += `\n\n${carried.text}`; carriedSkills = carried.names; }
+      if (carriedSkills.length) console.log(`[${consumerName}] continuation of ${continuationOf} carries the skills it had open: ${carriedSkills.join(", ")}`);
     }
     if (!userPrompt) {
       console.warn(`[${consumerName}] No prompt for task ${taskId}. Skipping.`);
