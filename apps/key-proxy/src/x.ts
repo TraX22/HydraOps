@@ -326,6 +326,16 @@ function sendJson(res: import("node:http").ServerResponse, status: number, body:
   res.writeHead(status, { "content-type": "application/json" });
   res.end(JSON.stringify(body));
 }
+/**
+ * The control endpoints change credentials, so a request must be the API's own, not a browser's:
+ * a page from another site can reach 127.0.0.1 with a bare fetch, but it cannot send JSON
+ * without a preflight (which nothing here answers) and it always carries an Origin header.
+ */
+function fromApi(req: import("node:http").IncomingMessage): boolean {
+  if (req.headers.origin !== undefined || req.headers["sec-fetch-site"] !== undefined) return false;
+  if (req.method !== "GET" && !String(req.headers["content-type"] || "").toLowerCase().startsWith("application/json")) return false;
+  return true;
+}
 async function readBody(req: import("node:http").IncomingMessage): Promise<any> {
   const chunks: Buffer[] = [];
   for await (const c of req) { chunks.push(c as Buffer); if (chunks.reduce((n, b) => n + b.length, 0) > 64 * 1024) throw new XError("body_too_large", "Request too large.", 413); }
@@ -337,6 +347,7 @@ async function readBody(req: import("node:http").IncomingMessage): Promise<any> 
 /** The control endpoints under /x/… (the API relays them; nothing here is reachable from the network). */
 export async function handleControl(req: import("node:http").IncomingMessage, res: import("node:http").ServerResponse, path: string): Promise<boolean> {
   try {
+    if (!fromApi(req)) { sendJson(res, 403, { error: { code: "not_from_api", message: "The X control endpoints take JSON requests from the API only." } }); return true; }
     if (path === "/status" && req.method === "GET") { sendJson(res, 200, await status()); return true; }
     if (path === "/app" && req.method === "POST") { const b = await readBody(req); await setApp(b.clientId, b.clientSecret); sendJson(res, 200, { ok: true }); return true; }
     if (path === "/connect" && req.method === "POST") { sendJson(res, 200, await startConnect()); return true; }

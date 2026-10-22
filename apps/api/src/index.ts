@@ -2778,9 +2778,23 @@ const X_CONFIG_KEY = "x_config";
 interface XConfig { enabled: boolean; accounts: Record<string, { agents: string[] }> }
 async function readXConfig(): Promise<XConfig> {
   const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, X_CONFIG_KEY)).limit(1);
+  // On by default: nothing can post until an account is connected AND given agents, so the
+  // switch is a pause, not a gate. Anything odd in the saved value is logged and ignored.
   const base: XConfig = { enabled: true, accounts: {} };
   if (!rows[0]) return base;
-  try { const saved = JSON.parse(rows[0].value); return { ...base, ...saved, accounts: saved?.accounts && typeof saved.accounts === "object" ? saved.accounts : {} }; } catch { return base; }
+  try {
+    const saved = JSON.parse(rows[0].value);
+    const accounts: XConfig["accounts"] = {};
+    if (saved?.accounts && typeof saved.accounts === "object") {
+      for (const [id, v] of Object.entries<any>(saved.accounts)) {
+        if (/^[0-9]{1,30}$/.test(id) && Array.isArray(v?.agents)) accounts[id] = { agents: v.agents.filter((a: unknown) => typeof a === "string") };
+      }
+    }
+    return { enabled: typeof saved?.enabled === "boolean" ? saved.enabled : true, accounts };
+  } catch (e: any) {
+    console.warn(`[api] x: the saved X settings could not be read (${e?.message ?? e}); using the defaults`);
+    return base;
+  }
 }
 async function writeXConfig(cfg: XConfig): Promise<void> {
   const value = JSON.stringify(cfg);
@@ -2790,12 +2804,30 @@ async function writeXConfig(cfg: XConfig): Promise<void> {
     .run();
 }
 
+/**
+ * Loopback requests pay no token (see the auth middleware), so a page from another site open in
+ * the user's browser could otherwise drive these routes with its own fetch. The browser says
+ * where a request comes from: a cross-site one is refused, and so is one with an Origin that is
+ * not this server's (the UI is served from here, and the desktop loads this same address).
+ */
+function sameSiteOnly(req: express.Request, res: express.Response): boolean {
+  const site = String(req.headers["sec-fetch-site"] || "").toLowerCase();
+  if (site === "cross-site") { res.status(403).json({ error: "cross_site", message: "This request did not come from HydraOps itself." }); return false; }
+  const origin = String(req.headers.origin || "");
+  if (origin) {
+    let host = "";
+    try { host = new URL(origin).host; } catch { /* not an origin */ }
+    if (!host || host !== String(req.headers.host || "")) { res.status(403).json({ error: "cross_site", message: "This request did not come from HydraOps itself." }); return false; }
+  }
+  return true;
+}
+
 async function xProxy(method: "GET" | "POST", p: string, body?: unknown): Promise<any> {
   const base = (process.env.KEY_PROXY_URL || "http://127.0.0.1:9099").replace(/\/$/, "");
   const r = await fetch(`${base}/x${p}`, {
     method,
-    headers: body !== undefined ? { "content-type": "application/json" } : undefined,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    headers: method === "POST" ? { "content-type": "application/json" } : undefined,
+    body: method === "POST" ? JSON.stringify(body ?? {}) : undefined,
     signal: AbortSignal.timeout(30_000),
   });
   const out: any = await r.json().catch(() => ({}));
@@ -2819,6 +2851,7 @@ api.get("/system/integrations/x", async (_req, res) => {
 
 // Settings kept here: the switch, and the agents allowed per account.
 api.post("/system/integrations/x", async (req, res) => {
+  if (!sameSiteOnly(req, res)) return;
   try {
     const cfg = await readXConfig();
     const b = req.body ?? {};
@@ -2837,6 +2870,7 @@ api.post("/system/integrations/x", async (req, res) => {
 
 // The X app's client id and secret: straight to the key-proxy, never stored or logged here.
 api.post("/system/integrations/x/app", async (req, res) => {
+  if (!sameSiteOnly(req, res)) return;
   try {
     await xProxy("POST", "/app", { clientId: String(req.body?.clientId ?? ""), clientSecret: String(req.body?.clientSecret ?? "") });
     res.json(await xIntegrationStatus());
@@ -2844,7 +2878,8 @@ api.post("/system/integrations/x/app", async (req, res) => {
 });
 
 // Connecting one more account: the link the user opens in a browser, signed in to X as that account.
-api.post("/system/integrations/x/connect", async (_req, res) => {
+api.post("/system/integrations/x/connect", async (req, res) => {
+  if (!sameSiteOnly(req, res)) return;
   try {
     const out = await xProxy("POST", "/connect");
     // The callback page forwards to 127.0.0.1:3000 on the browser's machine; in server mode the
@@ -2857,6 +2892,7 @@ api.post("/system/integrations/x/connect", async (_req, res) => {
 
 for (const action of ["cancel", "disconnect"] as const) {
   api.post(`/system/integrations/x/${action}`, async (req, res) => {
+    if (!sameSiteOnly(req, res)) return;
     try {
       await xProxy("POST", `/${action}`, action === "disconnect" ? { id: String(req.body?.id ?? "") } : undefined);
       if (action === "disconnect") {
@@ -2873,6 +2909,8 @@ for (const action of ["cancel", "disconnect"] as const) {
 function xCallbackParams(raw: string): { code: string; state: string } | null {
   try {
     const u = new URL(String(raw || "").trim());
+    // Only a callback address: X's registered page, or this server's own route.
+    if (!/\/x\/callback\/?$/.test(u.pathname) && !/\/api\/integrations\/x\/callback\/?$/.test(u.pathname)) return null;
     const code = u.searchParams.get("code") || "";
     const state = u.searchParams.get("state") || "";
     return code && state ? { code, state } : null;
@@ -2882,6 +2920,7 @@ function xCallbackParams(raw: string): { code: string; state: string } | null {
 // The manual road: the user pastes the address X sent the browser to (when that browser was
 // not on this computer, so the callback page could not reach 127.0.0.1:3000).
 api.post("/system/integrations/x/finish", async (req, res) => {
+  if (!sameSiteOnly(req, res)) return;
   try {
     const params = xCallbackParams(String(req.body?.url ?? ""));
     if (!params) return res.status(400).json({ error: "bad_callback_url", message: "That address has no code and state from X. Paste the whole address the browser landed on." });

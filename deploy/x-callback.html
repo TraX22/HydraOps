@@ -16,6 +16,12 @@
   to nobody: the code it carries is useless without the PKCE verifier that HydraOps kept.
   When that HydraOps is not on this machine (it runs on a server), the address is shown
   for the user to copy and paste into Tools -> X.
+
+  What passes through here is the one-time code X issued and the random state, in the
+  query string (X puts them there; a fragment is not an option). The code is spent in
+  seconds, works only once, and only together with the PKCE verifier kept by the HydraOps
+  that started the sign-in; still, the host serving this page should not keep access logs
+  of its query strings. The local port is HydraOps' API port, 3000 in every installation.
 -->
 <style>
   body { font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: #1f2937; background: #f6f7f9; margin: 0; }
