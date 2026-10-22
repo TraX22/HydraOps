@@ -2768,6 +2768,206 @@ api.post("/system/integrations/telegram", async (req, res) => {
   }
 });
 
+// ── X: the user's X accounts (Herramientas → X) ──
+// The app's credentials and every account's tokens live in the key-proxy (apps/key-proxy/src/x.ts);
+// the API only relays, so no credential passes through here. What the API keeps is the part
+// that is not a secret: whether the integration is on, and which agents may publish with
+// which account (checked by the publishing tool, on the server side, never by the model).
+const X_CONFIG_KEY = "x_config";
+
+interface XConfig { enabled: boolean; accounts: Record<string, { agents: string[] }> }
+async function readXConfig(): Promise<XConfig> {
+  const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, X_CONFIG_KEY)).limit(1);
+  // On by default: nothing can post until an account is connected AND given agents, so the
+  // switch is a pause, not a gate. Anything odd in the saved value is logged and ignored.
+  const base: XConfig = { enabled: true, accounts: {} };
+  if (!rows[0]) return base;
+  try {
+    const saved = JSON.parse(rows[0].value);
+    const accounts: XConfig["accounts"] = {};
+    if (saved?.accounts && typeof saved.accounts === "object") {
+      for (const [id, v] of Object.entries<any>(saved.accounts)) {
+        if (/^[0-9]{1,30}$/.test(id) && Array.isArray(v?.agents)) accounts[id] = { agents: v.agents.filter((a: unknown) => typeof a === "string") };
+      }
+    }
+    return { enabled: typeof saved?.enabled === "boolean" ? saved.enabled : true, accounts };
+  } catch (e: any) {
+    console.warn(`[api] x: the saved X settings could not be read (${e?.message ?? e}); using the defaults`);
+    return base;
+  }
+}
+async function writeXConfig(cfg: XConfig): Promise<void> {
+  const value = JSON.stringify(cfg);
+  await (db as any).insert(systemConfigs)
+    .values({ key: X_CONFIG_KEY, value, updatedAt: new Date() })
+    .onConflictDoUpdate({ target: systemConfigs.key, set: { value, updatedAt: new Date() } })
+    .run();
+}
+
+/**
+ * Loopback requests pay no token (see the auth middleware), so a page from another site open in
+ * the user's browser could otherwise drive these routes with its own fetch. The browser says
+ * where a request comes from: a cross-site one is refused, and so is one with an Origin that is
+ * not this server's (the UI is served from here, and the desktop loads this same address).
+ */
+function sameSiteOnly(req: express.Request, res: express.Response): boolean {
+  const deny = () => { res.status(403).json({ error: "cross_site", message: "This request did not come from HydraOps itself." }); return false; };
+  const site = String(req.headers["sec-fetch-site"] || "").toLowerCase();
+  if (site === "cross-site") return deny();
+  // The Host the browser asked for must be one this server is reached by: a loopback name, an
+  // address literal (a DNS name pointed at 127.0.0.1 by an attacker, "rebinding", is neither),
+  // or the public name the operator set. Then the Origin, when sent, must be that same host.
+  const host = String(req.headers.host || "").toLowerCase();
+  if (!isServedHost(host)) return deny();
+  const origin = String(req.headers.origin || "");
+  if (origin) {
+    let originHost = "";
+    try { originHost = new URL(origin).host.toLowerCase(); } catch { /* not an origin */ }
+    if (!originHost || originHost !== host) return deny();
+  }
+  return true;
+}
+/** `host:port` as the browser sent it: loopback, an IP literal, or HYDRA_PUBLIC_HOST. */
+function isServedHost(host: string): boolean {
+  const name = host.replace(/:\d+$/, "").replace(/^\[(.*)\]$/, "$1");
+  if (!name) return false;
+  if (name === "localhost" || name === "::1" || /^127\.\d+\.\d+\.\d+$/.test(name)) return true;
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(name) || /^[0-9a-f:]+$/i.test(name)) return true;
+  const pub = String(process.env.HYDRA_PUBLIC_HOST || "").trim().toLowerCase().replace(/:\d+$/, "");
+  return !!pub && name === pub;
+}
+
+async function xProxy(method: "GET" | "POST", p: string, body?: unknown): Promise<any> {
+  const base = (process.env.KEY_PROXY_URL || "http://127.0.0.1:9099").replace(/\/$/, "");
+  const r = await fetch(`${base}/x${p}`, {
+    method,
+    headers: method === "POST" ? { "content-type": "application/json" } : undefined,
+    body: method === "POST" ? JSON.stringify(body ?? {}) : undefined,
+    signal: AbortSignal.timeout(30_000),
+  });
+  const out: any = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(out?.error?.message || out?.error || `key-proxy answered ${r.status}`), { status: r.status, code: out?.error?.code });
+  return out;
+}
+function xFailure(res: express.Response, e: any): void {
+  res.status(e?.status && e.status !== 404 ? e.status : e?.status === 404 ? 404 : 503).json({ error: e?.code || "x_failed", message: e?.message || "The request to X failed." });
+}
+
+/** The status the card shows: the key-proxy's view of the accounts plus this side's settings. */
+async function xIntegrationStatus(): Promise<any> {
+  const [st, cfg] = await Promise.all([xProxy("GET", "/status"), readXConfig()]);
+  const accounts = (st.accounts ?? []).map((a: any) => ({ ...a, agents: cfg.accounts[a.id]?.agents ?? [] }));
+  return { ...st, enabled: cfg.enabled, accounts };
+}
+
+api.get("/system/integrations/x", async (_req, res) => {
+  try { res.json(await xIntegrationStatus()); } catch (e: any) { xFailure(res, e); }
+});
+
+// Settings kept here: the switch, and the agents allowed per account.
+api.post("/system/integrations/x", async (req, res) => {
+  if (!sameSiteOnly(req, res)) return;
+  try {
+    const cfg = await readXConfig();
+    const b = req.body ?? {};
+    if (typeof b.enabled === "boolean") cfg.enabled = b.enabled;
+    if (Array.isArray(b.accounts)) {
+      for (const a of b.accounts) {
+        if (!a || typeof a.id !== "string" || !/^[0-9]{1,30}$/.test(a.id)) continue;
+        const agents: string[] = Array.isArray(a.agents) ? [...new Set<string>(a.agents.map((x: unknown) => String(x).trim().toLowerCase()).filter((x: string) => /^[a-z0-9_-]{1,64}$/.test(x)))] : [];
+        cfg.accounts[a.id] = { agents };
+      }
+    }
+    await writeXConfig(cfg);
+    res.json(await xIntegrationStatus());
+  } catch (e: any) { xFailure(res, e); }
+});
+
+// The X app's client id and secret: straight to the key-proxy, never stored or logged here.
+api.post("/system/integrations/x/app", async (req, res) => {
+  if (!sameSiteOnly(req, res)) return;
+  try {
+    await xProxy("POST", "/app", { clientId: String(req.body?.clientId ?? ""), clientSecret: String(req.body?.clientSecret ?? "") });
+    res.json(await xIntegrationStatus());
+  } catch (e: any) { xFailure(res, e); }
+});
+
+// Connecting one more account: the link the user opens in a browser, signed in to X as that account.
+api.post("/system/integrations/x/connect", async (req, res) => {
+  if (!sameSiteOnly(req, res)) return;
+  try {
+    const out = await xProxy("POST", "/connect");
+    // The callback page forwards to 127.0.0.1:3000 on the browser's machine; in server mode the
+    // user may have to paste the address X sent them to (POST .../finish), so the link also goes
+    // to the console.
+    if (out?.url) console.log(`[api] x: account sign-in requested; open this link in a browser, signed in to X as the account to connect:\n[api]   ${out.url}`);
+    res.json(out);
+  } catch (e: any) { xFailure(res, e); }
+});
+
+for (const action of ["cancel", "disconnect"] as const) {
+  api.post(`/system/integrations/x/${action}`, async (req, res) => {
+    if (!sameSiteOnly(req, res)) return;
+    try {
+      await xProxy("POST", `/${action}`, action === "disconnect" ? { id: String(req.body?.id ?? "") } : undefined);
+      if (action === "disconnect") {
+        const cfg = await readXConfig();
+        delete cfg.accounts[String(req.body?.id ?? "")];
+        await writeXConfig(cfg);
+      }
+      res.json(await xIntegrationStatus());
+    } catch (e: any) { xFailure(res, e); }
+  });
+}
+
+/** The code and state X put in the callback address, from the address itself or from its query. */
+function xCallbackParams(raw: string): { code: string; state: string } | null {
+  try {
+    const u = new URL(String(raw || "").trim());
+    // Only a callback address: X's registered page, or this server's own route.
+    if (!/\/x\/callback\/?$/.test(u.pathname) && !/\/api\/integrations\/x\/callback\/?$/.test(u.pathname)) return null;
+    const code = u.searchParams.get("code") || "";
+    const state = u.searchParams.get("state") || "";
+    return code && state ? { code, state } : null;
+  } catch { return null; }
+}
+
+// The manual road: the user pastes the address X sent the browser to (when that browser was
+// not on this computer, so the callback page could not reach 127.0.0.1:3000).
+api.post("/system/integrations/x/finish", async (req, res) => {
+  if (!sameSiteOnly(req, res)) return;
+  try {
+    const params = xCallbackParams(String(req.body?.url ?? ""));
+    if (!params) return res.status(400).json({ error: "bad_callback_url", message: "That address has no code and state from X. Paste the whole address the browser landed on." });
+    const out = await xProxy("POST", "/finish", params);
+    res.json({ ...(await xIntegrationStatus()), connected: out.account });
+  } catch (e: any) { xFailure(res, e); }
+});
+
+// The automatic road: X's callback page (https://hydraops.org/x/callback) forwards the browser
+// here with the code and state. Loopback only in practice: the page sends the browser to
+// 127.0.0.1, which is this computer's HydraOps and nobody else's.
+api.get("/integrations/x/callback", async (req, res) => {
+  // Everything that reaches the page from outside (X's error text, a failure's message) is escaped: this is HTML.
+  const esc = (v: unknown) => String(v ?? "").slice(0, 200).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+  const page = (text: string) => `<!doctype html><html lang="es"><meta charset="utf-8"><title>HydraOps</title><style>body{font:17px system-ui,sans-serif;max-width:32rem;margin:18vh auto;padding:24px;color:#1a1a2e}h1{font-size:24px}p{color:#4b5563}</style><h1>HydraOps</h1><p>${text}</p></html>`;
+  res.setHeader("cache-control", "no-store");
+  res.setHeader("referrer-policy", "no-referrer");
+  res.setHeader("content-security-policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'none'; frame-ancestors 'none'");
+  try {
+    if (typeof req.query.error === "string") {
+      return res.status(200).type("html").send(page(`X no autorizó la cuenta (${esc(req.query.error_description || req.query.error)}). Volvé a HydraOps e intentá de nuevo. · X declined; go back to HydraOps and try again.`));
+    }
+    const code = typeof req.query.code === "string" ? req.query.code : "";
+    const state = typeof req.query.state === "string" ? req.query.state : "";
+    const out = await xProxy("POST", "/finish", { code, state });
+    const who = out?.account?.username ? `@${esc(String(out.account.username).replace(/[^A-Za-z0-9_]/g, ""))}` : "la cuenta";
+    res.status(200).type("html").send(page(`Listo: ${who} quedó conectada. Podés cerrar esta pestaña y volver a HydraOps. · Connected; you can close this tab.`));
+  } catch (e: any) {
+    res.status(200).type("html").send(page(`No se pudo conectar: ${esc(e?.message || "error")}. Volvé a HydraOps y empezá de nuevo. · Not connected; go back to HydraOps and start again.`));
+  }
+});
+
 // Push a plain-text message to every paired Telegram chat. Backs the
 // send_to_telegram tool so an agent can deliver content to the user's Telegram
 // ON DEMAND (distinct from the telegram-bot's automatic cron push). The bot

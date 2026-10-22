@@ -2,7 +2,7 @@
 
 La sección **Herramientas** de la barra lateral conecta HydraOps con servicios externos. No confundir con los [Add-ons](./08-addons.md): un add-on es una herramienta que *usan los agentes* (buscar en la web, leer una página); una herramienta de esta sección es un **conector** que te deja *operar HydraOps desde fuera*.
 
-Hoy están **Telegram** (hablar con tus agentes desde el móvil), **GitHub**, las **[Skills](#skills-habilidades-para-los-agentes)** (las habilidades que los agentes leen cuando una tarea las necesita) y las **[Conexiones](#conexiones-servidores-mcp-listos-para-usar)** (aplicaciones y servicios que los agentes pueden manejar). Discord, Signal y Reddit aparecen como "próximamente".
+Hoy están **Telegram** (hablar con tus agentes desde el móvil), **GitHub**, las **[Skills](#skills-habilidades-para-los-agentes)** (las habilidades que los agentes leen cuando una tarea las necesita) y las **[Conexiones](#conexiones-servidores-mcp-listos-para-usar)** (aplicaciones y servicios que los agentes pueden manejar) y **[X](#x-tus-cuentas-publicadas-con-tu-aprobación)** (tus cuentas de X). Discord, Signal y Reddit aparecen como "próximamente".
 
 ## Telegram: manejar los agentes desde el móvil
 
@@ -127,6 +127,30 @@ Para que no haga falta esa ronda de carga en los casos obvios, salen cargadas de
 Una herramienta cargada queda cargada por el resto de la tarea, la llame o no: la lista de herramientas es lo primero que va en cada petición, y cualquier cambio en ella hace que el proveedor vuelva a leer toda la conversación a precio completo en vez de desde su caché, que cuesta mucho más que unas definiciones ociosas. La ronda de `load_tools` no cuenta para el límite de pasos del agente. Las aprobaciones, la defensa contra inyección y el baúl de resultados funcionan igual: solo cambia lo que el modelo ve antes de elegir. Qué cargó cada tarea queda en sus datos (`toolsOnDemand`).
 
 Se desactiva en **Configuración → Herramientas bajo demanda** (o con `TOOLS_ON_DEMAND=off`). Con 12 herramientas o menos no cambia nada.
+
+## X: tus cuentas, publicadas con tu aprobación
+
+HydraOps se conecta a **tu propia app de desarrollador en X**, y a través de ella a todas las cuentas de X que quieras: la de un proyecto, la de una marca, una personal. Los agentes van a publicar en ellas, cada publicación esperando tu aprobación (la herramienta de publicar llega en la próxima versión; esta tarjeta es donde se conectan las cuentas y donde decidís quién puede usar cuál).
+
+### 1. Creá la app en el portal de X
+
+La API de X es de pago por uso: no hay plan gratuito para desarrolladores nuevos, cargás créditos en el portal y cada operación descuenta un poco (unos 0,015 USD por publicación, 0,20 USD si la publicación lleva un enlace, 0,005 USD por publicación leída, al momento de escribir esto). Una sola cuenta de desarrollador y un solo saldo sirven para todas las cuentas que conectes.
+
+1. Inscribite en [developer.x.com](https://developer.x.com/) con la cuenta de X que va a ser dueña de la app, creá un proyecto y una app, y cargá créditos.
+2. En **User authentication settings** de la app elegí **Lectura y escritura**, el tipo **Web App, Automated App or Bot**, y registrá esta **Callback URI**: `https://hydraops.org/x/callback`. X solo acepta direcciones https ahí; esa página (su fuente está en `deploy/x-callback.html` del repositorio, así que podés alojar tu propia copia) no guarda nada y solo reenvía el navegador al HydraOps de tu computadora.
+3. Copiá el **Client ID** y el **Client Secret** (se muestra una sola vez) en **Herramientas → X** y tocá **Guardar**. Van al almacén de claves, nunca a la base de datos ni al repositorio.
+
+### 2. Conectá cada cuenta
+
+Tocá **Conectar una cuenta**: HydraOps muestra un enlace. Abrilo en un navegador **de esta computadora**, con la sesión de X de la cuenta que querés conectar (si el navegador tiene otra abierta, cambiá de cuenta en X antes), aceptá los cuatro permisos (leer tu perfil, publicar, subir imágenes, mantener la sesión) y volvé: la cuenta aparece en la lista en segundos, con sus tokens en el almacén de claves, renovados solos.
+
+Cuando HydraOps corre en un servidor y tu navegador está en otra máquina, la vuelta no llega: la página a la que te manda X muestra la dirección para copiar, y la tarjeta tiene un campo para pegarla. Mismo resultado.
+
+Una cuenta se puede conectar de nuevo cuando quieras (se reemplazan sus tokens), y **Desconectar** la olvida.
+
+### 3. Quién publica dónde
+
+Cada cuenta conectada lista los agentes que pueden publicar en ella, y una cuenta nueva arranca con **nadie**: la herramienta de publicar rechaza, del lado del servidor, cualquier cuenta que el agente no tenga asignada acá, así que una publicación no puede caer en la marca equivocada por un error del modelo. Agregá agentes con el selector de la fila de la cuenta; el interruptor ON/OFF de arriba pausa todas las cuentas a la vez.
 
 ## Conexiones: servidores MCP listos para usar
 
