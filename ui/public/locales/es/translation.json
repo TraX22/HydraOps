@@ -204,7 +204,19 @@
         "expired": "vencida"
       },
       "continuing": "El agente continúa después de tu decisión",
-      "continuingDetail": "qué se decidió"
+      "continuingDetail": "qué se decidió",
+      "x": {
+        "title": "Publicar en X",
+        "account": "Cuenta",
+        "unknownAccount": "no está conectada o no está habilitada para este agente: la publicación se va a rechazar",
+        "parts": "{{n}} partes, un hilo",
+        "part": "Publicación",
+        "chars": "{{n}}/280 caracteres",
+        "tooLong": "pasa el límite: X la va a rechazar",
+        "images": "Imágenes",
+        "cost": "Unos {{usd}} USD, que X cobra de tu cuenta de desarrollador",
+        "linkNote": "una publicación con enlace cuesta más"
+      }
     },
     "linkUnverified": "⚠ No verificado: el agente no abrió ni vio esta dirección en esta conversación. Puede existir, pero salió de su memoria, no de una consulta.",
     "progress": {

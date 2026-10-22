@@ -305,6 +305,69 @@ export async function accessToken(id: string): Promise<string> {
   return job;
 }
 
+// ─── Publishing ─────────────────────────────────────────────────────────────
+
+export interface XPostPart { text: string; media?: string[] }
+export interface XPostResult { username: string; posts: { id: string; url: string }[]; url: string }
+
+const MEDIA_MAX_BYTES = 5 * 1024 * 1024;
+const MEDIA_TYPES: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp" };
+
+/** One image, uploaded for the account; X answers with the media id to attach. */
+async function uploadMedia(token: string, filePath: string): Promise<string> {
+  const ext = path.extname(filePath).toLowerCase();
+  const type = MEDIA_TYPES[ext];
+  if (!type) throw new XError("media_type", `"${path.basename(filePath)}" is not an image X takes (png, jpg, gif, webp).`);
+  const bytes = await readFile(filePath);
+  if (bytes.length > MEDIA_MAX_BYTES) throw new XError("media_too_large", `"${path.basename(filePath)}" is larger than 5 MB.`);
+  const form = new FormData();
+  form.append("media", new Blob([bytes], { type }), path.basename(filePath));
+  form.append("media_category", ext === ".gif" ? "tweet_gif" : "tweet_image");
+  form.append("media_type", type);
+  const { ok, status, body } = await fetchJson(`${apiBase()}/2/media/upload`, { method: "POST", headers: { authorization: `Bearer ${token}` }, body: form }, 120_000);
+  const id = body?.data?.id ?? body?.media_id_string ?? body?.id;
+  if (!ok || typeof id !== "string") throw new XError(errorCode(body) || `http_${status}`, errorMessage(body, `X did not take the image "${path.basename(filePath)}" (${status}).`), status);
+  return id;
+}
+
+/**
+ * Publishes one post or a thread (each part a reply to the one before) as one account.
+ * The caller (the API) has already checked that the agent may use the account and that
+ * the media paths are the user's own attachments; here the tokens are spent, nothing else.
+ */
+export async function postThread(accountId: string, parts: XPostPart[]): Promise<XPostResult> {
+  if (!Array.isArray(parts) || !parts.length || parts.length > 25) throw new XError("bad_parts", "A post has 1 to 25 parts.");
+  for (const p of parts) {
+    if (typeof p?.text !== "string" || !p.text.trim()) throw new XError("empty_part", "Every part needs text.");
+    if (Array.isArray(p.media) && p.media.length > 4) throw new XError("too_many_media", "A part takes up to 4 images.");
+  }
+  const token = await accessToken(accountId);
+  const account = (await load()).accounts.find((a) => a.id === accountId)!;
+  const posts: { id: string; url: string }[] = [];
+  let previous: string | undefined;
+  for (const part of parts) {
+    const mediaIds: string[] = [];
+    for (const file of part.media ?? []) mediaIds.push(await uploadMedia(token, file));
+    const payload: any = { text: part.text };
+    if (mediaIds.length) payload.media = { media_ids: mediaIds };
+    if (previous) payload.reply = { in_reply_to_tweet_id: previous };
+    const { ok, status, body } = await fetchJson(`${apiBase()}/2/tweets`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify(payload),
+    }, 60_000);
+    const id = body?.data?.id;
+    if (!ok || typeof id !== "string") {
+      const done = posts.length ? ` ${posts.length} part(s) were already published: ${posts.map((x) => x.url).join(" ")}.` : "";
+      throw new XError(errorCode(body) || `http_${status}`, errorMessage(body, `X refused the post (${status}).`) + done, status);
+    }
+    posts.push({ id, url: `https://x.com/${account.username}/status/${id}` });
+    previous = id;
+  }
+  console.log(`[key-proxy] x: published ${posts.length} part(s) as @${account.username}`);
+  return { username: account.username, posts, url: posts[0].url };
+}
+
 // ─── Status and control ─────────────────────────────────────────────────────
 
 const publicAccount = (a: XAccount): XAccountStatus => ({ id: a.id, username: a.username, name: a.name, avatar: a.avatar, status: a.status, connectedAt: a.connectedAt, refreshedAt: a.refreshedAt });
@@ -354,6 +417,7 @@ export async function handleControl(req: import("node:http").IncomingMessage, re
     if (path === "/finish" && req.method === "POST") { const b = await readBody(req); sendJson(res, 200, { ok: true, account: await finishConnect(String(b.code ?? ""), String(b.state ?? "")) }); return true; }
     if (path === "/cancel" && req.method === "POST") { cancelConnect(); sendJson(res, 200, { ok: true }); return true; }
     if (path === "/disconnect" && req.method === "POST") { const b = await readBody(req); await disconnect(String(b.id ?? "")); sendJson(res, 200, { ok: true }); return true; }
+    if (path === "/post" && req.method === "POST") { const b = await readBody(req); sendJson(res, 200, await postThread(String(b.accountId ?? ""), Array.isArray(b.parts) ? b.parts : [])); return true; }
     return false;
   } catch (e: any) {
     sendJson(res, e instanceof XError ? e.status : 500, { error: { code: e instanceof XError ? e.code : "x_failed", message: safeMessage(e, "The request to X failed.") } });

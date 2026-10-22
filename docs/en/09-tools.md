@@ -130,7 +130,7 @@ It can be turned off in **Settings → Tools on demand** (or with `TOOLS_ON_DEMA
 
 ## X: your accounts, posted to with your approval
 
-HydraOps connects to **your own X developer app**, and through it to as many of your X accounts as you like: a project's, a brand's, a personal one. The agents will publish on them, each post waiting for your approval (the publishing tool comes in the next version; this card is where the accounts are connected and where you decide who may use which).
+HydraOps connects to **your own X developer app**, and through it to as many of your X accounts as you like: a project's, a brand's, a personal one. The agents publish on them with the `x_post` tool, and every post waits for your approval.
 
 ### 1. Create the app in X's portal
 
@@ -151,6 +151,17 @@ An account can be connected again at any time (its tokens are replaced), and **D
 ### 3. Who may post where
 
 Each connected account lists the agents allowed to post on it, and a new account starts with **nobody**: the publishing tool refuses, on the server side, any account the agent was not given here, so a post cannot land on the wrong brand by a model's mistake. Add agents with the picker on the account's row; the ON/OFF switch at the top pauses every account at once.
+
+### 4. Posting
+
+Give the agent the two tools in the Agents view (its tools list, like any other tool) and the account in Tools → X. Then ask it for a post or a thread as you would ask a person: "announce the 0.2 release on the HydraOps account, three posts, the link in the last one". The agent has two tools:
+
+- `x_accounts` lists the accounts it may use. With one, it uses it; with several and a request that does not say which, it asks you; with none, it says so.
+- `x_post` publishes one post or a thread (every part a reply to the one before) on one account, with up to 4 attached images per part (the files you dropped into the chat, by name). It is held **every time**, whatever the task read: nothing goes out under your name without you.
+
+The approval card shows the account with its avatar, every part as it will be published with its character count (280 weighted characters, a link counting as 23), the images, and the estimated cost; so does the Telegram notice. **Approve** publishes and the agent answers with the link; **Reject** drops it and the agent is told. There is no "approve for the rest of the task" for a post: each one asks.
+
+The server publishes only the exact post you approved (same agent, account and parts), once; and it refuses, before anything reaches X, a part that is empty or over the limit, an account the agent was not given, an image that is not one of your attachments or is larger than 5 MB, and anything while the switch is OFF. Deleting a post is not something the agents can do: that stays on X, with you.
 
 ## Connections: ready-made MCP servers
 

@@ -204,7 +204,19 @@
         "expired": "expired"
       },
       "continuing": "The agent continues after your decision",
-      "continuingDetail": "what was decided"
+      "continuingDetail": "what was decided",
+      "x": {
+        "title": "Publish on X",
+        "account": "Account",
+        "unknownAccount": "not connected, or not enabled for this agent: the post will be refused",
+        "parts": "{{n}} parts, one thread",
+        "part": "Post",
+        "chars": "{{n}}/280 characters",
+        "tooLong": "over the limit: X will refuse it",
+        "images": "Images",
+        "cost": "About {{usd}} USD, charged by X to your developer account",
+        "linkNote": "a post with a link costs more"
+      }
     },
     "linkUnverified": "⚠ Not verified: the agent did not open or see this address in this conversation. It may exist, but it came from its memory, not from a lookup.",
     "progress": {

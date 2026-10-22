@@ -204,7 +204,19 @@
         "expired": "expirée"
       },
       "continuing": "L'agent continue après votre décision",
-      "continuingDetail": "ce qui a été décidé"
+      "continuingDetail": "ce qui a été décidé",
+      "x": {
+        "title": "Publier sur X",
+        "account": "Compte",
+        "unknownAccount": "non connecté, ou non autorisé pour cet agent : la publication sera refusée",
+        "parts": "{{n}} parties, un fil",
+        "part": "Publication",
+        "chars": "{{n}}/280 caractères",
+        "tooLong": "dépasse la limite : X la refusera",
+        "images": "Images",
+        "cost": "Environ {{usd}} USD, facturés par X sur votre compte développeur",
+        "linkNote": "une publication avec un lien coûte plus cher"
+      }
     },
     "linkUnverified": "⚠ Non vérifié : l'agent n'a ni ouvert ni vu cette adresse dans cette conversation. Elle peut exister, mais elle vient de sa mémoire, pas d'une consultation.",
     "progress": {

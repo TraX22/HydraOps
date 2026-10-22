@@ -47,7 +47,7 @@ import {
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
 import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, HISTORY_DAYS } from "@hydraops/db";
 import { buildEnvelope } from "@hydraops/events";
-import { eq, and, gte, lt, asc, desc, like, inArray } from "drizzle-orm";
+import { eq, and, gte, lt, asc, desc, like, inArray, isNull } from "drizzle-orm";
 import os from "node:os";
 
 /**
@@ -2931,6 +2931,107 @@ function xCallbackParams(raw: string): { code: string; state: string } | null {
     return code && state ? { code, state } : null;
   } catch { return null; }
 }
+
+// ── Publishing (the x_post and x_accounts tools) ──
+// The worker's tools call these on loopback. x_post always waits for the user (risk
+// approval "always": held on every call, a task-wide approval does not cover it), so a
+// publish is only accepted when it matches a held x_post call the user approved and the
+// worker is running right now: same agent, same account, same parts. The call is claimed
+// here, once, so any other local process posting to this route (with whatever agent name
+// in the body) gets nothing: no approval, no post. On top of that, the agent may use only
+// the accounts it was given in Tools → X.
+const X_POST_USD = 0.015;
+const X_LINK_USD = 0.20;
+const X_MEDIA_MAX_BYTES = 5 * 1024 * 1024;
+const X_MEDIA_EXT = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp"]);
+
+/** The arguments of an x_post call, in one comparable form (the held copy and the live one). */
+function xPostShape(account: unknown, parts: unknown): string {
+  const list = Array.isArray(parts) ? parts : [];
+  return JSON.stringify({
+    account: String(account ?? "").trim().replace(/^@/, "").toLowerCase(),
+    parts: list.map((p: any) => ({ text: String(p?.text ?? ""), media: Array.isArray(p?.media) ? p.media.map(String) : [] })),
+  });
+}
+
+/**
+ * The approved held x_post call this request is the execution of, claimed so it serves once
+ * (its result is set to a marker; the worker overwrites it with the outcome right after).
+ * Null when there is none: the request did not come from an approval.
+ */
+async function claimApprovedXPost(agentId: string, account: unknown, parts: unknown): Promise<string | null> {
+  const want = xPostShape(account, parts);
+  const rows = await (db as any).select().from(pendingActions)
+    .where(and(eq(pendingActions.toolName, "x_post"), eq(pendingActions.agentId, agentId), eq(pendingActions.status, "approved"), isNull(pendingActions.result)))
+    .orderBy(desc(pendingActions.decidedAt)).limit(20);
+  for (const row of rows) {
+    const args = (typeof row.args === "string" ? JSON.parse(row.args) : row.args) ?? {};
+    if (xPostShape(args.account, args.parts) !== want) continue;
+    const r = await (db as any).update(pendingActions).set({ result: "publishing on X…" })
+      .where(and(eq(pendingActions.id, row.id), eq(pendingActions.status, "approved"), isNull(pendingActions.result))).run();
+    if ((r?.changes ?? 0) === 1) return String(row.id);
+  }
+  return null;
+}
+
+/** The accounts an agent may publish with, as the tools see them (no tokens, no secret). */
+async function xAccountsFor(agentId: string): Promise<{ enabled: boolean; accounts: { id: string; username: string; name: string; status: string; agents: string[] }[] }> {
+  const st = await xIntegrationStatus();
+  const id = String(agentId || "").trim().toLowerCase();
+  return { enabled: st.enabled, accounts: (st.accounts as any[]).filter((a) => a.agents.includes(id)).map((a) => ({ id: a.id, username: a.username, name: a.name, status: a.status, agents: a.agents })) };
+}
+
+api.get("/x/accounts", async (req, res) => {
+  try { res.json(await xAccountsFor(String(req.query.agentId ?? ""))); } catch (e: any) { xFailure(res, e); }
+});
+
+api.post("/x/post", async (req, res) => {
+  if (!sameSiteOnly(req, res)) return;
+  try {
+    const agentId = String(req.body?.agentId ?? "").trim().toLowerCase();
+    const wanted = String(req.body?.account ?? "").trim().replace(/^@/, "").toLowerCase();
+    const st = await xIntegrationStatus();
+    if (!st.enabled) return res.status(403).json({ error: "x_disabled", message: "Publishing on X is switched off in Tools → X." });
+    const account = (st.accounts as any[]).find((a) => a.username.toLowerCase() === wanted || a.id === wanted);
+    const allowed = (st.accounts as any[]).filter((a) => a.agents.includes(agentId)).map((a) => `@${a.username}`);
+    if (!account) return res.status(404).json({ error: "no_such_account", message: `No connected X account is called "${wanted}". Accounts this agent may use: ${allowed.join(", ") || "none"}.` });
+    if (!account.agents.includes(agentId)) return res.status(403).json({ error: "account_not_allowed", message: `The account @${account.username} is not enabled for ${agentId}. Accounts this agent may use: ${allowed.join(", ") || "none"}. The assignment is changed in Tools → X.` });
+    if (account.status !== "connected") return res.status(409).json({ error: "x_reauth_required", message: `The connection of @${account.username} expired: connect it again in Tools → X.` });
+    // The parts, with the user's attachments resolved to files inside the uploads folder.
+    const rawParts = Array.isArray(req.body?.parts) ? req.body.parts : [];
+    // Last check before anything leaves: this is the run of a call the user approved.
+    const actionId = await claimApprovedXPost(agentId, req.body?.account, rawParts);
+    if (!actionId) {
+      console.warn(`[api] x: a publish for ${agentId || "?"} as @${account.username} matched no approved call: refused`);
+      return res.status(403).json({ error: "not_approved", message: "Nothing is published on X without the user's approval of that exact post, and there is no approved x_post call matching this one." });
+    }
+    if (!rawParts.length || rawParts.length > 25) return res.status(400).json({ error: "bad_parts", message: "A post has 1 to 25 parts." });
+    const parts: { text: string; media: string[] }[] = [];
+    for (const [i, rp] of rawParts.entries()) {
+      const text = String(rp?.text ?? "").trim();
+      if (!text) return res.status(400).json({ error: "empty_part", message: `Part ${i + 1} has no text.` });
+      const media: string[] = [];
+      for (const ref of Array.isArray(rp?.media) ? rp.media.slice(0, 4) : []) {
+        const name = path.basename(String(ref ?? "").replace(/\\/g, "/").trim());
+        const full = path.join(uploadsDir, name);
+        if (!name || path.dirname(path.resolve(full)) !== path.resolve(uploadsDir)) return res.status(400).json({ error: "bad_media", message: `"${ref}" is not one of the attached files.` });
+        if (!X_MEDIA_EXT.has(path.extname(name).toLowerCase())) return res.status(400).json({ error: "bad_media", message: `"${name}" is not an image X takes (png, jpg, gif, webp).` });
+        const st2 = await stat(full).catch(() => null);
+        if (!st2?.isFile()) return res.status(400).json({ error: "bad_media", message: `There is no attached file named "${name}".` });
+        if (st2.size > X_MEDIA_MAX_BYTES) return res.status(400).json({ error: "bad_media", message: `"${name}" is larger than 5 MB.` });
+        media.push(full);
+      }
+      parts.push({ text, media });
+    }
+    const out = await xProxy("POST", "/post", { accountId: account.id, parts });
+    const cost = parts.reduce((n, p) => n + (/https?:\/\/|\b[a-z0-9-]+\.[a-z]{2,}\b/i.test(p.text) ? X_LINK_USD : X_POST_USD), 0);
+    console.log(`[api] x: ${agentId} published ${parts.length} part(s) as @${account.username} (about ${cost.toFixed(3)} USD)`);
+    res.json({ ok: true, ...out, estimatedUsd: Number(cost.toFixed(3)) });
+  } catch (e: any) {
+    console.error("[api] POST /x/post failed", e?.message ?? e);
+    xFailure(res, e);
+  }
+});
 
 // The manual road: the user pastes the address X sent the browser to (when that browser was
 // not on this computer, so the callback page could not reach 127.0.0.1:3000).

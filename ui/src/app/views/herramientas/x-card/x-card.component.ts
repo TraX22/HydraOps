@@ -1,6 +1,5 @@
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { IconComponent } from '../../../components/icon/icon.component';
 import { ApiService, Agent, XAccount, XIntegration } from '../../../services/api.service';
 
 const POLL_MS = 3000;
@@ -14,7 +13,7 @@ const POLL_MS = 3000;
 @Component({
   selector: 'app-x-card',
   standalone: true,
-  imports: [TranslatePipe, IconComponent],
+  imports: [TranslatePipe],
   templateUrl: './x-card.component.html',
   styleUrl: './x-card.component.css',
 })

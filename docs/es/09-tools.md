@@ -130,7 +130,7 @@ Se desactiva en **Configuración → Herramientas bajo demanda** (o con `TOOLS_O
 
 ## X: tus cuentas, publicadas con tu aprobación
 
-HydraOps se conecta a **tu propia app de desarrollador en X**, y a través de ella a todas las cuentas de X que quieras: la de un proyecto, la de una marca, una personal. Los agentes van a publicar en ellas, cada publicación esperando tu aprobación (la herramienta de publicar llega en la próxima versión; esta tarjeta es donde se conectan las cuentas y donde decidís quién puede usar cuál).
+HydraOps se conecta a **tu propia app de desarrollador en X**, y a través de ella a todas las cuentas de X que quieras: la de un proyecto, la de una marca, una personal. Los agentes publican en ellas con la herramienta `x_post`, y cada publicación espera tu aprobación.
 
 ### 1. Creá la app en el portal de X
 
@@ -151,6 +151,17 @@ Una cuenta se puede conectar de nuevo cuando quieras (se reemplazan sus tokens),
 ### 3. Quién publica dónde
 
 Cada cuenta conectada lista los agentes que pueden publicar en ella, y una cuenta nueva arranca con **nadie**: la herramienta de publicar rechaza, del lado del servidor, cualquier cuenta que el agente no tenga asignada acá, así que una publicación no puede caer en la marca equivocada por un error del modelo. Agregá agentes con el selector de la fila de la cuenta; el interruptor ON/OFF de arriba pausa todas las cuentas a la vez.
+
+### 4. Publicar
+
+Dale al agente las dos herramientas en la vista Agentes (su lista de herramientas, como cualquier otra) y la cuenta en Herramientas → X. Después pedile una publicación o un hilo como se lo pedirías a una persona: «anunciá la versión 0.2 en la cuenta de HydraOps, tres publicaciones, el enlace en la última». El agente tiene dos herramientas:
+
+- `x_accounts` lista las cuentas que puede usar. Con una, la usa; con varias y un pedido que no dice cuál, te pregunta; sin ninguna, lo dice.
+- `x_post` publica una publicación o un hilo (cada parte responde a la anterior) en una cuenta, con hasta 4 imágenes adjuntas por parte (los archivos que soltaste en el chat, por nombre). Se retiene **siempre**, haya leído lo que haya leído la tarea: nada sale con tu nombre sin vos.
+
+La tarjeta de aprobación muestra la cuenta con su avatar, cada parte tal como se va a publicar con su conteo de caracteres (280 caracteres ponderados, un enlace cuenta 23), las imágenes y el costo estimado; el aviso por Telegram, lo mismo. **Aprobar** publica y el agente contesta con el enlace; **Rechazar** la descarta y el agente se entera. Para publicar no existe «aprobar por el resto de la tarea»: cada publicación pregunta.
+
+El servidor publica solo la publicación exacta que aprobaste (mismo agente, cuenta y partes), una vez; y rechaza, antes de que nada llegue a X, una parte vacía o pasada del límite, una cuenta que el agente no tiene asignada, una imagen que no es uno de tus adjuntos o pesa más de 5 MB, y cualquier cosa con el interruptor en OFF. Borrar una publicación no es algo que los agentes puedan hacer: eso queda en X, con vos.
 
 ## Conexiones: servidores MCP listos para usar
 

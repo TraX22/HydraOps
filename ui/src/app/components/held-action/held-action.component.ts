@@ -1,12 +1,16 @@
-import { Component, EventEmitter, Input, Output, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output, inject, signal } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
-import { ApiService, HeldAction } from '../../services/api.service';
+import { ApiService, HeldAction, XAccount } from '../../services/api.service';
 import { IconComponent } from '../icon/icon.component';
 
 // A sensitive tool call an agent wanted to make on a task that had read outside
 // content, or one that always asks (create_skill). It was NOT run: the user approves
 // or rejects it here (see the Security page of the manual). The card is rendered
 // under the reply that produced it.
+//
+// x_post gets its own body: the account (with the avatar the card fetched from Tools → X),
+// every part as it will be published with its length, the images, the cost. A post goes
+// out under the user's name, so the card shows the post, not a JSON dump.
 @Component({
   selector: 'app-held-action',
   standalone: true,
@@ -20,7 +24,35 @@ import { IconComponent } from '../icon/icon.component';
         <span class="held-status">{{ ('chat.held.status.' + action.status) | translate }}</span>
       </div>
       <p class="held-why">{{ (action.origins.length ? 'chat.held.why' : 'chat.held.whyAlways') | translate:{ from: origins } }}</p>
-      @if (argLines.length) {
+      @if (post; as post) {
+        <div class="post">
+          <div class="post-account">
+            <span class="post-label">{{ 'chat.held.x.account' | translate }}</span>
+            @if (xAccount()?.avatar) { <img class="post-avatar" [src]="xAccount()!.avatar" alt="" /> }
+            <span class="post-handle">&#64;{{ post.account }}</span>
+            @if (xAccount()) { <span class="post-name">{{ xAccount()!.name }}</span> }
+            @else if (xChecked()) { <span class="post-warn">{{ 'chat.held.x.unknownAccount' | translate }}</span> }
+          </div>
+          @if (post.parts.length > 1) { <p class="post-label">{{ 'chat.held.x.parts' | translate:{ n: post.parts.length } }}</p> }
+          @for (p of post.parts; track $index) {
+            <div class="post-part">
+              @if (post.parts.length > 1) { <span class="post-n">{{ $index + 1 }}/</span> }
+              <div class="post-body">
+                <pre class="post-text">{{ p.text }}</pre>
+                <div class="post-meta" [class.bad]="p.chars > 280">
+                  {{ 'chat.held.x.chars' | translate:{ n: p.chars } }}@if (p.chars > 280) { · {{ 'chat.held.x.tooLong' | translate }} }
+                </div>
+                @if (p.media.length) {
+                  <div class="post-images">
+                    @for (m of p.media; track m) { <img [src]="api.storageUrl('uploads/' + m)" [alt]="m" [title]="m" /> }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+          <p class="post-cost">{{ 'chat.held.x.cost' | translate:{ usd: post.usd } }}@if (post.hasLink) { · {{ 'chat.held.x.linkNote' | translate }} }</p>
+        </div>
+      } @else if (argLines.length) {
         <dl class="held-args">
           @for (a of argLines; track a.key) {
             <dt>{{ a.key }}</dt><dd>{{ a.value }}</dd>
@@ -32,9 +64,11 @@ import { IconComponent } from '../icon/icon.component';
           <button class="held-approve" [disabled]="busy()" (click)="decide('approve')">
             <app-icon name="check" /> {{ 'chat.held.approve' | translate }}
           </button>
-          <button class="held-approve held-approve-task" [disabled]="busy()" (click)="decide('approveTask')" [title]="'chat.held.approveTaskHint' | translate">
-            <app-icon name="check" /> {{ 'chat.held.approveTask' | translate }}
-          </button>
+          @if (!post) {
+            <button class="held-approve held-approve-task" [disabled]="busy()" (click)="decide('approveTask')" [title]="'chat.held.approveTaskHint' | translate">
+              <app-icon name="check" /> {{ 'chat.held.approveTask' | translate }}
+            </button>
+          }
           <button class="held-reject" [disabled]="busy()" (click)="decide('reject')">
             <app-icon name="x" /> {{ 'chat.held.reject' | translate }}
           </button>
@@ -76,15 +110,70 @@ import { IconComponent } from '../icon/icon.component';
     .held-result summary { cursor: pointer; width: fit-content; }
     .held-result pre { margin: 6px 0 0; white-space: pre-wrap; word-break: break-word; font-size: 11.5px; max-height: 220px; overflow: auto; color: var(--text-primary); }
     .held-error { margin: 6px 0 0; color: #ef4444; }
+    .post { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+    .post-account { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .post-label { color: var(--text-muted); font-size: 11.5px; margin: 0; }
+    .post-avatar { width: 22px; height: 22px; border-radius: 999px; object-fit: cover; }
+    .post-handle { font-weight: 600; color: var(--text-primary); }
+    .post-name { color: var(--text-muted); }
+    .post-warn { color: #d97706; font-size: 11.5px; }
+    .post-part { display: flex; gap: 8px; align-items: flex-start; }
+    .post-n { color: var(--text-muted); font-family: ui-monospace, monospace; font-size: 11.5px; padding-top: 7px; min-width: 20px; }
+    .post-body { flex: 1; min-width: 0; border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 10px; background: var(--bg-hover, rgba(127,127,127,.06)); }
+    .post-text { margin: 0; white-space: pre-wrap; word-break: break-word; font: inherit; font-size: 13px; color: var(--text-primary); line-height: 1.45; }
+    .post-meta { margin-top: 6px; color: var(--text-muted); font-size: 11px; }
+    .post-meta.bad { color: #ef4444; font-weight: 600; }
+    .post-images { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .post-images img { width: 96px; height: 96px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-color); }
+    .post-cost { margin: 0; color: var(--text-muted); font-size: 11.5px; }
   `],
 })
-export class HeldActionComponent {
+export class HeldActionComponent implements OnInit {
   @Input({ required: true }) action!: HeldAction;
   @Output() decided = new EventEmitter<HeldAction>();
 
-  private api = inject(ApiService);
+  api = inject(ApiService);
   busy = signal(false);
   error = signal('');
+  /** For x_post: the connected account the handle names, once Tools → X answered. */
+  xAccount = signal<XAccount | null>(null);
+  xChecked = signal(false);
+
+  ngOnInit(): void {
+    const post = this.post;
+    if (!post) return;
+    this.api.getXIntegration().subscribe({
+      next: x => {
+        const a = x.accounts.find(acc => acc.username.toLowerCase() === post.account.toLowerCase());
+        this.xAccount.set(a && a.agents.includes(this.action.agentId) && x.enabled ? a : null);
+        this.xChecked.set(true);
+      },
+      error: () => this.xChecked.set(true),
+    });
+  }
+
+  /** The x_post arguments, read as a post: account, parts with their weighted length and images, cost. */
+  get post(): { account: string; parts: { text: string; chars: number; media: string[] }[]; usd: string; hasLink: boolean } | null {
+    if (this.action.toolName !== 'x_post') return null;
+    const args = (this.action.args ?? {}) as Record<string, unknown>;
+    const raw = Array.isArray(args['parts']) ? args['parts'] as Record<string, unknown>[] : [];
+    const link = /https?:\/\/|\b[a-z0-9-]+\.[a-z]{2,}\b/i;
+    let usd = 0;
+    let hasLink = false;
+    const parts = raw.map(p => {
+      const text = String(p?.['text'] ?? '');
+      const withLink = link.test(text);
+      hasLink ||= withLink;
+      usd += withLink ? 0.2 : 0.015;
+      return {
+        text,
+        // X's rule: 280 weighted characters, every URL counting as 23.
+        chars: text.replace(/https?:\/\/\S+/gi, 'x'.repeat(23)).length,
+        media: Array.isArray(p?.['media']) ? (p['media'] as unknown[]).map(String) : [],
+      };
+    });
+    return { account: String(args['account'] ?? '').replace(/^@/, ''), parts, usd: usd.toFixed(3), hasLink };
+  }
 
   get origins(): string {
     const list = (this.action.origins ?? []).map(o => o.ref ?? o.tool).slice(0, 3);
