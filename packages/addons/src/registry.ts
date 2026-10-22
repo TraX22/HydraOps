@@ -200,6 +200,8 @@ export class ToolRegistry {
                 allowedOrigins: server ? connectionOrigins(c?.connectionEnv?.(server)) : [],
                 extraRoots: server ? c?.connectionDirs?.(server) ?? [] : [],
                 label: name,
+                // Only what the task wrote: an asset a search listed stays in the project.
+                since: c?.since,
               });
               return r;
             } }
