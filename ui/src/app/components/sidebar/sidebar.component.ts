@@ -1,10 +1,10 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, computed } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ThemeService } from '../../services/theme.service';
-import { ApiService, VersionInfo } from '../../services/api.service';
 import { IconComponent } from '../icon/icon.component';
 import { ComplementosService } from '../../services/complementos.service';
+import { UpdateService } from '../../services/update.service';
 
 interface NavItem {
   path: string;
@@ -25,19 +25,25 @@ interface NavItem {
 export class SidebarComponent implements OnInit {
   theme = inject(ThemeService);
   private router = inject(Router);
-  private api = inject(ApiService);
   private complementos = inject(ComplementosService);
+  /** The update block in the footer: one state whatever the installation (see UpdateService). */
+  updates = inject(UpdateService);
 
   minimized = signal(localStorage.getItem('hydra_sidebar_mini') === 'true');
-  version = signal<VersionInfo | null>(null);
+  version = this.updates.version;
+  upd = this.updates.state;
+
+  /** Minutes since the last check, for the version line's tooltip. */
+  checkedAgo = computed(() => {
+    const st = this.upd();
+    if (st.kind !== 'idle' || !st.checkedAt) return null;
+    return Math.max(0, Math.round((Date.now() - st.checkedAt) / 60000));
+  });
 
   ngOnInit(): void {
-    // La versión instalada, para mostrarla en el pie. Sin red no pasa nada:
-    // `current` es local y llega igual; solo `latest` depende de GitHub.
-    this.api.getVersion().subscribe({
-      next: (v) => this.version.set(v),
-      error: () => {},
-    });
+    // La versión instalada, para mostrarla en el pie, y el estado de las
+    // actualizaciones: sin red no pasa nada, `current` es local y llega igual.
+    this.updates.start();
   }
 
   navItems: NavItem[] = [
@@ -74,5 +80,15 @@ export class SidebarComponent implements OnInit {
   isActive(path: string): boolean {
     if (path === '/') return this.router.url === '/';
     return this.router.url.startsWith(path);
+  }
+
+  // ── The update block ──
+
+  /** "89 de 141 MB" for the download line. */
+  mb(bytes: number): string { return (bytes / 1048576).toFixed(0); }
+
+  /** The error line: the server's short message, or a translated code. */
+  errorKey(message: string): string | null {
+    return ['timeout', 'update_failed', 'check_failed', 'not_git', 'no_git', 'dirty', 'no_release', 'up_to_date', 'backup_failed'].includes(message) ? 'update.errors.' + message : null;
   }
 }

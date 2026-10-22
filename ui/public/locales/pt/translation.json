@@ -335,10 +335,7 @@
       "fromSource": "É o próprio clone: atualize com git pull e nunca o apague para reinstalar; faça uma cópia em Cópias de segurança antes de mexer nele."
     },
     "update": {
-      "title": "Atualização disponível",
-      "cta": "Atualizar",
-      "working": "Atualizando… o app vai reiniciar sozinho",
-      "done": "Atualizado. Recarregando…"
+      "working": "Atualizando… o app vai reiniciar sozinho"
     },
     "security": {
       "title": "Segurança: conteúdo externo",
@@ -887,8 +884,40 @@
     "accept": "Aceitar"
   },
   "update": {
-    "available": "Há uma nova versão ({{version}}) disponível.",
-    "view": "Ver a release"
+    "updateTo": "Atualizar para {{version}}",
+    "whatsNew": "O que traz a {{version}}",
+    "checking": "Verificando…",
+    "checkNow": "Clique para verificar agora",
+    "checkedAgo": "Verificado há {{min}} min",
+    "downloading": "Baixando a {{version}}",
+    "restartInstall": "Reiniciar e instalar a {{version}}",
+    "readyHint": "Baixada. Seus dados e suas chaves não são tocados.",
+    "updating": "Atualizando para {{version}}",
+    "step": "Passo {{n}} de {{total}} · {{label}}",
+    "steps": {
+      "fetch": "buscando a versão",
+      "checkout": "trocando de versão",
+      "install": "instalando dependências",
+      "build": "compilando os serviços",
+      "ui": "compilando a interface",
+      "restart": "reiniciando"
+    },
+    "restartsAlone": "Reinicia sozinho ao terminar.",
+    "done": "Atualizado. Recarregando…",
+    "failed": "Não foi possível atualizar",
+    "viewLog": "Ver o registro",
+    "retry": "Tentar de novo",
+    "errors": {
+      "timeout": "Está demorando demais. Veja o registro em Sistema.",
+      "update_failed": "A atualização falhou. Veja o registro em Sistema.",
+      "check_failed": "Não foi possível verificar se há uma versão nova (sem conexão?).",
+      "not_git": "Esta instalação não é um clone git; no Windows o app instalado se atualiza sozinho.",
+      "no_git": "O git não foi encontrado nesta máquina.",
+      "dirty": "Há alterações locais não salvas no repositório. Salve ou descarte antes de atualizar.",
+      "no_release": "Não foi possível saber qual é a última versão (sem conexão?).",
+      "up_to_date": "Você já está na última versão.",
+      "backup_failed": "Não foi possível fazer a cópia da sua instalação, então nada foi atualizado."
+    }
   },
   "commands": {
     "help": "Lista os comandos disponíveis ou explica um",

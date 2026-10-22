@@ -287,9 +287,10 @@ function cmpSemver(a: string, b: string): number {
 let versionCache: { at: number; latest: string | null; url: string | null; tag: string | null } | null = null;
 const VERSION_TTL_MS = 6 * 60 * 60 * 1000;
 
-api.get("/version", async (_req, res) => {
+api.get("/version", async (req, res) => {
   const now = Date.now();
-  if (!versionCache || now - versionCache.at > VERSION_TTL_MS) {
+  // ?refresh=1: the user asked the sidebar to check again; GitHub is asked now.
+  if (!versionCache || now - versionCache.at > VERSION_TTL_MS || req.query.refresh === "1") {
     try {
       const r = await fetch("https://api.github.com/repos/TraX22/HydraOps/releases/latest", {
         headers: { "User-Agent": "HydraOps", Accept: "application/vnd.github+json" },
@@ -308,7 +309,7 @@ api.get("/version", async (_req, res) => {
   const updateAvailable = Boolean(APP_VERSION && latest && cmpSemver(latest, APP_VERSION) > 0);
   // Where the user's data lives, shown in the System view: running from source it is
   // the clone itself (fromSource), which a "reinstall" by deleting the folder takes away.
-  res.json({ current: APP_VERSION, latest, updateAvailable, url: versionCache.url, dataDir: dataRoot, fromSource: path.resolve(dataRoot) === path.resolve(appRoot) });
+  res.json({ current: APP_VERSION, latest, updateAvailable, url: versionCache.url, checkedAt: versionCache.at, dataDir: dataRoot, fromSource: path.resolve(dataRoot) === path.resolve(appRoot) });
 });
 
 // ── What's new ──────────────────────────────────────────────────────────────

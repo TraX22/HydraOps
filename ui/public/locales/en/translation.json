@@ -335,10 +335,7 @@
       "fromSource": "It is the clone itself: update with git pull and never delete it to reinstall; make a copy from Backups before touching it."
     },
     "update": {
-      "title": "Update available",
-      "cta": "Update",
-      "working": "Updating… the app will restart on its own",
-      "done": "Updated. Reloading…"
+      "working": "Updating… the app will restart on its own"
     },
     "security": {
       "title": "Security: outside content",
@@ -887,8 +884,40 @@
     "accept": "Accept"
   },
   "update": {
-    "available": "A new version ({{version}}) is available.",
-    "view": "View release"
+    "updateTo": "Update to {{version}}",
+    "whatsNew": "What {{version}} brings",
+    "checking": "Checking…",
+    "checkNow": "Click to check now",
+    "checkedAgo": "Checked {{min}} min ago",
+    "downloading": "Downloading {{version}}",
+    "restartInstall": "Restart and install {{version}}",
+    "readyHint": "Downloaded. Your data and your keys are not touched.",
+    "updating": "Updating to {{version}}",
+    "step": "Step {{n}} of {{total}} · {{label}}",
+    "steps": {
+      "fetch": "fetching the release",
+      "checkout": "switching version",
+      "install": "installing dependencies",
+      "build": "building the services",
+      "ui": "building the interface",
+      "restart": "restarting"
+    },
+    "restartsAlone": "It restarts on its own when done.",
+    "done": "Updated. Reloading…",
+    "failed": "Could not update",
+    "viewLog": "View the log",
+    "retry": "Retry",
+    "errors": {
+      "timeout": "It is taking too long. Check the log in System.",
+      "update_failed": "The update failed. Check the log in System.",
+      "check_failed": "Could not check for a new version (offline?).",
+      "not_git": "This installation is not a git clone; on Windows the installed app updates itself.",
+      "no_git": "git was not found on this machine.",
+      "dirty": "There are unsaved local changes in the repository. Save or discard them before updating.",
+      "no_release": "The latest version could not be determined (offline?).",
+      "up_to_date": "You already have the latest version.",
+      "backup_failed": "The copy of your installation could not be made, so nothing was updated."
+    }
   },
   "commands": {
     "help": "List the available commands, or explain one",

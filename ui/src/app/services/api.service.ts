@@ -544,6 +544,8 @@ export interface VersionInfo {
   latest: string | null;
   updateAvailable: boolean;
   url: string | null;
+  /** When GitHub was last asked about the latest release (ms since epoch). */
+  checkedAt?: number;
   /** Where the agents, chats and settings live. */
   dataDir?: string;
   /** Running from source: the data folder is the clone itself. */
@@ -555,6 +557,10 @@ export interface SelfUpdateStatus {
   tag?: string;
   log?: string;
   error?: string;
+  /** The step in progress (1-based) of `steps`, with a short key the UI translates. */
+  step?: number;
+  steps?: number;
+  stepKey?: string;
 }
 
 export interface BackupEntry {
@@ -617,8 +623,9 @@ export class ApiService {
   }
 
   // ── Version ──
-  getVersion(): Observable<VersionInfo> {
-    return this.http.get<VersionInfo>(`${this.base}/version`);
+  /** `refresh`: ask GitHub again instead of the API's cached answer. */
+  getVersion(refresh = false): Observable<VersionInfo> {
+    return this.http.get<VersionInfo>(`${this.base}/version${refresh ? '?refresh=1' : ''}`);
   }
 
   // ── Self-update (instalación desde código) ──

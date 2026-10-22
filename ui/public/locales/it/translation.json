@@ -335,10 +335,7 @@
       "fromSource": "È il clone stesso: aggiorna con git pull e non cancellarlo mai per reinstallare; fai una copia da Copie di sicurezza prima di toccarlo."
     },
     "update": {
-      "title": "Aggiornamento disponibile",
-      "cta": "Aggiorna",
-      "working": "Aggiornamento… l'app si riavvierà da sola",
-      "done": "Aggiornato. Ricaricamento…"
+      "working": "Aggiornamento… l'app si riavvierà da sola"
     },
     "security": {
       "title": "Sicurezza: contenuti esterni",
@@ -887,8 +884,40 @@
     "accept": "Accetta"
   },
   "update": {
-    "available": "È disponibile una nuova versione ({{version}}).",
-    "view": "Vedi la release"
+    "updateTo": "Aggiorna alla {{version}}",
+    "whatsNew": "Cosa porta la {{version}}",
+    "checking": "Controllo…",
+    "checkNow": "Clic per controllare adesso",
+    "checkedAgo": "Controllato {{min}} min fa",
+    "downloading": "Scaricamento della {{version}}",
+    "restartInstall": "Riavvia e installa la {{version}}",
+    "readyHint": "Scaricata. I tuoi dati e le tue chiavi non vengono toccati.",
+    "updating": "Aggiornamento alla {{version}}",
+    "step": "Passo {{n}} di {{total}} · {{label}}",
+    "steps": {
+      "fetch": "recupero della versione",
+      "checkout": "cambio di versione",
+      "install": "installazione delle dipendenze",
+      "build": "compilazione dei servizi",
+      "ui": "compilazione dell'interfaccia",
+      "restart": "riavvio"
+    },
+    "restartsAlone": "Si riavvia da sola alla fine.",
+    "done": "Aggiornato. Ricaricamento…",
+    "failed": "Impossibile aggiornare",
+    "viewLog": "Vedi il registro",
+    "retry": "Riprova",
+    "errors": {
+      "timeout": "Sta impiegando troppo. Guarda il registro in Sistema.",
+      "update_failed": "L'aggiornamento non è riuscito. Guarda il registro in Sistema.",
+      "check_failed": "Impossibile controllare se c'è una nuova versione (offline?).",
+      "not_git": "Questa installazione non è un clone git; su Windows l'app installata si aggiorna da sola.",
+      "no_git": "git non è stato trovato su questa macchina.",
+      "dirty": "Ci sono modifiche locali non salvate nel repository. Salvale o scartale prima di aggiornare.",
+      "no_release": "Impossibile determinare l'ultima versione (offline?).",
+      "up_to_date": "Hai già l'ultima versione.",
+      "backup_failed": "Non è stato possibile fare la copia della tua installazione, quindi non è stato aggiornato nulla."
+    }
   },
   "commands": {
     "help": "Elenca i comandi disponibili o ne spiega uno",

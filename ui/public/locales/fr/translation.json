@@ -335,10 +335,7 @@
       "fromSource": "C'est le clone lui-même : mettez à jour avec git pull et ne le supprimez jamais pour réinstaller ; faites une copie depuis Sauvegardes avant d'y toucher."
     },
     "update": {
-      "title": "Mise à jour disponible",
-      "cta": "Mettre à jour",
-      "working": "Mise à jour… l'application redémarrera seule",
-      "done": "Mis à jour. Rechargement…"
+      "working": "Mise à jour… l'application redémarrera seule"
     },
     "security": {
       "title": "Sécurité : contenu externe",
@@ -887,8 +884,40 @@
     "accept": "Accepter"
   },
   "update": {
-    "available": "Une nouvelle version ({{version}}) est disponible.",
-    "view": "Voir la version"
+    "updateTo": "Mettre à jour vers {{version}}",
+    "whatsNew": "Ce qu'apporte la {{version}}",
+    "checking": "Vérification…",
+    "checkNow": "Cliquer pour vérifier maintenant",
+    "checkedAgo": "Vérifié il y a {{min}} min",
+    "downloading": "Téléchargement de {{version}}",
+    "restartInstall": "Redémarrer et installer {{version}}",
+    "readyHint": "Téléchargée. Vos données et vos clés ne sont pas touchées.",
+    "updating": "Mise à jour vers {{version}}",
+    "step": "Étape {{n}} sur {{total}} · {{label}}",
+    "steps": {
+      "fetch": "récupération de la version",
+      "checkout": "changement de version",
+      "install": "installation des dépendances",
+      "build": "compilation des services",
+      "ui": "compilation de l'interface",
+      "restart": "redémarrage"
+    },
+    "restartsAlone": "Elle redémarre seule une fois terminée.",
+    "done": "Mis à jour. Rechargement…",
+    "failed": "Mise à jour impossible",
+    "viewLog": "Voir le journal",
+    "retry": "Réessayer",
+    "errors": {
+      "timeout": "Cela prend trop de temps. Consultez le journal dans Système.",
+      "update_failed": "La mise à jour a échoué. Consultez le journal dans Système.",
+      "check_failed": "Impossible de vérifier s'il existe une nouvelle version (hors ligne ?).",
+      "not_git": "Cette installation n'est pas un clone git ; sous Windows l'application installée se met à jour seule.",
+      "no_git": "git est introuvable sur cette machine.",
+      "dirty": "Le dépôt contient des modifications locales non enregistrées. Enregistrez-les ou annulez-les avant de mettre à jour.",
+      "no_release": "Impossible de déterminer la dernière version (hors ligne ?).",
+      "up_to_date": "Vous avez déjà la dernière version.",
+      "backup_failed": "La copie de votre installation n'a pas pu être faite, rien n'a donc été mis à jour."
+    }
   },
   "commands": {
     "help": "Liste les commandes disponibles ou en explique une",

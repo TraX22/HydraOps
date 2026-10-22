@@ -62,27 +62,34 @@ function run(cmd, args, cwd, onLog, { shell = true } = {}) {
 async function runBuild({ repoRoot, dataRoot, tag }) {
   const startedAt = Date.now();
   let log = "";
+  // The step in progress travels in the state (`step` of `steps`, with a short
+  // key the UI translates), so the sidebar can say "step 3 of 5 · installing"
+  // without parsing the log.
+  const steps = [
+    ["fetch", "git", ["fetch", "--tags", "--force", "origin"]],
+    ["checkout", "git", ["-c", "advice.detachedHead=false", "checkout", `tags/${tag}`]],
+    ["install", "pnpm", ["install", "--frozen-lockfile"]],
+    ["build", "pnpm", ["build"]],
+    ["ui", "pnpm", ["--filter", "ui", "build"]],
+  ];
+  let step = 0;
+  let stepKey = steps[0][0];
   const onLog = (chunk) => {
     log += chunk;
     if (log.length > 200000) log = log.slice(-150000);
-    writeState(dataRoot, { status: "running", tag, log, startedAt });
+    writeState(dataRoot, { status: "running", tag, log, startedAt, step, steps: steps.length, stepKey });
   };
-  const steps = [
-    ["git", ["fetch", "--tags", "--force", "origin"]],
-    ["git", ["-c", "advice.detachedHead=false", "checkout", `tags/${tag}`]],
-    ["pnpm", ["install", "--frozen-lockfile"]],
-    ["pnpm", ["build"]],
-    ["pnpm", ["--filter", "ui", "build"]],
-  ];
-  for (const [cmd, args] of steps) {
+  for (const [key, cmd, args] of steps) {
+    step++;
+    stepKey = key;
     const code = await run(cmd, args, repoRoot, onLog);
     if (code !== 0) {
-      const error = `Falló: ${cmd} ${args.join(" ")} (código ${code})`;
-      writeState(dataRoot, { status: "error", tag, log, error, startedAt, finishedAt: Date.now() });
+      const error = `Failed: ${cmd} ${args.join(" ")} (exit code ${code})`;
+      writeState(dataRoot, { status: "error", tag, log, error, startedAt, finishedAt: Date.now(), step, steps: steps.length, stepKey });
       return { ok: false, error, log };
     }
   }
-  writeState(dataRoot, { status: "restarting", tag, log, startedAt });
+  writeState(dataRoot, { status: "restarting", tag, log, startedAt, step: steps.length, steps: steps.length, stepKey: "restart" });
   return { ok: true, log };
 }
 
@@ -156,11 +163,11 @@ function watchForUpdateRequest({ repoRoot, dataRoot, stopAll, startAll, afterSta
       let log = built.log;
       await stopAll();
       if (relaunch) {
-        writeState(dataRoot, { status: "restarting", tag: req.tag, log, relaunch: true });
+        writeState(dataRoot, { status: "restarting", tag: req.tag, log, relaunch: true, step: 5, steps: 5, stepKey: "restart" });
         await relaunch();
         return;
       }
-      const onLog = (c) => { log += c; writeState(dataRoot, { status: "restarting", tag: req.tag, log }); };
+      const onLog = (c) => { log += c; writeState(dataRoot, { status: "restarting", tag: req.tag, log, step: 5, steps: 5, stepKey: "restart" }); };
       await runMigrations({ repoRoot, dataRoot, onLog });
       await startAll();
       if (afterStart) { try { await afterStart(); } catch { /* best-effort reload */ } }

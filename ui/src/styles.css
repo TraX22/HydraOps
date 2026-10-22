@@ -5,6 +5,11 @@
 [data-theme="light"] {
   --bg-app: #f0f2f5;
   --bg-sidebar: linear-gradient(180deg, #3d4db3 0%, #32409a 55%, #283378 100%);
+  /* The sidebar's update block: white on the gradient */
+  --sidebar-update-bg: #ffffff;
+  --sidebar-update-fg: #283378;
+  --sidebar-update-card: rgba(255, 255, 255, 0.14);
+  --sidebar-update-dot-ring: #283378;
   --bg-surface: #ffffff;
   --bg-surface-alt: #f7f8fa;
   --bg-input: #f0f2f5;
@@ -52,6 +57,11 @@
 [data-theme="dark"] {
   --bg-app: #0f0f1a;
   --bg-sidebar: #0a0a14;
+  /* The sidebar's update block: the accent on the near-black sidebar */
+  --sidebar-update-bg: #5b6be8;
+  --sidebar-update-fg: #ffffff;
+  --sidebar-update-card: rgba(91, 107, 232, 0.16);
+  --sidebar-update-dot-ring: #0a0a14;
   --bg-surface: #1a1a2e;
   --bg-surface-alt: #16162a;
   --bg-input: #16162a;

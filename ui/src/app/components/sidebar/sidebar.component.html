@@ -62,17 +62,102 @@
     </div>
   </nav>
 
-  <!-- Footer -->
+  <!-- Footer: the update block sits on the version line, in every view -->
   <div class="sidebar-footer">
     <div class="nav-divider"></div>
-    @if (version()?.current) {
-      <div class="app-version" [title]="('common.version' | translate) + ' ' + version()!.current">
-        @if (minimized()) {
-          {{ version()!.current }}
-        } @else {
-          {{ 'common.version' | translate }} - {{ version()!.current }}
+    @if (upd(); as u) {
+      @switch (u.kind) {
+        @case ('available') {
+          @if (minimized()) {
+            <button type="button" class="upd-square" (click)="updates.startSourceUpdate()" [title]="'update.updateTo' | translate:{ version: u.latest }" [attr.aria-label]="'update.updateTo' | translate:{ version: u.latest }">
+              <app-icon name="download" /><span class="upd-dot new"></span>
+            </button>
+          } @else {
+            <button type="button" class="upd-btn" (click)="updates.startSourceUpdate()">
+              <app-icon name="download" /> {{ 'update.updateTo' | translate:{ version: u.latest } }}
+            </button>
+            @if (version()?.url; as url) {
+              <a class="upd-link" [href]="url" target="_blank" rel="noopener noreferrer">{{ 'update.whatsNew' | translate:{ version: u.latest } }}</a>
+            }
+          }
         }
-      </div>
+        @case ('downloading') {
+          @if (minimized()) {
+            <div class="upd-square quiet" [title]="('update.downloading' | translate:{ version: u.latest }) + ' · ' + u.percent + ' %'">
+              <svg class="upd-ring" viewBox="0 0 36 36" role="img" [attr.aria-label]="u.percent + ' %'"><circle cx="18" cy="18" r="15" class="ring-track" /><circle cx="18" cy="18" r="15" class="ring-fill" [attr.stroke-dasharray]="(u.percent * 0.9425) + ' 94.25'" /></svg>
+            </div>
+            <div class="upd-mini-text">{{ u.percent }} %</div>
+          } @else {
+            <div class="upd-card">
+              <div class="upd-title"><app-icon name="download" /> {{ 'update.downloading' | translate:{ version: u.latest } }}</div>
+              <div class="upd-bar"><div class="upd-bar-fill" [style.width.%]="u.percent"></div></div>
+              <div class="upd-hint">{{ u.percent }} %@if (u.total) { · {{ mb(u.transferred) }} / {{ mb(u.total) }} MB }</div>
+            </div>
+          }
+        }
+        @case ('ready') {
+          @if (minimized()) {
+            <button type="button" class="upd-square" (click)="updates.restartToInstall()" [title]="'update.restartInstall' | translate:{ version: u.latest }" [attr.aria-label]="'update.restartInstall' | translate:{ version: u.latest }">
+              <app-icon name="refresh" /><span class="upd-dot ready"></span>
+            </button>
+          } @else {
+            <button type="button" class="upd-btn" (click)="updates.restartToInstall()">
+              <app-icon name="refresh" /> {{ 'update.restartInstall' | translate:{ version: u.latest } }}
+            </button>
+            <div class="upd-hint center">{{ 'update.readyHint' | translate }}</div>
+          }
+        }
+        @case ('updating') {
+          @if (minimized()) {
+            <div class="upd-square quiet" [title]="('update.updating' | translate:{ version: u.latest }) + ' · ' + ('update.step' | translate:{ n: u.step, total: u.steps, label: ('update.steps.' + u.stepKey) | translate })">
+              <svg class="upd-ring" viewBox="0 0 36 36" role="img" [attr.aria-label]="('update.updating' | translate:{ version: u.latest })"><circle cx="18" cy="18" r="15" class="ring-track" /><circle cx="18" cy="18" r="15" class="ring-fill" [attr.stroke-dasharray]="((u.step / u.steps) * 94.25) + ' 94.25'" /></svg>
+            </div>
+            <div class="upd-mini-text">{{ u.step }}/{{ u.steps }}</div>
+          } @else {
+            <div class="upd-card">
+              <div class="upd-title"><app-icon name="refresh" /> {{ 'update.updating' | translate:{ version: u.latest } }}</div>
+              <div class="upd-bar"><div class="upd-bar-fill" [style.width.%]="(u.step / u.steps) * 100"></div></div>
+              <div class="upd-hint">{{ 'update.step' | translate:{ n: u.step, total: u.steps, label: ('update.steps.' + u.stepKey) | translate } }}</div>
+              <div class="upd-hint">{{ 'update.restartsAlone' | translate }}</div>
+            </div>
+          }
+        }
+        @case ('done') {
+          @if (minimized()) {
+            <div class="upd-square quiet" [title]="'update.done' | translate"><app-icon name="check" /></div>
+          } @else {
+            <div class="upd-card"><div class="upd-title"><app-icon name="check" /> {{ 'update.done' | translate }}</div></div>
+          }
+        }
+        @case ('error') {
+          @if (minimized()) {
+            <button type="button" class="upd-square bad" (click)="updates.retry()" [title]="('update.failed' | translate) + ' · ' + ('update.retry' | translate)" [attr.aria-label]="'update.failed' | translate">
+              <app-icon name="alert" />
+            </button>
+          } @else {
+            <div class="upd-card bad">
+              <div class="upd-title"><app-icon name="alert" /> {{ 'update.failed' | translate }}</div>
+              <div class="upd-hint">{{ errorKey(u.message) ? (errorKey(u.message)! | translate) : u.message }}</div>
+              <div class="upd-actions">
+                @if (u.log) { <a class="upd-link" routerLink="/system">{{ 'update.viewLog' | translate }}</a> }
+                <button type="button" class="upd-link" (click)="updates.retry()">{{ 'update.retry' | translate }}</button>
+              </div>
+            </div>
+          }
+        }
+      }
+      @if (u.kind === 'checking') {
+        <div class="app-version">{{ 'update.checking' | translate }}</div>
+      } @else if (u.kind === 'idle' && u.current) {
+        <button type="button" class="app-version as-link" (click)="updates.checkNow()"
+                [title]="(checkedAgo() !== null ? ('update.checkedAgo' | translate:{ min: checkedAgo() }) + ' · ' : '') + ('update.checkNow' | translate)">
+          @if (minimized()) { {{ u.current }} } @else { {{ 'common.version' | translate }} - {{ u.current }} }
+        </button>
+      } @else if (u.current) {
+        <div class="app-version" [title]="('common.version' | translate) + ' ' + u.current">
+          @if (minimized()) { {{ u.current }} } @else { {{ 'common.version' | translate }} - {{ u.current }} }
+        </div>
+      }
       <div class="nav-divider"></div>
     }
     <button class="theme-toggle" (click)="toggleTheme()" [title]="'theme.toggle' | translate">

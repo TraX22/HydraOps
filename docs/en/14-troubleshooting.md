@@ -43,7 +43,7 @@ Close HydraOps before installing: the installer cannot overwrite files in use.
 
 ## Something broke after an update
 
-Before every update from the **System** view, HydraOps makes a copy of your installation (agents, skills, users, settings, database). Open **System → Backups**, find the copy marked *before update* and press **Put back**: the app restarts on the data you had before. Your current state is kept as a copy too, so nothing is lost by trying. The copy belongs to the previous version, so the usual migrations bring it forward on start. See [Statistics & System](./11-stats-system.md#backups).
+Before every update started from the sidebar, HydraOps makes a copy of your installation (agents, skills, users, settings, database). Open **System → Backups**, find the copy marked *before update* and press **Put back**: the app restarts on the data you had before. Your current state is kept as a copy too, so nothing is lost by trying. The copy belongs to the previous version, so the usual migrations bring it forward on start. See [Statistics & System](./11-stats-system.md#backups).
 
 ## A connection (MCP server) does not connect
 

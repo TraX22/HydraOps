@@ -60,7 +60,7 @@ process.on("unhandledRejection", (reason) => {
 
 const { ServiceSupervisor, REPO_ROOT, UI_ROOT } = require("./services");
 const { ensureDataDir } = require("./data-dir");
-const { initAutoUpdate, checkForUpdatesNow } = require("./updater");
+const { initAutoUpdate, checkForUpdatesNow, checkQuietly, restartToInstall, getState: getUpdaterState, onStateChange: onUpdaterStateChange } = require("./updater");
 const shellI18n = require("./i18n");
 
 // Language of the native menu and of the About window. It starts on the same default
@@ -541,8 +541,17 @@ function registerIpc() {
     }
     return { ...saveShellSettings(clean), canLaunchAtLogin: app.isPackaged };
   });
+  // The sidebar's update block: the installed app's updater state, a silent
+  // re-check, and the restart that installs a downloaded version.
+  ipcMain.handle("updater:get", () => getUpdaterState());
+  ipcMain.handle("updater:check", () => checkQuietly());
+  ipcMain.handle("updater:restart", () => restartToInstall());
+  onUpdaterStateChange((state) => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("updater:state", state);
+  });
   ipcMain.handle("app:info", () => ({
     version: app.getVersion(),
+    packaged: app.isPackaged,
     electron: process.versions.electron,
     node: process.versions.node,
     repoRoot: REPO_ROOT,
