@@ -2811,15 +2811,30 @@ async function writeXConfig(cfg: XConfig): Promise<void> {
  * not this server's (the UI is served from here, and the desktop loads this same address).
  */
 function sameSiteOnly(req: express.Request, res: express.Response): boolean {
+  const deny = () => { res.status(403).json({ error: "cross_site", message: "This request did not come from HydraOps itself." }); return false; };
   const site = String(req.headers["sec-fetch-site"] || "").toLowerCase();
-  if (site === "cross-site") { res.status(403).json({ error: "cross_site", message: "This request did not come from HydraOps itself." }); return false; }
+  if (site === "cross-site") return deny();
+  // The Host the browser asked for must be one this server is reached by: a loopback name, an
+  // address literal (a DNS name pointed at 127.0.0.1 by an attacker, "rebinding", is neither),
+  // or the public name the operator set. Then the Origin, when sent, must be that same host.
+  const host = String(req.headers.host || "").toLowerCase();
+  if (!isServedHost(host)) return deny();
   const origin = String(req.headers.origin || "");
   if (origin) {
-    let host = "";
-    try { host = new URL(origin).host; } catch { /* not an origin */ }
-    if (!host || host !== String(req.headers.host || "")) { res.status(403).json({ error: "cross_site", message: "This request did not come from HydraOps itself." }); return false; }
+    let originHost = "";
+    try { originHost = new URL(origin).host.toLowerCase(); } catch { /* not an origin */ }
+    if (!originHost || originHost !== host) return deny();
   }
   return true;
+}
+/** `host:port` as the browser sent it: loopback, an IP literal, or HYDRA_PUBLIC_HOST. */
+function isServedHost(host: string): boolean {
+  const name = host.replace(/:\d+$/, "").replace(/^\[(.*)\]$/, "$1");
+  if (!name) return false;
+  if (name === "localhost" || name === "::1" || /^127\.\d+\.\d+\.\d+$/.test(name)) return true;
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(name) || /^[0-9a-f:]+$/i.test(name)) return true;
+  const pub = String(process.env.HYDRA_PUBLIC_HOST || "").trim().toLowerCase().replace(/:\d+$/, "");
+  return !!pub && name === pub;
 }
 
 async function xProxy(method: "GET" | "POST", p: string, body?: unknown): Promise<any> {
