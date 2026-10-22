@@ -4,12 +4,13 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { IconComponent } from '../../components/icon/icon.component';
 import { SkillsCardComponent } from './skills-card/skills-card.component';
 import { ConnectionsCardComponent } from './connections-card/connections-card.component';
+import { XCardComponent } from './x-card/x-card.component';
 import { ApiService, Agent, AppConfig, TelegramIntegration, GitHubIntegration } from '../../services/api.service';
 
 @Component({
   selector: 'app-herramientas',
   standalone: true,
-  imports: [FormsModule, TranslatePipe, IconComponent, SkillsCardComponent, ConnectionsCardComponent],
+  imports: [FormsModule, TranslatePipe, IconComponent, SkillsCardComponent, ConnectionsCardComponent, XCardComponent],
   templateUrl: './herramientas.component.html',
   styleUrl: './herramientas.component.css',
 })

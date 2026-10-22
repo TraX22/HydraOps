@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>HydraOps · X</title>
+<!--
+  The callback X sends the browser to after a user authorises an X app for HydraOps.
+  X only accepts https callbacks, and HydraOps runs on the user's own computer, so this
+  page lives at a public https address (https://hydraops.org/x/callback for the project;
+  anyone running HydraOps can host a copy and register that address in their own X app)
+  and forwards the browser, with the same query string, to the HydraOps on the browser's
+  machine: http://127.0.0.1:3000/api/integrations/x/callback. It stores nothing and talks
+  to nobody: the code it carries is useless without the PKCE verifier that HydraOps kept.
+  When that HydraOps is not on this machine (it runs on a server), the address is shown
+  for the user to copy and paste into Tools -> X.
+-->
+<style>
+  body { font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: #1f2937; background: #f6f7f9; margin: 0; }
+  main { max-width: 36rem; margin: 12vh auto; padding: 0 24px; }
+  h1 { font-size: 22px; margin: 0 0 8px; }
+  p { color: #4b5563; margin: 0 0 14px; }
+  code { display: block; word-break: break-all; font-size: 13px; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff; color: #111827; }
+  button { margin-top: 10px; padding: 8px 14px; border: 1px solid #3d4db3; border-radius: 6px; background: #3d4db3; color: #fff; font: inherit; font-size: 14px; cursor: pointer; }
+  a { color: #3d4db3; }
+</style>
+</head>
+<body>
+<main>
+  <h1>HydraOps</h1>
+  <p id="msg">Volviendo a HydraOps en esta computadora… · Returning to HydraOps on this computer…</p>
+  <p id="fallback" hidden>Si HydraOps no corre en esta computadora, copiá esta dirección entera y pegala en <strong>Herramientas → X</strong>: · If HydraOps is not on this computer, copy this whole address and paste it in <strong>Tools → X</strong>:</p>
+  <code id="addr" hidden></code>
+  <button id="copy" hidden type="button">Copiar · Copy</button>
+</main>
+<script>
+(function () {
+  var target = "http://127.0.0.1:3000/api/integrations/x/callback" + location.search;
+  var addr = document.getElementById("addr");
+  var copy = document.getElementById("copy");
+  var fallback = document.getElementById("fallback");
+  var msg = document.getElementById("msg");
+  function showManual() {
+    msg.textContent = "No se pudo llegar al HydraOps de esta computadora. · HydraOps on this computer could not be reached.";
+    fallback.hidden = false; addr.hidden = false; copy.hidden = false;
+    addr.textContent = target;
+    copy.onclick = function () { navigator.clipboard && navigator.clipboard.writeText(target); copy.textContent = "Copiado · Copied"; };
+  }
+  if (!/[?&]code=/.test(location.search) || !/[?&]state=/.test(location.search)) {
+    msg.textContent = "Esta dirección no trae una autorización de X. Volvé a HydraOps y empezá de nuevo. · This address carries no X authorisation; go back to HydraOps and start again.";
+    return;
+  }
+  // The browser is sent to the local HydraOps; if nothing answers there within a few
+  // seconds (HydraOps runs elsewhere), the address is shown to copy by hand.
+  setTimeout(showManual, 4000);
+  location.replace(target);
+})();
+</script>
+</body>
+</html>

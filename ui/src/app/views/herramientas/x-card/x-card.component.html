@@ -1,0 +1,111 @@
+@if (x(); as x) {
+  <div class="tool-card">
+    <div class="tool-head">
+      <div class="tool-title">
+        <svg class="tool-icon x-logo" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M18.2 2h3.4l-7.4 8.5L23 22h-6.8l-5.3-7-6.1 7H1.4l7.9-9.1L1 2h7l4.8 6.4zm-1.2 18h1.9L7.1 3.9H5.1z"/></svg>
+        <div class="tool-title-text">
+          <span class="addon-name">{{ 'herramientas.x.name' | translate }}</span>
+          <span class="addon-type">{{ 'herramientas.x.description' | translate }}</span>
+        </div>
+      </div>
+      <button class="toggle-btn" [class.on]="x.enabled" (click)="toggleEnabled()">{{ x.enabled ? 'ON' : 'OFF' }}</button>
+    </div>
+
+    <!-- The user's X app: client id and secret, straight to the key store -->
+    <div class="tool-field">
+      <label class="tool-label">
+        {{ 'herramientas.x.app' | translate }}
+        <span class="addon-badge" [class.key-ok]="x.appConfigured">{{ (x.appConfigured ? 'herramientas.x.appSet' : 'herramientas.x.appMissing') | translate }}</span>
+      </label>
+      <div class="app-row">
+        <input type="text" class="key-input" autocomplete="off" spellcheck="false" [placeholder]="'herramientas.x.clientId' | translate"
+               [value]="clientId()" (input)="clientId.set($any($event.target).value)" />
+        <input type="password" class="key-input" autocomplete="off" [placeholder]="'herramientas.x.clientSecret' | translate"
+               [value]="clientSecret()" (input)="clientSecret.set($any($event.target).value)" (focus)="onSecretFocus()" (blur)="onSecretBlur()" (keyup.enter)="saveApp()" />
+        <button class="btn-primary key-save" [disabled]="busy() || !clientId().trim() || (!x.appConfigured && (!clientSecret().trim() || clientSecret() === mask))" (click)="saveApp()">{{ 'common.save' | translate }}</button>
+        @if (saved()) { <span class="saved-msg">✓ {{ 'common.saved' | translate }}</span> }
+      </div>
+      <p class="tool-hint">
+        {{ 'herramientas.x.appHint' | translate }}
+        <a href="https://developer.x.com/" target="_blank" rel="noopener noreferrer">developer.x.com</a>.
+        {{ 'herramientas.x.callbackHint' | translate }} <code>{{ x.redirectUri }}</code>
+      </p>
+      <p class="tool-hint">{{ 'herramientas.x.costs' | translate }}</p>
+    </div>
+
+    <!-- Accounts -->
+    <div class="sec">
+      <h3>{{ 'herramientas.x.accounts' | translate }} <span class="count">{{ x.accounts.length }}</span></h3>
+      <button class="btn-secondary" [disabled]="busy() || !x.appConfigured || !!link()" (click)="connect()">+ {{ 'herramientas.x.connect' | translate }}</button>
+    </div>
+
+    @if (link(); as l) {
+      <div class="connect-box">
+        <div class="connect-head">
+          <strong>{{ 'herramientas.x.connectTitle' | translate }}</strong>
+          <span class="chip warn">{{ (x.pending?.finishing ? 'herramientas.x.finishing' : 'herramientas.x.waiting') | translate }}</span>
+        </div>
+        <ol class="steps">
+          <li>
+            {{ 'herramientas.x.step1' | translate }}
+            <div class="link-row">
+              <code class="link">{{ l.url }}</code>
+              <button class="btn-secondary" type="button" (click)="copyLink()">{{ (copied() ? 'herramientas.x.copied' : 'herramientas.x.copy') | translate }}</button>
+              <a class="btn-primary open" [href]="l.url" target="_blank" rel="noopener noreferrer">{{ 'herramientas.x.open' | translate }}</a>
+            </div>
+          </li>
+          <li>{{ 'herramientas.x.step2' | translate }}</li>
+          <li>{{ 'herramientas.x.step3' | translate }}</li>
+          <li>{{ 'herramientas.x.step4' | translate }}</li>
+        </ol>
+        <div class="paste">
+          <span class="tool-hint">{{ 'herramientas.x.pasteHint' | translate }}</span>
+          <div class="link-row">
+            <input type="url" class="key-input" autocomplete="off" spellcheck="false" [placeholder]="'herramientas.x.pastePlaceholder' | translate"
+                   [value]="pasteUrl()" (input)="pasteUrl.set($any($event.target).value)" (keyup.enter)="finishByHand()" />
+            <button class="btn-primary" type="button" [disabled]="busy() || !pasteUrl().trim()" (click)="finishByHand()">{{ 'herramientas.x.finish' | translate }}</button>
+          </div>
+        </div>
+        <div class="connect-foot">
+          <span class="tool-hint">{{ 'herramientas.x.tokensHint' | translate }}</span>
+          <button class="btn-secondary" type="button" (click)="cancel()">{{ 'common.cancel' | translate }}</button>
+        </div>
+      </div>
+    }
+
+    <div class="accounts">
+      @for (a of x.accounts; track a.id) {
+        <article class="account" [class.reauth]="a.status === 'reauth'">
+          @if (a.avatar) { <img class="avatar" [src]="a.avatar" alt="" /> } @else { <div class="avatar initial">{{ initial(a) }}</div> }
+          <div class="who">
+            <div class="names">
+              <strong>{{ a.name }}</strong>
+              <span class="handle">&#64;{{ a.username }}</span>
+              @if (a.status === 'reauth') { <span class="chip bad">{{ 'herramientas.x.reauth' | translate }}</span> }
+              <span class="meta">{{ 'herramientas.x.connectedOn' | translate:{ date: dateOf(a) } }}</span>
+            </div>
+            <div class="agents">
+              <span class="tool-hint">{{ 'herramientas.x.canPost' | translate }}</span>
+              @for (id of a.agents; track id) {
+                <span class="chip agent">{{ agentName(id) }} <button type="button" class="chip-x" (click)="removeAgent(a, id)" [attr.aria-label]="'common.delete' | translate">×</button></span>
+              }
+              @if (!a.agents.length) { <span class="nobody">{{ 'herramientas.x.nobody' | translate }}</span> }
+              @if (pickable()(a).length) {
+                <select class="add-agent" (change)="addAgent(a, $event)" [attr.aria-label]="'herramientas.x.addAgent' | translate">
+                  <option value="">+ {{ 'herramientas.x.addAgent' | translate }}</option>
+                  @for (ag of pickable()(a); track ag.id) { <option [value]="ag.id">{{ ag.name }}</option> }
+                </select>
+              }
+            </div>
+          </div>
+          <button class="btn-secondary danger" type="button" [disabled]="busy()" (click)="disconnect(a)">{{ 'herramientas.x.disconnect' | translate }}</button>
+        </article>
+      } @empty {
+        <p class="empty-msg">{{ (x.appConfigured ? 'herramientas.x.noAccounts' : 'herramientas.x.noApp') | translate }}</p>
+      }
+    </div>
+
+    <p class="tool-hint">{{ 'herramientas.x.approvalHint' | translate }}</p>
+    @if (error()) { <p class="notice bad">{{ error() }}</p> }
+  </div>
+}

@@ -2,7 +2,7 @@
 
 The **Tools** section in the sidebar connects HydraOps to external services. Don't confuse it with [Add-ons](./08-addons.md): an add-on is a tool the *agents use* (search the web, read a page); a tool in this section is a **connector** that lets you *operate HydraOps from the outside*.
 
-Today there are **Telegram** (talk to your agents from your phone), **GitHub**, **[Skills](#skills-know-how-for-the-agents)** (the know-how agents read when a task calls for it) and **[Connections](#connections-ready-made-mcp-servers)** (apps and services the agents can drive). Discord, Signal and Reddit appear as "coming soon".
+Today there are **Telegram** (talk to your agents from your phone), **GitHub**, **[Skills](#skills-know-how-for-the-agents)** (the know-how agents read when a task calls for it), **[Connections](#connections-ready-made-mcp-servers)** (apps and services the agents can drive) and **[X](#x-your-accounts-posted-to-with-your-approval)** (your X accounts). Discord, Signal and Reddit appear as "coming soon".
 
 ## Telegram: run your agents from your phone
 
@@ -127,6 +127,30 @@ To spare that loading round in the obvious cases, these start loaded:
 A loaded tool stays loaded for the rest of the task, called or not: the list of tools is the first thing in every request, and any change to it makes the provider read the whole conversation again at the full price instead of from its cache, which costs far more than a few idle definitions. The `load_tools` round does not count toward the agent's step limit. Approvals, the injection defense and the result vault work as before: only what the model sees before choosing changes. What each task loaded is kept with its data (`toolsOnDemand`).
 
 It can be turned off in **Settings → Tools on demand** (or with `TOOLS_ON_DEMAND=off`). With 12 tools or fewer nothing changes.
+
+## X: your accounts, posted to with your approval
+
+HydraOps connects to **your own X developer app**, and through it to as many of your X accounts as you like: a project's, a brand's, a personal one. The agents will publish on them, each post waiting for your approval (the publishing tool comes in the next version; this card is where the accounts are connected and where you decide who may use which).
+
+### 1. Create the app in X's portal
+
+X's API is pay-per-use: there is no free tier for new developers, you load credits in the portal and every operation deducts a little (about 0.015 USD per post, 0.20 USD when the post carries a link, 0.005 USD per post read, at the time of writing). One developer account and one balance serve every account you connect.
+
+1. Sign up at [developer.x.com](https://developer.x.com/) with the X account that will own the app, create a project and an app, and load credits.
+2. In the app's **User authentication settings** choose **Read and write**, the **Web App, Automated App or Bot** type, and register this **Callback URI**: `https://hydraops.org/x/callback`. X only takes https addresses there; that page (its source is `deploy/x-callback.html` in the repository, so you can host your own copy) stores nothing and only forwards the browser to the HydraOps on your computer.
+3. Copy the **Client ID** and the **Client Secret** (shown once) into **Tools → X** and press **Save**. They go to the key store, never to the database or the repository.
+
+### 2. Connect each account
+
+Press **Connect an account**: HydraOps shows a link. Open it in a browser **on this computer**, signed in to X as the account you want to connect (switch accounts in X first if another one is open), accept the four permissions (read your profile, post, upload images, keep the session) and come back: the account appears in the list within seconds, with its tokens in the key store, refreshed on their own.
+
+When HydraOps runs on a server and your browser is elsewhere, the callback cannot reach it: the page X sends you to shows the address to copy, and the card has a field to paste it in. Same result.
+
+An account can be connected again at any time (its tokens are replaced), and **Disconnect** forgets it.
+
+### 3. Who may post where
+
+Each connected account lists the agents allowed to post on it, and a new account starts with **nobody**: the publishing tool refuses, on the server side, any account the agent was not given here, so a post cannot land on the wrong brand by a model's mistake. Add agents with the picker on the account's row; the ON/OFF switch at the top pauses every account at once.
 
 ## Connections: ready-made MCP servers
 

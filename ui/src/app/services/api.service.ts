@@ -264,6 +264,32 @@ export interface NativeAddon {
   keyConfigured?: boolean;
 }
 
+// ── X (Herramientas → X): the user's X accounts, connected to their own X app ──
+export interface XAccount {
+  /** X's numeric user id. */
+  id: string;
+  username: string;
+  name: string;
+  avatar?: string;
+  status: 'connected' | 'reauth';
+  connectedAt: string;
+  refreshedAt?: string;
+  /** The agents allowed to publish with this account (kept by the API). */
+  agents: string[];
+}
+export interface XIntegration {
+  enabled: boolean;
+  appConfigured: boolean;
+  clientId?: string;
+  /** The callback registered in the X app (an https page that forwards to this computer). */
+  redirectUri: string;
+  accounts: XAccount[];
+  pending: { url: string; expiresAt: string; finishing?: boolean } | null;
+  lastError?: string;
+  /** Set by the manual finish: the account that just came in. */
+  connected?: { username: string };
+}
+
 // External integrations (Herramientas). Telegram is the first connector.
 export interface TelegramIntegration {
   enabled: boolean;
@@ -902,6 +928,39 @@ export class ApiService {
   }
 
   // ── Integrations (Herramientas) ──
+  // ── X ──
+  getXIntegration(): Observable<XIntegration> {
+    return this.http.get<XIntegration>(`${this.base}/system/integrations/x`);
+  }
+
+  /** The switch and the agents allowed per account. */
+  saveXIntegration(cfg: { enabled?: boolean; accounts?: { id: string; agents: string[] }[] }): Observable<XIntegration> {
+    return this.http.post<XIntegration>(`${this.base}/system/integrations/x`, cfg);
+  }
+
+  /** The X app's credentials: they go to the key store, never to the database. */
+  saveXApp(clientId: string, clientSecret: string): Observable<XIntegration> {
+    return this.http.post<XIntegration>(`${this.base}/system/integrations/x/app`, { clientId, clientSecret });
+  }
+
+  /** Starts connecting one more account: the link to open in a browser signed in as that account. */
+  connectXAccount(): Observable<{ url: string; expiresAt: string }> {
+    return this.http.post<{ url: string; expiresAt: string }>(`${this.base}/system/integrations/x/connect`, {});
+  }
+
+  /** The address X sent the browser to, pasted by hand (when the callback could not reach this computer). */
+  finishXConnect(url: string): Observable<XIntegration> {
+    return this.http.post<XIntegration>(`${this.base}/system/integrations/x/finish`, { url });
+  }
+
+  cancelXConnect(): Observable<XIntegration> {
+    return this.http.post<XIntegration>(`${this.base}/system/integrations/x/cancel`, {});
+  }
+
+  disconnectXAccount(id: string): Observable<XIntegration> {
+    return this.http.post<XIntegration>(`${this.base}/system/integrations/x/disconnect`, { id });
+  }
+
   getTelegramIntegration(): Observable<TelegramIntegration> {
     return this.http.get<TelegramIntegration>(`${this.base}/system/integrations/telegram`);
   }
