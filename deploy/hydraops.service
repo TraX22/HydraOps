@@ -8,7 +8,7 @@
 # Installation — first adjust User=, WorkingDirectory=, ExecStart=,
 # Environment=PATH and ReadWritePaths= to your user and the path of your clone:
 #
-#   mkdir -p ~/.cache ~/.local/share ~/.npm ~/.config/comfy-cli   # as the service user: the folders below
+#   mkdir -p ~/.cache ~/.local/share ~/.npm ~/.config/comfy-cli ~/.config/HydraOps   # as the service user: the folders below
 #   sudo cp deploy/hydraops.service /etc/systemd/system/
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable --now hydraops
@@ -77,6 +77,10 @@ ReadWritePaths=-/home/hydraops/.npm
 # ~/.config/comfy-cli; read-only, run_workflow fails after ComfyUI already took
 # the job ("Read-only file system: ~/.config/comfy-cli/jobs").
 ReadWritePaths=-/home/hydraops/.config/comfy-cli
+# The copies of the installation (System -> Backups, and the one made before every
+# update) live outside the clone, in ~/.config/HydraOps/backups: without this line the
+# update from the app stops at "the copy could not be made". Create the folder first.
+ReadWritePaths=-/home/hydraops/.config/HydraOps
 
 [Install]
 WantedBy=multi-user.target

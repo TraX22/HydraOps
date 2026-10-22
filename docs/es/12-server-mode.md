@@ -42,14 +42,14 @@ Las conexiones desde la propia máquina del servidor nunca necesitan token. Si e
 En el repositorio hay una unidad lista: [`deploy/hydraops.service`](../../deploy/hydraops.service), con las instrucciones de instalación en sus comentarios. En resumen:
 
 ```bash
-mkdir -p ~/.cache ~/.local/share ~/.npm ~/.config/comfy-cli   # las carpetas que la unidad deja escribir al servicio (créalas antes: una que falte queda en solo lectura)
+mkdir -p ~/.cache ~/.local/share ~/.npm ~/.config/comfy-cli ~/.config/HydraOps   # las carpetas que la unidad deja escribir al servicio (créalas antes: una que falte queda en solo lectura)
 sudo cp deploy/hydraops.service /etc/systemd/system/
 # edita User=, WorkingDirectory=, ExecStart=, Environment=PATH y ReadWritePaths= a tu usuario y tu ruta
 sudo systemctl daemon-reload
 sudo systemctl enable --now hydraops
 ```
 
-La unidad corre la pila con el home en solo lectura, salvo el clon, el almacén de claves y las cachés de `uvx` y `npx`, que es lo que arranca las conexiones (servidores MCP) y guarda su código; y pone `~/.local/bin`, donde `uv` se instala, en el `PATH` del servicio. Una unidad instalada antes de 0.1.59 no tiene ninguna de las dos cosas: sin ellas una conexión como BlenderLab nunca arranca bajo el servicio (desde una terminal sí). Añade la línea `Environment=PATH=` y las `ReadWritePaths=` extra del `deploy/hydraops.service` actual, y luego `sudo systemctl daemon-reload && sudo systemctl restart hydraops`. La conexión ComfyUI necesita una de esas líneas más (`~/.config/comfy-cli`, donde comfy-cli anota los trabajos que envía; en la unidad desde 0.1.66): sin ella el flujo sí arranca en ComfyUI, pero la herramienta devuelve un error y el agente nunca se entera del id del trabajo.
+La unidad corre la pila con el home en solo lectura, salvo el clon, el almacén de claves y las cachés de `uvx` y `npx`, que es lo que arranca las conexiones (servidores MCP) y guarda su código; y pone `~/.local/bin`, donde `uv` se instala, en el `PATH` del servicio. Una unidad instalada antes de 0.1.59 no tiene ninguna de las dos cosas: sin ellas una conexión como BlenderLab nunca arranca bajo el servicio (desde una terminal sí). Añade la línea `Environment=PATH=` y las `ReadWritePaths=` extra del `deploy/hydraops.service` actual, y luego `sudo systemctl daemon-reload && sudo systemctl restart hydraops`. La conexión ComfyUI necesita una de esas líneas más (`~/.config/comfy-cli`, donde comfy-cli anota los trabajos que envía; en la unidad desde 0.1.66): sin ella el flujo sí arranca en ComfyUI, pero la herramienta devuelve un error y el agente nunca se entera del id del trabajo. Y actualizar desde la aplicación necesita `~/.config/HydraOps`, donde van las copias de la instalación (en la unidad desde 0.1.69): sin ella la actualización se frena en «no se pudo hacer la copia previa de tu instalación».
 
 Los logs de todos los servicios acaban en el journal: `journalctl -u hydraops -f`. Parar con `systemctl stop hydraops` hace un apagado limpio de la pila entera.
 

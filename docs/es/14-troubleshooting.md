@@ -43,7 +43,7 @@ Cierra HydraOps antes de instalar: el instalador no puede sobrescribir archivos 
 
 ## Algo se rompió después de una actualización
 
-Antes de cada actualización desde la vista **Sistema**, HydraOps hace una copia de tu instalación (agentes, skills, usuarios, configuración, base de datos). Abrí **Sistema → Copias de seguridad**, buscá la copia marcada *antes de actualizar* y tocá **Restaurar**: la app se reinicia con los datos que tenías antes. Tu estado actual también queda guardado como copia, así que no se pierde nada por probar. La copia es de la versión anterior, así que las migraciones de siempre la ponen al día al arrancar. Ver [Estadísticas y Sistema](./11-stats-system.md#copias-de-seguridad).
+Antes de cada actualización iniciada desde la barra lateral, HydraOps hace una copia de tu instalación (agentes, skills, usuarios, configuración, base de datos). Abrí **Sistema → Copias de seguridad**, buscá la copia marcada *antes de actualizar* y tocá **Restaurar**: la app se reinicia con los datos que tenías antes. Tu estado actual también queda guardado como copia, así que no se pierde nada por probar. La copia es de la versión anterior, así que las migraciones de siempre la ponen al día al arrancar. Ver [Estadísticas y Sistema](./11-stats-system.md#copias-de-seguridad).
 
 ## Una conexión (servidor MCP) no conecta
 

@@ -335,10 +335,7 @@
       "fromSource": "Es la carpeta del propio clon: actualizá con git pull y nunca la borres para reinstalar; hacé una copia desde Copias de seguridad antes de tocarla."
     },
     "update": {
-      "title": "Actualización disponible",
-      "cta": "Actualizar",
-      "working": "Actualizando… la app se reiniciará sola",
-      "done": "Actualizado. Recargando…"
+      "working": "Actualizando… la app se reiniciará sola"
     },
     "security": {
       "title": "Seguridad: contenido externo",
@@ -887,8 +884,40 @@
     "accept": "Aceptar"
   },
   "update": {
-    "available": "Hay una versión nueva ({{version}}) disponible.",
-    "view": "Ver la release"
+    "updateTo": "Actualizar a {{version}}",
+    "whatsNew": "Qué trae la {{version}}",
+    "checking": "Comprobando…",
+    "checkNow": "Clic para comprobar ahora",
+    "checkedAgo": "Comprobado hace {{min}} min",
+    "downloading": "Descargando {{version}}",
+    "restartInstall": "Reiniciar e instalar {{version}}",
+    "readyHint": "Descargada. Tus datos y tus claves no se tocan.",
+    "updating": "Actualizando a {{version}}",
+    "step": "Paso {{n}} de {{total}} · {{label}}",
+    "steps": {
+      "fetch": "trayendo la versión",
+      "checkout": "cambiando de versión",
+      "install": "instalando dependencias",
+      "build": "compilando los servicios",
+      "ui": "compilando la interfaz",
+      "restart": "reiniciando"
+    },
+    "restartsAlone": "Se reinicia sola al terminar.",
+    "done": "Actualizado. Recargando…",
+    "failed": "No se pudo actualizar",
+    "viewLog": "Ver el registro",
+    "retry": "Reintentar",
+    "errors": {
+      "timeout": "Está tardando demasiado. Mirá el registro en Sistema.",
+      "update_failed": "La actualización falló. Mirá el registro en Sistema.",
+      "check_failed": "No se pudo comprobar si hay una versión nueva (¿sin conexión?).",
+      "not_git": "Esta instalación no es un clon de git; en Windows la app instalada se actualiza sola.",
+      "no_git": "No se encontró git en esta máquina.",
+      "dirty": "Hay cambios locales sin guardar en el repositorio. Guardalos o descartalos antes de actualizar.",
+      "no_release": "No se pudo saber cuál es la última versión (¿sin conexión?).",
+      "up_to_date": "Ya estás en la última versión.",
+      "backup_failed": "No se pudo hacer la copia previa de tu instalación, así que no se actualizó."
+    }
   },
   "commands": {
     "help": "Lista los comandos disponibles o explica uno",

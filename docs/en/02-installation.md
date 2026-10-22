@@ -8,7 +8,7 @@
 
 Your data goes to `%APPDATA%\HydraOps` and your API keys to `%APPDATA%\hydraops\keys.json`, outside the installation folder: updating the application never deletes anything of yours.
 
-To update, install the new version on top. Close the application first: the installer cannot overwrite files in use.
+The installed app checks for a new version on its own (at start and every six hours) and downloads it in the background: the sidebar shows the download under the version line and then offers **Restart and install**. Nothing is applied until you press it; if you simply close the application, the downloaded version is installed on the way out. Clicking the version line checks again right away.
 
 ### The system tray and starting with Windows
 
@@ -65,7 +65,7 @@ On Windows you can also use the desktop window from source with `pnpm desktop`.
 
 Two ways; both keep your data (agents, database, attachments and keys live outside the code).
 
-**From the app.** When a new version is out, the **System** view shows a notice with an **Update** button. Pressing it makes HydraOps `git pull` the latest release, rebuild and restart its own services; the interface reloads when it is done. It only works when the installation is a git clone with no unsaved local changes (it tells you if there are). A copy of your data is made first, so if the new version gives you trouble you can put the previous state back from **System → Backups**.
+**From the app.** When a new version is out, the sidebar shows **Update to x.y.z** above the version line, in every view (and a link to what the release brings). Pressing it makes HydraOps `git pull` the latest release, rebuild and restart its own services, with the step in progress shown in that same block; the interface reloads when it is done. If a step fails, the block says so and **System** keeps the full log. It only works when the installation is a git clone with no unsaved local changes (it tells you if there are). A copy of your data is made first, so if the new version gives you trouble you can put the previous state back from **System → Backups**.
 
 **By hand**, from the repository folder:
 

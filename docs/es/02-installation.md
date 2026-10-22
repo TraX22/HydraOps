@@ -8,7 +8,7 @@
 
 Tus datos van a `%APPDATA%\HydraOps` y tus claves de API a `%APPDATA%\hydraops\keys.json`, fuera de la carpeta de instalación: actualizar la aplicación no borra nada tuyo.
 
-Para actualizar, instala la versión nueva encima. Cierra antes la aplicación: el instalador no puede sobrescribir archivos en uso.
+La aplicación instalada comprueba sola si hay versión nueva (al arrancar y cada seis horas) y la descarga en segundo plano: la barra lateral muestra la descarga bajo la línea de versión y después ofrece **Reiniciar e instalar**. No se aplica nada hasta que lo pulses; si simplemente cierras la aplicación, la versión descargada se instala al salir. Un clic en la línea de versión vuelve a comprobar al momento.
 
 ### La bandeja del sistema y el arranque con Windows
 
@@ -65,7 +65,7 @@ En Windows también puedes usar la ventana de escritorio desde el código con `p
 
 Hay dos formas; las dos conservan tus datos (agentes, base de datos, adjuntos y claves viven fuera del código).
 
-**Desde la aplicación.** Cuando hay una versión nueva, la vista **Sistema** muestra un aviso con el botón **Actualizar**. Al pulsarlo, HydraOps hace `git pull` de la última release, recompila y reinicia sus servicios solo; la interfaz se recarga al terminar. Solo funciona si la instalación es un clon de git sin cambios locales sin guardar (si los hay, te lo dice). Antes se hace una copia de tus datos: si la versión nueva te da problemas, podés volver al estado anterior desde **Sistema → Copias de seguridad**.
+**Desde la aplicación.** Cuando hay una versión nueva, la barra lateral muestra **Actualizar a x.y.z** sobre la línea de versión, en todas las vistas (y un enlace a lo que trae la release). Al pulsarlo, HydraOps hace `git pull` de la última release, recompila y reinicia sus servicios solo, mostrando el paso en curso en ese mismo bloque; la interfaz se recarga al terminar. Si un paso falla, el bloque lo dice y **Sistema** conserva el registro completo. Solo funciona si la instalación es un clon de git sin cambios locales sin guardar (si los hay, te lo dice). Antes se hace una copia de tus datos: si la versión nueva te da problemas, podés volver al estado anterior desde **Sistema → Copias de seguridad**.
 
 **A mano**, desde la carpeta del repositorio:
 

@@ -42,14 +42,14 @@ Connections from the server's own machine never need the token. If the token can
 The repository ships a ready unit: [`deploy/hydraops.service`](../../deploy/hydraops.service), with installation instructions in its comments. In short:
 
 ```bash
-mkdir -p ~/.cache ~/.local/share ~/.npm ~/.config/comfy-cli   # the folders the unit lets the service write (create them first: a missing one stays read-only)
+mkdir -p ~/.cache ~/.local/share ~/.npm ~/.config/comfy-cli ~/.config/HydraOps   # the folders the unit lets the service write (create them first: a missing one stays read-only)
 sudo cp deploy/hydraops.service /etc/systemd/system/
 # edit User=, WorkingDirectory=, ExecStart=, Environment=PATH and ReadWritePaths= to your user and path
 sudo systemctl daemon-reload
 sudo systemctl enable --now hydraops
 ```
 
-The unit runs the stack with a read-only home, except the clone, the key store and the caches of `uvx` and `npx`, which is what starts the connections (MCP servers) and keeps their code; and it puts `~/.local/bin`, where `uv` installs itself, on the service's `PATH`. A unit installed before 0.1.59 lacks both: without them a connection such as BlenderLab never starts under the service (it does from a terminal). Add the `Environment=PATH=` line and the extra `ReadWritePaths=` lines from the current `deploy/hydraops.service`, then `sudo systemctl daemon-reload && sudo systemctl restart hydraops`. The ComfyUI connection needs one more of those lines (`~/.config/comfy-cli`, where comfy-cli records the jobs it submits; in the unit since 0.1.66): without it a workflow does start in ComfyUI, but the tool answers an error and the agent never learns the job's id.
+The unit runs the stack with a read-only home, except the clone, the key store and the caches of `uvx` and `npx`, which is what starts the connections (MCP servers) and keeps their code; and it puts `~/.local/bin`, where `uv` installs itself, on the service's `PATH`. A unit installed before 0.1.59 lacks both: without them a connection such as BlenderLab never starts under the service (it does from a terminal). Add the `Environment=PATH=` line and the extra `ReadWritePaths=` lines from the current `deploy/hydraops.service`, then `sudo systemctl daemon-reload && sudo systemctl restart hydraops`. The ComfyUI connection needs one more of those lines (`~/.config/comfy-cli`, where comfy-cli records the jobs it submits; in the unit since 0.1.66): without it a workflow does start in ComfyUI, but the tool answers an error and the agent never learns the job's id. And updating from the app needs `~/.config/HydraOps`, where the copies of the installation go (in the unit since 0.1.69): without it the update stops at "the copy of your installation could not be made".
 
 Every service's logs end up in the journal: `journalctl -u hydraops -f`. Stopping with `systemctl stop hydraops` shuts the whole stack down cleanly.
 
