@@ -561,6 +561,8 @@ ${EXTERNAL_CONTENT_RULE}
       connectionDirs: (server: string) => mcpServerDirs(mcpServersConfigStr, server),
       // Files a tool leaves for the user: stored with the result, shown in the chat.
       addResultFile: resultFiles.add,
+      // The task's start: media older than this in a connection's folder is not harvested.
+      since: started,
     };
     noteSkillsOpened(toolContext, carriedSkills);
     // A continuation after approvals: the media those calls named (they ran without a task)

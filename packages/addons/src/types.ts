@@ -56,6 +56,10 @@ export interface ToolContext {
   // A file this tool left for the user in the task's folder (see result-files.ts): the
   // worker stores it with the task's result and the chat shows it next to the answer.
   addResultFile?: (file: ReportedFile) => void;
+  // When this task started (ms since the epoch). A file in a connection's folder that is
+  // older than this is the project's own asset, not something the task made, and stays
+  // where it is (see harvest-files.ts).
+  since?: number;
 }
 
 export interface HydraTool {
