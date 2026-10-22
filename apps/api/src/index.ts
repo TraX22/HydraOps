@@ -2894,21 +2894,23 @@ api.post("/system/integrations/x/finish", async (req, res) => {
 // here with the code and state. Loopback only in practice: the page sends the browser to
 // 127.0.0.1, which is this computer's HydraOps and nobody else's.
 api.get("/integrations/x/callback", async (req, res) => {
-  const page = (title: string, text: string) => `<!doctype html><html lang="es"><meta charset="utf-8"><title>${title}</title><style>body{font:17px system-ui,sans-serif;max-width:32rem;margin:18vh auto;padding:24px;color:#1a1a2e}h1{font-size:24px}p{color:#4b5563}a{color:#3d4db3}</style><h1>${title}</h1><p>${text}</p></html>`;
+  // Everything that reaches the page from outside (X's error text, a failure's message) is escaped: this is HTML.
+  const esc = (v: unknown) => String(v ?? "").slice(0, 200).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+  const page = (text: string) => `<!doctype html><html lang="es"><meta charset="utf-8"><title>HydraOps</title><style>body{font:17px system-ui,sans-serif;max-width:32rem;margin:18vh auto;padding:24px;color:#1a1a2e}h1{font-size:24px}p{color:#4b5563}</style><h1>HydraOps</h1><p>${text}</p></html>`;
   res.setHeader("cache-control", "no-store");
   res.setHeader("referrer-policy", "no-referrer");
-  res.setHeader("content-security-policy", "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'");
+  res.setHeader("content-security-policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'none'; frame-ancestors 'none'");
   try {
     if (typeof req.query.error === "string") {
-      return res.status(200).type("html").send(page("HydraOps", `X no autorizó la cuenta (${String(req.query.error_description || req.query.error).slice(0, 200)}). Volvé a HydraOps e intentá de nuevo. · X declined; go back to HydraOps and try again.`));
+      return res.status(200).type("html").send(page(`X no autorizó la cuenta (${esc(req.query.error_description || req.query.error)}). Volvé a HydraOps e intentá de nuevo. · X declined; go back to HydraOps and try again.`));
     }
     const code = typeof req.query.code === "string" ? req.query.code : "";
     const state = typeof req.query.state === "string" ? req.query.state : "";
     const out = await xProxy("POST", "/finish", { code, state });
-    const who = out?.account?.username ? `@${String(out.account.username).replace(/[^A-Za-z0-9_]/g, "")}` : "la cuenta";
-    res.status(200).type("html").send(page("HydraOps", `Listo: ${who} quedó conectada. Podés cerrar esta pestaña y volver a HydraOps. · Connected; you can close this tab.`));
+    const who = out?.account?.username ? `@${esc(String(out.account.username).replace(/[^A-Za-z0-9_]/g, ""))}` : "la cuenta";
+    res.status(200).type("html").send(page(`Listo: ${who} quedó conectada. Podés cerrar esta pestaña y volver a HydraOps. · Connected; you can close this tab.`));
   } catch (e: any) {
-    res.status(200).type("html").send(page("HydraOps", `No se pudo conectar: ${String(e?.message || "error").slice(0, 200)}. Volvé a HydraOps y empezá de nuevo. · Not connected; go back to HydraOps and start again.`));
+    res.status(200).type("html").send(page(`No se pudo conectar: ${esc(e?.message || "error")}. Volvé a HydraOps y empezá de nuevo. · Not connected; go back to HydraOps and start again.`));
   }
 });
 
