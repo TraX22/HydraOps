@@ -615,7 +615,7 @@
       "clientId": "Client ID",
       "clientSecret": "Client Secret",
       "appHint": "Create an app with OAuth 2.0 (\"Web App\" type, read and write permissions) and load credits at",
-      "callbackHint": "Register this address as the Callback URI:",
+      "callbackHint": "X only takes https callbacks, so the callback is a small page you host yourself and that forwards the browser to this HydraOps: download it, publish it on any https hosting (GitHub Pages is free; any free or paid hosting works the same), register its address as the Callback URI of your app, and paste the same address here, character for character.",
       "costs": "X charges per use from your developer account, one balance for every account: about 0.015 USD per post, 0.20 USD when it carries a link, 0.005 USD per read. The balance is shown in X's portal.",
       "accounts": "Connected accounts",
       "connect": "Connect an account",
@@ -629,10 +629,10 @@
       "copy": "Copy",
       "copied": "Copied",
       "open": "Open",
-      "pasteHint": "If the browser was not on this computer (HydraOps runs on a server), X sent it to an address that does not open: copy the whole address from the browser's bar and paste it here.",
+      "pasteHint": "If the browser was not on this computer (HydraOps runs on a server), the callback page shows the address after a few seconds: copy it, or the whole address from the browser's bar, and paste it here.",
       "pastePlaceholder": "http://127.0.0.1:3000/api/integrations/x/callback?state=…&code=…",
       "finish": "Finish",
-      "tokensHint": "The account's tokens go to the encrypted key store and refresh on their own. Nothing passes through the database.",
+      "tokensHint": "The account's tokens go to HydraOps' key store (a file only your user can read, not encrypted) and refresh on their own. Nothing passes through the database.",
       "connectedOn": "connected on {{date}}",
       "reauth": "session expired: connect again",
       "canPost": "May post:",
@@ -653,8 +653,13 @@
         "scope_missing": "X did not grant every permission. Connect again and accept all four.",
         "bad_callback_url": "That address carries no code and state from X. Paste the whole address the browser landed on.",
         "no_such_account": "That account is not connected.",
-        "x_reauth_required": "That account's session expired: connect it again."
-      }
+        "x_reauth_required": "That account's session expired: connect it again.",
+        "bad_redirect_uri": "The Callback URI must be a plain https address (X takes nothing else).",
+        "no_redirect_uri": "Save the Callback URI first: the https address of your copy of the callback page."
+      },
+      "callbackPlaceholder": "Callback URI: https://… (your copy of the callback page)",
+      "download": "Download the page",
+      "howTo": "Step by step"
     },
     "github": {
       "name": "GitHub",

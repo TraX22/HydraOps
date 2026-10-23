@@ -615,7 +615,7 @@
       "clientId": "Client ID",
       "clientSecret": "Client Secret",
       "appHint": "Crea un'app con OAuth 2.0 (tipo «Web App», permessi di lettura e scrittura) e carica crediti su",
-      "callbackHint": "Registra questo indirizzo come Callback URI:",
+      "callbackHint": "X accetta solo indirizzi di ritorno https, quindi il ritorno è una piccola pagina che ospiti tu e che rimanda il browser a questo HydraOps: scaricala, pubblicala su qualsiasi hosting https (GitHub Pages è gratuito; qualsiasi hosting gratuito o a pagamento funziona allo stesso modo), registra il suo indirizzo come Callback URI della tua app e incolla qui lo stesso indirizzo, carattere per carattere.",
       "costs": "X addebita a consumo sul tuo account sviluppatore, un solo saldo per tutti gli account: circa 0,015 USD per post, 0,20 USD se contiene un link, 0,005 USD per lettura. Il saldo si vede nel portale di X.",
       "accounts": "Account collegati",
       "connect": "Collega un account",
@@ -629,10 +629,10 @@
       "copy": "Copia",
       "copied": "Copiato",
       "open": "Apri",
-      "pasteHint": "Se il browser non era su questo computer (HydraOps gira su un server), X lo ha mandato a un indirizzo che non si apre: copia l'indirizzo intero dalla barra del browser e incollalo qui.",
+      "pasteHint": "Se il browser non era su questo computer (HydraOps gira su un server), la pagina di ritorno mostra l'indirizzo dopo pochi secondi: copialo, o copia l'indirizzo intero dalla barra del browser, e incollalo qui.",
       "pastePlaceholder": "http://127.0.0.1:3000/api/integrations/x/callback?state=…&code=…",
       "finish": "Completa",
-      "tokensHint": "I token dell'account vanno nel deposito chiavi cifrato e si rinnovano da soli. Nulla passa dal database.",
+      "tokensHint": "I token dell'account vanno nell'archivio chiavi di HydraOps (un file leggibile solo dal tuo utente, non cifrato) e si rinnovano da soli. Niente passa per il database.",
       "connectedOn": "collegato il {{date}}",
       "reauth": "sessione scaduta: ricollega",
       "canPost": "Possono pubblicare:",
@@ -653,8 +653,13 @@
         "scope_missing": "X non ha concesso tutti i permessi. Ricollega e accettali tutti e quattro.",
         "bad_callback_url": "Quell'indirizzo non contiene codice e stato di X. Incolla l'indirizzo completo su cui è finito il browser.",
         "no_such_account": "Quell'account non è collegato.",
-        "x_reauth_required": "La sessione di quell'account è scaduta: ricollegalo."
-      }
+        "x_reauth_required": "La sessione di quell'account è scaduta: ricollegalo.",
+        "bad_redirect_uri": "La Callback URI deve essere un semplice indirizzo https (X non accetta altro).",
+        "no_redirect_uri": "Salva prima la Callback URI: l'indirizzo https della tua copia della pagina di ritorno."
+      },
+      "callbackPlaceholder": "Callback URI: https://… (la tua copia della pagina di ritorno)",
+      "download": "Scarica la pagina",
+      "howTo": "Passo dopo passo"
     },
     "github": {
       "name": "GitHub",

@@ -2887,7 +2887,7 @@ api.post("/system/integrations/x", async (req, res) => {
 api.post("/system/integrations/x/app", async (req, res) => {
   if (!sameSiteOnly(req, res)) return;
   try {
-    await xProxy("POST", "/app", { clientId: String(req.body?.clientId ?? ""), clientSecret: String(req.body?.clientSecret ?? "") });
+    await xProxy("POST", "/app", { clientId: String(req.body?.clientId ?? ""), clientSecret: String(req.body?.clientSecret ?? ""), redirectUri: String(req.body?.redirectUri ?? "") });
     res.json(await xIntegrationStatus());
   } catch (e: any) { xFailure(res, e); }
 });
@@ -2923,9 +2923,10 @@ for (const action of ["cancel", "disconnect"] as const) {
 /** The code and state X put in the callback address, from the address itself or from its query. */
 function xCallbackParams(raw: string): { code: string; state: string } | null {
   try {
+    // Any address carrying X's code and state: the user's own callback page can live at any
+    // path, and a browser may land elsewhere on the way. The state is what ties it to the
+    // sign-in in progress (the key-proxy compares it in constant time).
     const u = new URL(String(raw || "").trim());
-    // Only a callback address: X's registered page, or this server's own route.
-    if (!/\/x\/callback\/?$/.test(u.pathname) && !/\/api\/integrations\/x\/callback\/?$/.test(u.pathname)) return null;
     const code = u.searchParams.get("code") || "";
     const state = u.searchParams.get("state") || "";
     return code && state ? { code, state } : null;
@@ -3045,8 +3046,8 @@ api.post("/system/integrations/x/finish", async (req, res) => {
   } catch (e: any) { xFailure(res, e); }
 });
 
-// The automatic road: X's callback page (https://hydraops.org/x/callback) forwards the browser
-// here with the code and state. Loopback only in practice: the page sends the browser to
+// The automatic road: the user's copy of the callback page (x-callback.html, on an https
+// address of their own) forwards the browser here with the code and state. Loopback only in practice: the page sends the browser to
 // 127.0.0.1, which is this computer's HydraOps and nobody else's.
 api.get("/integrations/x/callback", async (req, res) => {
   // Everything that reaches the page from outside (X's error text, a failure's message) is escaped: this is HTML.

@@ -19,14 +19,27 @@
  * with X_AUTH_BASE / X_API_BASE (tests).
  */
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { chmod, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, realpath, rename, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { keyStoreDir } from "@hydraops/config";
+import { keyStoreDir, uploadsDir } from "@hydraops/config";
 
 const authBase = () => (process.env.X_AUTH_BASE || "https://x.com").replace(/\/$/, "");
 const apiBase = () => (process.env.X_API_BASE || "https://api.x.com").replace(/\/$/, "");
-/** The callback registered in the user's X app: X only takes https there, so a public page forwards to this computer. */
-export const redirectUri = () => (process.env.X_REDIRECT_URI || "https://hydraops.org/x/callback").trim();
+/**
+ * The callback registered in the user's X app. X only takes https there, so each user hosts
+ * the forwarding page (x-callback.html, downloadable from Tools → X) on a public https
+ * address of their own and saves that address with the app. X_REDIRECT_URI is a fallback
+ * for headless setups; there is no shared default.
+ */
+const redirectUriOf = (s: Store) => (s.redirectUri || process.env.X_REDIRECT_URI || "").trim();
+/** An https address with a host and no fragment: what X accepts as a callback. */
+function checkRedirectUri(raw: string): string {
+  const v = String(raw || "").trim();
+  let u: URL;
+  try { u = new URL(v); } catch { throw new XError("bad_redirect_uri", "The callback address is not a valid https address."); }
+  if (u.protocol !== "https:" || !u.hostname || u.hash || u.username || u.password) throw new XError("bad_redirect_uri", "The callback address must be a plain https address (X takes nothing else).");
+  return v;
+}
 const SCOPES = "tweet.read tweet.write users.read media.write offline.access";
 const SIGNIN_TIMEOUT_MS = 10 * 60_000;
 const REFRESH_AHEAD_MS = 5 * 60_000;
@@ -51,6 +64,8 @@ interface Store {
   version: 1;
   clientId?: string;
   clientSecret?: string;
+  /** The callback address registered in the app (the user's own copy of the forwarding page). */
+  redirectUri?: string;
   accounts: XAccount[];
 }
 /** What leaves this process: who is connected, never a token or the secret. */
@@ -58,6 +73,7 @@ export interface XAccountStatus { id: string; username: string; name: string; av
 export interface XStatus {
   appConfigured: boolean;
   clientId?: string;
+  /** Empty until the user saves the address of their callback page. */
   redirectUri: string;
   accounts: XAccountStatus[];
   pending: { url: string; expiresAt: string; finishing?: boolean } | null;
@@ -99,14 +115,20 @@ export async function forgetX(): Promise<void> { cancelConnect(); cache = null; 
 
 // ─── The app ────────────────────────────────────────────────────────────────
 
-/** The client id and secret of the user's X app. An empty secret keeps the one stored (the UI never sees it). */
-export async function setApp(clientId: string, clientSecret?: string): Promise<void> {
+/**
+ * The client id, secret and callback address of the user's X app. An empty secret keeps the
+ * one stored (the UI never sees it); the callback address is required, it must be the one
+ * registered in the app, character for character.
+ */
+export async function setApp(clientId: string, clientSecret?: string, redirect?: string): Promise<void> {
   const id = String(clientId || "").trim();
   if (!/^[A-Za-z0-9_-]{8,200}$/.test(id)) throw new XError("bad_client_id", "That does not look like an X client id.");
   const store = await load();
   const secret = String(clientSecret || "").trim() || (store.clientId === id ? store.clientSecret : undefined);
   if (!secret) throw new XError("no_secret", "The client secret is needed with a new client id.");
-  await save({ ...store, clientId: id, clientSecret: secret });
+  const redirectUri = redirect !== undefined && String(redirect).trim() ? checkRedirectUri(redirect) : store.redirectUri;
+  if (!redirectUri && !process.env.X_REDIRECT_URI) throw new XError("no_redirect_uri", "The callback address is needed: the https address of your copy of the callback page.");
+  await save({ ...store, clientId: id, clientSecret: secret, redirectUri });
   lastError = undefined;
 }
 
@@ -154,7 +176,8 @@ async function whoAmI(accessToken: string): Promise<{ id: string; username: stri
 
 // ─── Connecting an account ──────────────────────────────────────────────────
 
-interface Pending { state: string; verifier: string; url: string; expiresAt: number; timer: NodeJS.Timeout }
+// `redirect`: the callback address sent with this sign-in; the code exchange must repeat it exactly.
+interface Pending { state: string; verifier: string; url: string; expiresAt: number; timer: NodeJS.Timeout; redirect: string }
 let pending: Pending | null = null;
 let finishing: Pending | null = null;
 let lastError: string | undefined;
@@ -171,6 +194,8 @@ export function cancelConnect(): void {
 export async function startConnect(): Promise<{ url: string; expiresAt: string }> {
   const store = await load();
   if (!store.clientId || !store.clientSecret) throw new XError("app_not_configured", "Set the X app's client id and secret first.");
+  const redirect = redirectUriOf(store);
+  if (!redirect) throw new XError("no_redirect_uri", "Save the callback address first: the https address of your copy of the callback page.");
   cancelConnect();
   lastError = undefined;
   const state = randomBytes(32).toString("base64url");
@@ -179,7 +204,7 @@ export async function startConnect(): Promise<{ url: string; expiresAt: string }
   url.search = new URLSearchParams({
     response_type: "code",
     client_id: store.clientId,
-    redirect_uri: redirectUri(),
+    redirect_uri: redirect,
     scope: SCOPES,
     state,
     code_challenge: createHash("sha256").update(verifier).digest("base64url"),
@@ -188,7 +213,7 @@ export async function startConnect(): Promise<{ url: string; expiresAt: string }
   const expiresAt = Date.now() + SIGNIN_TIMEOUT_MS;
   const timer = setTimeout(() => { lastError = "The sign-in expired: nobody finished it in the browser within 10 minutes."; cancelConnect(); }, SIGNIN_TIMEOUT_MS);
   timer.unref?.();
-  pending = { state, verifier, url: url.toString(), expiresAt, timer };
+  pending = { state, verifier, url: url.toString(), expiresAt, timer, redirect };
   console.log("[key-proxy] x: account sign-in started");
   return { url: pending.url, expiresAt: new Date(expiresAt).toISOString() };
 }
@@ -210,7 +235,7 @@ export async function finishConnect(code: string, state: string): Promise<XAccou
   finishing = p;
   try {
     const store = await load();
-    const data = await tokenRequest(store, { grant_type: "authorization_code", code, redirect_uri: redirectUri(), code_verifier: p.verifier });
+    const data = await tokenRequest(store, { grant_type: "authorization_code", code, redirect_uri: p.redirect, code_verifier: p.verifier });
     const scopes = typeof data.scope === "string" ? data.scope.split(/\s+/).filter(Boolean) : [];
     for (const needed of ["tweet.write", "users.read", "offline.access"]) {
       if (!scopes.includes(needed)) throw new XError("scope_missing", `X did not grant "${needed}"; connect again and accept every permission.`);
@@ -315,6 +340,10 @@ const MEDIA_TYPES: Record<string, string> = { ".png": "image/png", ".jpg": "imag
 
 /** One image, uploaded for the account; X answers with the media id to attach. */
 async function uploadMedia(token: string, filePath: string): Promise<string> {
+  const real = await realpath(filePath).catch(() => "");
+  const root = await realpath(uploadsDir).catch(() => path.resolve(uploadsDir));
+  if (!real || path.dirname(real) !== root || !(await stat(real)).isFile()) throw new XError("bad_media", `"${path.basename(filePath)}" is not one of the files attached in HydraOps.`);
+  filePath = real;
   const ext = path.extname(filePath).toLowerCase();
   const type = MEDIA_TYPES[ext];
   if (!type) throw new XError("media_type", `"${path.basename(filePath)}" is not an image X takes (png, jpg, gif, webp).`);
@@ -377,7 +406,7 @@ export async function status(): Promise<XStatus> {
   return {
     appConfigured: !!(s.clientId && s.clientSecret),
     clientId: s.clientId,
-    redirectUri: redirectUri(),
+    redirectUri: redirectUriOf(s),
     accounts: s.accounts.map(publicAccount),
     pending: pending ? { url: pending.url, expiresAt: new Date(pending.expiresAt).toISOString() }
       : finishing ? { url: finishing.url, expiresAt: new Date(finishing.expiresAt).toISOString(), finishing: true } : null,
@@ -412,7 +441,7 @@ export async function handleControl(req: import("node:http").IncomingMessage, re
   try {
     if (!fromApi(req)) { sendJson(res, 403, { error: { code: "not_from_api", message: "The X control endpoints take JSON requests from the API only." } }); return true; }
     if (path === "/status" && req.method === "GET") { sendJson(res, 200, await status()); return true; }
-    if (path === "/app" && req.method === "POST") { const b = await readBody(req); await setApp(b.clientId, b.clientSecret); sendJson(res, 200, { ok: true }); return true; }
+    if (path === "/app" && req.method === "POST") { const b = await readBody(req); await setApp(b.clientId, b.clientSecret, b.redirectUri); sendJson(res, 200, { ok: true }); return true; }
     if (path === "/connect" && req.method === "POST") { sendJson(res, 200, await startConnect()); return true; }
     if (path === "/finish" && req.method === "POST") { const b = await readBody(req); sendJson(res, 200, { ok: true, account: await finishConnect(String(b.code ?? ""), String(b.state ?? "")) }); return true; }
     if (path === "/cancel" && req.method === "POST") { cancelConnect(); sendJson(res, 200, { ok: true }); return true; }

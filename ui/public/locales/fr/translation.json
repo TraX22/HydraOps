@@ -615,7 +615,7 @@
       "clientId": "Client ID",
       "clientSecret": "Client Secret",
       "appHint": "Créez une application avec OAuth 2.0 (type « Web App », lecture et écriture) et chargez des crédits sur",
-      "callbackHint": "Enregistrez cette adresse comme Callback URI :",
+      "callbackHint": "X n'accepte que des adresses de retour https : le retour est donc une petite page que vous hébergez vous-même et qui renvoie le navigateur vers ce HydraOps. Téléchargez-la, publiez-la sur n'importe quel hébergement https (GitHub Pages est gratuit ; tout hébergement gratuit ou payant fonctionne de la même façon), enregistrez son adresse comme Callback URI de votre app et collez ici la même adresse, caractère pour caractère.",
       "costs": "X facture à l'usage sur votre compte développeur, un seul solde pour tous les comptes : environ 0,015 USD par publication, 0,20 USD avec un lien, 0,005 USD par lecture. Le solde se voit sur le portail X.",
       "accounts": "Comptes connectés",
       "connect": "Connecter un compte",
@@ -629,10 +629,10 @@
       "copy": "Copier",
       "copied": "Copié",
       "open": "Ouvrir",
-      "pasteHint": "Si le navigateur n'était pas sur cet ordinateur (HydraOps tourne sur un serveur), X l'a envoyé vers une adresse qui ne s'ouvre pas : copiez l'adresse entière depuis la barre du navigateur et collez-la ici.",
+      "pasteHint": "Si le navigateur n'était pas sur cet ordinateur (HydraOps tourne sur un serveur), la page de retour affiche l'adresse après quelques secondes : copiez-la, ou l'adresse entière de la barre du navigateur, et collez-la ici.",
       "pastePlaceholder": "http://127.0.0.1:3000/api/integrations/x/callback?state=…&code=…",
       "finish": "Terminer",
-      "tokensHint": "Les jetons du compte vont dans le coffre de clés chiffré et se renouvellent seuls. Rien ne passe par la base de données.",
+      "tokensHint": "Les jetons du compte vont dans le coffre de clés de HydraOps (un fichier lisible par votre seul utilisateur, non chiffré) et se renouvellent seuls. Rien ne passe par la base de données.",
       "connectedOn": "connecté le {{date}}",
       "reauth": "session expirée : reconnecter",
       "canPost": "Peuvent publier :",
@@ -653,8 +653,13 @@
         "scope_missing": "X n'a pas accordé toutes les permissions. Reconnectez et acceptez les quatre.",
         "bad_callback_url": "Cette adresse ne contient ni code ni état de X. Collez l'adresse complète où le navigateur a atterri.",
         "no_such_account": "Ce compte n'est pas connecté.",
-        "x_reauth_required": "La session de ce compte a expiré : reconnectez-le."
-      }
+        "x_reauth_required": "La session de ce compte a expiré : reconnectez-le.",
+        "bad_redirect_uri": "La Callback URI doit être une simple adresse https (X n'accepte rien d'autre).",
+        "no_redirect_uri": "Enregistrez d'abord la Callback URI : l'adresse https de votre copie de la page de retour."
+      },
+      "callbackPlaceholder": "Callback URI : https://… (votre copie de la page de retour)",
+      "download": "Télécharger la page",
+      "howTo": "Pas à pas"
     },
     "github": {
       "name": "GitHub",

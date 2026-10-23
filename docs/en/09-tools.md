@@ -132,27 +132,49 @@ It can be turned off in **Settings → Tools on demand** (or with `TOOLS_ON_DEMA
 
 HydraOps connects to **your own X developer app**, and through it to as many of your X accounts as you like: a project's, a brand's, a personal one. The agents publish on them with the `x_post` tool, and every post waits for your approval.
 
-### 1. Create the app in X's portal
+### 1. Your callback page
+
+When you authorise an account, X sends the browser back to a **Callback URI** registered in your app, and X only takes **https** addresses there (not `localhost`, not `127.0.0.1`). HydraOps runs on your own computer, so the callback is a small page you host yourself: it receives the browser and forwards it to the HydraOps on that same computer (`http://127.0.0.1:3000`). It stores nothing and talks to no server; the code it carries is useless without the secret check HydraOps keeps.
+
+Do this once:
+
+1. In **Tools → X** press **Download the page**: you get an `index.html`.
+2. Publish it on any hosting with https. The example below uses **GitHub Pages**, which is free; any other hosting, free or paid, with its own domain or a free subdomain (Cloudflare Pages, Netlify, Vercel, your own website), works exactly the same: what counts is the final https address.
+3. Write down the address where the page opens: that is your **Callback URI**.
+
+With GitHub Pages:
+
+1. Create a **public** repository, for example `x-callback`.
+2. Upload the file inside the folders `x/callback/` (so the path is `x/callback/index.html`). Any folder works; this one makes the address easy to recognise.
+3. In the repository's **Settings → Pages** choose **Deploy from a branch**, branch `main`, folder `/ (root)`, and save.
+4. After a minute the page is at `https://<your-user>.github.io/x-callback/x/callback/`. That is your Callback URI, with the final slash.
+
+Keep the host from logging full addresses if it lets you: the one-time code travels in the address (it expires in seconds and works only once, but it is better not kept anywhere).
+
+### 2. Create the app in X's portal
 
 X's API is pay-per-use: there is no free tier for new developers, you load credits in the portal and every operation deducts a little (about 0.015 USD per post, 0.20 USD when the post carries a link, 0.005 USD per post read, at the time of writing). One developer account and one balance serve every account you connect.
 
 1. Sign up at [developer.x.com](https://developer.x.com/) with the X account that will own the app, create a project and an app, and load credits.
-2. In the app's **User authentication settings** choose **Read and write**, the **Web App, Automated App or Bot** type, and register this **Callback URI**: `https://hydraops.org/x/callback`. X only takes https addresses there; that page (its source is `deploy/x-callback.html` in the repository, so you can host your own copy) stores nothing and only forwards the browser to the HydraOps on your computer.
-3. Copy the **Client ID** and the **Client Secret** (shown once) into **Tools → X** and press **Save**. They go to the key store, never to the database or the repository.
+2. In the app's **User authentication settings** choose **Read and write**, the **Web App, Automated App or Bot** type, put your **Callback URI** from step 1 and a website address (your page's site works), and **save the changes**.
+3. Copy the **Client ID** and the **Client Secret** (shown once).
+4. In **Tools → X** paste the Client ID, the Client Secret and the **same Callback URI**, character for character (the final slash included), and press **Save**. They go to HydraOps' key store, never to the database or the repository.
 
-### 2. Connect each account
+The Callback URI saved in HydraOps must be exactly the one registered in the app you took the Client ID from: if they differ, X answers "Something went wrong" when you authorise.
+
+### 3. Connect each account
 
 Press **Connect an account**: HydraOps shows a link. Open it in a browser **on this computer**, signed in to X as the account you want to connect (switch accounts in X first if another one is open), accept the four permissions (read your profile, post, upload images, keep the session) and come back: the account appears in the list within seconds, with its tokens in the key store, refreshed on their own.
 
-When HydraOps runs on a server and your browser is elsewhere, the callback cannot reach it: the page X sends you to shows the address to copy, and the card has a field to paste it in. Same result.
+When HydraOps runs on a server and your browser is elsewhere, the callback cannot reach it: after a few seconds your callback page shows the address to copy, and the card has a field to paste it in (the whole address from the browser bar works too). Same result.
 
 An account can be connected again at any time (its tokens are replaced), and **Disconnect** forgets it.
 
-### 3. Who may post where
+### 4. Who may post where
 
 Each connected account lists the agents allowed to post on it, and a new account starts with **nobody**: the publishing tool refuses, on the server side, any account the agent was not given here, so a post cannot land on the wrong brand by a model's mistake. Add agents with the picker on the account's row; the ON/OFF switch at the top pauses every account at once.
 
-### 4. Posting
+### 5. Posting
 
 Give the agent the two tools in the Agents view (its tools list, like any other tool) and the account in Tools → X. Then ask it for a post or a thread as you would ask a person: "announce the 0.2 release on the HydraOps account, three posts, the link in the last one". The agent has two tools:
 

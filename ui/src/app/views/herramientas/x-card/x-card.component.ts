@@ -1,4 +1,5 @@
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ApiService, Agent, XAccount, XIntegration } from '../../../services/api.service';
 
@@ -13,7 +14,7 @@ const POLL_MS = 3000;
 @Component({
   selector: 'app-x-card',
   standalone: true,
-  imports: [TranslatePipe],
+  imports: [TranslatePipe, RouterLink],
   templateUrl: './x-card.component.html',
   styleUrl: './x-card.component.css',
 })
@@ -30,6 +31,8 @@ export class XCardComponent implements OnInit, OnDestroy {
   // The app's credentials, typed once; the secret is never read back.
   clientId = signal('');
   clientSecret = signal('');
+  /** The https address of the user's own copy of the callback page, as registered in the X app. */
+  redirectUri = signal('');
   readonly mask = '••••••••••••••••';
 
   // Connecting one more account: the link, and the address the user pastes when the browser was elsewhere.
@@ -62,6 +65,7 @@ export class XCardComponent implements OnInit, OnDestroy {
     this.x.set(x);
     if (x.clientId && !this.clientId()) this.clientId.set(x.clientId);
     if (x.appConfigured && !this.clientSecret()) this.clientSecret.set(this.mask);
+    if (x.redirectUri && !this.redirectUri()) this.redirectUri.set(x.redirectUri);
     if (x.pending) {
       if (!this.link() || this.link()!.url !== x.pending.url) this.link.set({ url: x.pending.url, expiresAt: x.pending.expiresAt });
       this.startPolling();
@@ -85,7 +89,7 @@ export class XCardComponent implements OnInit, OnDestroy {
     if (!id) return;
     this.busy.set(true);
     this.error.set('');
-    this.api.saveXApp(id, secret).subscribe({
+    this.api.saveXApp(id, secret, this.redirectUri().trim()).subscribe({
       next: x => { this.busy.set(false); this.apply(x); this.clientSecret.set(this.mask); this.flash(); },
       error: e => { this.busy.set(false); this.error.set(this.errorText(e)); },
     });
@@ -185,7 +189,7 @@ export class XCardComponent implements OnInit, OnDestroy {
 
   private errorText(e: any): string {
     const code = String(e?.error?.error ?? '');
-    const known = ['bad_client_id', 'no_secret', 'app_not_configured', 'state_mismatch', 'no_code', 'scope_missing', 'bad_callback_url', 'no_such_account', 'x_reauth_required'];
+    const known = ['bad_client_id', 'no_secret', 'app_not_configured', 'bad_redirect_uri', 'no_redirect_uri', 'state_mismatch', 'no_code', 'scope_missing', 'bad_callback_url', 'no_such_account', 'x_reauth_required'];
     if (known.includes(code)) return this.translate.instant('herramientas.x.errors.' + code);
     return String(e?.error?.message || e?.message || this.translate.instant('herramientas.x.errors.generic'));
   }

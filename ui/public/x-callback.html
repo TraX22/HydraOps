@@ -8,11 +8,12 @@
 <title>HydraOps · X</title>
 <!--
   The callback X sends the browser to after a user authorises an X app for HydraOps.
-  X only accepts https callbacks, and HydraOps runs on the user's own computer, so this
-  page lives at a public https address (https://hydraops.org/x/callback for the project;
-  anyone running HydraOps can host a copy and register that address in their own X app)
-  and forwards the browser, with the same query string, to the HydraOps on the browser's
-  machine: http://127.0.0.1:3000/api/integrations/x/callback. It stores nothing and talks
+  X only accepts https callbacks, and HydraOps runs on the user's own computer, so each user
+  hosts a copy of this page on a public https address of their own (GitHub Pages, Cloudflare
+  Pages, Netlify, or any hosting, free or paid), registers that address as the Callback URI
+  of their X app and saves it in Tools -> X. HydraOps offers the file for download there.
+  The page forwards the browser, with the same query string, to the HydraOps on the
+  browser's machine: http://127.0.0.1:3000/api/integrations/x/callback. It stores nothing and talks
   to nobody: the code it carries is useless without the PKCE verifier that HydraOps kept.
   When that HydraOps is not on this machine (it runs on a server), the address is shown
   for the user to copy and paste into Tools -> X.

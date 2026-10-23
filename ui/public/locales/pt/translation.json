@@ -615,7 +615,7 @@
       "clientId": "Client ID",
       "clientSecret": "Client Secret",
       "appHint": "Crie um app com OAuth 2.0 (tipo «Web App», permissões de leitura e escrita) e carregue créditos em",
-      "callbackHint": "Registre este endereço como Callback URI:",
+      "callbackHint": "O X só aceita endereços de retorno https, então o retorno é uma pequena página que você hospeda e que reenvia o navegador para este HydraOps: baixe-a, publique em qualquer hospedagem com https (o GitHub Pages é grátis; qualquer hospedagem gratuita ou paga funciona igual), registre o endereço dela como Callback URI do seu app e cole aqui o mesmo endereço, caractere por caractere.",
       "costs": "O X cobra por uso da sua conta de desenvolvedor, um único saldo para todas as contas: cerca de 0,015 USD por publicação, 0,20 USD se tiver link, 0,005 USD por leitura. O saldo aparece no portal do X.",
       "accounts": "Contas conectadas",
       "connect": "Conectar uma conta",
@@ -629,10 +629,10 @@
       "copy": "Copiar",
       "copied": "Copiado",
       "open": "Abrir",
-      "pasteHint": "Se o navegador não estava neste computador (o HydraOps roda em um servidor), o X o mandou para um endereço que não abre: copie o endereço inteiro da barra do navegador e cole aqui.",
+      "pasteHint": "Se o navegador não estava neste computador (o HydraOps roda num servidor), a página de retorno mostra o endereço após alguns segundos: copie-o, ou o endereço inteiro da barra do navegador, e cole aqui.",
       "pastePlaceholder": "http://127.0.0.1:3000/api/integrations/x/callback?state=…&code=…",
       "finish": "Concluir",
-      "tokensHint": "Os tokens da conta vão para o cofre de chaves cifrado e se renovam sozinhos. Nada passa pelo banco de dados.",
+      "tokensHint": "Os tokens da conta vão para o cofre de chaves do HydraOps (um arquivo que só o seu usuário pode ler, não cifrado) e se renovam sozinhos. Nada passa pelo banco de dados.",
       "connectedOn": "conectada em {{date}}",
       "reauth": "sessão vencida: conectar de novo",
       "canPost": "Podem publicar:",
@@ -653,8 +653,13 @@
         "scope_missing": "O X não concedeu todas as permissões. Conecte de novo e aceite as quatro.",
         "bad_callback_url": "Esse endereço não traz o código e o estado do X. Cole o endereço completo em que o navegador parou.",
         "no_such_account": "Essa conta não está conectada.",
-        "x_reauth_required": "A sessão dessa conta venceu: conecte-a de novo."
-      }
+        "x_reauth_required": "A sessão dessa conta venceu: conecte-a de novo.",
+        "bad_redirect_uri": "A Callback URI precisa ser um endereço https simples (o X não aceita outra coisa).",
+        "no_redirect_uri": "Salve primeiro a Callback URI: o endereço https da sua cópia da página de retorno."
+      },
+      "callbackPlaceholder": "Callback URI: https://… (sua cópia da página de retorno)",
+      "download": "Baixar a página",
+      "howTo": "Passo a passo"
     },
     "github": {
       "name": "GitHub",
