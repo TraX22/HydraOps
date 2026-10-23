@@ -625,7 +625,7 @@
       "step1": "Ouvrez ce lien dans un navigateur de cet ordinateur.",
       "step2": "Connectez-vous à X avec le compte à relier. Si le navigateur a un autre de vos comptes ouvert, changez de compte dans X avant d'accepter : c'est le compte actif qui se connecte.",
       "step3": "Acceptez les permissions demandées par HydraOps : lire votre profil, publier, envoyer des images et garder la session.",
-      "step4": "Revenez ici : le compte apparaît dans la liste en quelques secondes, sans agent assigné. Le lien expire dans 10 minutes.",
+      "step4": "Sur votre page de retour, appuyez sur Continuer, puis revenez ici : le compte apparaît dans la liste en quelques secondes, sans agent attribué. Le lien expire dans 10 minutes.",
       "copy": "Copier",
       "copied": "Copié",
       "open": "Ouvrir",

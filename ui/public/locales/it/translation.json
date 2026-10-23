@@ -625,7 +625,7 @@
       "step1": "Apri questo link in un browser di questo computer.",
       "step2": "Accedi a X con l'account da collegare. Se il browser ha aperto un altro dei tuoi account, cambia account su X prima di accettare: si collega quello attivo.",
       "step3": "Accetta i permessi che HydraOps chiede: leggere il profilo, pubblicare, caricare immagini e mantenere la sessione.",
-      "step4": "Torna qui: l'account compare nell'elenco in pochi secondi, senza agenti assegnati. Il link scade tra 10 minuti.",
+      "step4": "Sulla tua pagina di ritorno premi Continua, poi torna qui: l'account compare nell'elenco in pochi secondi, senza agenti assegnati. Il link scade tra 10 minuti.",
       "copy": "Copia",
       "copied": "Copiato",
       "open": "Apri",

@@ -625,7 +625,7 @@
       "step1": "Abra este link em um navegador deste computador.",
       "step2": "Entre no X com a conta que quer conectar. Se o navegador tiver outra conta sua aberta, troque de conta no X antes de aceitar: a ativa é a que se conecta.",
       "step3": "Aceite as permissões que o HydraOps pede: ler seu perfil, publicar, enviar imagens e manter a sessão.",
-      "step4": "Volte aqui: a conta aparece na lista em segundos, sem agentes atribuídos. O link vence em 10 minutos.",
+      "step4": "Na sua página de retorno toque em Continuar e volte aqui: a conta aparece na lista em poucos segundos, sem agentes atribuídos. O link expira em 10 minutos.",
       "copy": "Copiar",
       "copied": "Copiado",
       "open": "Abrir",

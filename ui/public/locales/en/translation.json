@@ -625,7 +625,7 @@
       "step1": "Open this link in a browser on this computer.",
       "step2": "Sign in to X as the account you want to connect. If the browser has another of your accounts open, switch accounts in X before accepting: the active one is the one that connects.",
       "step3": "Accept the permissions HydraOps asks for: read your profile, post, upload images and keep the session.",
-      "step4": "Come back here: the account shows up in the list within seconds, with no agents assigned. The link expires in 10 minutes.",
+      "step4": "On your callback page press Continue, then come back here: the account shows up in the list within seconds, with no agents assigned. The link expires in 10 minutes.",
       "copy": "Copy",
       "copied": "Copied",
       "open": "Open",

@@ -164,9 +164,9 @@ La Callback URI guardada en HydraOps tiene que ser exactamente la registrada en 
 
 ### 3. Conectá cada cuenta
 
-Tocá **Conectar una cuenta**: HydraOps muestra un enlace. Abrilo en un navegador **de esta computadora**, con la sesión de X de la cuenta que querés conectar (si el navegador tiene otra abierta, cambiá de cuenta en X antes), aceptá los cuatro permisos (leer tu perfil, publicar, subir imágenes, mantener la sesión) y volvé: la cuenta aparece en la lista en segundos, con sus tokens en el almacén de claves, renovados solos.
+Tocá **Conectar una cuenta**: HydraOps muestra un enlace. Abrilo en un navegador **de esta computadora**, con la sesión de X de la cuenta que querés conectar (si el navegador tiene otra abierta, cambiá de cuenta en X antes), aceptá los cuatro permisos (leer tu perfil, publicar, subir imágenes, mantener la sesión), tocá **Continuar** en tu página de vuelta y volvé: la cuenta aparece en la lista en segundos, con sus tokens en el almacén de claves, renovados solos.
 
-Cuando HydraOps corre en un servidor y tu navegador está en otra máquina, la vuelta no llega: tu página de vuelta muestra la dirección para copiar durante tres segundos antes de reenviar (si tocás **Copiar**, se queda), y la tarjeta tiene un campo para pegarla. Si el navegador ya pasó a un error de conexión, también sirve la dirección de su barra. Mismo resultado.
+Cuando HydraOps corre en un servidor y tu navegador está en otra máquina, la vuelta no llega: tu página de vuelta muestra la dirección con un botón **Copiar**, y la tarjeta tiene un campo para pegarla. Mismo resultado.
 
 Una cuenta se puede conectar de nuevo cuando quieras (se reemplazan sus tokens), y **Desconectar** la olvida.
 
