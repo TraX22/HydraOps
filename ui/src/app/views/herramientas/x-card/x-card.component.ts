@@ -56,16 +56,22 @@ export class XCardComponent implements OnInit, OnDestroy {
 
   reload(): void {
     this.api.getXIntegration().subscribe({
-      next: x => this.apply(x),
+      next: x => this.apply(x, true),
       error: e => this.error.set(this.errorText(e)),
     });
   }
 
-  private apply(x: XIntegration): void {
+  /**
+   * The status. The app's fields are filled from it only when asked (opening the card, after
+   * saving): the poll that runs during a sign-in must never refill a field the user is editing.
+   */
+  private apply(x: XIntegration, fillFields = false): void {
     this.x.set(x);
-    if (x.clientId && !this.clientId()) this.clientId.set(x.clientId);
-    if (x.appConfigured && !this.clientSecret()) this.clientSecret.set(this.mask);
-    if (x.redirectUri && !this.redirectUri()) this.redirectUri.set(x.redirectUri);
+    if (fillFields) {
+      this.clientId.set(x.clientId ?? '');
+      this.clientSecret.set(x.appConfigured ? this.mask : '');
+      this.redirectUri.set(x.redirectUri ?? '');
+    }
     if (x.pending) {
       if (!this.link() || this.link()!.url !== x.pending.url) this.link.set({ url: x.pending.url, expiresAt: x.pending.expiresAt });
       this.startPolling();
@@ -90,7 +96,7 @@ export class XCardComponent implements OnInit, OnDestroy {
     this.busy.set(true);
     this.error.set('');
     this.api.saveXApp(id, secret, this.redirectUri().trim()).subscribe({
-      next: x => { this.busy.set(false); this.apply(x); this.clientSecret.set(this.mask); this.flash(); },
+      next: x => { this.busy.set(false); this.apply(x, true); this.flash(); },
       error: e => { this.busy.set(false); this.error.set(this.errorText(e)); },
     });
   }
