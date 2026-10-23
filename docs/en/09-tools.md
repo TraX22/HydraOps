@@ -155,9 +155,18 @@ Keep the host from logging full addresses if it lets you: the one-time code trav
 
 X's API is pay-per-use: there is no free tier for new developers, you load credits in the portal and every operation deducts a little (about 0.015 USD per post, 0.20 USD when the post carries a link, 0.005 USD per post read, at the time of writing). One developer account and one balance serve every account you connect.
 
-1. Sign up at [developer.x.com](https://developer.x.com/) with the X account that will own the app, create a project and an app, and load credits.
+1. Sign up at [developer.x.com](https://developer.x.com/) with the X account that will own the app, create a project and an app, and load credits. The environment (Development, Staging, Production) is only a label: choose Production for the app you will use.
+
+   ![Creating the app in X's developer console](../img/x-console-create-app.png)
+
 2. In the app's **User authentication settings** choose **Read and write**, the **Web App, Automated App or Bot** type, put your **Callback URI** from step 1 and a website address (your page's site works), and **save the changes**.
+
+   ![User authentication settings: Web App type and the Callback URI of a GitHub Pages copy of the page](../img/x-console-auth-settings.png)
+
 3. Copy the **Client ID** and the **Client Secret** (shown once).
+
+   ![X shows the Client ID and the Client Secret once (masked here)](../img/x-console-keys.png)
+
 4. In **Tools → X** paste the Client ID, the Client Secret and the **same Callback URI**, character for character (the final slash included), and press **Save**. They go to HydraOps' key store, never to the database or the repository.
 
 The Callback URI saved in HydraOps must be exactly the one registered in the app you took the Client ID from: if they differ, X answers "Something went wrong" when you authorise.

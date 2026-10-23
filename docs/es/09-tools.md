@@ -155,9 +155,18 @@ Si tu hosting lo permite, que no registre las direcciones completas: el código 
 
 La API de X es de pago por uso: no hay plan gratuito para desarrolladores nuevos, cargás créditos en el portal y cada operación descuenta un poco (unos 0,015 USD por publicación, 0,20 USD si la publicación lleva un enlace, 0,005 USD por publicación leída, al momento de escribir esto). Una sola cuenta de desarrollador y un solo saldo sirven para todas las cuentas que conectes.
 
-1. Inscribite en [developer.x.com](https://developer.x.com/) con la cuenta de X que va a ser dueña de la app, creá un proyecto y una app, y cargá créditos.
+1. Inscribite en [developer.x.com](https://developer.x.com/) con la cuenta de X que va a ser dueña de la app, creá un proyecto y una app, y cargá créditos. El entorno (Development, Staging, Production) es solo una etiqueta: elegí Production para la app que vas a usar.
+
+   ![Creación de la app en la consola de desarrolladores de X](../img/x-console-create-app.png)
+
 2. En **User authentication settings** de la app elegí **Lectura y escritura**, el tipo **Web App, Automated App or Bot**, poné tu **Callback URI** del paso 1 y una dirección de sitio web (sirve la de tu página), y **guardá los cambios**.
+
+   ![User authentication settings: tipo Web App y la Callback URI de una copia de la página en GitHub Pages](../img/x-console-auth-settings.png)
+
 3. Copiá el **Client ID** y el **Client Secret** (se muestra una sola vez).
+
+   ![X muestra el Client ID y el Client Secret una sola vez (acá enmascarados)](../img/x-console-keys.png)
+
 4. En **Herramientas → X** pegá el Client ID, el Client Secret y la **misma Callback URI**, carácter por carácter (con la barra final), y tocá **Guardar**. Van al almacén de claves de HydraOps, nunca a la base de datos ni al repositorio.
 
 La Callback URI guardada en HydraOps tiene que ser exactamente la registrada en la app de la que sacaste el Client ID: si difieren, X contesta «Algo salió mal» al autorizar.
