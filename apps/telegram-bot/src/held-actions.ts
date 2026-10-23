@@ -55,7 +55,32 @@ function outcomeLine(status: string, result: unknown): string {
   }
 }
 
+/** X's length rule: 280 weighted characters, every URL counting as 23. */
+const xLength = (text: string) => text.replace(/https?:\/\/\S+/gi, "x".repeat(23)).length;
+
+/** A post for X, shown as it will be published: the account, every part with its length and images, the cost. */
+function describePost(a: any): string {
+  const args = a.args ?? {};
+  const parts: any[] = Array.isArray(args.parts) ? args.parts : [];
+  const lines = parts.map((p, i) => {
+    const text = String(p?.text ?? "");
+    const n = xLength(text);
+    const media: string[] = Array.isArray(p?.media) ? p.media.map(String) : [];
+    return [
+      `${parts.length > 1 ? `${i + 1}/ ` : ""}${clip(text, 1000)}`,
+      `(${n}/280${n > 280 ? " — over the limit, X will refuse it" : ""}${media.length ? `, ${media.length} image${media.length > 1 ? "s" : ""}: ${media.join(", ")}` : ""})`,
+    ].join("\n");
+  });
+  const usd = parts.reduce((t, p) => t + (/https?:\/\/|\b[a-z0-9-]+\.[a-z]{2,}\b/i.test(String(p?.text ?? "")) ? 0.2 : 0.015), 0);
+  return [
+    `⏸ Publish on X — ${a.agentId} wants to post as @${String(args.account ?? "").replace(/^@/, "")}${parts.length > 1 ? ` (a thread of ${parts.length} parts)` : ""}`,
+    ...lines,
+    `About ${usd.toFixed(3)} USD, charged by X to your developer account. Expires in 24 h.`,
+  ].join("\n\n");
+}
+
 function describe(a: any): string {
+  if (a.toolName === "x_post") return describePost(a);
   const origins = (Array.isArray(a.origins) ? a.origins : []).map((o: any) => o?.ref ?? o?.tool).filter(Boolean).slice(0, 3);
   const args = a.args && typeof a.args === "object"
     ? Object.entries(a.args as Record<string, unknown>).slice(0, 6)
@@ -84,7 +109,8 @@ async function notifyNew(deps: HeldActionsDeps): Promise<void> {
     const reply_markup = {
       inline_keyboard: [
         [{ text: "✅ Approve", callback_data: `held:a:${a.id}` }, { text: "❌ Reject", callback_data: `held:r:${a.id}` }],
-        [{ text: "✅✅ Approve for the rest of the task", callback_data: `held:t:${a.id}` }],
+        // A post always asks, one by one: no task-wide approval for it.
+        ...(a.toolName === "x_post" ? [] : [[{ text: "✅✅ Approve for the rest of the task", callback_data: `held:t:${a.id}` }]]),
       ],
     };
     const text = describe(a);

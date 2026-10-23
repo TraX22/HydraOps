@@ -9,6 +9,7 @@ import { youtubeTranscriptTool } from './native/youtube_transcript/index.js';
 import { comfyWorkflowsTool } from './native/comfy_workflows/index.js';
 import { githubTools } from './native/github/index.js';
 import { sendToTelegramTool } from './native/send_to_telegram/index.js';
+import { xAccountsTool, xPostTool } from './native/x/index.js';
 import { delegateTaskTool } from './native/delegate_task/index.js';
 import { rememberTool } from './native/remember/index.js';
 import { recallTool } from './native/recall/index.js';
@@ -31,6 +32,8 @@ export async function createRegistry(): Promise<ToolRegistry> {
   registry.registerNative({ ...youtubeTranscriptTool, source: 'native' });
   registry.registerNative({ ...comfyWorkflowsTool, source: 'native' });
   registry.registerNative({ ...sendToTelegramTool, source: 'native' });
+  registry.registerNative({ ...xAccountsTool, source: 'native' });
+  registry.registerNative({ ...xPostTool, source: 'native' });
   registry.registerNative({ ...delegateTaskTool, source: 'native' });
   registry.registerNative({ ...rememberTool, source: 'native' });
   registry.registerNative({ ...recallTool, source: 'native' });

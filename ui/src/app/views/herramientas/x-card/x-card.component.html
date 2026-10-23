@@ -22,13 +22,21 @@
                [value]="clientId()" (input)="clientId.set($any($event.target).value)" />
         <input type="password" class="key-input" autocomplete="off" [placeholder]="'herramientas.x.clientSecret' | translate"
                [value]="clientSecret()" (input)="clientSecret.set($any($event.target).value)" (focus)="onSecretFocus()" (blur)="onSecretBlur()" (keyup.enter)="saveApp()" />
-        <button class="btn-primary key-save" [disabled]="busy() || !clientId().trim() || (!x.appConfigured && (!clientSecret().trim() || clientSecret() === mask))" (click)="saveApp()">{{ 'common.save' | translate }}</button>
+      </div>
+      <div class="app-row">
+        <input type="url" class="key-input" autocomplete="off" spellcheck="false" [placeholder]="'herramientas.x.callbackPlaceholder' | translate"
+               [value]="redirectUri()" (input)="redirectUri.set($any($event.target).value)" (keyup.enter)="saveApp()" />
+        <button class="btn-primary key-save" [disabled]="busy() || !clientId().trim() || !redirectUri().trim() || (!x.appConfigured && (!clientSecret().trim() || clientSecret() === mask))" (click)="saveApp()">{{ 'common.save' | translate }}</button>
         @if (saved()) { <span class="saved-msg">✓ {{ 'common.saved' | translate }}</span> }
       </div>
       <p class="tool-hint">
         {{ 'herramientas.x.appHint' | translate }}
         <a href="https://developer.x.com/" target="_blank" rel="noopener noreferrer">developer.x.com</a>.
-        {{ 'herramientas.x.callbackHint' | translate }} <code>{{ x.redirectUri }}</code>
+      </p>
+      <p class="tool-hint">
+        {{ 'herramientas.x.callbackHint' | translate }}
+        <a href="x-callback.html" download="index.html">{{ 'herramientas.x.download' | translate }}</a>
+        · <a routerLink="/docs" [queryParams]="{ page: 'tools' }">{{ 'herramientas.x.howTo' | translate }}</a>
       </p>
       <p class="tool-hint">{{ 'herramientas.x.costs' | translate }}</p>
     </div>
@@ -36,7 +44,7 @@
     <!-- Accounts -->
     <div class="sec">
       <h3>{{ 'herramientas.x.accounts' | translate }} <span class="count">{{ x.accounts.length }}</span></h3>
-      <button class="btn-secondary" [disabled]="busy() || !x.appConfigured || !!link()" (click)="connect()">+ {{ 'herramientas.x.connect' | translate }}</button>
+      <button class="btn-secondary" [disabled]="busy() || !x.appConfigured || !x.redirectUri || !!link()" (click)="connect()">+ {{ 'herramientas.x.connect' | translate }}</button>
     </div>
 
     @if (link(); as l) {

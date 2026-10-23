@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>HydraOps · X</title>
+<!--
+  The callback X sends the browser to after a user authorises an X app for HydraOps.
+  X only accepts https callbacks, and HydraOps runs on the user's own computer, so each user
+  hosts a copy of this page on a public https address of their own (GitHub Pages, Cloudflare
+  Pages, Netlify, or any hosting, free or paid), registers that address as the Callback URI
+  of their X app and saves it in Tools -> X. HydraOps offers the file for download there.
+  The page forwards the browser, with the same query string, to the HydraOps on the
+  browser's machine: http://127.0.0.1:3000/api/integrations/x/callback. It stores nothing and talks
+  to nobody: the code it carries is useless without the PKCE verifier that HydraOps kept.
+  Nothing happens on its own: the user either presses Continue (HydraOps on this machine)
+  or copies the address shown and pastes it into Tools -> X (HydraOps on another machine,
+  where forwarding would only end on the browser's connection error). "Copied" is shown
+  only when the clipboard took it; otherwise the address is selected to copy by hand.
+
+  What passes through here is the one-time code X issued and the random state, in the
+  query string (X puts them there; a fragment is not an option). The code is spent in
+  seconds, works only once, and only together with the PKCE verifier kept by the HydraOps
+  that started the sign-in; still, the host serving this page should not keep access logs
+  of its query strings. The local port is HydraOps' API port, 3000 in every installation.
+-->
+<style>
+  body { font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: #1f2937; background: #f6f7f9; margin: 0; }
+  main { max-width: 36rem; margin: 12vh auto; padding: 0 24px; }
+  h1 { font-size: 22px; margin: 0 0 8px; }
+  p { color: #4b5563; margin: 0 0 14px; }
+  code { display: block; word-break: break-all; font-size: 13px; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff; color: #111827; }
+  button { margin-top: 10px; padding: 8px 14px; border: 1px solid #3d4db3; border-radius: 6px; background: #3d4db3; color: #fff; font: inherit; font-size: 14px; cursor: pointer; }
+  button.secondary { background: #ffffff; color: #3d4db3; }
+  #go { display: block; width: 100%; padding: 12px 16px; font-size: 16px; margin: 4px 0 26px; }
+  .note { font-size: 14px; }
+  a { color: #3d4db3; }
+</style>
+</head>
+<body>
+<main>
+  <h1>HydraOps</h1>
+  <p id="msg">X autorizó la cuenta. Terminá la conexión en HydraOps. · X authorised the account; finish the connection in HydraOps.</p>
+  <div id="steps" hidden>
+    <button id="go" type="button">Continuar en HydraOps de esta computadora · Continue in HydraOps on this computer</button>
+    <p class="note">¿HydraOps corre en otra máquina? Copiá esta dirección y pegala en <strong>Herramientas → X</strong>. · HydraOps on another machine? Copy this address and paste it in <strong>Tools → X</strong>.</p>
+    <code id="addr"></code>
+    <button id="copy" class="secondary" type="button">Copiar · Copy</button>
+    <p id="copymsg" class="note" hidden></p>
+  </div>
+</main>
+<script>
+(function () {
+  var target = "http://127.0.0.1:3000/api/integrations/x/callback" + location.search;
+  var addr = document.getElementById("addr");
+  var copy = document.getElementById("copy");
+  var copymsg = document.getElementById("copymsg");
+  var msg = document.getElementById("msg");
+  // The address selected on the page, for Ctrl+C when the clipboard is not available.
+  function selectAddress() {
+    var range = document.createRange();
+    range.selectNodeContents(addr);
+    var sel = window.getSelection();
+    sel.removeAllRanges(); sel.addRange(range);
+  }
+  function copyFailed() {
+    selectAddress();
+    copy.textContent = "Copiar · Copy";
+    copymsg.textContent = "No se pudo copiar solo: la dirección quedó seleccionada, copiala con Ctrl+C (Cmd+C en Mac). · Could not copy: the address is selected, copy it with Ctrl+C (Cmd+C on a Mac).";
+    copymsg.hidden = false;
+  }
+  if (!/[?&]code=/.test(location.search) || !/[?&]state=/.test(location.search)) {
+    msg.textContent = "Esta dirección no trae una autorización de X. Volvé a HydraOps y empezá de nuevo. · This address carries no X authorisation; go back to HydraOps and start again.";
+    return;
+  }
+  addr.textContent = target;
+  document.getElementById("steps").hidden = false;
+  document.getElementById("go").onclick = function () { location.replace(target); };
+  copy.onclick = function () {
+    copymsg.hidden = true;
+    if (!navigator.clipboard || !navigator.clipboard.writeText) { copyFailed(); return; }
+    // "Copied" only once the clipboard took it.
+    navigator.clipboard.writeText(target).then(function () {
+      copy.textContent = "Copiado · Copied";
+    }, copyFailed);
+  };
+})();
+</script>
+</body>
+</html>

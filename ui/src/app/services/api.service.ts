@@ -281,7 +281,7 @@ export interface XIntegration {
   enabled: boolean;
   appConfigured: boolean;
   clientId?: string;
-  /** The callback registered in the X app (an https page that forwards to this computer). */
+  /** The callback registered in the X app: the user's own copy of the forwarding page (empty until saved). */
   redirectUri: string;
   accounts: XAccount[];
   pending: { url: string; expiresAt: string; finishing?: boolean } | null;
@@ -939,8 +939,8 @@ export class ApiService {
   }
 
   /** The X app's credentials: they go to the key store, never to the database. */
-  saveXApp(clientId: string, clientSecret: string): Observable<XIntegration> {
-    return this.http.post<XIntegration>(`${this.base}/system/integrations/x/app`, { clientId, clientSecret });
+  saveXApp(clientId: string, clientSecret: string, redirectUri: string): Observable<XIntegration> {
+    return this.http.post<XIntegration>(`${this.base}/system/integrations/x/app`, { clientId, clientSecret, redirectUri });
   }
 
   /** Starts connecting one more account: the link to open in a browser signed in as that account. */

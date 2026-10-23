@@ -130,27 +130,69 @@ Se desactiva en **Configuración → Herramientas bajo demanda** (o con `TOOLS_O
 
 ## X: tus cuentas, publicadas con tu aprobación
 
-HydraOps se conecta a **tu propia app de desarrollador en X**, y a través de ella a todas las cuentas de X que quieras: la de un proyecto, la de una marca, una personal. Los agentes van a publicar en ellas, cada publicación esperando tu aprobación (la herramienta de publicar llega en la próxima versión; esta tarjeta es donde se conectan las cuentas y donde decidís quién puede usar cuál).
+HydraOps se conecta a **tu propia app de desarrollador en X**, y a través de ella a todas las cuentas de X que quieras: la de un proyecto, la de una marca, una personal. Los agentes publican en ellas con la herramienta `x_post`, y cada publicación espera tu aprobación.
 
-### 1. Creá la app en el portal de X
+### 1. Tu página de vuelta
+
+Cuando autorizás una cuenta, X manda el navegador de vuelta a una **Callback URI** registrada en tu app, y X solo acepta direcciones **https** ahí (ni `localhost` ni `127.0.0.1`). HydraOps corre en tu propia computadora, así que la vuelta es una página chica que alojás vos: recibe al navegador y lo reenvía al HydraOps de esa misma computadora (`http://127.0.0.1:3000`). No guarda nada ni habla con ningún servidor; el código que lleva no sirve sin la comprobación secreta que guarda HydraOps.
+
+Hacelo una vez:
+
+1. En **Herramientas → X** tocá **Descargar la página**: te baja un `index.html`. ¿Estás leyendo esto fuera de HydraOps? El mismo archivo está en el repositorio, [`ui/public/x-callback.html`](https://github.com/TraX22/HydraOps/blob/main/ui/public/x-callback.html) (usá el botón de descarga de GitHub y renombralo a `index.html`).
+2. Publicalo en cualquier hosting con https. El ejemplo de abajo usa **GitHub Pages**, que es gratis; cualquier otro hosting, gratuito o pago, con dominio propio o con un subdominio gratis (Cloudflare Pages, Netlify, Vercel, tu propio sitio), funciona exactamente igual: lo que cuenta es la dirección https final.
+3. Anotá la dirección donde abre la página: esa es tu **Callback URI**.
+
+Con GitHub Pages:
+
+1. Creá un repositorio **público**, por ejemplo `x-callback`.
+2. Subí el archivo dentro de las carpetas `x/callback/` (así la ruta queda `x/callback/index.html`). Sirve cualquier carpeta; esta hace que la dirección se reconozca fácil.
+3. En **Settings → Pages** del repositorio elegí **Deploy from a branch**, rama `main`, carpeta `/ (root)`, y guardá.
+4. Al minuto la página está en `https://<tu-usuario>.github.io/x-callback/x/callback/`. Esa es tu Callback URI, con la barra final.
+
+Si tu hosting lo permite, que no registre las direcciones completas: el código de un solo uso viaja en la dirección (vence en segundos y sirve una sola vez, pero mejor que no quede guardado en ningún lado).
+
+### 2. Creá la app en el portal de X
 
 La API de X es de pago por uso: no hay plan gratuito para desarrolladores nuevos, cargás créditos en el portal y cada operación descuenta un poco (unos 0,015 USD por publicación, 0,20 USD si la publicación lleva un enlace, 0,005 USD por publicación leída, al momento de escribir esto). Una sola cuenta de desarrollador y un solo saldo sirven para todas las cuentas que conectes.
 
-1. Inscribite en [developer.x.com](https://developer.x.com/) con la cuenta de X que va a ser dueña de la app, creá un proyecto y una app, y cargá créditos.
-2. En **User authentication settings** de la app elegí **Lectura y escritura**, el tipo **Web App, Automated App or Bot**, y registrá esta **Callback URI**: `https://hydraops.org/x/callback`. X solo acepta direcciones https ahí; esa página (su fuente está en `deploy/x-callback.html` del repositorio, así que podés alojar tu propia copia) no guarda nada y solo reenvía el navegador al HydraOps de tu computadora.
-3. Copiá el **Client ID** y el **Client Secret** (se muestra una sola vez) en **Herramientas → X** y tocá **Guardar**. Van al almacén de claves, nunca a la base de datos ni al repositorio.
+1. Inscribite en [developer.x.com](https://developer.x.com/) con la cuenta de X que va a ser dueña de la app, creá un proyecto y una app, y cargá créditos. El entorno (Development, Staging, Production) es solo una etiqueta: elegí Production para la app que vas a usar.
 
-### 2. Conectá cada cuenta
+   ![Creación de la app en la consola de desarrolladores de X](../img/x-console-create-app.png)
 
-Tocá **Conectar una cuenta**: HydraOps muestra un enlace. Abrilo en un navegador **de esta computadora**, con la sesión de X de la cuenta que querés conectar (si el navegador tiene otra abierta, cambiá de cuenta en X antes), aceptá los cuatro permisos (leer tu perfil, publicar, subir imágenes, mantener la sesión) y volvé: la cuenta aparece en la lista en segundos, con sus tokens en el almacén de claves, renovados solos.
+2. En **User authentication settings** de la app elegí **Lectura y escritura**, el tipo **Web App, Automated App or Bot**, poné tu **Callback URI** del paso 1 y una dirección de sitio web (sirve la de tu página), y **guardá los cambios**.
 
-Cuando HydraOps corre en un servidor y tu navegador está en otra máquina, la vuelta no llega: la página a la que te manda X muestra la dirección para copiar, y la tarjeta tiene un campo para pegarla. Mismo resultado.
+   ![User authentication settings: tipo Web App y la Callback URI de una copia de la página en GitHub Pages](../img/x-console-auth-settings.png)
+
+3. Copiá el **Client ID** y el **Client Secret** (se muestra una sola vez).
+
+   ![X muestra el Client ID y el Client Secret una sola vez (acá enmascarados)](../img/x-console-keys.png)
+
+4. En **Herramientas → X** pegá el Client ID, el Client Secret y la **misma Callback URI**, carácter por carácter (con la barra final), y tocá **Guardar**. Van al almacén de claves de HydraOps, nunca a la base de datos ni al repositorio.
+
+La Callback URI guardada en HydraOps tiene que ser exactamente la registrada en la app de la que sacaste el Client ID: si difieren, X contesta «Algo salió mal» al autorizar.
+
+### 3. Conectá cada cuenta
+
+Tocá **Conectar una cuenta**: HydraOps muestra un enlace. Abrilo en un navegador **de esta computadora**, con la sesión de X de la cuenta que querés conectar (si el navegador tiene otra abierta, cambiá de cuenta en X antes), aceptá los cuatro permisos (leer tu perfil, publicar, subir imágenes, mantener la sesión), tocá **Continuar** en tu página de vuelta y volvé: la cuenta aparece en la lista en segundos, con sus tokens en el almacén de claves, renovados solos.
+
+Cuando HydraOps corre en un servidor y tu navegador está en otra máquina, la vuelta no llega: tu página de vuelta muestra la dirección con un botón **Copiar**, y la tarjeta tiene un campo para pegarla. Mismo resultado.
 
 Una cuenta se puede conectar de nuevo cuando quieras (se reemplazan sus tokens), y **Desconectar** la olvida.
 
-### 3. Quién publica dónde
+### 4. Quién publica dónde
 
 Cada cuenta conectada lista los agentes que pueden publicar en ella, y una cuenta nueva arranca con **nadie**: la herramienta de publicar rechaza, del lado del servidor, cualquier cuenta que el agente no tenga asignada acá, así que una publicación no puede caer en la marca equivocada por un error del modelo. Agregá agentes con el selector de la fila de la cuenta; el interruptor ON/OFF de arriba pausa todas las cuentas a la vez.
+
+### 5. Publicar
+
+Dale al agente las dos herramientas en la vista Agentes (su lista de herramientas, como cualquier otra) y la cuenta en Herramientas → X. Después pedile una publicación o un hilo como se lo pedirías a una persona: «anunciá la versión 0.2 en la cuenta de HydraOps, tres publicaciones, el enlace en la última». El agente tiene dos herramientas:
+
+- `x_accounts` lista las cuentas que puede usar. Con una, la usa; con varias y un pedido que no dice cuál, te pregunta; sin ninguna, lo dice.
+- `x_post` publica una publicación o un hilo (cada parte responde a la anterior) en una cuenta, con hasta 4 imágenes adjuntas por parte (los archivos que soltaste en el chat, por nombre). Se retiene **siempre**, haya leído lo que haya leído la tarea: nada sale con tu nombre sin vos.
+
+La tarjeta de aprobación muestra la cuenta con su avatar, cada parte tal como se va a publicar con su conteo de caracteres (280 caracteres ponderados, un enlace cuenta 23), las imágenes y el costo estimado; el aviso por Telegram, lo mismo. **Aprobar** publica y el agente contesta con el enlace; **Rechazar** la descarta y el agente se entera. Para publicar no existe «aprobar por el resto de la tarea»: cada publicación pregunta.
+
+El servidor publica solo la publicación exacta que aprobaste (mismo agente, cuenta y partes), una vez; y rechaza, antes de que nada llegue a X, una parte vacía o pasada del límite, una cuenta que el agente no tiene asignada, una imagen que no es uno de tus adjuntos o pesa más de 5 MB, y cualquier cosa con el interruptor en OFF. Borrar una publicación no es algo que los agentes puedan hacer: eso queda en X, con vos.
 
 ## Conexiones: servidores MCP listos para usar
 

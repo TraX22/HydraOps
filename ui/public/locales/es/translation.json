@@ -204,7 +204,19 @@
         "expired": "vencida"
       },
       "continuing": "El agente continúa después de tu decisión",
-      "continuingDetail": "qué se decidió"
+      "continuingDetail": "qué se decidió",
+      "x": {
+        "title": "Publicar en X",
+        "account": "Cuenta",
+        "unknownAccount": "no está conectada o no está habilitada para este agente: la publicación se va a rechazar",
+        "parts": "{{n}} partes, un hilo",
+        "part": "Publicación",
+        "chars": "{{n}}/280 caracteres",
+        "tooLong": "pasa el límite: X la va a rechazar",
+        "images": "Imágenes",
+        "cost": "Unos {{usd}} USD, que X cobra de tu cuenta de desarrollador",
+        "linkNote": "una publicación con enlace cuesta más"
+      }
     },
     "linkUnverified": "⚠ No verificado: el agente no abrió ni vio esta dirección en esta conversación. Puede existir, pero salió de su memoria, no de una consulta.",
     "progress": {
@@ -603,7 +615,7 @@
       "clientId": "Client ID",
       "clientSecret": "Client Secret",
       "appHint": "Creá una app con OAuth 2.0 (tipo «Web App», permisos de lectura y escritura) y cargá créditos en",
-      "callbackHint": "Registrá como Callback URI esta dirección:",
+      "callbackHint": "X solo acepta direcciones de vuelta https, así que la vuelta es una página chica que alojás vos y que reenvía el navegador a este HydraOps: descargala, publicala en cualquier hosting con https (GitHub Pages es gratis; cualquier hosting gratuito o pago sirve igual), registrá su dirección como Callback URI de tu app y pegá la misma dirección acá, carácter por carácter.",
       "costs": "X cobra por uso desde tu cuenta de desarrollador, un solo saldo para todas las cuentas: unos 0,015 USD por publicación, 0,20 USD si lleva enlace, 0,005 USD por lectura. El saldo se ve en el portal de X.",
       "accounts": "Cuentas conectadas",
       "connect": "Conectar una cuenta",
@@ -613,14 +625,14 @@
       "step1": "Abrí este enlace en un navegador de esta computadora.",
       "step2": "Entrá a X con la cuenta que querés conectar. Si el navegador tiene abierta otra de tus cuentas, cambiá de cuenta en X antes de aceptar: la que esté activa es la que se conecta.",
       "step3": "Aceptá los permisos que pide HydraOps: leer tu perfil, publicar, subir imágenes y mantener la sesión.",
-      "step4": "Volvé acá: la cuenta aparece en la lista en unos segundos, sin agentes asignados. El enlace vence en 10 minutos.",
+      "step4": "En tu página de vuelta tocá Continuar y volvé acá: la cuenta aparece en la lista en unos segundos, sin agentes asignados. El enlace vence en 10 minutos.",
       "copy": "Copiar",
       "copied": "Copiado",
       "open": "Abrir",
-      "pasteHint": "Si el navegador no estaba en esta computadora (HydraOps corre en un servidor), X te mandó a una dirección que no abre: copiala entera de la barra del navegador y pegala acá.",
+      "pasteHint": "Si el navegador no estaba en esta computadora (HydraOps corre en un servidor), copiá la dirección que muestra tu página de vuelta (o la dirección entera de la barra del navegador, aunque muestre un error de conexión) y pegala acá.",
       "pastePlaceholder": "http://127.0.0.1:3000/api/integrations/x/callback?state=…&code=…",
       "finish": "Terminar",
-      "tokensHint": "Los tokens de la cuenta van al almacén de claves cifrado y se renuevan solos. Nada pasa por la base de datos.",
+      "tokensHint": "Los tokens de la cuenta van al almacén de claves de HydraOps (un archivo que solo tu usuario puede leer, no cifrado) y se renuevan solos. Nada pasa por la base de datos.",
       "connectedOn": "conectada el {{date}}",
       "reauth": "sesión vencida: conectar de nuevo",
       "canPost": "Pueden publicar:",
@@ -641,8 +653,13 @@
         "scope_missing": "X no concedió todos los permisos. Conectá de nuevo y aceptá los cuatro.",
         "bad_callback_url": "Esa dirección no trae el código y el estado de X. Pegá la dirección completa a la que te mandó el navegador.",
         "no_such_account": "Esa cuenta no está conectada.",
-        "x_reauth_required": "La sesión de esa cuenta venció: conectala de nuevo."
-      }
+        "x_reauth_required": "La sesión de esa cuenta venció: conectala de nuevo.",
+        "bad_redirect_uri": "La Callback URI tiene que ser una dirección https simple (X no acepta otra cosa).",
+        "no_redirect_uri": "Guardá primero la Callback URI: la dirección https de tu copia de la página de vuelta."
+      },
+      "callbackPlaceholder": "Callback URI: https://… (tu copia de la página de vuelta)",
+      "download": "Descargar la página",
+      "howTo": "Paso a paso"
     },
     "github": {
       "name": "GitHub",
