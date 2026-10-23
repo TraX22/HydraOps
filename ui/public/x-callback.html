@@ -15,8 +15,10 @@
   The page forwards the browser, with the same query string, to the HydraOps on the
   browser's machine: http://127.0.0.1:3000/api/integrations/x/callback. It stores nothing and talks
   to nobody: the code it carries is useless without the PKCE verifier that HydraOps kept.
-  When that HydraOps is not on this machine (it runs on a server), the address is shown
-  for the user to copy and paste into Tools -> X.
+  The address is shown to copy before the browser is forwarded: when that HydraOps is not on
+  this machine (it runs on a server), the forward ends on the browser's own connection error,
+  which replaces this page, so the address is copied from here first (or from the error
+  page's address bar) and pasted into Tools -> X.
 
   What passes through here is the one-time code X issued and the random state, in the
   query string (X puts them there; a fragment is not an option). The code is spent in
@@ -38,9 +40,10 @@
 <main>
   <h1>HydraOps</h1>
   <p id="msg">Volviendo a HydraOps en esta computadora… · Returning to HydraOps on this computer…</p>
-  <p id="fallback" hidden>Si HydraOps no corre en esta computadora, copiá esta dirección entera y pegala en <strong>Herramientas → X</strong>: · If HydraOps is not on this computer, copy this whole address and paste it in <strong>Tools → X</strong>:</p>
+  <p id="fallback" hidden>Si HydraOps corre en otra máquina, copiá esta dirección y pegala en <strong>Herramientas → X</strong>. Si el navegador después muestra un error de conexión, también sirve la dirección de su barra. · If HydraOps runs on another machine, copy this address and paste it in <strong>Tools → X</strong>; if the browser then shows a connection error, the address in its bar works too.</p>
   <code id="addr" hidden></code>
   <button id="copy" hidden type="button">Copiar · Copy</button>
+  <button id="go" hidden type="button">Ir a HydraOps en esta computadora · Go to HydraOps on this computer</button>
 </main>
 <script>
 (function () {
@@ -49,20 +52,27 @@
   var copy = document.getElementById("copy");
   var fallback = document.getElementById("fallback");
   var msg = document.getElementById("msg");
+  var go = document.getElementById("go");
+  var timer = null;
+  // Shown before forwarding: a failed forward replaces this page with the browser's error.
   function showManual() {
-    msg.textContent = "No se pudo llegar al HydraOps de esta computadora. · HydraOps on this computer could not be reached.";
-    fallback.hidden = false; addr.hidden = false; copy.hidden = false;
+    fallback.hidden = false; addr.hidden = false; copy.hidden = false; go.hidden = false;
     addr.textContent = target;
-    copy.onclick = function () { navigator.clipboard && navigator.clipboard.writeText(target); copy.textContent = "Copiado · Copied"; };
+    copy.onclick = function () {
+      // Copying means HydraOps is elsewhere: stay on this page.
+      if (timer) { clearTimeout(timer); timer = null; msg.textContent = "Pegá la dirección en Herramientas → X. · Paste the address in Tools → X."; }
+      navigator.clipboard && navigator.clipboard.writeText(target); copy.textContent = "Copiado · Copied";
+    };
+    go.onclick = function () { location.replace(target); };
   }
   if (!/[?&]code=/.test(location.search) || !/[?&]state=/.test(location.search)) {
     msg.textContent = "Esta dirección no trae una autorización de X. Volvé a HydraOps y empezá de nuevo. · This address carries no X authorisation; go back to HydraOps and start again.";
     return;
   }
-  // The browser is sent to the local HydraOps; if nothing answers there within a few
-  // seconds (HydraOps runs elsewhere), the address is shown to copy by hand.
-  setTimeout(showManual, 4000);
-  location.replace(target);
+  // The address to copy first, then the browser is sent to the local HydraOps after a moment
+  // (copying cancels that, for a HydraOps that runs elsewhere).
+  showManual();
+  timer = setTimeout(function () { location.replace(target); }, 3000);
 })();
 </script>
 </body>

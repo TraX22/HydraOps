@@ -629,7 +629,7 @@
       "copy": "Copier",
       "copied": "Copié",
       "open": "Ouvrir",
-      "pasteHint": "Si le navigateur n'était pas sur cet ordinateur (HydraOps tourne sur un serveur), la page de retour affiche l'adresse après quelques secondes : copiez-la, ou l'adresse entière de la barre du navigateur, et collez-la ici.",
+      "pasteHint": "Si le navigateur n'était pas sur cet ordinateur (HydraOps tourne sur un serveur), copiez l'adresse qu'affiche votre page de retour (ou l'adresse entière de la barre du navigateur, même sur une erreur de connexion) et collez-la ici.",
       "pastePlaceholder": "http://127.0.0.1:3000/api/integrations/x/callback?state=…&code=…",
       "finish": "Terminer",
       "tokensHint": "Les jetons du compte vont dans le coffre de clés de HydraOps (un fichier lisible par votre seul utilisateur, non chiffré) et se renouvellent seuls. Rien ne passe par la base de données.",

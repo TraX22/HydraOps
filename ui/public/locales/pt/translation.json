@@ -629,7 +629,7 @@
       "copy": "Copiar",
       "copied": "Copiado",
       "open": "Abrir",
-      "pasteHint": "Se o navegador não estava neste computador (o HydraOps roda num servidor), a página de retorno mostra o endereço após alguns segundos: copie-o, ou o endereço inteiro da barra do navegador, e cole aqui.",
+      "pasteHint": "Se o navegador não estava neste computador (o HydraOps roda num servidor), copie o endereço que a sua página de retorno mostra (ou o endereço inteiro da barra do navegador, mesmo com um erro de conexão) e cole aqui.",
       "pastePlaceholder": "http://127.0.0.1:3000/api/integrations/x/callback?state=…&code=…",
       "finish": "Concluir",
       "tokensHint": "Os tokens da conta vão para o cofre de chaves do HydraOps (um arquivo que só o seu usuário pode ler, não cifrado) e se renovam sozinhos. Nada passa pelo banco de dados.",

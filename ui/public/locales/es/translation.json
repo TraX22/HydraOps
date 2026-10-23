@@ -629,7 +629,7 @@
       "copy": "Copiar",
       "copied": "Copiado",
       "open": "Abrir",
-      "pasteHint": "Si el navegador no estaba en esta computadora (HydraOps corre en un servidor), la página de vuelta muestra la dirección a los pocos segundos: copiala, o copiá la dirección entera de la barra del navegador, y pegala acá.",
+      "pasteHint": "Si el navegador no estaba en esta computadora (HydraOps corre en un servidor), copiá la dirección que muestra tu página de vuelta (o la dirección entera de la barra del navegador, aunque muestre un error de conexión) y pegala acá.",
       "pastePlaceholder": "http://127.0.0.1:3000/api/integrations/x/callback?state=…&code=…",
       "finish": "Terminar",
       "tokensHint": "Los tokens de la cuenta van al almacén de claves de HydraOps (un archivo que solo tu usuario puede leer, no cifrado) y se renuevan solos. Nada pasa por la base de datos.",

@@ -629,7 +629,7 @@
       "copy": "Copy",
       "copied": "Copied",
       "open": "Open",
-      "pasteHint": "If the browser was not on this computer (HydraOps runs on a server), the callback page shows the address after a few seconds: copy it, or the whole address from the browser's bar, and paste it here.",
+      "pasteHint": "If the browser was not on this computer (HydraOps runs on a server), copy the address your callback page shows (or the whole address from the browser's bar, even on a connection error) and paste it here.",
       "pastePlaceholder": "http://127.0.0.1:3000/api/integrations/x/callback?state=…&code=…",
       "finish": "Finish",
       "tokensHint": "The account's tokens go to HydraOps' key store (a file only your user can read, not encrypted) and refresh on their own. Nothing passes through the database.",

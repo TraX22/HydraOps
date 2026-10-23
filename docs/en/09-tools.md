@@ -166,7 +166,7 @@ The Callback URI saved in HydraOps must be exactly the one registered in the app
 
 Press **Connect an account**: HydraOps shows a link. Open it in a browser **on this computer**, signed in to X as the account you want to connect (switch accounts in X first if another one is open), accept the four permissions (read your profile, post, upload images, keep the session) and come back: the account appears in the list within seconds, with its tokens in the key store, refreshed on their own.
 
-When HydraOps runs on a server and your browser is elsewhere, the callback cannot reach it: after a few seconds your callback page shows the address to copy, and the card has a field to paste it in (the whole address from the browser bar works too). Same result.
+When HydraOps runs on a server and your browser is elsewhere, the callback cannot reach it: your callback page shows the address to copy for three seconds before forwarding (press **Copy** and it stays), and the card has a field to paste it in. If the browser already moved on to a connection error, the address in its bar works too. Same result.
 
 An account can be connected again at any time (its tokens are replaced), and **Disconnect** forgets it.
 
