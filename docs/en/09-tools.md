@@ -138,7 +138,7 @@ When you authorise an account, X sends the browser back to a **Callback URI** re
 
 Do this once:
 
-1. In **Tools → X** press **Download the page**: you get an `index.html`.
+1. In **Tools → X** press **Download the page**: you get an `index.html`. Reading this outside HydraOps? The same file is in the repository, [`ui/public/x-callback.html`](https://github.com/TraX22/HydraOps/blob/main/ui/public/x-callback.html) (use GitHub's download button and rename it `index.html`).
 2. Publish it on any hosting with https. The example below uses **GitHub Pages**, which is free; any other hosting, free or paid, with its own domain or a free subdomain (Cloudflare Pages, Netlify, Vercel, your own website), works exactly the same: what counts is the final https address.
 3. Write down the address where the page opens: that is your **Callback URI**.
 

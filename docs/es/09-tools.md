@@ -138,7 +138,7 @@ Cuando autorizás una cuenta, X manda el navegador de vuelta a una **Callback UR
 
 Hacelo una vez:
 
-1. En **Herramientas → X** tocá **Descargar la página**: te baja un `index.html`.
+1. En **Herramientas → X** tocá **Descargar la página**: te baja un `index.html`. ¿Estás leyendo esto fuera de HydraOps? El mismo archivo está en el repositorio, [`ui/public/x-callback.html`](https://github.com/TraX22/HydraOps/blob/main/ui/public/x-callback.html) (usá el botón de descarga de GitHub y renombralo a `index.html`).
 2. Publicalo en cualquier hosting con https. El ejemplo de abajo usa **GitHub Pages**, que es gratis; cualquier otro hosting, gratuito o pago, con dominio propio o con un subdominio gratis (Cloudflare Pages, Netlify, Vercel, tu propio sitio), funciona exactamente igual: lo que cuenta es la dirección https final.
 3. Anotá la dirección donde abre la página: esa es tu **Callback URI**.
 
