@@ -12,8 +12,9 @@ import type { ReportedFile, ResultFileKind } from "../../result-files.js";
 // where ComfyUI is installed. The ComfyUI connection (the official MCP server) runs a
 // workflow from a FILE. This tool lists the saved ones and prepares one: it copies it
 // into the task's folder (the user's original is never touched), uploads the files the
-// user attached and puts them in the workflow's file inputs, and repairs the one defect
-// a saved workflow commonly carries (a number stored as text). What is left for the
+// user attached and puts them in the workflow's file inputs, and repairs the defects a
+// saved workflow commonly carries (a number stored as text, an invisible line separator
+// in a text). What is left for the
 // agent is to validate and run. "collect" then waits a little and, when the job is done,
 // brings back what it SAVED (not the previews every workflow also makes, and one copy of
 // files that are the same), under a name the user can recognize, and says exactly what it
@@ -160,6 +161,36 @@ export function describeWorkflow(graph: unknown): string {
     for (const t of notes) lines.push(`- ${t}`);
   }
   return lines.join("\n");
+}
+
+/**
+ * Unicode line and paragraph separators (U+2028, U+2029) in any text of the workflow,
+ * turned into plain line breaks. They are invisible in ComfyUI's interface (some official
+ * templates ship a prompt ending in one), but the ComfyUI connection reads the values of a
+ * workflow through comfy-cli line by line and splits on them too, so listing or setting
+ * any value of that workflow fails with "returned no JSON". A plain line break is what the
+ * text meant. Walks the whole graph, subgraphs included; returns how many texts changed.
+ */
+export function normalizeLineSeparators(graph: unknown): number {
+  let changed = 0;
+  const walk = (v: unknown): unknown => {
+    if (typeof v === "string") {
+      if (!/[\u2028\u2029]/.test(v)) return v;
+      changed++;
+      return v.replace(/[\u2028\u2029]/g, "\n");
+    }
+    if (Array.isArray(v)) {
+      for (let i = 0; i < v.length; i++) v[i] = walk(v[i]);
+      return v;
+    }
+    if (v && typeof v === "object") {
+      for (const k of Object.keys(v)) (v as Record<string, unknown>)[k] = walk((v as Record<string, unknown>)[k]);
+      return v;
+    }
+    return v;
+  };
+  walk(graph);
+  return changed;
 }
 
 /**
@@ -356,6 +387,8 @@ async function prepare(base: string, name: string, files: string[], ctx: Prepare
   }
   for (const f of repairNumbersAsText(graph, (t) => infoCache.get(t))) done.push(`repaired a number stored as text: ${f}`);
   for (const f of repairObjectWidgets(graph, (t) => infoCache.get(t))) done.push(`kept a widget's record value: ${f}`);
+  const separators = normalizeLineSeparators(graph);
+  if (separators) done.push(`replaced the invisible line separators (U+2028/U+2029) in ${separators} text value(s) with line breaks: the ComfyUI connection cannot read a workflow's values while they are there`);
 
   const target = path.join(ctx.filesDir, path.basename(name));
   await mkdir(ctx.filesDir, { recursive: true });
