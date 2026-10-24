@@ -16,7 +16,7 @@ export const EnvelopeBaseSchema = z.object({
     id: z.string(),
   }),
   data: z.unknown(),
-  meta: z.record(z.unknown()).optional(),
+  meta: z.record(z.string(), z.unknown()).optional(),
   trace: z
     .object({
       traceId: z.string().min(1),

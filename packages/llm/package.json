@@ -25,7 +25,7 @@
     "ai": "latest",
     "cheerio": "^1.2.0",
     "turndown": "^7.2.4",
-    "zod": "^3.25.0"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

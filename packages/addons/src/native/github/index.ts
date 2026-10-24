@@ -279,8 +279,8 @@ export const githubApiTool: HydraTool = {
   schema: z.object({
     method: z.enum(["GET", "POST", "PATCH", "PUT", "DELETE"]).describe("HTTP method."),
     path: z.string().describe("API path starting with '/', e.g. /repos/owner/name/commits"),
-    query: z.record(z.union([z.string(), z.number()])).optional().describe("Optional query parameters."),
-    body: z.record(z.any()).optional().describe("Optional JSON body for POST/PATCH/PUT."),
+    query: z.record(z.string(), z.union([z.string(), z.number()])).optional().describe("Optional query parameters."),
+    body: z.record(z.string(), z.any()).optional().describe("Optional JSON body for POST/PATCH/PUT."),
   }),
   execute: async ({ method, path, query, body }) => {
     const q = query ? qs(query as Record<string, string | number>) : "";

@@ -24,7 +24,7 @@
     "tsx": "^4.21.0"
   },
   "dependencies": {
-    "zod": "^3.25.0",
+    "zod": "^4.6.6",
     "zod-to-json-schema": "^3.25.2"
   },
   "pnpm": {
@@ -53,7 +53,8 @@
       "@xmldom/xmldom": ">=0.8.15",
       "ip-address": ">=10.7.4",
       "piscina": "^5.3.2",
-      "http-cache-semantics": ">=4.3.0"
+      "http-cache-semantics": ">=4.3.0",
+      "zod": ">=4.6.6"
     }
   }
 }

@@ -71,7 +71,7 @@ function convertType(val: any, required: string[], key?: string): z.ZodType<any>
     if (val.properties) {
       zType = jsonSchemaToZod(val);
     } else {
-      zType = z.record(z.string());
+      zType = z.record(z.string(), z.string());
     }
   } else if (val.oneOf || val.anyOf) {
     // Local LLMs parser (llama.cpp) crashes with "Cannot determine type of item" on anyOf schemas.
