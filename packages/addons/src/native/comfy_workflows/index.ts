@@ -482,7 +482,7 @@ async function prepare(base: string, name: string, files: string[], ctx: Prepare
     describeWorkflow(graph),
     [
       "What is left, with the ComfyUI connection's tools:",
-      `1. validate_workflow on that file. If it reports a missing model or node, name what is missing to the user and stop: it has to be installed in ComfyUI. Do not look for another workflow because of it.`,
+      `1. validate_workflow on that file. If it reports a missing model or node, name what is missing to the user and stop: it has to be installed in ComfyUI. Do not look for another workflow because of it. If the user then asks you to get a missing model, comfy_download_model downloads it into the right folder (with the file's direct link from the model's official page, and the user's approval).`,
       `2. run_workflow with that file and wait: false; keep the prompt_id.`,
       `3. comfy_workflows with action "collect" and that prompt_id (and "name": a short name for the result, e.g. "stone_tower"). It waits a little: when the job has finished it copies the result into this task's folder and tells you what it is; when the job is still going it says so, and then you tell the user the generation is running in ComfyUI and that they can ask you later whether it finished, and end your reply. Never wait with the connection's job tool, never run the workflow a second time.`,
       "4. Report to the user what collect returned: the file, its size and what it measured. You have not seen the result: say it was generated, not how it looks.",
@@ -751,9 +751,10 @@ export const comfyWorkflowsTool: HydraTool = {
     "action \"list\" prints their names. action \"prepare\" makes one ready to run: it copies it into this task's folder, uploads the files the user attached and puts them in the workflow's inputs, and returns the file's path with the remaining steps for the ComfyUI connection's tools (validate_workflow, run_workflow) and for this one. " +
     "action \"collect\" brings a job's result (the files it saved, not its previews) into this task's folder so the user sees them in the chat, and says what each one is: use it for ANY job, also one started from an online template, instead of the connection's fetch_outputs (which leaves the files in a temporary folder the user never sees). " +
     "It waits a little; when the job is still going it says so (how long, and how many jobs are ahead of it) instead of waiting: then tell the user and end, they will ask again later. " +
-    "action \"cancel\" stops a job the user no longer wants: a running one is interrupted, a queued one is removed. Both remember the last job this agent launched, so \"did it finish?\" and \"cancel it\" need no prompt_id.",
+    "action \"cancel\" stops a job the user no longer wants: a running one is interrupted, a queued one is removed. Both remember the last job this agent launched, so \"did it finish?\" and \"cancel it\" need no prompt_id. " +
+    "action \"downloads\" tells how far the model downloads this agent started with comfy_download_model got.",
   schema: z.object({
-    action: z.enum(["list", "prepare", "collect", "cancel"]).describe('"list" the saved workflows, "prepare" one to run, "collect" a job\'s result (or learn that it is still going), or "cancel" a job'),
+    action: z.enum(["list", "prepare", "collect", "cancel", "downloads"]).describe('"downloads" shows the model downloads started with comfy_download_model. Otherwise: ' +'"list" the saved workflows, "prepare" one to run, "collect" a job\'s result (or learn that it is still going), or "cancel" a job'),
     name: z.string().optional().describe('For "prepare": the workflow\'s name exactly as "list" prints it, e.g. "image_to_3d.json". For "collect": a short name for the result file (e.g. "stone_tower").'),
     prompt_id: z.string().optional().describe('For "collect" and "cancel": the prompt_id run_workflow returned. Omit it to use the last job this agent launched.'),
     files: z.array(z.string()).optional().describe('For "prepare": the files the user attached, as the conversation names them (e.g. "storage/uploads/1791-photo.jpg"), in the order of the workflow\'s file inputs. Omit for a workflow that reads no file.'),
@@ -763,6 +764,7 @@ export const comfyWorkflowsTool: HydraTool = {
     const jobCtx: JobContext = { filesDir: context?.filesDir, uploadsDir: context?.uploadsDir, agentId: context?.agentId, report: context?.addResultFile };
     if (action === "collect") return collect(base, String(prompt_id ?? "").trim(), name, jobCtx);
     if (action === "cancel") return cancel(base, String(prompt_id ?? "").trim(), jobCtx);
+    if (action === "downloads") return (await import("../comfy_download/index.js")).downloadsReport({ uploadsDir: context?.uploadsDir, agentId: context?.agentId });
     if (action !== "prepare") return listSaved(base);
     const list = Array.isArray(files) ? files.map((f) => String(f)) : [];
     return prepare(base, String(name ?? ""), list, { filesDir: context?.filesDir, uploadsDir: context?.uploadsDir });

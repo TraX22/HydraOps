@@ -7,6 +7,7 @@ import { perplexitySearchTool } from './native/perplexity/index.js';
 import { fetchUrlTool } from './native/fetch_url/index.js';
 import { youtubeTranscriptTool } from './native/youtube_transcript/index.js';
 import { comfyWorkflowsTool } from './native/comfy_workflows/index.js';
+import { comfyDownloadModelTool } from './native/comfy_download/index.js';
 import { githubTools } from './native/github/index.js';
 import { sendToTelegramTool } from './native/send_to_telegram/index.js';
 import { xAccountsTool, xPostTool } from './native/x/index.js';
@@ -31,6 +32,7 @@ export async function createRegistry(): Promise<ToolRegistry> {
   registry.registerNative({ ...fetchUrlTool, source: 'native' });
   registry.registerNative({ ...youtubeTranscriptTool, source: 'native' });
   registry.registerNative({ ...comfyWorkflowsTool, source: 'native' });
+  registry.registerNative({ ...comfyDownloadModelTool, source: 'native' });
   registry.registerNative({ ...sendToTelegramTool, source: 'native' });
   registry.registerNative({ ...xAccountsTool, source: 'native' });
   registry.registerNative({ ...xPostTool, source: 'native' });
