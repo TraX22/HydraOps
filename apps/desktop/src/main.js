@@ -178,8 +178,21 @@ function quitApp(reason) {
   app.quit();
 }
 
+// Started in the tray, the window waits hidden without the interface: a page loaded
+// into a window that was never shown could come back black when the window was opened
+// from the tray (fixed only by a reload). The first time it is shown, it loads then.
+let uiLoadPending = false;
+
 function showMainWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (uiLoadPending) {
+    uiLoadPending = false;
+    shellLog("primera apertura desde la bandeja: cargando la interfaz");
+    mainWindow.show();
+    mainWindow.focus();
+    mainWindow.loadURL(appUrl);
+    return;
+  }
   // Safety net: if the window ever sits on something that is not the app, bring it home.
   const current = mainWindow.webContents.getURL();
   if (appUrl && current && !isAppUrl(current) && !current.startsWith("file:")) {
@@ -333,10 +346,6 @@ function createMainWindow(url) {
   mainWindow.once("ready-to-show", () => {
     if (splashWindow && !splashWindow.isDestroyed()) splashWindow.destroy();
     splashWindow = null;
-    if (startInTray) {
-      shellLog("arranque en la bandeja: ventana oculta");
-      return;
-    }
     mainWindow.show();
   });
 
@@ -391,6 +400,12 @@ function createMainWindow(url) {
   });
 
   mainWindow.on("closed", () => { mainWindow = null; });
+  if (startInTray) {
+    // No splash, no page yet: the interface loads the first time the window is opened.
+    uiLoadPending = true;
+    shellLog("arranque en la bandeja: ventana oculta; la interfaz se carga al abrirla");
+    return;
+  }
   mainWindow.loadURL(url);
 }
 
