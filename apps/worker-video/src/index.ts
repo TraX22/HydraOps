@@ -18,7 +18,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, generateVideo, resolveLLMConfig, resolveMaxSteps, buildUserMessage, GROK_VIDEO_ASPECTS, isGrokVideoEngine } from "@hydraops/llm";
-import { createResultFiles, mcpServerEnv, mcpServerDirs, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, carriedSkillsPrompt, noteSkillsOpened, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan, setupToolsOnDemand, harvestMediaFiles, connectionOrigins } from "@hydraops/addons";
+import { createResultFiles, taskFilesContext, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, carriedSkillsPrompt, noteSkillsOpened, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan, setupToolsOnDemand, harvestMediaFiles, connectionOrigins } from "@hydraops/addons";
 import { tool } from "ai";
 import { z } from "zod";
 import { AckPolicy } from "nats";
@@ -320,6 +320,10 @@ async function runApprovedAction(actionId: string): Promise<void> {
       // The held call came from a task that had read outside content; a replayed
       // delegate_task must hand that taint on.
       taintOrigins: () => (Array.isArray(action.origins) ? action.origins : []),
+      // The same task folder, attachments and connections as the task that asked: an
+      // approved download writes its progress note and reaches the configured ComfyUI, an
+      // approved upload finds the task's files.
+      ...taskFilesContext(storageDir, String(action.taskId), mcpServersConfigStr),
     },
     // generate_video is this worker's own tool: render with the ORIGINAL task id so the
     // clip lands in the message the agent was answering.
@@ -555,10 +559,7 @@ ${EXTERNAL_CONTENT_RULE}
       taintOrigins: () => taskSecurity.origins(),
       // comfy_workflows: where a prepared workflow and a collected result are written, where
       // the user's attachments are, and the address its connection is configured with.
-      filesDir: path.join(storageDir, "results", String(taskId)),
-      uploadsDir: path.join(storageDir, "uploads"),
-      connectionEnv: (server: string) => mcpServerEnv(mcpServersConfigStr, server),
-      connectionDirs: (server: string) => mcpServerDirs(mcpServersConfigStr, server),
+      ...taskFilesContext(storageDir, String(taskId), mcpServersConfigStr),
       // Files a tool leaves for the user: stored with the result, shown in the chat.
       addResultFile: resultFiles.add,
       // The task's start: media older than this in a connection's folder is not harvested.
