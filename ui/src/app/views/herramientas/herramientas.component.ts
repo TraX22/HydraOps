@@ -5,7 +5,7 @@ import { IconComponent } from '../../components/icon/icon.component';
 import { SkillsCardComponent } from './skills-card/skills-card.component';
 import { ConnectionsCardComponent } from './connections-card/connections-card.component';
 import { XCardComponent } from './x-card/x-card.component';
-import { ApiService, Agent, AppConfig, TelegramIntegration, GitHubIntegration } from '../../services/api.service';
+import { ApiService, Agent, AppConfig, TelegramIntegration, GitHubIntegration, HuggingFaceIntegration } from '../../services/api.service';
 
 @Component({
   selector: 'app-herramientas',
@@ -19,6 +19,7 @@ export class HerramientasComponent implements OnInit {
 
   telegram = signal<TelegramIntegration | null>(null);
   github = signal<GitHubIntegration | null>(null);
+  huggingface = signal<HuggingFaceIntegration | null>(null);
   agents = signal<Agent[]>([]);
 
   tokenInput = signal('');
@@ -28,6 +29,9 @@ export class HerramientasComponent implements OnInit {
 
   ghTokenInput = signal('');
   ghTokenSaved = signal(false);
+
+  hfTokenInput = signal('');
+  hfTokenSaved = signal(false);
 
   // Dots shown in a configured token field so it reads as "set" at a glance,
   // mirroring the masked API-key fields in Config. The value never contains the
@@ -47,7 +51,15 @@ export class HerramientasComponent implements OnInit {
       this.github.set(g);
       if (g.tokenConfigured) this.ghTokenInput.set(this.tokenMask);
     });
+    this.loadHuggingFace();
     this.api.getAgents().subscribe(a => this.agents.set(a));
+  }
+
+  private loadHuggingFace(): void {
+    this.api.getHuggingFaceIntegration().subscribe(h => {
+      this.huggingface.set(h);
+      if (h.tokenConfigured) this.hfTokenInput.set(this.tokenMask);
+    });
   }
 
   // Clear the mask on focus so the user types a fresh token; restore it on blur
@@ -56,6 +68,8 @@ export class HerramientasComponent implements OnInit {
   onTokenBlur(): void { if (!this.tokenInput().trim() && this.telegram()?.tokenConfigured) this.tokenInput.set(this.tokenMask); }
   onGhTokenFocus(): void { if (this.ghTokenInput() === this.tokenMask) this.ghTokenInput.set(''); }
   onGhTokenBlur(): void { if (!this.ghTokenInput().trim() && this.github()?.tokenConfigured) this.ghTokenInput.set(this.tokenMask); }
+  onHfTokenFocus(): void { if (this.hfTokenInput() === this.tokenMask) this.hfTokenInput.set(''); }
+  onHfTokenBlur(): void { if (!this.hfTokenInput().trim() && this.huggingface()?.tokenConfigured) this.hfTokenInput.set(this.tokenMask); }
 
   // ── GitHub ──
   private patchGithub(part: Partial<GitHubIntegration>): void {
@@ -80,6 +94,26 @@ export class HerramientasComponent implements OnInit {
       this.ghTokenInput.set(this.tokenMask); // show dots, not an empty field
       this.ghTokenSaved.set(true);
       setTimeout(() => this.ghTokenSaved.set(false), 2000);
+    });
+  }
+
+  // ── Hugging Face ──
+  toggleHuggingFace(): void {
+    const h = this.huggingface();
+    if (!h) return;
+    const enabled = !h.enabled;
+    this.huggingface.set({ ...h, enabled });
+    this.api.saveHuggingFaceIntegration({ enabled }).subscribe();
+  }
+
+  saveHuggingFaceToken(): void {
+    const value = this.hfTokenInput().trim();
+    if (!value || value === this.tokenMask) return; // mask = unchanged
+    // The token goes ONLY to the key store; reloading asks Hugging Face whose it is.
+    this.api.saveConfig({ huggingfaceToken: value } as Partial<AppConfig>).subscribe(() => {
+      this.hfTokenSaved.set(true);
+      setTimeout(() => this.hfTokenSaved.set(false), 2000);
+      this.loadHuggingFace();
     });
   }
 

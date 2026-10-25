@@ -25,6 +25,7 @@
   padding: 1px 8px; margin-left: 6px; vertical-align: middle;
 }
 .addon-badge.key-ok { background: var(--status-online); color: white; border-color: var(--status-online); }
+.addon-badge.key-bad { background: color-mix(in srgb, #ef4444 14%, transparent); color: #ef4444; border-color: color-mix(in srgb, #ef4444 40%, transparent); }
 
 .toggle-btn {
   padding: 4px 16px; border: 1px solid var(--border-color); background: var(--bg-hover);
@@ -65,6 +66,7 @@
 .tool-title { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
 .tool-icon { color: #29a9eb; width: 26px; height: 26px; flex-shrink: 0; }
 .tool-icon.github { color: var(--text-primary); }
+.tool-icon.huggingface { color: #ff9d00; }
 .tool-title-text { display: flex; flex-direction: column; }
 .tool-title-text .addon-name { font-size: 15px; font-weight: 600; }
 

@@ -22,7 +22,14 @@ const PORT = Number(process.env.KEY_PROXY_PORT || 9099);
 const KEYS_PATH = keyStoreFile;
 
 type AuthStyle = "bearer" | "x-api-key" | "google" | "x-subscription-token";
-const PROVIDERS: Record<string, { host: string; keyName: string; auth: AuthStyle }> = {
+// optional: the service answers without a key too (public reads), so a missing key is not an
+// error; the request goes out unauthenticated and the answer carries x-hydra-no-key: 1.
+// noRedirect: a redirect is handed back instead of followed, so the key never reaches the
+// host it points to (Hugging Face sends file downloads to its CDN with a signed link).
+// bufferBody: the request body is read whole before it is sent. fetch() turns a 401 answer
+// to a streamed body into a network error, and for an optional key a 401 is an ordinary
+// answer ("this needs a token") the tool has to see.
+const PROVIDERS: Record<string, { host: string; keyName: string; auth: AuthStyle; optional?: boolean; noRedirect?: boolean; bufferBody?: boolean }> = {
   openai:     { host: "https://api.openai.com",                    keyName: "OPENAI_API_KEY",     auth: "bearer" },
   groq:       { host: "https://api.groq.com",                      keyName: "GROQ_API_KEY",       auth: "bearer" },
   xai:        { host: "https://api.x.ai",                          keyName: "XAI_API_KEY",        auth: "bearer" },
@@ -42,6 +49,9 @@ const PROVIDERS: Record<string, { host: string; keyName: string; auth: AuthStyle
   perplexity: { host: "https://api.perplexity.ai",                 keyName: "PERPLEXITY_API_KEY", auth: "bearer" },
   // GitHub REST API — github tool. Bearer works for classic and fine-grained PATs.
   github:     { host: "https://api.github.com",                    keyName: "GITHUB_TOKEN",       auth: "bearer" },
+  // Hugging Face Hub and its dataset viewer — huggingface tools. The token is optional.
+  huggingface: { host: "https://huggingface.co",                   keyName: "HF_TOKEN",           auth: "bearer", optional: true, noRedirect: true, bufferBody: true },
+  hfdatasets: { host: "https://datasets-server.huggingface.co",    keyName: "HF_TOKEN",           auth: "bearer", optional: true, noRedirect: true, bufferBody: true },
 };
 
 // Hop-by-hop / auth headers that must never be forwarded as-is
@@ -111,7 +121,7 @@ const server = http.createServer(async (req, res) => {
 
     const keys = await loadKeys();
     const realKey = (keys[provider.keyName] || "").trim();
-    if (!realKey) {
+    if (!realKey && !provider.optional) {
       return sendJson(res, 401, { error: `No API key stored for '${match[1]}'. Add it in HydraOps Config.` });
     }
 
@@ -122,7 +132,9 @@ const server = http.createServer(async (req, res) => {
         headers[name] = value;
       }
     }
-    if (provider.auth === "bearer") {
+    if (!realKey) {
+      // An optional key that is not stored: the request goes out as is.
+    } else if (provider.auth === "bearer") {
       headers["authorization"] = `Bearer ${realKey}`;
     } else if (provider.auth === "x-api-key") {
       headers["x-api-key"] = realKey;
@@ -134,10 +146,16 @@ const server = http.createServer(async (req, res) => {
       targetPath = targetPath.replace(/([?&])key=[^&]*/, `$1key=${encodeURIComponent(realKey)}`);
     }
 
-    const init: RequestInit & { duplex?: string } = { method: req.method, headers };
+    const init: RequestInit & { duplex?: string } = { method: req.method, headers, ...(provider.noRedirect ? { redirect: "manual" as const } : {}) };
     if (req.method && !["GET", "HEAD"].includes(req.method)) {
-      init.body = Readable.toWeb(req) as unknown as BodyInit;
-      init.duplex = "half";
+      if (provider.bufferBody) {
+        const chunks: Buffer[] = [];
+        for await (const c of req) chunks.push(c as Buffer);
+        init.body = Buffer.concat(chunks);
+      } else {
+        init.body = Readable.toWeb(req) as unknown as BodyInit;
+        init.duplex = "half";
+      }
     }
 
     const upstream = await fetch(provider.host + targetPath, init);
@@ -146,6 +164,7 @@ const server = http.createServer(async (req, res) => {
     upstream.headers.forEach((value, name) => {
       if (!STRIP_RESPONSE_HEADERS.has(name.toLowerCase())) outHeaders[name] = value;
     });
+    if (!realKey) outHeaders["x-hydra-no-key"] = "1";
     res.writeHead(upstream.status, outHeaders);
     if (upstream.body) {
       Readable.fromWeb(upstream.body as any).pipe(res);

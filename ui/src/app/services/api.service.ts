@@ -305,6 +305,16 @@ export interface GitHubIntegration {
   tokenConfigured: boolean;
 }
 
+export interface HuggingFaceIntegration {
+  enabled: boolean;
+  tokenConfigured: boolean;
+  /** Asked to Hugging Face when the card opens: false when the stored token is refused. */
+  tokenValid?: boolean;
+  account?: string;
+  /** "read", "write" or "fineGrained". */
+  tokenRole?: string;
+}
+
 // ── Skills (Herramientas → Skills) ──
 export interface InstalledSkill {
   name: string;
@@ -499,6 +509,7 @@ export interface AppConfig {
   braveKey: string;
   telegramBotToken: string;
   githubToken: string;
+  huggingfaceToken: string;
   localLlmUrl: string;
   localLlmKey: string;
   localLlmModel: string;
@@ -975,6 +986,14 @@ export class ApiService {
 
   saveGitHubIntegration(cfg: Partial<GitHubIntegration>): Observable<void> {
     return this.http.post<void>(`${this.base}/system/integrations/github`, cfg);
+  }
+
+  getHuggingFaceIntegration(): Observable<HuggingFaceIntegration> {
+    return this.http.get<HuggingFaceIntegration>(`${this.base}/system/integrations/huggingface`);
+  }
+
+  saveHuggingFaceIntegration(cfg: Partial<HuggingFaceIntegration>): Observable<void> {
+    return this.http.post<void>(`${this.base}/system/integrations/huggingface`, cfg);
   }
 
   // ── Connections ──

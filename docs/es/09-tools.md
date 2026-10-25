@@ -2,7 +2,7 @@
 
 La sección **Herramientas** de la barra lateral conecta HydraOps con servicios externos. No confundir con los [Add-ons](./08-addons.md): un add-on es una herramienta que *usan los agentes* (buscar en la web, leer una página); una herramienta de esta sección es un **conector** que te deja *operar HydraOps desde fuera*.
 
-Hoy están **Telegram** (hablar con tus agentes desde el móvil), **GitHub**, las **[Skills](#skills-habilidades-para-los-agentes)** (las habilidades que los agentes leen cuando una tarea las necesita) y las **[Conexiones](#conexiones-servidores-mcp-listos-para-usar)** (aplicaciones y servicios que los agentes pueden manejar) y **[X](#x-tus-cuentas-publicadas-con-tu-aprobación)** (tus cuentas de X). Discord, Signal y Reddit aparecen como "próximamente".
+Hoy están **Telegram** (hablar con tus agentes desde el móvil), **GitHub**, **[Hugging Face](#hugging-face-modelos-datasets-y-spaces)** (modelos, datasets y Spaces), las **[Skills](#skills-habilidades-para-los-agentes)** (las habilidades que los agentes leen cuando una tarea las necesita) y las **[Conexiones](#conexiones-servidores-mcp-listos-para-usar)** (aplicaciones y servicios que los agentes pueden manejar) y **[X](#x-tus-cuentas-publicadas-con-tu-aprobación)** (tus cuentas de X). Discord, Signal y Reddit aparecen como "próximamente".
 
 ## Telegram: manejar los agentes desde el móvil
 
@@ -193,6 +193,35 @@ Dale al agente las dos herramientas en la vista Agentes (su lista de herramienta
 La tarjeta de aprobación muestra la cuenta con su avatar, cada parte tal como se va a publicar con su conteo de caracteres (280 caracteres ponderados, un enlace cuenta 23), las imágenes y el costo estimado; el aviso por Telegram, lo mismo. **Aprobar** publica y el agente contesta con el enlace; **Rechazar** la descarta y el agente se entera. Para publicar no existe «aprobar por el resto de la tarea»: cada publicación pregunta.
 
 El servidor publica solo la publicación exacta que aprobaste (mismo agente, cuenta y partes), una vez; y rechaza, antes de que nada llegue a X, una parte vacía o pasada del límite, una cuenta que el agente no tiene asignada, una imagen que no es uno de tus adjuntos o pesa más de 5 MB, y cualquier cosa con el interruptor en OFF. Borrar una publicación no es algo que los agentes puedan hacer: eso queda en X, con vos.
+
+## Hugging Face: modelos, datasets y Spaces
+
+Con las herramientas **huggingface** los agentes trabajan con el Hub de Hugging Face como las de GitHub trabajan con GitHub. Se le dan todas a un agente con una sola línea, `huggingface`, en sus herramientas (**Agentes → Herramientas**).
+
+Lo que corre solo, porque solo lee:
+
+- `huggingface_search`: modelos, datasets o Spaces, filtrados por tarea (text-generation, text-to-image…), librería (gguf, transformers, diffusers…) o autor, ordenados por descargas, likes, tendencia o última actualización.
+- `huggingface_repo_info`: licencia, tamaño, modelo base, descargas, si es gated y si tu token tiene acceso.
+- `huggingface_list_files`: los archivos de un repositorio con su tamaño y su enlace directo de descarga, por ejemplo para elegir la cuantización GGUF que entra en tu memoria.
+- `huggingface_read_file`: una tarjeta, un `config.json`, una plantilla de chat. Los pesos no se leen.
+- `huggingface_dataset_preview`: las columnas y las primeras filas de un dataset, sin bajarlo.
+- `huggingface_discussions`: las discusiones y pull requests de un repositorio.
+- `huggingface_whoami`: de qué cuenta es el token y qué puede hacer.
+
+Lo que espera tu aprobación cada vez:
+
+- `huggingface_create_repo`: un repositorio de modelo, dataset o Space, privado salvo que digas otra cosa.
+- `huggingface_upload`: archivos de la tarea o que adjuntaste, o texto como un README, en un solo commit (cada archivo hasta 10 MB; los pesos grandes todavía no se suben).
+- `huggingface_discuss`: abrir una discusión o comentar en una.
+- `huggingface_api`: cualquier otro endpoint del Hub; leer (GET) corre solo, lo demás pregunta.
+
+### El token
+
+Los modelos, datasets y Spaces públicos no necesitan token. Agregá uno en **Herramientas → Hugging Face** para lo que ve tu cuenta (repositorios gated y privados) y para escribir. Se crea en [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens): **Read** alcanza para leer; **Write**, o uno **fine-grained** con los repositorios que elijas, para crear y subir. La tarjeta muestra de qué cuenta es, o que Hugging Face lo rechazó.
+
+Un modelo gated (FLUX.1-dev, Llama…) pide aceptar sus condiciones una vez, en su página, con la sesión iniciada en la cuenta del token; los agentes no pueden hacerlo por vos. Hasta entonces `huggingface_repo_info` dice que el token no tiene acceso.
+
+El token vive solo en el almacén de claves; los agentes nunca lo ven. Sus pedidos pasan por el proxy de claves de HydraOps, que lo agrega solo para Hugging Face y nunca sigue una redirección a otro sitio.
 
 ## Conexiones: servidores MCP listos para usar
 
