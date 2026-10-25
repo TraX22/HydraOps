@@ -6,6 +6,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { HydraTool, ToolContext } from "../../types.js";
 import { comfyBaseUrl } from "../comfy_workflows/index.js";
+import { adultAllowed } from "../civitai/index.js";
 
 // comfy_download_model — a model file downloaded into the folder ComfyUI itself reads.
 //
@@ -21,9 +22,17 @@ import { comfyBaseUrl } from "../comfy_workflows/index.js";
 // computer (on another machine the folders ComfyUI reports are on that machine). A file of
 // several gigabytes takes minutes: the download goes on in the background and
 // comfy_workflows' action "downloads" tells how far it got.
+//
+// Hugging Face and Civitai links go through the key-proxy for their first request, so a gated
+// model (Hugging Face, with the user's token and accepted terms) or one behind a sign-in
+// (Civitai, with the user's key) downloads too. The proxy adds the key only for that site
+// and hands the redirect back instead of following it: the file itself comes from the
+// site's CDN through a signed link, without the key. A Civitai model marked adult is not
+// downloaded while the user keeps adult content blocked (Herramientas → Civitai).
 
 const EXTENSIONS = /\.(safetensors|sft|gguf)$/i;
-const NAME_RE = /^[\w.\-+()\[\] ]{1,180}$/;
+// Letters and digits of any language, and a few marks; never a path separator or a control character.
+const NAME_RE = /^[\p{L}\p{N}_.\-+()\[\] ]{1,180}$/u;
 const HEADER_WAIT_MS = Number(process.env.HYDRA_COMFY_DOWNLOAD_HEADER_MS) || 30_000;
 // A download that receives nothing for this long is stuck, and is cut (tests shorten it).
 const STALL_MS = Number(process.env.HYDRA_COMFY_DOWNLOAD_STALL_MS) || 60_000;
@@ -88,8 +97,78 @@ export async function modelFolder(base: string, folder: string): Promise<{ dir: 
 }
 
 function fileNameOf(url: URL, given?: string): string | null {
-  const name = (given?.trim() || decodeURIComponent(url.pathname.split("/").pop() || "")).trim();
-  return NAME_RE.test(name) && EXTENSIONS.test(name) && !name.startsWith(".") ? name : null;
+  let name = given?.trim() || "";
+  if (!name) { try { name = decodeURIComponent(url.pathname.split("/").pop() || ""); } catch { name = ""; } }
+  return validName(name.trim());
+}
+const validName = (name: string): string | null => (NAME_RE.test(name) && EXTENSIONS.test(name) && !name.startsWith(".") ? name : null);
+
+/** The file name a download answer gives (Content-Disposition), or the last part of its address. */
+function nameFromAnswer(res: Response, finalUrl: URL): string | null {
+  const cd = res.headers.get("content-disposition") ?? "";
+  const star = /filename\*\s*=\s*(?:UTF-8'')?([^;]+)/i.exec(cd);
+  const plainName = /filename\s*=\s*"?([^";]+)"?/i.exec(cd);
+  for (const raw of [star?.[1], plainName?.[1]]) {
+    if (!raw) continue;
+    let n = raw.trim().replace(/^"|"$/g, "");
+    try { n = decodeURIComponent(n); } catch { /* keep as is */ }
+    const ok = validName(path.basename(n));
+    if (ok) return ok;
+  }
+  return fileNameOf(finalUrl);
+}
+
+type Site = { name: "Hugging Face" | "Civitai"; prefix: "huggingface" | "civitai"; host: string };
+/** A site whose first request goes through the key-proxy; civitai.red and hf.co are the same services. */
+function siteOf(url: URL): Site | null {
+  const h = url.hostname.toLowerCase().replace(/^www\./, "");
+  if (h === "huggingface.co" || h === "hf.co") return { name: "Hugging Face", prefix: "huggingface", host: "huggingface.co" };
+  if (h === "civitai.com" || h === "civitai.red") return { name: "Civitai", prefix: "civitai", host: "civitai.com" };
+  return null;
+}
+const proxyBase = () => (process.env.KEY_PROXY_URL || "http://127.0.0.1:9099").trim().replace(/\/$/, "");
+
+/**
+ * The download's answer. For a site, the first request (and any redirect inside the site)
+ * goes through the key-proxy with redirects handed back; the CDN link it ends at is fetched
+ * directly. `noKey` says the proxy had no key to add.
+ */
+async function openDownload(url: URL, signal: AbortSignal): Promise<{ res: Response; finalUrl: URL; noKey: boolean } | string> {
+  const site = siteOf(url);
+  if (!site) {
+    const res = await fetch(url, { redirect: "follow", signal });
+    return { res, finalUrl: new URL(res.url || url.toString()), noKey: false };
+  }
+  let at = new URL(url.toString());
+  for (let hop = 0; hop < 6; hop++) {
+    const res = await fetch(`${proxyBase()}/${site.prefix}${at.pathname}${at.search}`, { redirect: "manual", signal });
+    const noKey = res.headers.get("x-hydra-no-key") === "1";
+    if (res.status < 300 || res.status >= 400) return { res, finalUrl: at, noKey };
+    const loc = res.headers.get("location");
+    if (!loc) return `${site.name} answered a redirect without an address`;
+    const next = new URL(loc, `https://${site.host}${at.pathname}`);
+    void res.body?.cancel();
+    if (siteOf(next)?.prefix === site.prefix) { at = next; continue; }
+    const cdnOk = next.protocol === "https:" ? !isPrivateHost(next.hostname) : testHttp() && isLoopbackHost(next.hostname);
+    if (!cdnOk) return "the address redirected to a non-https or local location";
+    const cdn = await fetch(next, { redirect: "follow", signal });
+    return { res: cdn, finalUrl: new URL(cdn.url || next.toString()), noKey };
+  }
+  return `${site.name} redirected too many times`;
+}
+
+/** A Civitai download link names a model version; one marked adult is refused while adult content is blocked. */
+async function civitaiAdultCheck(url: URL): Promise<string | null> {
+  const m = /^\/api\/download\/models\/(\d+)/.exec(url.pathname);
+  if (!m || (await adultAllowed())) return null;
+  try {
+    const r = await fetch(`${proxyBase()}/civitai/api/v1/model-versions/${m[1]}`, { redirect: "manual", signal: AbortSignal.timeout(15_000) });
+    if (!r.ok) return `Civitai did not say what model version ${m[1]} is (HTTP ${r.status}), and adult content is blocked, so it is not downloaded.`;
+    const d: any = await r.json();
+    // The model's own mark, the same rule as the civitai tools (a version's nsfwLevel adds up its example images).
+    if (d?.model?.nsfw === true) return "This Civitai model is marked as adult content, which is blocked in HydraOps (Herramientas → Civitai); it is not downloaded.";
+    return null;
+  } catch { return "Civitai could not be asked what this model is, and adult content is blocked, so it is not downloaded."; }
 }
 
 const human = (n: number | null) => n === null ? "unknown size" : n >= 1e9 ? `${(n / 1e9).toFixed(2)} GB` : `${(n / 1e6).toFixed(1)} MB`;
@@ -106,35 +185,58 @@ async function start(urlText: string, folder: string, given: string | undefined,
   const httpOk = testHttp() && url.protocol === "http:" && isLoopbackHost(url.hostname);
   if (url.protocol !== "https:" && !httpOk) return "Not downloaded: only https addresses are accepted.";
   if (!httpOk && isPrivateHost(url.hostname)) return "Not downloaded: the address points into this computer or its local network.";
-  const file = fileNameOf(url, given);
-  if (!file) return "Not downloaded: the file has to be a .safetensors or .gguf model (formats that cannot run code when ComfyUI loads them), with a plain file name. Pass \"filename\" when the address does not end in one.";
+  const site = siteOf(url);
+  if (url.hostname.toLowerCase().replace(/^www\./, "") === "civitai.red") url.hostname = "civitai.com";
+  const NAME_HELP = "the file has to be a .safetensors or .gguf model (formats that cannot run code when ComfyUI loads them), with a plain file name";
+  let file = fileNameOf(url, given);
+  // A Civitai link (…/api/download/models/<id>) does not end in the name; its answer gives it.
+  if (!file && !(site?.prefix === "civitai" && !given)) return `Not downloaded: ${NAME_HELP}. Pass "filename" when the address does not end in one.`;
   const where = await modelFolder(base, folder);
   if ("error" in where) return `Not downloaded: ${where.error}.`;
-  const dest = path.join(where.dir, file);
-  try { const s = await stat(dest); return `Already installed: ${dest} (${human(s.size)}). Nothing was downloaded.`; } catch { /* not there: go on */ }
-
-  const note = downloadNotePath(ctx?.uploadsDir, ctx?.agentId);
-  const entry: DownloadEntry = { id: `${Date.now().toString(36)}-${file}`, url: url.toString(), file, dest, folder, state: "downloading", bytes: 0, total: null, startedAt: new Date().toISOString() };
-  const part = `${dest}.part`;
+  if (file) {
+    try { const s = await stat(path.join(where.dir, file)); return `Already installed: ${path.join(where.dir, file)} (${human(s.size)}). Nothing was downloaded.`; } catch { /* not there: go on */ }
+  }
+  if (site?.prefix === "civitai") {
+    const refused = await civitaiAdultCheck(url);
+    if (refused) return `Not downloaded: ${refused}`;
+  }
   // The answer has to start within HEADER_WAIT_MS; after that the body may take as long as it
   // needs, and only a stall (no data for STALL_MS) cuts it. A timeout signal on the whole
   // fetch would also cut a healthy multi-gigabyte download.
   const abort = new AbortController();
   const headerTimer = setTimeout(() => abort.abort(new Error("no answer in 30 seconds")), HEADER_WAIT_MS);
-  let res: Response;
+  let opened: Awaited<ReturnType<typeof openDownload>>;
   try {
-    res = await fetch(url, { redirect: "follow", signal: abort.signal });
+    opened = await openDownload(url, abort.signal);
   } catch (e: any) {
     clearTimeout(headerTimer);
     return `Not downloaded: the server did not answer (${abort.signal.aborted ? "no answer in 30 seconds" : e?.message ?? e}).`;
   }
   clearTimeout(headerTimer);
-  const finalUrl = new URL(res.url || url.toString());
+  if (typeof opened === "string") return `Not downloaded: ${opened}.`;
+  const { res, finalUrl, noKey } = opened;
   if (finalUrl.protocol !== "https:" && !(testHttp() && isLoopbackHost(finalUrl.hostname))) return "Not downloaded: the address redirected to a non-https location.";
-  if (res.status === 401 || res.status === 403) return `Not downloaded: the server answered ${res.status} — this model needs a login or accepting its terms on the site (Hugging Face "gated" models do). The user can download it in the browser and put it in ${where.dir}.`;
-  if (!res.ok || !res.body) return `Not downloaded: the server answered HTTP ${res.status}.`;
+  if (res.status === 401 || res.status === 403) {
+    void res.body?.cancel();
+    const fix = site?.prefix === "huggingface"
+      ? (noKey ? "This model is gated: add a Hugging Face token in Herramientas → Hugging Face, and accept the model's terms on its page with that account." : "The token's account has not accepted this model's terms on its Hugging Face page, or the token cannot read it.")
+      : site?.prefix === "civitai"
+        ? (noKey ? "This model asks for a signed-in account: add a Civitai API key in Herramientas → Civitai." : "Civitai refused the API key for this download (it needs Read on Models).")
+        : "This model needs a login or accepting its terms on the site.";
+    return `Not downloaded: the server answered ${res.status}. ${fix} Otherwise the user can download it in the browser and put it in ${where.dir}.`;
+  }
+  if (!res.ok || !res.body) { void res.body?.cancel(); return `Not downloaded: the server answered HTTP ${res.status}.`; }
   const type = res.headers.get("content-type") ?? "";
-  if (/text\/html/i.test(type)) return "Not downloaded: the address returned a web page, not a file. Use the file's direct download link (on Hugging Face, the one with /resolve/ in it).";
+  if (/text\/html/i.test(type)) { void res.body.cancel(); return "Not downloaded: the address returned a web page, not a file. Use the file's direct download link (on Hugging Face, the one with /resolve/ in it; on Civitai, the one with /api/download/models/ in it)."; }
+  if (!file) {
+    file = nameFromAnswer(res, finalUrl);
+    if (!file) { void res.body.cancel(); return `Not downloaded: ${NAME_HELP}, and this one is not.`; }
+    try { const s = await stat(path.join(where.dir, file)); void res.body.cancel(); return `Already installed: ${path.join(where.dir, file)} (${human(s.size)}). Nothing was downloaded.`; } catch { /* not there: go on */ }
+  }
+  const dest = path.join(where.dir, file);
+  const note = downloadNotePath(ctx?.uploadsDir, ctx?.agentId);
+  const entry: DownloadEntry = { id: `${Date.now().toString(36)}-${file}`, url: url.toString(), file, dest, folder, state: "downloading", bytes: 0, total: null, startedAt: new Date().toISOString() };
+  const part = `${dest}.part`;
   const len = Number(res.headers.get("content-length"));
   entry.total = Number.isFinite(len) && len > 0 ? len : null;
   live.set(entry.id, entry);
@@ -205,7 +307,8 @@ export const comfyDownloadModelTool: HydraTool = {
   supersedes: ["comfyui_download_model"],
   description:
     "Download a model file into the folder the user's ComfyUI reads for that kind of model, when a workflow needs a model that is not installed. " +
-    "Use the file's direct link (on Hugging Face, the /resolve/ one) from the model's official page, never a guessed address, and say its size to the user when the page shows it. " +
+    "Use the file's direct link from the model's official page, never a guessed address (on Hugging Face the /resolve/ one, which huggingface_list_files gives; on Civitai the /api/download/models/<version> one, which civitai_model_info gives), and say its size to the user. " +
+    "Gated Hugging Face models and Civitai models behind a sign-in download with the key the user stored in Herramientas; when one is missing, the answer says so. " +
     "Only .safetensors and .gguf, only https, never over an existing file, and only for a ComfyUI on this computer. The user approves every download. " +
     "It starts the download and returns: tell the user it is downloading and end; comfy_workflows action \"downloads\" shows the progress. Prefer this over the connection's download_model, which writes into comfy-cli's own folder.",
   schema: z.object({
