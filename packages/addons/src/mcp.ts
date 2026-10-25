@@ -224,6 +224,21 @@ export function mcpServerDirs(configStr: string, serverName: string): string[] {
   return [...new Set(values.filter((v) => v && path.isAbsolute(v)))];
 }
 
+/**
+ * Where a task's tools find files and connections: the task's own folder, the user's
+ * attachments, and each connection's configured address and folders. The live task and a
+ * call the user approved later both build their context from here, so an approved call
+ * (a model download, an upload) works on the same task folder and the same ComfyUI.
+ */
+export function taskFilesContext(storageDir: string, taskId: string, mcpServersConfigStr: string) {
+  return {
+    filesDir: path.join(storageDir, "results", taskId),
+    uploadsDir: path.join(storageDir, "uploads"),
+    connectionEnv: (server: string) => mcpServerEnv(mcpServersConfigStr, server),
+    connectionDirs: (server: string) => mcpServerDirs(mcpServersConfigStr, server),
+  };
+}
+
 export function filterMcpConfigForTools(configStr: string, toolLines: string[]): string {
   let parsed: any;
   try { parsed = JSON.parse(configStr); } catch { return '{"mcpServers":{}}'; }
