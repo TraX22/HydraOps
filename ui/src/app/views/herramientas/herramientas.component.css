@@ -67,6 +67,7 @@
 .tool-icon { color: #29a9eb; width: 26px; height: 26px; flex-shrink: 0; }
 .tool-icon.github { color: var(--text-primary); }
 .tool-icon.huggingface { color: #ff9d00; }
+.tool-icon.civitai { color: #228be6; }
 .tool-title-text { display: flex; flex-direction: column; }
 .tool-title-text .addon-name { font-size: 15px; font-weight: 600; }
 

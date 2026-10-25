@@ -1283,6 +1283,7 @@ const envMapping: Record<string, string> = {
   telegramBotToken: "TELEGRAM_BOT_TOKEN",
   githubToken: "GITHUB_TOKEN",
   huggingfaceToken: "HF_TOKEN",
+  civitaiKey: "CIVITAI_API_KEY",
   localLlmUrl: "LOCAL_LLM_URL",
   localLlmKey: "LOCAL_LLM_KEY",
   localLlmModel: "LOCAL_LLM_MODEL",
@@ -1321,6 +1322,8 @@ const PROVIDER_KEY_NAMES = [
   "GITHUB_TOKEN",
   // Hugging Face access token for the huggingface tools — the same, and optional there.
   "HF_TOKEN",
+  // Civitai API key for the civitai tools — the same, and optional there.
+  "CIVITAI_API_KEY",
 ];
 const KEY_PLACEHOLDER = "proxy";
 // Masked values round-trip through the UI; POST /config already ignores
@@ -2652,7 +2655,7 @@ const ADDON_DESCRIPTION_OVERRIDES: Record<string, string> = {
 // connection (its token) and each agent's tools.md already govern them, so a
 // per-tool toggle here would just be noise.
 // The skill tools are managed under Herramientas → Skills.
-const isIntegrationTool = (name: string) => name.startsWith("github") || name.startsWith("huggingface_") || name === "skills_view" || name === "create_skill";
+const isIntegrationTool = (name: string) => name.startsWith("github") || name.startsWith("huggingface_") || name.startsWith("civitai_") || name === "skills_view" || name === "create_skill";
 
 api.get("/system/addons", async (_req, res) => {
   try {
@@ -3193,6 +3196,41 @@ integrationRoutes("huggingface", "huggingface_", "HF_TOKEN", async (store) => {
     const d: any = await r.json();
     return { tokenValid: true, account: typeof d?.name === "string" ? d.name : undefined, tokenRole: d?.auth?.accessToken?.role };
   } catch { return {}; }
+});
+
+// Civitai: the card also shows the key's account, and whether adult content is allowed.
+// That switch is HydraOps' own setting (off unless the user turns it on); the civitai tools
+// read it from here on every call and treat anything but a clear yes as no.
+const CIVITAI_ADULT_KEY = "civitai_allow_adult";
+async function civitaiAdultAllowed(): Promise<boolean> {
+  const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, CIVITAI_ADULT_KEY)).limit(1);
+  return rows[0]?.value === "true";
+}
+integrationRoutes("civitai", "civitai_", "CIVITAI_API_KEY", async (store) => {
+  const allowAdult = await civitaiAdultAllowed();
+  if (!isRealKeyValue(store["CIVITAI_API_KEY"] || "")) return { allowAdult };
+  try {
+    const proxyBase = (process.env.KEY_PROXY_URL || "http://127.0.0.1:9099").replace(/\/$/, "");
+    const r = await fetch(`${proxyBase}/civitai/api/v1/me`, { signal: AbortSignal.timeout(5000), redirect: "manual" });
+    if (r.status === 401) return { allowAdult, tokenValid: false };
+    if (!r.ok) return { allowAdult };
+    const d: any = await r.json();
+    return { allowAdult, tokenValid: true, account: typeof d?.username === "string" ? d.username : undefined };
+  } catch { return { allowAdult }; }
+});
+
+api.post("/system/integrations/civitai/adult", async (req, res) => {
+  try {
+    const value = req.body?.allow === true ? "true" : "false";
+    await (db as any).insert(systemConfigs)
+      .values({ key: CIVITAI_ADULT_KEY, value, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: systemConfigs.key, set: { value, updatedAt: new Date() } })
+      .run();
+    res.json({ success: true, allowAdult: value === "true" });
+  } catch (err: any) {
+    console.error("[api] POST /system/integrations/civitai/adult failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
 });
 
 // --- Skills (Herramientas) ---

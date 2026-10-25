@@ -237,6 +237,8 @@
       "githubNoRef": "Checking GitHub",
       "huggingface": "Checking Hugging Face: {{ref}}",
       "huggingfaceNoRef": "Checking Hugging Face",
+      "civitai": "Checking Civitai: {{ref}}",
+      "civitaiNoRef": "Checking Civitai",
       "telegram": "Sending to Telegram",
       "remember": "Saving to its memory",
       "recall": "Searching past conversations: “{{ref}}”",
@@ -682,6 +684,21 @@
       "connectedAs": "Connected as {{account}}",
       "tokenPlaceholder": "Hugging Face token (hf_…)",
       "connectHint": "Searching and reading public models works without a token. With one, the agents can read gated and private repositories your account has access to; with a write token they can also create repositories, upload files and post in discussions, and every one of those waits for your approval. A fine-grained token lets you choose which repositories. It lives only in the key store; the agent never sees it."
+    },
+    "civitai": {
+      "name": "Civitai",
+      "description": "Let the agents find models on Civitai, read their versions, trigger words and licenses, learn from example settings, and identify the models you already have.",
+      "key": "API key",
+      "keyInvalid": "Key refused",
+      "keyPlaceholder": "Civitai API key",
+      "getKey": "Create a key",
+      "connectHint": "Searching and reading works without a key; with one, models that ask for a signed-in account are reached too. When you create it on Civitai, HydraOps only needs Read on Models and on Profile & Settings (to show the account here): turn off everything else. It lives only in the key store; the agent never sees it.",
+      "adult": "Adult content",
+      "adultBlocked": "Blocked",
+      "adultAllowed": "Allowed",
+      "adultAllow": "Allow adult content",
+      "adultBlock": "Block adult content",
+      "adultHint": "Blocked, Civitai's adult models and images never reach the agents: searches leave them out and a model marked adult is refused. The agents cannot change this switch."
     },
     "skills": {
       "name": "Skills",

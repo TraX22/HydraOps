@@ -2,7 +2,7 @@
 
 La sección **Herramientas** de la barra lateral conecta HydraOps con servicios externos. No confundir con los [Add-ons](./08-addons.md): un add-on es una herramienta que *usan los agentes* (buscar en la web, leer una página); una herramienta de esta sección es un **conector** que te deja *operar HydraOps desde fuera*.
 
-Hoy están **Telegram** (hablar con tus agentes desde el móvil), **GitHub**, **[Hugging Face](#hugging-face-modelos-datasets-y-spaces)** (modelos, datasets y Spaces), las **[Skills](#skills-habilidades-para-los-agentes)** (las habilidades que los agentes leen cuando una tarea las necesita) y las **[Conexiones](#conexiones-servidores-mcp-listos-para-usar)** (aplicaciones y servicios que los agentes pueden manejar) y **[X](#x-tus-cuentas-publicadas-con-tu-aprobación)** (tus cuentas de X). Discord, Signal y Reddit aparecen como "próximamente".
+Hoy están **Telegram** (hablar con tus agentes desde el móvil), **GitHub**, **[Hugging Face](#hugging-face-modelos-datasets-y-spaces)** (modelos, datasets y Spaces), **[Civitai](#civitai-modelos-palabras-disparadoras-y-ajustes-de-ejemplo)** (modelos, palabras disparadoras y ajustes de ejemplo), las **[Skills](#skills-habilidades-para-los-agentes)** (las habilidades que los agentes leen cuando una tarea las necesita) y las **[Conexiones](#conexiones-servidores-mcp-listos-para-usar)** (aplicaciones y servicios que los agentes pueden manejar) y **[X](#x-tus-cuentas-publicadas-con-tu-aprobación)** (tus cuentas de X). Discord, Signal y Reddit aparecen como "próximamente".
 
 ## Telegram: manejar los agentes desde el móvil
 
@@ -222,6 +222,23 @@ Los modelos, datasets y Spaces públicos no necesitan token. Agregá uno en **He
 Un modelo gated (FLUX.1-dev, Llama…) pide aceptar sus condiciones una vez, en su página, con la sesión iniciada en la cuenta del token; los agentes no pueden hacerlo por vos. Hasta entonces `huggingface_repo_info` dice que el token no tiene acceso.
 
 El token vive solo en el almacén de claves; los agentes nunca lo ven. Sus pedidos pasan por el proxy de claves de HydraOps, que lo agrega solo para Hugging Face y nunca sigue una redirección a otro sitio.
+
+## Civitai: modelos, palabras disparadoras y ajustes de ejemplo
+
+Con las herramientas **civitai** los agentes estudian modelos de Civitai. Se le dan todas a un agente con una sola línea, `civitai`, en sus herramientas. La API de Civitai solo lee, así que todas corren solas:
+
+- `civitai_search`: checkpoints, LoRAs, VAEs, ControlNets, upscalers, flujos de ComfyUI… filtrados por tipo, modelo base (Flux.1 D, SDXL 1.0, Pony, Illustrious…) o creador, ordenados por descargas, valoración, likes, tendencia o novedad.
+- `civitai_model_info`: la licencia de un modelo (uso comercial, crédito, derivados), su descripción y sus versiones, cada una con su modelo base, sus **palabras disparadoras** (lo que una LoRA necesita en el prompt) y sus archivos: formato, tamaño, los escaneos de seguridad de Civitai, SHA256 y enlace de descarga.
+- `civitai_examples`: imágenes que la gente hizo con una versión, con el **prompt, el prompt negativo, el sampler, los pasos, el CFG y la semilla** que las generaron, para que el agente aprenda cómo se usa un modelo antes de armar un flujo con él.
+- `civitai_identify`: qué modelo de Civitai es un archivo que ya tenés en ComfyUI. El SHA256 del archivo se calcula en tu computadora y se busca en Civitai; solo se leen archivos de las carpetas que lista tu ComfyUI.
+
+Bajar un modelo es trabajo de `comfy_download_model`, que pide tu aprobación (ver [Add-ons](./08-addons.md)).
+
+### La clave y el contenido adulto
+
+Buscar y leer no necesita clave. Agregá una en **Herramientas → Civitai** para los modelos que piden una cuenta con sesión iniciada. Se crea en la configuración de tu cuenta de Civitai (**API Keys**) con solo **Read** en **Models** y en **Profile & Settings** (con eso la tarjeta muestra la cuenta); apagá todos los demás permisos, HydraOps no usa ninguno. Vive solo en el almacén de claves; los agentes nunca la ven.
+
+**El contenido adulto está bloqueado** salvo que lo permitas en la misma tarjeta. Bloqueado, las búsquedas dejan afuera los modelos e imágenes adultos y un modelo marcado como adulto se rechaza. El interruptor es un ajuste de HydraOps: los agentes no pueden cambiarlo, y si no se puede leer el contenido sigue bloqueado. civitai.com y civitai.red responden la misma API; HydraOps usa civitai.com.
 
 ## Conexiones: servidores MCP listos para usar
 

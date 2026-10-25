@@ -237,6 +237,8 @@
       "githubNoRef": "Consulta GitHub",
       "huggingface": "Consultando Hugging Face: {{ref}}",
       "huggingfaceNoRef": "Consultando Hugging Face",
+      "civitai": "Consultando Civitai: {{ref}}",
+      "civitaiNoRef": "Consultando Civitai",
       "telegram": "Invia su Telegram",
       "remember": "Salva nella sua memoria",
       "recall": "Cerca nelle conversazioni passate: «{{ref}}»",
@@ -682,6 +684,21 @@
       "connectedAs": "Connesso come {{account}}",
       "tokenPlaceholder": "Token di Hugging Face (hf_…)",
       "connectHint": "Cercare e leggere modelli pubblici funziona senza token. Con un token, gli agenti possono leggere i repository gated e privati a cui il tuo account ha accesso; con un token di scrittura possono anche creare repository, caricare file e scrivere nelle discussioni, e ognuna di queste azioni attende la tua approvazione. Un token fine-grained ti permette di scegliere quali repository. Resta solo nell'archivio delle chiavi; l'agente non lo vede mai."
+    },
+    "civitai": {
+      "name": "Civitai",
+      "description": "Permetti agli agenti di cercare modelli su Civitai, leggerne versioni, parole chiave e licenze, imparare dalle impostazioni degli esempi e identificare i modelli che hai già.",
+      "key": "Chiave API",
+      "keyInvalid": "Chiave rifiutata",
+      "keyPlaceholder": "Chiave API di Civitai",
+      "getKey": "Crea una chiave",
+      "connectHint": "Cercare e leggere funziona senza chiave; con una si raggiungono anche i modelli che richiedono un account con accesso. Quando la crei su Civitai, a HydraOps serve solo Read su Models e su Profile & Settings (per mostrare l'account qui): disattiva tutto il resto. Resta solo nell'archivio delle chiavi; l'agente non la vede mai.",
+      "adult": "Contenuti per adulti",
+      "adultBlocked": "Bloccati",
+      "adultAllowed": "Consentiti",
+      "adultAllow": "Consenti contenuti per adulti",
+      "adultBlock": "Blocca contenuti per adulti",
+      "adultHint": "Quando sono bloccati, i modelli e le immagini per adulti di Civitai non arrivano mai agli agenti: le ricerche li escludono e un modello segnato come per adulti viene rifiutato. Gli agenti non possono cambiare questo interruttore."
     },
     "skills": {
       "name": "Skills",

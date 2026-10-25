@@ -237,6 +237,8 @@
       "githubNoRef": "Consultando GitHub",
       "huggingface": "Consultando Hugging Face: {{ref}}",
       "huggingfaceNoRef": "Consultando Hugging Face",
+      "civitai": "Consultando Civitai: {{ref}}",
+      "civitaiNoRef": "Consultando Civitai",
       "telegram": "Enviando a Telegram",
       "remember": "Guardando en su memoria",
       "recall": "Buscando en conversaciones anteriores: «{{ref}}»",
@@ -682,6 +684,21 @@
       "connectedAs": "Conectado como {{account}}",
       "tokenPlaceholder": "Token de Hugging Face (hf_…)",
       "connectHint": "Buscar y leer modelos públicos funciona sin token. Con uno, los agentes pueden leer los repositorios gated y privados a los que tu cuenta tiene acceso; con un token de escritura también pueden crear repositorios, subir archivos y escribir en discusiones, y cada una de esas acciones espera tu aprobación. Un token fine-grained te deja elegir qué repositorios. Vive solo en el almacén de claves; el agente nunca lo ve."
+    },
+    "civitai": {
+      "name": "Civitai",
+      "description": "Que los agentes busquen modelos en Civitai, lean sus versiones, palabras disparadoras y licencias, aprendan de los ajustes de los ejemplos e identifiquen los modelos que ya tenés.",
+      "key": "Clave de API",
+      "keyInvalid": "Clave rechazada",
+      "keyPlaceholder": "Clave de API de Civitai",
+      "getKey": "Crear una clave",
+      "connectHint": "Buscar y leer funciona sin clave; con una, también se llega a los modelos que piden una cuenta con sesión iniciada. Al crearla en Civitai, HydraOps solo necesita Read en Models y en Profile & Settings (para mostrar la cuenta acá): apagá todo lo demás. Vive solo en el almacén de claves; el agente nunca la ve.",
+      "adult": "Contenido adulto",
+      "adultBlocked": "Bloqueado",
+      "adultAllowed": "Permitido",
+      "adultAllow": "Permitir contenido adulto",
+      "adultBlock": "Bloquear contenido adulto",
+      "adultHint": "Bloqueado, los modelos e imágenes adultos de Civitai nunca llegan a los agentes: las búsquedas los dejan afuera y un modelo marcado como adulto se rechaza. Los agentes no pueden cambiar este interruptor."
     },
     "skills": {
       "name": "Skills",

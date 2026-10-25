@@ -257,6 +257,75 @@
       </div>
     }
 
+    <!-- Civitai -->
+    @if (civitai(); as c) {
+      <div class="tool-card">
+        <div class="tool-head">
+          <div class="tool-title">
+            <app-icon name="civitai" class="tool-icon civitai" />
+            <div class="tool-title-text">
+              <span class="addon-name">{{ 'herramientas.civitai.name' | translate }}</span>
+              <span class="addon-type">{{ 'herramientas.civitai.description' | translate }}</span>
+            </div>
+          </div>
+          <button class="toggle-btn" [class.on]="c.enabled" (click)="toggleCivitai()">
+            {{ c.enabled ? 'ON' : 'OFF' }}
+          </button>
+        </div>
+
+        <div class="tool-field">
+          <label class="tool-label">
+            {{ 'herramientas.civitai.key' | translate }}
+            @if (c.tokenConfigured && c.tokenValid === false) {
+              <span class="addon-badge key-bad">{{ 'herramientas.civitai.keyInvalid' | translate }}</span>
+            } @else if (c.tokenConfigured) {
+              <span class="addon-badge key-ok">{{ c.account ? ('herramientas.huggingface.connectedAs' | translate: { account: c.account }) : ('herramientas.github.tokenSet' | translate) }}</span>
+            } @else {
+              <span class="addon-badge">{{ 'herramientas.huggingface.tokenOptional' | translate }}</span>
+            }
+          </label>
+          <div class="addon-keyrow">
+            <input
+              type="password"
+              class="key-input"
+              autocomplete="off"
+              [placeholder]="'herramientas.civitai.keyPlaceholder' | translate"
+              [value]="cvKeyInput()"
+              (input)="cvKeyInput.set($any($event.target).value)"
+              (focus)="onCvKeyFocus()"
+              (blur)="onCvKeyBlur()"
+              (keyup.enter)="saveCivitaiKey()"
+            />
+            <button class="btn-primary key-save" [disabled]="!cvKeyInput().trim() || cvKeyInput() === tokenMask" (click)="saveCivitaiKey()">
+              {{ 'common.save' | translate }}
+            </button>
+            @if (cvKeySaved()) {
+              <span class="saved-msg">✓ {{ 'common.saved' | translate }}</span>
+            }
+            <a class="key-help" href="https://civitai.com/user/account" target="_blank" rel="noopener">
+              {{ 'herramientas.civitai.getKey' | translate }}
+            </a>
+          </div>
+          <p class="tool-hint">{{ 'herramientas.civitai.connectHint' | translate }}</p>
+        </div>
+
+        <div class="tool-field adult-row">
+          <label class="tool-label">
+            {{ 'herramientas.civitai.adult' | translate }}
+            <span class="addon-badge" [class.key-bad]="c.allowAdult">
+              {{ (c.allowAdult ? 'herramientas.civitai.adultAllowed' : 'herramientas.civitai.adultBlocked') | translate }}
+            </span>
+          </label>
+          <div class="addon-keyrow">
+            <button class="btn-secondary" (click)="toggleCivitaiAdult()">
+              {{ (c.allowAdult ? 'herramientas.civitai.adultBlock' : 'herramientas.civitai.adultAllow') | translate }}
+            </button>
+          </div>
+          <p class="tool-hint">{{ 'herramientas.civitai.adultHint' | translate }}</p>
+        </div>
+      </div>
+    }
+
     <!-- Future connectors -->
     <h3 class="coming-title">{{ 'herramientas.comingSoon' | translate }}</h3>
     <div class="addons-grid">
