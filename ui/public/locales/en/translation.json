@@ -235,6 +235,8 @@
       "createSkillNoRef": "Proposing a skill",
       "github": "Checking GitHub: {{ref}}",
       "githubNoRef": "Checking GitHub",
+      "huggingface": "Checking Hugging Face: {{ref}}",
+      "huggingfaceNoRef": "Checking Hugging Face",
       "telegram": "Sending to Telegram",
       "remember": "Saving to its memory",
       "recall": "Searching past conversations: “{{ref}}”",
@@ -670,6 +672,16 @@
       "tokenPlaceholder": "GitHub fine-grained PAT",
       "getToken": "Create a token",
       "connectHint": "Use a fine-grained token and scope its permissions and repos on GitHub. The token lives only in the encrypted store; the agent never sees it. What it can do is decided by the token itself."
+    },
+    "huggingface": {
+      "name": "Hugging Face",
+      "description": "Let the agents find and read models, datasets and Spaces on Hugging Face, and work with your repositories there.",
+      "token": "Access token",
+      "tokenOptional": "Optional",
+      "tokenInvalid": "Token refused",
+      "connectedAs": "Connected as {{account}}",
+      "tokenPlaceholder": "Hugging Face token (hf_…)",
+      "connectHint": "Searching and reading public models works without a token. With one, the agents can read gated and private repositories your account has access to; with a write token they can also create repositories, upload files and post in discussions, and every one of those waits for your approval. A fine-grained token lets you choose which repositories. It lives only in the key store; the agent never sees it."
     },
     "skills": {
       "name": "Skills",

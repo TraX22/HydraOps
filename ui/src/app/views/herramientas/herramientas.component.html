@@ -203,6 +203,60 @@
       </div>
     }
 
+    <!-- Hugging Face -->
+    @if (huggingface(); as h) {
+      <div class="tool-card">
+        <div class="tool-head">
+          <div class="tool-title">
+            <app-icon name="huggingface" class="tool-icon huggingface" />
+            <div class="tool-title-text">
+              <span class="addon-name">{{ 'herramientas.huggingface.name' | translate }}</span>
+              <span class="addon-type">{{ 'herramientas.huggingface.description' | translate }}</span>
+            </div>
+          </div>
+          <button class="toggle-btn" [class.on]="h.enabled" (click)="toggleHuggingFace()">
+            {{ h.enabled ? 'ON' : 'OFF' }}
+          </button>
+        </div>
+
+        <div class="tool-field">
+          <label class="tool-label">
+            {{ 'herramientas.huggingface.token' | translate }}
+            @if (h.tokenConfigured && h.tokenValid === false) {
+              <span class="addon-badge key-bad">{{ 'herramientas.huggingface.tokenInvalid' | translate }}</span>
+            } @else if (h.tokenConfigured) {
+              <span class="addon-badge key-ok">{{ h.account ? ('herramientas.huggingface.connectedAs' | translate: { account: h.account }) : ('herramientas.github.tokenSet' | translate) }}</span>
+            } @else {
+              <span class="addon-badge">{{ 'herramientas.huggingface.tokenOptional' | translate }}</span>
+            }
+          </label>
+          <div class="addon-keyrow">
+            <input
+              type="password"
+              class="key-input"
+              autocomplete="off"
+              [placeholder]="'herramientas.huggingface.tokenPlaceholder' | translate"
+              [value]="hfTokenInput()"
+              (input)="hfTokenInput.set($any($event.target).value)"
+              (focus)="onHfTokenFocus()"
+              (blur)="onHfTokenBlur()"
+              (keyup.enter)="saveHuggingFaceToken()"
+            />
+            <button class="btn-primary key-save" [disabled]="!hfTokenInput().trim() || hfTokenInput() === tokenMask" (click)="saveHuggingFaceToken()">
+              {{ 'common.save' | translate }}
+            </button>
+            @if (hfTokenSaved()) {
+              <span class="saved-msg">✓ {{ 'common.saved' | translate }}</span>
+            }
+            <a class="key-help" href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">
+              {{ 'herramientas.github.getToken' | translate }}
+            </a>
+          </div>
+          <p class="tool-hint">{{ 'herramientas.huggingface.connectHint' | translate }}</p>
+        </div>
+      </div>
+    }
+
     <!-- Future connectors -->
     <h3 class="coming-title">{{ 'herramientas.comingSoon' | translate }}</h3>
     <div class="addons-grid">

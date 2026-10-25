@@ -2,7 +2,7 @@
 
 The **Tools** section in the sidebar connects HydraOps to external services. Don't confuse it with [Add-ons](./08-addons.md): an add-on is a tool the *agents use* (search the web, read a page); a tool in this section is a **connector** that lets you *operate HydraOps from the outside*.
 
-Today there are **Telegram** (talk to your agents from your phone), **GitHub**, **[Skills](#skills-know-how-for-the-agents)** (the know-how agents read when a task calls for it), **[Connections](#connections-ready-made-mcp-servers)** (apps and services the agents can drive) and **[X](#x-your-accounts-posted-to-with-your-approval)** (your X accounts). Discord, Signal and Reddit appear as "coming soon".
+Today there are **Telegram** (talk to your agents from your phone), **GitHub**, **[Hugging Face](#hugging-face-models-datasets-and-spaces)** (models, datasets and Spaces), **[Skills](#skills-know-how-for-the-agents)** (the know-how agents read when a task calls for it), **[Connections](#connections-ready-made-mcp-servers)** (apps and services the agents can drive) and **[X](#x-your-accounts-posted-to-with-your-approval)** (your X accounts). Discord, Signal and Reddit appear as "coming soon".
 
 ## Telegram: run your agents from your phone
 
@@ -193,6 +193,35 @@ Give the agent the two tools in the Agents view (its tools list, like any other 
 The approval card shows the account with its avatar, every part as it will be published with its character count (280 weighted characters, a link counting as 23), the images, and the estimated cost; so does the Telegram notice. **Approve** publishes and the agent answers with the link; **Reject** drops it and the agent is told. There is no "approve for the rest of the task" for a post: each one asks.
 
 The server publishes only the exact post you approved (same agent, account and parts), once; and it refuses, before anything reaches X, a part that is empty or over the limit, an account the agent was not given, an image that is not one of your attachments or is larger than 5 MB, and anything while the switch is OFF. Deleting a post is not something the agents can do: that stays on X, with you.
+
+## Hugging Face: models, datasets and Spaces
+
+With the **huggingface** tools the agents work with the Hugging Face Hub the way the GitHub ones work with GitHub. Give an agent all of them with one line, `huggingface`, in its tools (**Agents → Tools**).
+
+What runs on its own, because it only reads:
+
+- `huggingface_search`: models, datasets or Spaces, filtered by task (text-generation, text-to-image…), library (gguf, transformers, diffusers…) or author, sorted by downloads, likes, trending or last update.
+- `huggingface_repo_info`: license, size, base model, downloads, whether it is gated and whether your token has access to it.
+- `huggingface_list_files`: the files of a repository with their sizes and direct download links, for instance to pick the GGUF quantization that fits your memory.
+- `huggingface_read_file`: a card, a `config.json`, a chat template. Weights are not read.
+- `huggingface_dataset_preview`: a dataset's columns and first rows, without downloading it.
+- `huggingface_discussions`: a repository's discussions and pull requests.
+- `huggingface_whoami`: which account the token belongs to and what it may do.
+
+What waits for your approval every time:
+
+- `huggingface_create_repo`: a model, dataset or Space repository, private unless you say otherwise.
+- `huggingface_upload`: files of the task or that you attached, or text such as a README, in one commit (each file up to 10 MB; large weights are not uploaded yet).
+- `huggingface_discuss`: open a discussion or comment on one.
+- `huggingface_api`: any other Hub endpoint; reading (GET) runs on its own, anything else asks.
+
+### The token
+
+Public models, datasets and Spaces need no token. Add one in **Tools → Hugging Face** for what your account can see (gated and private repositories) and for writing. Create it at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens): **Read** is enough to read; **Write**, or a **fine-grained** token with the repositories you choose, to create and upload. The card shows the account it belongs to, or that Hugging Face refused it.
+
+A gated model (FLUX.1-dev, Llama…) asks you to accept its terms once, on its page, signed in with the token's account; the agents cannot do that for you. Until then `huggingface_repo_info` says the token has no access.
+
+The token lives only in the key store; the agents never see it. Their requests go through HydraOps' key proxy, which adds it only for Hugging Face and never follows a redirect to another site.
 
 ## Connections: ready-made MCP servers
 

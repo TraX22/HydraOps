@@ -53,7 +53,11 @@ export function progressRef(toolName: string, args: unknown): string | undefined
     const repo = str('owner') && str('repo') ? `${str('owner')}/${str('repo')}` : str('repo') ?? str('query') ?? str('path');
     return repo ? clipRef(repo) : undefined;
   }
-  const url = str('url') ?? str('videoUrl') ?? str('video_url') ?? str('link');
+  if (toolName.startsWith('huggingface')) {
+    const repo = str('repo') ?? str('dataset') ?? str('query') ?? str('name') ?? str('path');
+    return repo ? clipRef(repo) : undefined;
+  }
+  const url =str('url') ?? str('videoUrl') ?? str('video_url') ?? str('link');
   if (url) {
     try { const u = new URL(url); return clipRef(u.hostname.replace(/^www\./, '') + (u.pathname !== '/' ? u.pathname : '')); } catch { return clipRef(url); }
   }

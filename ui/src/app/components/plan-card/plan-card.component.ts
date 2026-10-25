@@ -150,7 +150,7 @@ export class PlanCardComponent {
   draft = '';
   notes = '';
 
-  private static readonly ACTING = /^(send_to_telegram|remember|create_skill|delegate_task|generate_image|generate_video|github_(create|comment)|github_api)/i;
+  private static readonly ACTING = /^(send_to_telegram|remember|create_skill|delegate_task|generate_image|generate_video|github_(create|comment)|github_api|huggingface_(create_repo|upload|discuss\b|api))/i;
   isActing(tool: string): boolean { return PlanCardComponent.ACTING.test(tool); }
   toolLabel(tool: string): string {
     const t = tool.toLowerCase();

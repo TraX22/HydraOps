@@ -235,6 +235,8 @@
       "createSkillNoRef": "Propondo uma skill",
       "github": "Consultando o GitHub: {{ref}}",
       "githubNoRef": "Consultando o GitHub",
+      "huggingface": "Consultando o Hugging Face: {{ref}}",
+      "huggingfaceNoRef": "Consultando o Hugging Face",
       "telegram": "Enviando para o Telegram",
       "remember": "Salvando na memória",
       "recall": "Buscando em conversas anteriores: “{{ref}}”",
@@ -670,6 +672,16 @@
       "tokenPlaceholder": "PAT fine-grained do GitHub",
       "getToken": "Criar um token",
       "connectHint": "Use um token fine-grained e limite suas permissões e repositórios no GitHub. O token vive apenas no cofre criptografado; o agente nunca o vê. O que ele pode fazer é decidido pelo próprio token."
+    },
+    "huggingface": {
+      "name": "Hugging Face",
+      "description": "Deixe os agentes buscarem e lerem modelos, datasets e Spaces no Hugging Face, e trabalharem com seus repositórios.",
+      "token": "Token de acesso",
+      "tokenOptional": "Opcional",
+      "tokenInvalid": "Token recusado",
+      "connectedAs": "Conectado como {{account}}",
+      "tokenPlaceholder": "Token do Hugging Face (hf_…)",
+      "connectHint": "Buscar e ler modelos públicos funciona sem token. Com um token, os agentes podem ler os repositórios gated e privados aos quais sua conta tem acesso; com um token de escrita também podem criar repositórios, enviar arquivos e escrever em discussões, e cada uma dessas ações aguarda sua aprovação. Um token fine-grained permite escolher quais repositórios. Ele fica apenas no cofre de chaves; o agente nunca o vê."
     },
     "skills": {
       "name": "Skills",

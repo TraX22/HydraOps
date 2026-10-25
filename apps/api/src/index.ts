@@ -1282,6 +1282,7 @@ const envMapping: Record<string, string> = {
   perplexityKey: "PERPLEXITY_API_KEY",
   telegramBotToken: "TELEGRAM_BOT_TOKEN",
   githubToken: "GITHUB_TOKEN",
+  huggingfaceToken: "HF_TOKEN",
   localLlmUrl: "LOCAL_LLM_URL",
   localLlmKey: "LOCAL_LLM_KEY",
   localLlmModel: "LOCAL_LLM_MODEL",
@@ -1318,6 +1319,8 @@ const PROVIDER_KEY_NAMES = [
   "TELEGRAM_BOT_TOKEN",
   // GitHub PAT for the github tool — injected by the key-proxy, never seen by workers.
   "GITHUB_TOKEN",
+  // Hugging Face access token for the huggingface tools — the same, and optional there.
+  "HF_TOKEN",
 ];
 const KEY_PLACEHOLDER = "proxy";
 // Masked values round-trip through the UI; POST /config already ignores
@@ -2649,7 +2652,7 @@ const ADDON_DESCRIPTION_OVERRIDES: Record<string, string> = {
 // connection (its token) and each agent's tools.md already govern them, so a
 // per-tool toggle here would just be noise.
 // The skill tools are managed under Herramientas → Skills.
-const isIntegrationTool = (name: string) => name.startsWith("github") || name === "skills_view" || name === "create_skill";
+const isIntegrationTool = (name: string) => name.startsWith("github") || name.startsWith("huggingface_") || name === "skills_view" || name === "create_skill";
 
 api.get("/system/addons", async (_req, res) => {
   try {
@@ -3126,46 +3129,70 @@ api.post("/telegram/send", async (req, res) => {
 // key-proxy so the token is never visible to workers. "enabled" is not a separate
 // flag — it IS the native_addons_state of the github_* tools (the same gate the
 // workers already honor), so toggling it here and in the Add-ons view stay in sync.
-const githubToolNames = () => addonsRegistry.getNativeToolNames().filter((n) => n.startsWith("github"));
 
 async function readNativeState(): Promise<Record<string, boolean>> {
   const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, "native_addons_state")).limit(1);
   return rows[0] ? JSON.parse(rows[0].value) : {};
 }
 
-api.get("/system/integrations/github", async (_req, res) => {
-  try {
-    const state = await readNativeState();
-    const store = await loadKeyStore();
-    const names = githubToolNames();
-    // Enabled = the github tools are not disabled (workers treat !== false as on).
-    const enabled = names.length > 0 && names.every((n) => state[n] !== false);
-    res.json({
-      enabled,
-      tokenConfigured: isRealKeyValue(store["GITHUB_TOKEN"] || ""),
-    });
-  } catch (err: any) {
-    console.error("[api] GET /system/integrations/github failed", err);
-    res.status(500).json({ error: "internal_error" });
-  }
-});
+/**
+ * An integration whose tools share a name prefix (github_*, huggingface_*) and whose token
+ * lives in the key store: GET tells whether its tools are on and the token is stored, POST
+ * switches every tool of the prefix on or off in native_addons_state (the gate the workers
+ * honor). `extra` adds what the card shows beyond that (the connected account).
+ */
+function integrationRoutes(slug: string, prefix: string, keyName: string, extra?: (store: Record<string, string>) => Promise<Record<string, unknown>>) {
+  const toolNames = () => addonsRegistry.getNativeToolNames().filter((n) => n.startsWith(prefix));
+  api.get(`/system/integrations/${slug}`, async (_req, res) => {
+    try {
+      const state = await readNativeState();
+      const store = await loadKeyStore();
+      const names = toolNames();
+      // Enabled = the tools are not disabled (workers treat !== false as on).
+      const enabled = names.length > 0 && names.every((n) => state[n] !== false);
+      res.json({
+        enabled,
+        tokenConfigured: isRealKeyValue(store[keyName] || ""),
+        ...(extra ? await extra(store) : {}),
+      });
+    } catch (err: any) {
+      console.error(`[api] GET /system/integrations/${slug} failed`, err);
+      res.status(500).json({ error: "internal_error" });
+    }
+  });
+  api.post(`/system/integrations/${slug}`, async (req, res) => {
+    try {
+      const enabled = req.body?.enabled === true;
+      // Merge into native_addons_state so we don't clobber other tools' flags.
+      const state = await readNativeState();
+      for (const n of toolNames()) state[n] = enabled;
+      const value = JSON.stringify(state);
+      await (db as any).insert(systemConfigs)
+        .values({ key: "native_addons_state", value, updatedAt: new Date() })
+        .onConflictDoUpdate({ target: systemConfigs.key, set: { value, updatedAt: new Date() } })
+        .run();
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error(`[api] POST /system/integrations/${slug} failed`, err);
+      res.status(500).json({ error: "internal_error" });
+    }
+  });
+}
 
-api.post("/system/integrations/github", async (req, res) => {
+integrationRoutes("github", "github", "GITHUB_TOKEN");
+
+// Hugging Face: the card also shows which account the token belongs to, asked through the
+// key-proxy (the API never holds the token in a request of its own).
+integrationRoutes("huggingface", "huggingface_", "HF_TOKEN", async (store) => {
+  if (!isRealKeyValue(store["HF_TOKEN"] || "")) return {};
   try {
-    const enabled = req.body?.enabled === true;
-    // Merge into native_addons_state so we don't clobber other tools' flags.
-    const state = await readNativeState();
-    for (const n of githubToolNames()) state[n] = enabled;
-    const value = JSON.stringify(state);
-    await (db as any).insert(systemConfigs)
-      .values({ key: "native_addons_state", value, updatedAt: new Date() })
-      .onConflictDoUpdate({ target: systemConfigs.key, set: { value, updatedAt: new Date() } })
-      .run();
-    res.json({ success: true });
-  } catch (err: any) {
-    console.error("[api] POST /system/integrations/github failed", err);
-    res.status(500).json({ error: "internal_error" });
-  }
+    const proxyBase = (process.env.KEY_PROXY_URL || "http://127.0.0.1:9099").replace(/\/$/, "");
+    const r = await fetch(`${proxyBase}/huggingface/api/whoami-v2`, { signal: AbortSignal.timeout(5000), redirect: "manual" });
+    if (r.status === 401) return { tokenValid: false };
+    if (!r.ok) return {};
+    const d: any = await r.json();
+    return { tokenValid: true, account: typeof d?.name === "string" ? d.name : undefined, tokenRole: d?.auth?.accessToken?.role };
+  } catch { return {}; }
 });
 
 // --- Skills (Herramientas) ---
