@@ -123,7 +123,9 @@ export class ToolRegistry {
       }
       allowed.push(t);
     }
-    return allowed;
+    // A connection tool that an allowed native tool replaces is left out.
+    const superseded = new Set(allowed.flatMap((n) => this.nativeTools.get(n)?.supersedes ?? []));
+    return superseded.size ? allowed.filter((n) => !superseded.has(n)) : allowed;
   }
 
   /**

@@ -200,6 +200,9 @@ export const comfyDownloadModelTool: HydraTool = {
   title: "Download a model into ComfyUI",
   // Writes a file from the internet onto the user's disk: every call waits for approval.
   risk: { sensitive: true, approval: "always" },
+  // The ComfyUI connection's own download refuses with a ComfyUI it treats as remote, and
+  // any other install writes into comfy-cli's workspace, not the folder ComfyUI reads.
+  supersedes: ["comfyui_download_model"],
   description:
     "Download a model file into the folder the user's ComfyUI reads for that kind of model, when a workflow needs a model that is not installed. " +
     "Use the file's direct link (on Hugging Face, the /resolve/ one) from the model's official page, never a guessed address, and say its size to the user when the page shows it. " +

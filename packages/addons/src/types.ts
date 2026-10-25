@@ -76,6 +76,9 @@ export interface HydraTool {
   // A user add-on that declares nothing is treated as the worst case.
   // A function when it depends on the arguments (e.g. GET vs POST).
   risk?: ToolRisk | ((args: any) => ToolRisk);
+  // Connection tools this native tool replaces (full names, e.g. "comfyui_download_model"):
+  // an agent allowed both gets only this one, so it does not try the other first.
+  supersedes?: string[];
   // False for a tool whose result is instructions the model must get whole (an installed
   // skill): it is neither digested into the task vault nor cut. The tool caps itself.
   vault?: false;
