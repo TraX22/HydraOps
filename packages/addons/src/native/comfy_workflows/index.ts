@@ -240,6 +240,77 @@ export function describeWorkflow(graph: unknown): string {
   return lines.join("\n");
 }
 
+/** A model a loader node of the workflow names in its properties, as official templates ship them. */
+export interface DeclaredModel { node: string; type: string; folder: string; name: string; loads: string; url: string }
+
+const MODEL_FILE_RE = /\.(safetensors|sft|gguf|ckpt|pt|pth|bin)$/i;
+const MAX_DECLARED = 24;
+
+/**
+ * The models the workflow's loader nodes declare. ComfyUI's official templates keep, in
+ * each loader's properties.models, the file it expects, the folder it goes in and the
+ * direct link its author gave; that link is what an agent needs to download a missing
+ * model, instead of guessing one. `loads` is the file the node is set to load now, which
+ * the user may have changed from the declared one. Interface format only (the API format
+ * keeps no properties); walks the top level and every subgraph.
+ */
+export function declaredModels(graph: unknown): DeclaredModel[] {
+  const g = graph as any;
+  if (!g || !Array.isArray(g.nodes)) return [];
+  const subgraphs: any[] = Array.isArray(g.definitions?.subgraphs) ? g.definitions.subgraphs : [];
+  const out: DeclaredModel[] = [];
+  const seen = new Set<string>();
+  for (const n of [...g.nodes, ...subgraphs.flatMap((s) => (Array.isArray(s.nodes) ? s.nodes : []))]) {
+    const models = n?.properties?.models;
+    if (!Array.isArray(models)) continue;
+    const values: unknown[] = Array.isArray(n.widgets_values) ? n.widgets_values : [];
+    for (const m of models) {
+      if (!m || typeof m.name !== "string" || typeof m.directory !== "string") continue;
+      const name = clip(m.name, 160);
+      const folder = clip(m.directory, 64);
+      if (!MODEL_FILE_RE.test(name) || !/^[\w.-]+$/.test(folder)) continue;
+      const set = values.find((v): v is string => typeof v === "string" && v === m.name)
+        ?? values.find((v): v is string => typeof v === "string" && MODEL_FILE_RE.test(v));
+      const loads = set ? clip(set, 160) : name;
+      const key = `${folder}/${loads}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const url = typeof m.url === "string" && /^https:\/\/\S+$/i.test(m.url) ? clip(m.url, 300) : "";
+      out.push({ node: String(n.id), type: String(n.type ?? ""), folder, name, loads, url });
+    }
+  }
+  return out.slice(0, MAX_DECLARED);
+}
+
+/**
+ * The declared models checked against what ComfyUI has installed (its /models/<folder>
+ * list, subfolders included), as lines for the agent. Empty when the workflow declares none.
+ */
+async function declaredModelsReport(base: string, graph: unknown): Promise<string> {
+  const declared = declaredModels(graph);
+  if (!declared.length) return "";
+  const installed = new Map<string, Set<string> | null>();
+  for (const folder of new Set(declared.map((d) => d.folder))) {
+    try {
+      const r = await request(`${base}/models/${encodeURIComponent(folder)}`);
+      const list = r.ok ? ((await r.json()) as unknown) : null;
+      installed.set(folder, Array.isArray(list) ? new Set(list.map((f) => String(f).split(/[\\/]/).pop()!)) : null);
+    } catch { installed.set(folder, null); }
+  }
+  let missing = 0;
+  const lines = declared.map((d) => {
+    const have = installed.get(d.folder);
+    const state = have === null || have === undefined ? "could not check" : have.has(d.loads) ? "installed" : (missing++, "NOT installed");
+    const renamed = d.loads !== d.name ? ` (the template declared ${d.name}; its link is for that file)` : "";
+    const link = state === "NOT installed" && d.url ? `, link: ${d.url}` : "";
+    return `- ${d.folder}/${d.loads}, node ${d.node} (${d.type}): ${state}${renamed}${link}`;
+  });
+  return [
+    `Models this workflow declares (the folder, file and link come from the workflow file itself)${missing ? `; ${missing} not installed` : ""}:`,
+    ...lines,
+  ].join("\n");
+}
+
 /**
  * Unicode line and paragraph separators (U+2028, U+2029) in any text of the workflow,
  * turned into plain line breaks. They are invisible in ComfyUI's interface (some official
@@ -472,6 +543,7 @@ async function prepare(base: string, name: string, files: string[], ctx: Prepare
   await writeFile(target, JSON.stringify(graph));
 
   const pending = inputs.slice(files.length);
+  const models = await declaredModelsReport(base, graph);
   return [
     `Prepared a copy of the saved workflow "${name}":\n${target}`,
     "The user's saved workflow is not changed; every value is as they saved it except what is listed here.",
@@ -480,9 +552,10 @@ async function prepare(base: string, name: string, files: string[], ctx: Prepare
       ? `Still reading the file the workflow was saved with (pass the user's files in "files" to replace them, in this order):\n${pending.map((f) => `- ${f.address} (${f.type}), now "${clip(f.current, 80)}"`).join("\n")}`
       : "",
     describeWorkflow(graph),
+    models,
     [
       "What is left, with the ComfyUI connection's tools:",
-      `1. validate_workflow on that file. If it reports a missing model or node, name what is missing to the user and stop: it has to be installed in ComfyUI. Do not look for another workflow because of it. If the user then asks you to get a missing model, comfy_download_model downloads it into the right folder (with the file's direct link from the model's official page, and the user's approval).`,
+      `1. validate_workflow on that file. If it or the list above reports a missing model or node, name what is missing to the user and stop: it has to be installed in ComfyUI. Do not look for another workflow because of it, and do not swap in another version of a model unless the user asks for one. If the user then asks you to get a missing model, comfy_download_model downloads it into the right folder with the user's approval: for a model listed above, pass exactly its link and its folder; otherwise the file's direct link from the model's official page.`,
       `2. run_workflow with that file and wait: false; keep the prompt_id.`,
       `3. comfy_workflows with action "collect" and that prompt_id (and "name": a short name for the result, e.g. "stone_tower"). It waits a little: when the job has finished it copies the result into this task's folder and tells you what it is; when the job is still going it says so, and then you tell the user the generation is running in ComfyUI and that they can ask you later whether it finished, and end your reply. Never wait with the connection's job tool, never run the workflow a second time.`,
       "4. Report to the user what collect returned: the file, its size and what it measured. You have not seen the result: say it was generated, not how it looks.",
