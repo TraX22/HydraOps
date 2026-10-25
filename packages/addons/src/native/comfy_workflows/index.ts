@@ -4,6 +4,7 @@ import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { HydraTool } from "../../types.js";
 import type { ReportedFile, ResultFileKind } from "../../result-files.js";
+import { keepToolImage, toolImageMarker } from "../../tool-images.js";
 
 // comfy_workflows — the workflows the user saved in their own ComfyUI, made ready to run.
 //
@@ -558,7 +559,7 @@ async function prepare(base: string, name: string, files: string[], ctx: Prepare
       `1. validate_workflow on that file. If it or the list above reports a missing model or node, name what is missing to the user and stop: it has to be installed in ComfyUI. Do not look for another workflow because of it, and do not swap in another version of a model unless the user asks for one. If the user then asks you to get a missing model, comfy_download_model downloads it into the right folder with the user's approval: for a model listed above, pass exactly its link and its folder; otherwise the file's direct link from the model's official page.`,
       `2. run_workflow with that file and wait: false; keep the prompt_id.`,
       `3. comfy_workflows with action "collect" and that prompt_id (and "name": a short name for the result, e.g. "stone_tower"). It waits a little: when the job has finished it copies the result into this task's folder and tells you what it is; when the job is still going it says so, and then you tell the user the generation is running in ComfyUI and that they can ask you later whether it finished, and end your reply. Never wait with the connection's job tool, never run the workflow a second time.`,
-      "4. Report to the user what collect returned: the file, its size and what it measured. You have not seen the result: say it was generated, not how it looks.",
+      "4. Report to the user what collect returned: the file, its size and what it measured. When collect attaches the resulting image, look at it and say how it matches the request; a result you were not shown (a 3D model, a video, an image it did not attach) you have not seen: say it was generated, not how it looks.",
     ].join("\n"),
   ].filter(Boolean).join("\n\n");
 }
@@ -767,6 +768,32 @@ async function cancel(base: string, promptIdRaw: string, ctx: JobContext): Promi
     : "comfy_workflows: the job was removed from ComfyUI's queue before it started. Tell the user it was cancelled.";
 }
 
+// At most this many result images are shown to the model per job (a batch can save dozens).
+const MAX_SHOWN_IMAGES = 4;
+const SHOWN_IMAGE_RE = /\.(png|jpe?g|webp)$/i;
+
+/**
+ * A result image as the model will look at it: ComfyUI's own compressed preview of the
+ * output (WebP, same size in pixels, a fraction of the bytes), kept in the tool-image
+ * store; the result line carries its marker and the worker attaches the picture to the
+ * next model call when the model sees images (see tool-images.ts). The file the user gets
+ * is the original. Null when ComfyUI cannot make the preview and the original is too
+ * large to pass on.
+ */
+async function imageForModel(base: string, f: { filename: string; subfolder: string }, original: Buffer, ext: string): Promise<string | null> {
+  try {
+    const res = await request(`${base}/view?filename=${encodeURIComponent(f.filename)}&subfolder=${encodeURIComponent(f.subfolder)}&type=output&preview=webp;85`, {}, 60000);
+    if (res.ok && /image\/webp/i.test(res.headers.get("content-type") ?? "")) {
+      const webp = Buffer.from(await res.arrayBuffer());
+      const id = keepToolImage("image/webp", webp.toString("base64"));
+      if (id) return toolImageMarker(id, "image/webp", Math.max(1, Math.round(webp.length / 1024)));
+    }
+  } catch { /* fall back to the original */ }
+  const mime = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg";
+  const id = keepToolImage(mime, original.toString("base64"));
+  return id ? toolImageMarker(id, mime, Math.max(1, Math.round(original.length / 1024))) : null;
+}
+
 async function collectFinished(base: string, item: any, name: string | undefined, filesDir: string, report?: (file: ReportedFile) => void): Promise<string> {
   if (item.status?.status_str === "error") {
     const messages: any[] = Array.isArray(item.status.messages) ? item.status.messages : [];
@@ -783,6 +810,7 @@ async function collectFinished(base: string, item: any, name: string | undefined
   const hashes = new Set<string>();
   const lines: string[] = [];
   let duplicates = 0;
+  let shown = 0, notShown = 0;
   for (const f of files.slice(0, MAX_RESULT_FILES)) {
     let buf: Buffer;
     try {
@@ -803,7 +831,12 @@ async function collectFinished(base: string, item: any, name: string | undefined
     await writeFile(target, buf);
     const tris = ext === ".glb" ? glbTriangles(buf) : null;
     report?.({ absPath: target, kind: resultKindOf(fileName), size: buf.length, ...(tris !== null ? { triangles: tris } : {}) });
-    lines.push(`- ${target}\n  ${kindOf(fileName)}, ${fmtSize(buf.length)}${tris !== null ? `, ${tris.toLocaleString("en-US")} triangles` : ""} (saved by ComfyUI as ${f.subfolder ? f.subfolder + "/" : ""}${f.filename})`);
+    let picture = "";
+    if (SHOWN_IMAGE_RE.test(fileName)) {
+      const marker = shown < MAX_SHOWN_IMAGES ? await imageForModel(base, f, buf, ext) : null;
+      if (marker) { shown++; picture = `\n  ${marker}`; } else notShown++;
+    }
+    lines.push(`- ${target}\n  ${kindOf(fileName)}, ${fmtSize(buf.length)}${tris !== null ? `, ${tris.toLocaleString("en-US")} triangles` : ""} (saved by ComfyUI as ${f.subfolder ? f.subfolder + "/" : ""}${f.filename})${picture}`);
   }
   return [
     `The job finished. Its result, copied into this task's folder:`,
@@ -812,6 +845,9 @@ async function collectFinished(base: string, item: any, name: string | undefined
     "The previews the workflow made along the way were not copied. The originals stay in ComfyUI's output folder.",
     "The user already sees these files as cards under your reply: you do not need (and have no tool) to attach them; name them, say what each one is, and do not tell the user to fetch them by hand.",
     "Report these files, sizes and counts as they are; other numbers a job prints (such as a vertex count from an early stage) describe an intermediate step, not this file.",
+    shown
+      ? `The ${shown === 1 ? "image is" : `${shown} images are`} attached for you to look at (the marker after a file stands for it)${notShown ? `; ${notShown} more image(s) were not attached, so you have not seen those` : ""}. Look before you report: check what the user asked for (subject, colors, pose, text, how several views match) and say plainly what is right and what is off. If the marker says you cannot see images, you have not seen it: say it was generated, not how it looks.`
+      : "",
   ].filter(Boolean).join("\n\n");
 }
 
