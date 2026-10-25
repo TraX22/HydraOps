@@ -5,7 +5,7 @@ import { IconComponent } from '../../components/icon/icon.component';
 import { SkillsCardComponent } from './skills-card/skills-card.component';
 import { ConnectionsCardComponent } from './connections-card/connections-card.component';
 import { XCardComponent } from './x-card/x-card.component';
-import { ApiService, Agent, AppConfig, TelegramIntegration, GitHubIntegration, HuggingFaceIntegration } from '../../services/api.service';
+import { ApiService, Agent, AppConfig, TelegramIntegration, GitHubIntegration, HuggingFaceIntegration, CivitaiIntegration } from '../../services/api.service';
 
 @Component({
   selector: 'app-herramientas',
@@ -20,6 +20,7 @@ export class HerramientasComponent implements OnInit {
   telegram = signal<TelegramIntegration | null>(null);
   github = signal<GitHubIntegration | null>(null);
   huggingface = signal<HuggingFaceIntegration | null>(null);
+  civitai = signal<CivitaiIntegration | null>(null);
   agents = signal<Agent[]>([]);
 
   tokenInput = signal('');
@@ -32,6 +33,9 @@ export class HerramientasComponent implements OnInit {
 
   hfTokenInput = signal('');
   hfTokenSaved = signal(false);
+
+  cvKeyInput = signal('');
+  cvKeySaved = signal(false);
 
   // Dots shown in a configured token field so it reads as "set" at a glance,
   // mirroring the masked API-key fields in Config. The value never contains the
@@ -52,7 +56,15 @@ export class HerramientasComponent implements OnInit {
       if (g.tokenConfigured) this.ghTokenInput.set(this.tokenMask);
     });
     this.loadHuggingFace();
+    this.loadCivitai();
     this.api.getAgents().subscribe(a => this.agents.set(a));
+  }
+
+  private loadCivitai(): void {
+    this.api.getCivitaiIntegration().subscribe(c => {
+      this.civitai.set(c);
+      if (c.tokenConfigured) this.cvKeyInput.set(this.tokenMask);
+    });
   }
 
   private loadHuggingFace(): void {
@@ -68,6 +80,8 @@ export class HerramientasComponent implements OnInit {
   onTokenBlur(): void { if (!this.tokenInput().trim() && this.telegram()?.tokenConfigured) this.tokenInput.set(this.tokenMask); }
   onGhTokenFocus(): void { if (this.ghTokenInput() === this.tokenMask) this.ghTokenInput.set(''); }
   onGhTokenBlur(): void { if (!this.ghTokenInput().trim() && this.github()?.tokenConfigured) this.ghTokenInput.set(this.tokenMask); }
+  onCvKeyFocus(): void { if (this.cvKeyInput() === this.tokenMask) this.cvKeyInput.set(''); }
+  onCvKeyBlur(): void { if (!this.cvKeyInput().trim() && this.civitai()?.tokenConfigured) this.cvKeyInput.set(this.tokenMask); }
   onHfTokenFocus(): void { if (this.hfTokenInput() === this.tokenMask) this.hfTokenInput.set(''); }
   onHfTokenBlur(): void { if (!this.hfTokenInput().trim() && this.huggingface()?.tokenConfigured) this.hfTokenInput.set(this.tokenMask); }
 
@@ -94,6 +108,32 @@ export class HerramientasComponent implements OnInit {
       this.ghTokenInput.set(this.tokenMask); // show dots, not an empty field
       this.ghTokenSaved.set(true);
       setTimeout(() => this.ghTokenSaved.set(false), 2000);
+    });
+  }
+
+  // ── Civitai ──
+  toggleCivitai(): void {
+    const c = this.civitai();
+    if (!c) return;
+    const enabled = !c.enabled;
+    this.civitai.set({ ...c, enabled });
+    this.api.saveCivitaiIntegration({ enabled }).subscribe();
+  }
+
+  toggleCivitaiAdult(): void {
+    const c = this.civitai();
+    if (!c) return;
+    this.api.setCivitaiAdult(!c.allowAdult).subscribe(r => this.civitai.set({ ...c, allowAdult: r.allowAdult }));
+  }
+
+  saveCivitaiKey(): void {
+    const value = this.cvKeyInput().trim();
+    if (!value || value === this.tokenMask) return; // mask = unchanged
+    // The key goes ONLY to the key store; reloading asks Civitai whose it is.
+    this.api.saveConfig({ civitaiKey: value } as Partial<AppConfig>).subscribe(() => {
+      this.cvKeySaved.set(true);
+      setTimeout(() => this.cvKeySaved.set(false), 2000);
+      this.loadCivitai();
     });
   }
 

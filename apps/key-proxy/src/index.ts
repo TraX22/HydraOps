@@ -52,6 +52,8 @@ const PROVIDERS: Record<string, { host: string; keyName: string; auth: AuthStyle
   // Hugging Face Hub and its dataset viewer — huggingface tools. The token is optional.
   huggingface: { host: "https://huggingface.co",                   keyName: "HF_TOKEN",           auth: "bearer", optional: true, noRedirect: true, bufferBody: true },
   hfdatasets: { host: "https://datasets-server.huggingface.co",    keyName: "HF_TOKEN",           auth: "bearer", optional: true, noRedirect: true, bufferBody: true },
+  // Civitai — civitai tools (civitai.red answers the same API; only civitai.com is used). The key is optional.
+  civitai:    { host: "https://civitai.com",                       keyName: "CIVITAI_API_KEY",    auth: "bearer", optional: true, noRedirect: true, bufferBody: true },
 };
 
 // Hop-by-hop / auth headers that must never be forwarded as-is

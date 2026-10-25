@@ -237,6 +237,8 @@
       "githubNoRef": "Consultation de GitHub",
       "huggingface": "Consultation de Hugging Face : {{ref}}",
       "huggingfaceNoRef": "Consultation de Hugging Face",
+      "civitai": "Consultation de Civitai : {{ref}}",
+      "civitaiNoRef": "Consultation de Civitai",
       "telegram": "Envoi sur Telegram",
       "remember": "Enregistrement dans sa mémoire",
       "recall": "Recherche dans les conversations passées : « {{ref}} »",
@@ -682,6 +684,21 @@
       "connectedAs": "Connecté en tant que {{account}}",
       "tokenPlaceholder": "Jeton Hugging Face (hf_…)",
       "connectHint": "Chercher et lire des modèles publics fonctionne sans jeton. Avec un jeton, les agents peuvent lire les dépôts gated et privés auxquels votre compte a accès ; avec un jeton d'écriture, ils peuvent aussi créer des dépôts, téléverser des fichiers et écrire dans les discussions, et chacune de ces actions attend votre approbation. Un jeton fine-grained vous laisse choisir les dépôts. Il reste uniquement dans le coffre des clés ; l'agent ne le voit jamais."
+    },
+    "civitai": {
+      "name": "Civitai",
+      "description": "Laissez les agents chercher des modèles sur Civitai, lire leurs versions, mots déclencheurs et licences, apprendre des réglages des exemples et identifier les modèles que vous avez déjà.",
+      "key": "Clé d'API",
+      "keyInvalid": "Clé refusée",
+      "keyPlaceholder": "Clé d'API Civitai",
+      "getKey": "Créer une clé",
+      "connectHint": "Chercher et lire fonctionne sans clé ; avec une clé, on atteint aussi les modèles qui demandent un compte connecté. En la créant sur Civitai, HydraOps n'a besoin que de Read sur Models et sur Profile & Settings (pour afficher le compte ici) : désactivez tout le reste. Elle reste uniquement dans le coffre des clés ; l'agent ne la voit jamais.",
+      "adult": "Contenu adulte",
+      "adultBlocked": "Bloqué",
+      "adultAllowed": "Autorisé",
+      "adultAllow": "Autoriser le contenu adulte",
+      "adultBlock": "Bloquer le contenu adulte",
+      "adultHint": "Bloqué, les modèles et images adultes de Civitai n'atteignent jamais les agents : les recherches les écartent et un modèle marqué adulte est refusé. Les agents ne peuvent pas changer cet interrupteur."
     },
     "skills": {
       "name": "Skills",

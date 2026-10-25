@@ -436,7 +436,7 @@ export const huggingfaceApiTool: HydraTool = {
     body: z.record(z.string(), z.any()).optional().describe("JSON body for POST/PUT."),
   }),
   execute: async ({ method, path: p, query, body }) => {
-    if (!/^\/api\/[\w./-]+$/.test(p) || p.split("/").some((s) => s === "." || s === "..")) return "The path must start with /api/ and contain only a plain path (no query; use \"query\").";
+    if (!/^\/api\/[\w./-]+$/.test(p) || p.split("/").some((s: string) => s === "." || s === "..")) return "The path must start with /api/ and contain only a plain path (no query; use \"query\").";
     const r = await hfRequest(method, `${p}${query ? qs(query as Record<string, string | number | boolean>) : ""}`, body ? { body: JSON.stringify(body), contentType: "application/json" } : {});
     if (!r.ok) return r.error as string;
     return r.data !== undefined ? json(r.data) : cap(r.text ?? "");

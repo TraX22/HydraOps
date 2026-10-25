@@ -53,6 +53,10 @@ export function progressRef(toolName: string, args: unknown): string | undefined
     const repo = str('owner') && str('repo') ? `${str('owner')}/${str('repo')}` : str('repo') ?? str('query') ?? str('path');
     return repo ? clipRef(repo) : undefined;
   }
+  if (toolName.startsWith('civitai')) {
+    const v = str('query') ?? str('file') ?? (typeof a.model_id === 'number' ? `#${a.model_id}` : undefined) ?? (typeof a.version_id === 'number' ? `v${a.version_id}` : undefined);
+    return v ? clipRef(v) : undefined;
+  }
   if (toolName.startsWith('huggingface')) {
     const repo = str('repo') ?? str('dataset') ?? str('query') ?? str('name') ?? str('path');
     return repo ? clipRef(repo) : undefined;

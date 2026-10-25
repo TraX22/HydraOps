@@ -305,6 +305,15 @@ export interface GitHubIntegration {
   tokenConfigured: boolean;
 }
 
+export interface CivitaiIntegration {
+  enabled: boolean;
+  tokenConfigured: boolean;
+  tokenValid?: boolean;
+  account?: string;
+  /** Adult content in the civitai tools' answers: off unless the user turns it on. */
+  allowAdult: boolean;
+}
+
 export interface HuggingFaceIntegration {
   enabled: boolean;
   tokenConfigured: boolean;
@@ -510,6 +519,7 @@ export interface AppConfig {
   telegramBotToken: string;
   githubToken: string;
   huggingfaceToken: string;
+  civitaiKey: string;
   localLlmUrl: string;
   localLlmKey: string;
   localLlmModel: string;
@@ -986,6 +996,18 @@ export class ApiService {
 
   saveGitHubIntegration(cfg: Partial<GitHubIntegration>): Observable<void> {
     return this.http.post<void>(`${this.base}/system/integrations/github`, cfg);
+  }
+
+  getCivitaiIntegration(): Observable<CivitaiIntegration> {
+    return this.http.get<CivitaiIntegration>(`${this.base}/system/integrations/civitai`);
+  }
+
+  saveCivitaiIntegration(cfg: Partial<CivitaiIntegration>): Observable<void> {
+    return this.http.post<void>(`${this.base}/system/integrations/civitai`, cfg);
+  }
+
+  setCivitaiAdult(allow: boolean): Observable<{ success: boolean; allowAdult: boolean }> {
+    return this.http.post<{ success: boolean; allowAdult: boolean }>(`${this.base}/system/integrations/civitai/adult`, { allow });
   }
 
   getHuggingFaceIntegration(): Observable<HuggingFaceIntegration> {

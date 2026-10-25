@@ -2,7 +2,7 @@
 
 The **Tools** section in the sidebar connects HydraOps to external services. Don't confuse it with [Add-ons](./08-addons.md): an add-on is a tool the *agents use* (search the web, read a page); a tool in this section is a **connector** that lets you *operate HydraOps from the outside*.
 
-Today there are **Telegram** (talk to your agents from your phone), **GitHub**, **[Hugging Face](#hugging-face-models-datasets-and-spaces)** (models, datasets and Spaces), **[Skills](#skills-know-how-for-the-agents)** (the know-how agents read when a task calls for it), **[Connections](#connections-ready-made-mcp-servers)** (apps and services the agents can drive) and **[X](#x-your-accounts-posted-to-with-your-approval)** (your X accounts). Discord, Signal and Reddit appear as "coming soon".
+Today there are **Telegram** (talk to your agents from your phone), **GitHub**, **[Hugging Face](#hugging-face-models-datasets-and-spaces)** (models, datasets and Spaces), **[Civitai](#civitai-models-trigger-words-and-example-settings)** (models, trigger words and example settings), **[Skills](#skills-know-how-for-the-agents)** (the know-how agents read when a task calls for it), **[Connections](#connections-ready-made-mcp-servers)** (apps and services the agents can drive) and **[X](#x-your-accounts-posted-to-with-your-approval)** (your X accounts). Discord, Signal and Reddit appear as "coming soon".
 
 ## Telegram: run your agents from your phone
 
@@ -222,6 +222,23 @@ Public models, datasets and Spaces need no token. Add one in **Tools → Hugging
 A gated model (FLUX.1-dev, Llama…) asks you to accept its terms once, on its page, signed in with the token's account; the agents cannot do that for you. Until then `huggingface_repo_info` says the token has no access.
 
 The token lives only in the key store; the agents never see it. Their requests go through HydraOps' key proxy, which adds it only for Hugging Face and never follows a redirect to another site.
+
+## Civitai: models, trigger words and example settings
+
+With the **civitai** tools the agents study models on Civitai. Give an agent all of them with one line, `civitai`, in its tools. Civitai's API only reads, so they all run on their own:
+
+- `civitai_search`: checkpoints, LoRAs, VAEs, ControlNets, upscalers, ComfyUI workflows… filtered by type, base model (Flux.1 D, SDXL 1.0, Pony, Illustrious…) or creator, sorted by downloads, rating, likes, hot or newest.
+- `civitai_model_info`: a model's license (commercial use, credit, derivatives), its description and its versions, each with its base model, **trigger words** (what a LoRA needs in the prompt) and files: format, size, Civitai's safety scans, SHA256 and download link.
+- `civitai_examples`: images people made with a version, with the **prompt, negative prompt, sampler, steps, CFG and seed** that made them, so the agent learns how a model is used before building a workflow with it.
+- `civitai_identify`: which Civitai model a file you already have in ComfyUI is. The file's SHA256 is computed on your computer and looked up on Civitai; only files in the folders your ComfyUI lists are read.
+
+Downloading a model is `comfy_download_model`'s job, which asks for your approval (see [Add-ons](./08-addons.md)).
+
+### The key and adult content
+
+Searching and reading need no key. Add one in **Tools → Civitai** for models that ask for a signed-in account. Create it in your Civitai account settings (**API Keys**) with only **Read** on **Models** and on **Profile & Settings** (the card shows the account with it); turn off every other permission, HydraOps uses none of them. It lives only in the key store; the agents never see it.
+
+**Adult content is blocked** unless you allow it on the same card. Blocked, searches leave adult models and images out and a model marked adult is refused. The switch is HydraOps' own setting: the agents cannot change it, and if it cannot be read the content stays blocked. civitai.com and civitai.red answer the same API; HydraOps uses civitai.com.
 
 ## Connections: ready-made MCP servers
 
