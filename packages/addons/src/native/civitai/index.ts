@@ -81,12 +81,17 @@ const sizeOf = (kb: unknown) => {
   return v >= 1e9 ? `${(v / 1e9).toFixed(2)} GB` : `${(v / 1e6).toFixed(1)} MB`;
 };
 // A model's description is HTML written by its author: shown as plain text, shortened.
-const plain = (html: unknown, max = 1500) => {
-  const t = String(html ?? "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|li|h\d)>/gi, "\n").replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+// Tags are removed until none is left (a tag split around another must not survive), any
+// stray angle bracket goes too, and &lt; / &gt; stay encoded so decoding cannot rebuild a
+// tag; &amp; is decoded last so it cannot turn into another entity.
+export function plain(html: unknown, max = 1500): string {
+  let t = String(html ?? "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|li|h\d)>/gi, "\n");
+  for (let prev = ""; prev !== t;) { prev = t; t = t.replace(/<[^<>]*>/g, ""); }
+  t = t.replace(/[<>]/g, "")
+    .replace(/&nbsp;/g, " ").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&")
     .replace(/\n{3,}/g, "\n\n").trim();
   return t.length > max ? `${t.slice(0, max)}…` : t;
-};
+}
 const license = (m: any) => {
   const uses: string[] = Array.isArray(m?.allowCommercialUse) ? m.allowCommercialUse : typeof m?.allowCommercialUse === "string" ? [m.allowCommercialUse] : [];
   return {
