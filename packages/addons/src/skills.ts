@@ -31,7 +31,7 @@ const NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 export const isValidSkillName = (name: unknown): name is string => typeof name === 'string' && NAME_RE.test(name);
 
 export const SKILL_LIMITS = {
-  maxFiles: 40,
+  maxFiles: 50,
   maxFileBytes: 128 * 1024,
   maxTotalBytes: 512 * 1024,
   /** Skills listed in the system prompt; past this the list is cut (and says so). */
