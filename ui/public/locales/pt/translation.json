@@ -339,6 +339,14 @@
     "maxSteps": "Passos por tarefa",
     "maxStepsDefault": "{{n}} passos (padrão)",
     "maxStepsOption": "{{n}} passos",
+    "history": "Memória da conversa",
+    "historyHint": "Quanto do chat anterior acompanha cada nova mensagem. Ela é reenviada a cada passo de uma tarefa, então um agente cujos pedidos se entendem sozinhos sai mais barato com menos. Tarefas agendadas nunca a recebem; o que fica de fora ainda pode ser buscado com recall.",
+    "historyLevel": {
+      "none": "Nenhuma (cada mensagem sozinha)",
+      "short": "Curta (3 dias, 6 trocas)",
+      "normal": "Normal (7 dias, 10 trocas)",
+      "long": "Longa (30 dias, 20 trocas) — padrão"
+    },
     "maxStepsHint": "Quantas rodadas de ferramentas o agente pode usar em uma tarefa. Mais passos permitem trabalhos mais longos, mas cada passo reenvia toda a conversa: uma tarefa de 45 passos pode custar várias vezes o que custa uma de 15."
   },
   "system": {

@@ -91,6 +91,9 @@ export class AgentsComponent implements OnInit {
   // Tool rounds per task: fixed options (the first one is the default).
   readonly stepLimits = [15, 30, 45];
   maxSteps = signal<number>(15);
+  // Past conversation per chat task: none | short | normal | long (the last one is the default).
+  readonly historyLevels = ['none', 'short', 'normal', 'long'] as const;
+  historyLevel = signal<string>('long');
 
   // Only the aspects the selected engine can actually render. Anything else
   // would be mapped to the closest supported size by the worker without the
@@ -441,6 +444,7 @@ export class AgentsComponent implements OnInit {
         this.resolution.set((cfg['resolution'] as string) || 'auto');
         this.securityMode.set(cfg['securityMode'] === 'trusted' ? 'trusted' : 'ask');
         this.maxSteps.set(this.stepLimits.includes(Number(cfg['maxSteps'])) ? Number(cfg['maxSteps']) : 15);
+        this.historyLevel.set((this.historyLevels as readonly string[]).includes(String(cfg['historyLevel'])) ? String(cfg['historyLevel']) : 'long');
       }
     });
   }
@@ -575,13 +579,18 @@ export class AgentsComponent implements OnInit {
     this.saveConfig({ securityMode });
   }
 
+  onHistoryLevelChange(value: string): void {
+    this.historyLevel.set(value);
+    this.saveConfig({ historyLevel: value });
+  }
+
   onMaxStepsChange(value: number | string): void {
     const maxSteps = Number(value);
     this.maxSteps.set(maxSteps);
     this.saveConfig({ maxSteps });
   }
 
-  private saveConfig(partial: { model?: string; workerType?: string; graphicEngine?: string; resolution?: string; securityMode?: string; maxSteps?: number }): void {
+  private saveConfig(partial: { model?: string; workerType?: string; graphicEngine?: string; resolution?: string; securityMode?: string; maxSteps?: number; historyLevel?: string }): void {
     const agent = this.selectedAgent();
     if (!agent) return;
     const payload = {
@@ -592,6 +601,8 @@ export class AgentsComponent implements OnInit {
       securityMode: partial.securityMode ?? this.securityMode(),
       // The first option is "the default": stored as null, so it follows the app-wide default.
       maxSteps: (partial.maxSteps ?? this.maxSteps()) === this.stepLimits[0] ? null : (partial.maxSteps ?? this.maxSteps()),
+      // "long" is the default: stored as null.
+      historyLevel: (partial.historyLevel ?? this.historyLevel()) === 'long' ? null : (partial.historyLevel ?? this.historyLevel()),
     };
     this.savingConfig.set(true);
     this.api.saveAgentConfig(agent.id, payload).subscribe({

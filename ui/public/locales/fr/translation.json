@@ -339,6 +339,14 @@
     "maxSteps": "Étapes par tâche",
     "maxStepsDefault": "{{n}} étapes (par défaut)",
     "maxStepsOption": "{{n}} étapes",
+    "history": "Mémoire de la conversation",
+    "historyHint": "La part de la discussion précédente qui accompagne chaque nouveau message. Elle est renvoyée à chaque étape d'une tâche : un agent dont les demandes se comprennent seules coûte moins cher avec moins. Les tâches planifiées ne la reçoivent jamais ; ce qui reste dehors se retrouve avec recall.",
+    "historyLevel": {
+      "none": "Aucune (chaque message seul)",
+      "short": "Courte (3 jours, 6 échanges)",
+      "normal": "Normale (7 jours, 10 échanges)",
+      "long": "Longue (30 jours, 20 échanges) — par défaut"
+    },
     "maxStepsHint": "Le nombre de tours d'outils que l'agent peut utiliser dans une tâche. Plus d'étapes permettent des travaux plus longs, mais chaque étape renvoie toute la conversation : une tâche de 45 étapes peut coûter plusieurs fois le prix d'une tâche de 15."
   },
   "system": {

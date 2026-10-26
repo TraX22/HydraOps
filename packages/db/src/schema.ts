@@ -105,6 +105,9 @@ export const agentConfigs = sqliteTable("agent_configs", {
   // Tool rounds a task of this agent may use: null = the default (15, or HYDRA_LLM_MAX_STEPS),
   // otherwise one of the fixed options (see @hydraops/llm STEP_LIMIT_OPTIONS).
   maxSteps: integer("max_steps"),
+  // How much past conversation a chat task of this agent gets: null = "long" (the default),
+  // otherwise one of HISTORY_LEVELS (none | short | normal | long). See loadRecentChannelHistory.
+  historyLevel: text("history_level"),
   lastHeartbeat: integer("last_heartbeat", { mode: "timestamp" }),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });

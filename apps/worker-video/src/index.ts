@@ -13,7 +13,7 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, loadRecentChannelHistory, historyBudgetChars, searchAgentTasks, isTaskCancelled, modelNeverAnswered, lastTaskToolNames, taskChainAutoApproved } from "@hydraops/db";
+import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, loadRecentChannelHistory, historyOptions, searchAgentTasks, isTaskCancelled, modelNeverAnswered, lastTaskToolNames, taskChainAutoApproved } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { and, desc, eq, ne } from "drizzle-orm";
@@ -654,7 +654,8 @@ ${EXTERNAL_CONTENT_RULE}
 
     // The channel's last exchanges (30 days, 20 at most, within a size budget); empty for
     // cron-fired tasks (see loadRecentChannelHistory).
-    const historyRows = await loadRecentChannelHistory(db, channel, taskId, { maxChars: historyBudgetChars(llmConfig.provider) });
+    // How much of it is the agent's own setting (Agents → history), capped for a local model.
+    const historyRows = await loadRecentChannelHistory(db, channel, taskId, historyOptions(cfgRows[0]?.historyLevel, llmConfig.provider));
     const history = historyRows.reverse().flatMap((t: any) => {
       const assistantText = historyAssistantText(t.resultMeta);
       return [

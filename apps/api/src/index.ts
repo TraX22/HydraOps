@@ -45,7 +45,7 @@ import {
   blenderImportCode, parseBlenderImportResult, BLENDER_SERVERS, BLENDER_CODE_TOOL,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
-import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, HISTORY_DAYS } from "@hydraops/db";
+import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, HISTORY_DAYS, isHistoryLevel } from "@hydraops/db";
 import { buildEnvelope } from "@hydraops/events";
 import { eq, and, gte, lt, asc, desc, like, inArray, isNull } from "drizzle-orm";
 import os from "node:os";
@@ -1094,6 +1094,9 @@ api.post("/agents/:id/config", async (req, res) => {
     // One of the fixed options, or null for the default. Anything else is ignored.
     if (req.body.maxSteps === null) updatePayload.maxSteps = null;
     else if ((STEP_LIMIT_OPTIONS as readonly number[]).includes(Number(req.body.maxSteps))) updatePayload.maxSteps = Number(req.body.maxSteps);
+    // How much past conversation its chat tasks get: one of the levels, or null for the default (long).
+    if (req.body.historyLevel === null) updatePayload.historyLevel = null;
+    else if (isHistoryLevel(req.body.historyLevel)) updatePayload.historyLevel = req.body.historyLevel;
 
     await (db as any).insert(agentConfigs)
       .values({ agentId: id, ...updatePayload })
