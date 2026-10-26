@@ -136,6 +136,26 @@ export function historyBudgetChars(provider?: string): number {
   return provider === "local" ? 30_000 : 120_000;
 }
 
+/**
+ * How much past conversation an agent's chat tasks get, chosen per agent. Every past
+ * exchange is sent again on every model round of a task, so an agent whose tasks stand
+ * on their own (generate this, check that) pays for little use; "long" is the default.
+ */
+export const HISTORY_LEVELS = {
+  none: { days: 0, limit: 0, maxChars: 0 },
+  short: { days: 3, limit: 6, maxChars: 20_000 },
+  normal: { days: 7, limit: 10, maxChars: 40_000 },
+  long: { days: HISTORY_DAYS, limit: HISTORY_EXCHANGES, maxChars: 120_000 },
+} as const;
+export type HistoryLevel = keyof typeof HISTORY_LEVELS;
+export const isHistoryLevel = (v: unknown): v is HistoryLevel => typeof v === "string" && v in HISTORY_LEVELS;
+
+/** The history options for an agent's level (null or unknown = long), capped for a local model. */
+export function historyOptions(level: unknown, provider?: string): { days: number; limit: number; maxChars: number } {
+  const l = HISTORY_LEVELS[isHistoryLevel(level) ? level : "long"];
+  return { days: l.days, limit: l.limit, maxChars: Math.min(l.maxChars, historyBudgetChars(provider)) };
+}
+
 export async function loadRecentChannelHistory(
   db: any,
   channel: string,
@@ -145,6 +165,7 @@ export async function loadRecentChannelHistory(
   const days = opts.days ?? HISTORY_DAYS;
   const limit = opts.limit ?? HISTORY_EXCHANGES;
   const maxChars = opts.maxChars ?? historyBudgetChars();
+  if (limit <= 0 || days <= 0) return [];
   const [current] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, taskId)).limit(1);
   if (current?.cronId) return [];
 

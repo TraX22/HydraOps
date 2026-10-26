@@ -152,6 +152,14 @@
             }
           </select>
           <p class="list-empty-hint">{{ 'agents.maxStepsHint' | translate }}</p>
+          <label class="field-sublabel">{{ 'agents.history' | translate }}</label>
+          <select class="field-select" [ngModel]="historyLevel()" (ngModelChange)="onHistoryLevelChange($event)"
+                  [title]="'agents.historyHint' | translate">
+            @for (l of historyLevels; track l) {
+              <option [ngValue]="l">{{ 'agents.historyLevel.' + l | translate }}</option>
+            }
+          </select>
+          <p class="list-empty-hint">{{ 'agents.historyHint' | translate }}</p>
         </div>
 
         <!-- Personality / config files -->

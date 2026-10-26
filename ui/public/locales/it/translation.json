@@ -339,6 +339,14 @@
     "maxSteps": "Passi per attività",
     "maxStepsDefault": "{{n}} passi (predefinito)",
     "maxStepsOption": "{{n}} passi",
+    "history": "Memoria della conversazione",
+    "historyHint": "Quanta parte della chat precedente accompagna ogni nuovo messaggio. Viene rinviata a ogni passo di un'attività, quindi a un agente le cui richieste si capiscono da sole costa meno con meno. Le attività pianificate non la ricevono mai; ciò che resta fuori si trova comunque con recall.",
+    "historyLevel": {
+      "none": "Nessuna (ogni messaggio a sé)",
+      "short": "Breve (3 giorni, 6 scambi)",
+      "normal": "Normale (7 giorni, 10 scambi)",
+      "long": "Lunga (30 giorni, 20 scambi) — predefinita"
+    },
     "maxStepsHint": "Quanti giri di strumenti l'agente può usare in un'attività. Più passi permettono lavori più lunghi, ma ogni passo reinvia tutta la conversazione: un'attività da 45 passi può costare diverse volte una da 15."
   },
   "system": {

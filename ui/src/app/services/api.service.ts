@@ -735,7 +735,7 @@ export class ApiService {
     return this.http.get<Record<string, unknown>>(`${this.base}/agents/${agentId}/config`);
   }
 
-  saveAgentConfig(agentId: string, config: { model: string; workerType?: string; graphicEngine?: string; graphicFormat?: string; resolution?: string; securityMode?: string; maxSteps?: number | null }): Observable<void> {
+  saveAgentConfig(agentId: string, config: { model: string; workerType?: string; graphicEngine?: string; graphicFormat?: string; resolution?: string; securityMode?: string; maxSteps?: number | null; historyLevel?: string | null }): Observable<void> {
     return this.http.post<void>(`${this.base}/agents/${agentId}/config`, config);
   }
 

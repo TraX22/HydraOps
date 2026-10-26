@@ -339,6 +339,14 @@
     "maxSteps": "Pasos por tarea",
     "maxStepsDefault": "{{n}} pasos (predeterminado)",
     "maxStepsOption": "{{n}} pasos",
+    "history": "Memoria de la conversación",
+    "historyHint": "Cuánto del chat anterior acompaña a cada mensaje nuevo. Se reenvía en cada paso de una tarea, así que a un agente cuyos pedidos se entienden solos le sale más barato con menos. Las tareas programadas nunca lo reciben; lo que queda afuera se puede buscar igual con recall.",
+    "historyLevel": {
+      "none": "Nada (cada mensaje por separado)",
+      "short": "Corta (3 días, 6 intercambios)",
+      "normal": "Normal (7 días, 10 intercambios)",
+      "long": "Larga (30 días, 20 intercambios) — predeterminada"
+    },
     "maxStepsHint": "Cuántas rondas de herramientas puede usar el agente en una tarea. Más pasos permiten trabajos más largos, pero cada paso reenvía toda la conversación: una tarea de 45 pasos puede costar varias veces lo que una de 15."
   },
   "system": {
