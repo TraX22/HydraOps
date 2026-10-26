@@ -89,9 +89,10 @@ export const xPostTool: HydraTool = {
     try {
       const { ok, status, data } = await callApi("POST", "/x/post", { agentId, account, parts }, hasVideo ? 20 * 60_000 : 180_000);
       if (!ok) return `Not published${status === 403 || status === 404 || status === 409 || status === 400 ? "" : ` (X answered ${status})`}: ${data?.message || data?.error || "X refused the post."}`;
-      const urls: string[] = Array.isArray(data.posts) ? data.posts.map((p: any) => p.url) : [];
+      // A part X created without naming its id has no link: said so, never shown as a broken address.
+      const urls: string[] = Array.isArray(data.posts) ? data.posts.map((p: any, i: number) => (typeof p?.url === "string" && p.url ? p.url : `(part ${i + 1}: published, but X returned no link for it; it is under the previous part on X)`)) : [];
       return [
-        `Published as @${data.username}: ${data.url}`,
+        `Published as @${data.username}: ${data.url || "(X returned no link; the post is on the account's page)"}`,
         urls.length > 1 ? `Thread of ${urls.length} parts: ${urls.join(" ")}` : "",
         typeof data.estimatedUsd === "number" ? `About ${data.estimatedUsd.toFixed(3)} USD charged by X to the user's developer account.` : "",
         "Tell the user the link. Deleting a post is not a tool you have: if they want it gone, they do it on X.",

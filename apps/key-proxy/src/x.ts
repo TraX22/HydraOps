@@ -470,15 +470,24 @@ export async function postThread(accountId: string, parts: XPostPart[], opts: XP
       body: JSON.stringify(payload),
     }, 60_000);
     const id = body?.data?.id;
-    if (!ok || typeof id !== "string") {
-      const done = posts.length ? ` ${posts.length} part(s) were already published: ${posts.map((x) => x.url).join(" ")}.` : "";
+    if (!ok) {
+      const done = posts.length ? ` ${posts.length} part(s) were already published: ${posts.map((x) => x.url).filter(Boolean).join(" ")}.` : "";
       throw new XError(errorCode(body) || `http_${status}`, errorMessage(body, `X refused the post (${status}).`) + done, status);
+    }
+    if (typeof id !== "string" || !/^\d+$/.test(id)) {
+      // X created the post (it answered 2xx) but named no id: a thread once came back with
+      // its last link empty. Nothing is retried (that would publish it twice); the part is
+      // reported as published without a link, and the body is logged to see what X sent.
+      console.warn(`[key-proxy] x: part ${posts.length + 1} created as @${account.username} but X returned no id (HTTP ${status}): ${JSON.stringify(body).slice(0, 500)}`);
+      posts.push({ id: "", url: "" });
+      // Without the id the next part cannot reply to this one; it replies to the last known.
+      continue;
     }
     posts.push({ id, url: `https://x.com/${account.username}/status/${id}` });
     previous = id;
   }
-  console.log(`[key-proxy] x: published ${posts.length} part(s) as @${account.username}`);
-  return { username: account.username, posts, url: posts[0].url };
+  console.log(`[key-proxy] x: published ${posts.length} part(s) as @${account.username}: ${posts.map((p) => p.id || "?").join(" ")}`);
+  return { username: account.username, posts, url: posts.find((p) => p.url)?.url ?? "" };
 }
 
 // ─── Status and control ─────────────────────────────────────────────────────
