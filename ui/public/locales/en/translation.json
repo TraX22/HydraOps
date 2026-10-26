@@ -211,9 +211,9 @@
         "unknownAccount": "not connected, or not enabled for this agent: the post will be refused",
         "parts": "{{n}} parts, one thread",
         "part": "Post",
-        "chars": "{{n}}/280 characters",
-        "tooLong": "over the limit: X will refuse it",
-        "images": "Images",
+        "chars": "{{n}}/{{max}} characters",
+        "tooLong": "over this account's limit: X will refuse it",
+        "images": "Attachments",
         "cost": "About {{usd}} USD, charged by X to your developer account",
         "linkNote": "a post with a link costs more"
       }
@@ -648,6 +648,8 @@
       "connectedOn": "connected on {{date}}",
       "reauth": "session expired: connect again",
       "canPost": "May post:",
+      "premium": "X Premium account",
+      "premiumHint": "Tick it if this account is X Premium (blue check): the agents may then publish long posts and long videos; X enforces the real limits.",
       "nobody": "nobody yet",
       "addAgent": "agent",
       "disconnect": "Disconnect",

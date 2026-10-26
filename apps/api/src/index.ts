@@ -2784,7 +2784,9 @@ api.post("/system/integrations/telegram", async (req, res) => {
 // which account (checked by the publishing tool, on the server side, never by the model).
 const X_CONFIG_KEY = "x_config";
 
-interface XConfig { enabled: boolean; accounts: Record<string, { agents: string[] }> }
+// premium: the user says the account is X Premium, which allows long posts and long videos; the
+// limits are X's, this flag only decides what the tools refuse beforehand and what the card shows.
+interface XConfig { enabled: boolean; accounts: Record<string, { agents: string[]; premium?: boolean }> }
 async function readXConfig(): Promise<XConfig> {
   const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, X_CONFIG_KEY)).limit(1);
   // On by default: nothing can post until an account is connected AND given agents, so the
@@ -2796,7 +2798,7 @@ async function readXConfig(): Promise<XConfig> {
     const accounts: XConfig["accounts"] = {};
     if (saved?.accounts && typeof saved.accounts === "object") {
       for (const [id, v] of Object.entries<any>(saved.accounts)) {
-        if (/^[0-9]{1,30}$/.test(id) && Array.isArray(v?.agents)) accounts[id] = { agents: v.agents.filter((a: unknown) => typeof a === "string") };
+        if (/^[0-9]{1,30}$/.test(id) && Array.isArray(v?.agents)) accounts[id] = { agents: v.agents.filter((a: unknown) => typeof a === "string"), ...(v.premium === true ? { premium: true } : {}) };
       }
     }
     return { enabled: typeof saved?.enabled === "boolean" ? saved.enabled : true, accounts };
@@ -2846,13 +2848,13 @@ function isServedHost(host: string): boolean {
   return !!pub && name === pub;
 }
 
-async function xProxy(method: "GET" | "POST", p: string, body?: unknown): Promise<any> {
+async function xProxy(method: "GET" | "POST", p: string, body?: unknown, timeoutMs = 30_000): Promise<any> {
   const base = (process.env.KEY_PROXY_URL || "http://127.0.0.1:9099").replace(/\/$/, "");
   const r = await fetch(`${base}/x${p}`, {
     method,
     headers: method === "POST" ? { "content-type": "application/json" } : undefined,
     body: method === "POST" ? JSON.stringify(body ?? {}) : undefined,
-    signal: AbortSignal.timeout(30_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const out: any = await r.json().catch(() => ({}));
   if (!r.ok) throw Object.assign(new Error(out?.error?.message || out?.error || `key-proxy answered ${r.status}`), { status: r.status, code: out?.error?.code });
@@ -2865,7 +2867,7 @@ function xFailure(res: express.Response, e: any): void {
 /** The status the card shows: the key-proxy's view of the accounts plus this side's settings. */
 async function xIntegrationStatus(): Promise<any> {
   const [st, cfg] = await Promise.all([xProxy("GET", "/status"), readXConfig()]);
-  const accounts = (st.accounts ?? []).map((a: any) => ({ ...a, agents: cfg.accounts[a.id]?.agents ?? [] }));
+  const accounts = (st.accounts ?? []).map((a: any) => ({ ...a, agents: cfg.accounts[a.id]?.agents ?? [], premium: cfg.accounts[a.id]?.premium === true }));
   return { ...st, enabled: cfg.enabled, accounts };
 }
 
@@ -2883,8 +2885,10 @@ api.post("/system/integrations/x", async (req, res) => {
     if (Array.isArray(b.accounts)) {
       for (const a of b.accounts) {
         if (!a || typeof a.id !== "string" || !/^[0-9]{1,30}$/.test(a.id)) continue;
-        const agents: string[] = Array.isArray(a.agents) ? [...new Set<string>(a.agents.map((x: unknown) => String(x).trim().toLowerCase()).filter((x: string) => /^[a-z0-9_-]{1,64}$/.test(x)))] : [];
-        cfg.accounts[a.id] = { agents };
+        const prev = cfg.accounts[a.id] ?? { agents: [] };
+        const agents: string[] = Array.isArray(a.agents) ? [...new Set<string>(a.agents.map((x: unknown) => String(x).trim().toLowerCase()).filter((x: string) => /^[a-z0-9_-]{1,64}$/.test(x)))] : prev.agents;
+        const premium = typeof a.premium === "boolean" ? a.premium : prev.premium === true;
+        cfg.accounts[a.id] = { agents, ...(premium ? { premium: true } : {}) };
       }
     }
     await writeXConfig(cfg);
@@ -2952,8 +2956,12 @@ function xCallbackParams(raw: string): { code: string; state: string } | null {
 // the accounts it was given in Tools → X.
 const X_POST_USD = 0.015;
 const X_LINK_USD = 0.20;
-const X_MEDIA_MAX_BYTES = 5 * 1024 * 1024;
-const X_MEDIA_EXT = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp"]);
+// The same limits the key-proxy applies (its media upload code): images 5 MB, GIFs 15 MB, videos 8 GB or 16 GB on Premium.
+const X_MEDIA_LIMITS: Record<string, number> = { image: 5 * 1024 * 1024, gif: 15 * 1024 * 1024, video: 8 * 1024 ** 3, videoPremium: 16 * 1024 ** 3 };
+const xMediaKind = (name: string): "image" | "gif" | "video" | null => {
+  const ext = path.extname(name).toLowerCase();
+  return ext === ".mp4" ? "video" : ext === ".gif" ? "gif" : [".png", ".jpg", ".jpeg", ".webp"].includes(ext) ? "image" : null;
+};
 
 /** The arguments of an x_post call, in one comparable form (the held copy and the live one). */
 function xPostShape(account: unknown, parts: unknown): string {
@@ -2985,10 +2993,10 @@ async function claimApprovedXPost(agentId: string, account: unknown, parts: unkn
 }
 
 /** The accounts an agent may publish with, as the tools see them (no tokens, no secret). */
-async function xAccountsFor(agentId: string): Promise<{ enabled: boolean; accounts: { id: string; username: string; name: string; status: string; agents: string[] }[] }> {
+async function xAccountsFor(agentId: string): Promise<{ enabled: boolean; accounts: { id: string; username: string; name: string; status: string; agents: string[]; premium: boolean }[] }> {
   const st = await xIntegrationStatus();
   const id = String(agentId || "").trim().toLowerCase();
-  return { enabled: st.enabled, accounts: (st.accounts as any[]).filter((a) => a.agents.includes(id)).map((a) => ({ id: a.id, username: a.username, name: a.name, status: a.status, agents: a.agents })) };
+  return { enabled: st.enabled, accounts: (st.accounts as any[]).filter((a) => a.agents.includes(id)).map((a) => ({ id: a.id, username: a.username, name: a.name, status: a.status, agents: a.agents, premium: a.premium === true })) };
 }
 
 api.get("/x/accounts", async (req, res) => {
@@ -3021,19 +3029,27 @@ api.post("/x/post", async (req, res) => {
       const text = String(rp?.text ?? "").trim();
       if (!text) return res.status(400).json({ error: "empty_part", message: `Part ${i + 1} has no text.` });
       const media: string[] = [];
-      for (const ref of Array.isArray(rp?.media) ? rp.media.slice(0, 4) : []) {
+      const refs: unknown[] = Array.isArray(rp?.media) ? rp.media : [];
+      if (refs.length > 4) return res.status(400).json({ error: "bad_media", message: `Part ${i + 1} has ${refs.length} attachments; a part takes up to 4 images, or one GIF, or one video.` });
+      for (const ref of refs) {
         const name = path.basename(String(ref ?? "").replace(/\\/g, "/").trim());
         const full = path.join(uploadsDir, name);
         if (!name || path.dirname(path.resolve(full)) !== path.resolve(uploadsDir)) return res.status(400).json({ error: "bad_media", message: `"${ref}" is not one of the attached files.` });
-        if (!X_MEDIA_EXT.has(path.extname(name).toLowerCase())) return res.status(400).json({ error: "bad_media", message: `"${name}" is not an image X takes (png, jpg, gif, webp).` });
+        const kind = xMediaKind(name);
+        if (!kind) return res.status(400).json({ error: "bad_media", message: `"${name}" is not a file X takes (png, jpg, gif, webp or mp4).` });
         const st2 = await stat(full).catch(() => null);
         if (!st2?.isFile()) return res.status(400).json({ error: "bad_media", message: `There is no attached file named "${name}".` });
-        if (st2.size > X_MEDIA_MAX_BYTES) return res.status(400).json({ error: "bad_media", message: `"${name}" is larger than 5 MB.` });
+        const max = kind === "video" ? (account.premium ? X_MEDIA_LIMITS.videoPremium : X_MEDIA_LIMITS.video) : X_MEDIA_LIMITS[kind];
+        if (st2.size > max) return res.status(400).json({ error: "bad_media", message: `"${name}" is larger than ${max >= 1024 ** 3 ? `${max / 1024 ** 3} GB` : `${max / 1024 / 1024} MB`}${kind === "video" && !account.premium ? " (16 GB on a Premium account)" : ""}.` });
         media.push(full);
       }
+      // X's rule: a video or a GIF goes alone in its part.
+      if (media.length > 1 && media.some((m) => xMediaKind(m) !== "image")) return res.status(400).json({ error: "bad_media", message: `Part ${i + 1}: a video or a GIF goes alone in its part, with no other attachment.` });
       parts.push({ text, media });
     }
-    const out = await xProxy("POST", "/post", { accountId: account.id, parts });
+    // A video is uploaded in chunks and then processed by X: minutes, not seconds.
+    const hasVideo = parts.some((p) => p.media.some((m) => xMediaKind(m) === "video"));
+    const out = await xProxy("POST", "/post", { accountId: account.id, parts, premium: account.premium === true }, hasVideo ? 20 * 60_000 : 60_000);
     const cost = parts.reduce((n, p) => n + (/https?:\/\/|\b[a-z0-9-]+\.[a-z]{2,}\b/i.test(p.text) ? X_LINK_USD : X_POST_USD), 0);
     console.log(`[api] x: ${agentId} published ${parts.length} part(s) as @${account.username} (about ${cost.toFixed(3)} USD)`);
     res.json({ ok: true, ...out, estimatedUsd: Number(cost.toFixed(3)) });

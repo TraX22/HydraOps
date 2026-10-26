@@ -68,7 +68,7 @@ function describePost(a: any): string {
     const media: string[] = Array.isArray(p?.media) ? p.media.map(String) : [];
     return [
       `${parts.length > 1 ? `${i + 1}/ ` : ""}${clip(text, 1000)}`,
-      `(${n}/280${n > 280 ? " — over the limit, X will refuse it" : ""}${media.length ? `, ${media.length} image${media.length > 1 ? "s" : ""}: ${media.join(", ")}` : ""})`,
+      `(${n}/280${n > 280 ? " — over the limit for a non-Premium account" : ""}${media.length ? `, ${media.map((m) => /\.mp4$/i.test(m) ? `video ${m}` : m).join(", ")}` : ""})`,
     ].join("\n");
   });
   const usd = parts.reduce((t, p) => t + (/https?:\/\/|\b[a-z0-9-]+\.[a-z]{2,}\b/i.test(String(p?.text ?? "")) ? 0.2 : 0.015), 0);

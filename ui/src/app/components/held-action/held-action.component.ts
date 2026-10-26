@@ -39,12 +39,15 @@ import { IconComponent } from '../icon/icon.component';
               @if (post.parts.length > 1) { <span class="post-n">{{ $index + 1 }}/</span> }
               <div class="post-body">
                 <pre class="post-text">{{ p.text }}</pre>
-                <div class="post-meta" [class.bad]="p.chars > 280">
-                  {{ 'chat.held.x.chars' | translate:{ n: p.chars } }}@if (p.chars > 280) { · {{ 'chat.held.x.tooLong' | translate }} }
+                <div class="post-meta" [class.bad]="p.chars > charLimit">
+                  {{ 'chat.held.x.chars' | translate:{ n: p.chars, max: charLimit } }}@if (p.chars > charLimit) { · {{ 'chat.held.x.tooLong' | translate }} }
                 </div>
                 @if (p.media.length) {
                   <div class="post-images">
-                    @for (m of p.media; track m) { <img [src]="api.storageUrl('uploads/' + m)" [alt]="m" [title]="m" /> }
+                    @for (m of p.media; track m) {
+                      @if (isVideo(m)) { <video [src]="api.storageUrl('uploads/' + m)" [title]="m" controls preload="metadata"></video> }
+                      @else { <img [src]="api.storageUrl('uploads/' + m)" [alt]="m" [title]="m" /> }
+                    }
                   </div>
                 }
               </div>
@@ -125,6 +128,7 @@ import { IconComponent } from '../icon/icon.component';
     .post-meta.bad { color: #ef4444; font-weight: 600; }
     .post-images { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
     .post-images img { width: 96px; height: 96px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-color); }
+    .post-images video { max-width: 100%; max-height: 240px; border-radius: 6px; border: 1px solid var(--border-color); background: #000; }
     .post-cost { margin: 0; color: var(--text-muted); font-size: 11.5px; }
   `],
 })
@@ -151,6 +155,10 @@ export class HeldActionComponent implements OnInit {
       error: () => this.xChecked.set(true),
     });
   }
+
+  /** X's length rule for this account: 280 weighted characters, or 25,000 on a Premium account. */
+  get charLimit(): number { return this.xAccount()?.premium ? 25_000 : 280; }
+  isVideo(name: string): boolean { return /\.mp4$/i.test(name); }
 
   /** The x_post arguments, read as a post: account, parts with their weighted length and images, cost. */
   get post(): { account: string; parts: { text: string; chars: number; media: string[] }[]; usd: string; hasLink: boolean } | null {

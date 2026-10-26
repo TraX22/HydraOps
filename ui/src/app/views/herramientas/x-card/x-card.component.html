@@ -92,6 +92,10 @@
               @if (a.status === 'reauth') { <span class="chip bad">{{ 'herramientas.x.reauth' | translate }}</span> }
               <span class="meta">{{ 'herramientas.x.connectedOn' | translate:{ date: dateOf(a) } }}</span>
             </div>
+            <label class="premium" [title]="'herramientas.x.premiumHint' | translate">
+              <input type="checkbox" [checked]="a.premium === true" (change)="togglePremium(a)" />
+              {{ 'herramientas.x.premium' | translate }}
+            </label>
             <div class="agents">
               <span class="tool-hint">{{ 'herramientas.x.canPost' | translate }}</span>
               @for (id of a.agents; track id) {
