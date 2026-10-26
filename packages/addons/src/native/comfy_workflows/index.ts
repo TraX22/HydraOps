@@ -469,6 +469,30 @@ async function resolveAttachment(ref: string, uploadsDir: string | undefined): P
   return { path: full, name };
 }
 
+/** Width and height of a PNG, JPEG, WebP or GIF from its header; null for anything else. */
+export function imageSize(buf: Buffer): { width: number; height: number } | null {
+  if (buf.length >= 24 && buf.readUInt32BE(0) === 0x89504e47) return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+  if (buf.length >= 10 && buf.toString("ascii", 0, 6).startsWith("GIF8")) return { width: buf.readUInt16LE(6), height: buf.readUInt16LE(8) };
+  if (buf.length >= 30 && buf.toString("ascii", 0, 4) === "RIFF" && buf.toString("ascii", 8, 12) === "WEBP") {
+    const kind = buf.toString("ascii", 12, 16);
+    if (kind === "VP8 ") return { width: buf.readUInt16LE(26) & 0x3fff, height: buf.readUInt16LE(28) & 0x3fff };
+    if (kind === "VP8L") { const b = buf.readUInt32LE(21); return { width: (b & 0x3fff) + 1, height: ((b >> 14) & 0x3fff) + 1 }; }
+    if (kind === "VP8X") return { width: (buf.readUIntLE(24, 3)) + 1, height: (buf.readUIntLE(27, 3)) + 1 };
+  }
+  if (buf.length >= 4 && buf[0] === 0xff && buf[1] === 0xd8) {
+    let i = 2;
+    while (i + 9 < buf.length) {
+      if (buf[i] !== 0xff) { i++; continue; }
+      const marker = buf[i + 1];
+      if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) { i += 2; continue; }
+      const len = buf.readUInt16BE(i + 2);
+      if ((marker >= 0xc0 && marker <= 0xcf) && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) return { height: buf.readUInt16BE(i + 5), width: buf.readUInt16BE(i + 7) };
+      i += 2 + len;
+    }
+  }
+  return null;
+}
+
 async function uploadToComfy(base: string, file: { path: string; name: string }): Promise<string> {
   const form = new FormData();
   form.append("image", new Blob([await readFile(file.path)]), file.name);
@@ -517,7 +541,9 @@ async function prepare(base: string, name: string, files: string[], ctx: Prepare
       try { stored = await uploadToComfy(base, resolved[i]); }
       catch (e: any) { return `comfy_workflows: ${e?.name === "AbortError" ? "the upload timed out" : e?.message ?? "the upload failed"}.`; }
       inputs[i].assign(stored);
-      done.push(`uploaded "${resolved[i].name}" to ComfyUI and set it at ${inputs[i].address} (${inputs[i].type})`);
+      // Its size travels with the note: a crop or a resize in the workflow needs it, and the model cannot measure a picture.
+      const size = imageSize(await readFile(resolved[i].path).catch(() => Buffer.alloc(0)));
+      done.push(`uploaded "${resolved[i].name}"${size ? ` (${size.width} × ${size.height} px)` : ""} to ComfyUI and set it at ${inputs[i].address} (${inputs[i].type})`);
     }
   }
 
@@ -535,7 +561,7 @@ async function prepare(base: string, name: string, files: string[], ctx: Prepare
     } catch { /* without the node's definition nothing is repaired */ }
   }
   for (const f of repairNumbersAsText(graph, (t) => infoCache.get(t))) done.push(`repaired a number stored as text: ${f}`);
-  for (const f of repairObjectWidgets(graph, (t) => infoCache.get(t))) done.push(`kept a widget's record value: ${f}`);
+  for (const f of repairObjectWidgets(graph, (t) => infoCache.get(t))) done.push(`kept a widget's record value: ${f} — to change it, use THIS tool's action "set" (the connection's set_workflow_slot rewrites the node and the value falls back to the node's default)`);
   const separators = normalizeLineSeparators(graph);
   if (separators) done.push(`replaced the invisible line separators (U+2028/U+2029) in ${separators} text value(s) with line breaks: the ComfyUI connection cannot read a workflow's values while they are there`);
 
@@ -555,12 +581,112 @@ async function prepare(base: string, name: string, files: string[], ctx: Prepare
     describeWorkflow(graph),
     models,
     [
-      "What is left, with the ComfyUI connection's tools:",
-      `1. validate_workflow on that file. If it or the list above reports a missing model or node, name what is missing to the user and stop: it has to be installed in ComfyUI. Do not look for another workflow because of it, and do not swap in another version of a model unless the user asks for one. If the user then asks you to get a missing model, comfy_download_model downloads it into the right folder with the user's approval: for a model listed above, pass exactly its link and its folder; otherwise the file's direct link from the model's official page.`,
+      "What is left:",
+      `0. To change values on this copy (a prompt, a seed, a file name, a crop region…), comfy_workflows with action "set", "name" as above and "values": {"<node>.<input>": value} — the addresses are the ones the connection's list_workflow_slots prints. It keeps the record values above intact; the connection's set_workflow_slot works for plain values but breaks those.`,
+      `1. validate_workflow on that file (the ComfyUI connection's tool). If it or the list above reports a missing model or node, name what is missing to the user and stop: it has to be installed in ComfyUI. Do not look for another workflow because of it, and do not swap in another version of a model unless the user asks for one. If the user then asks you to get a missing model, comfy_download_model downloads it into the right folder with the user's approval: for a model listed above, pass exactly its link and its folder; otherwise the file's direct link from the model's official page.`,
       `2. run_workflow with that file and wait: false; keep the prompt_id.`,
       `3. comfy_workflows with action "collect" and that prompt_id (and "name": a short name for the result, e.g. "stone_tower"). It waits a little: when the job has finished it copies the result into this task's folder and tells you what it is; when the job is still going it says so, and then you tell the user the generation is running in ComfyUI and that they can ask you later whether it finished, and end your reply. Never wait with the connection's job tool, never run the workflow a second time.`,
       "4. Report to the user what collect returned: the file, its size and what it measured. When collect attaches the resulting image, look at it and say how it matches the request; a result you were not shown (a 3D model, a video, an image it did not attach) you have not seen: say it was generated, not how it looks.",
     ].join("\n"),
+  ].filter(Boolean).join("\n\n");
+}
+
+// ── set ────────────────────────────────────────────────────────────────────────
+
+const MAX_SET_VALUES = 40;
+const ADDRESS_RE = /^([\w-]+)\.([\w.\- ]+)$/;
+
+/**
+ * Changes values on the prepared copy, by the "<node>.<input>" addresses the ComfyUI
+ * connection's list_workflow_slots prints, and keeps the copy in the shape the converter
+ * reads correctly: a node whose values were written by name (a record widget such as a crop
+ * region) stays that way, and the repairs of "prepare" run again. The connection's own
+ * set_workflow_slot rewrites such a node as a positional list, after which the record is
+ * dropped on conversion and the server runs the node's default.
+ */
+async function setValues(base: string, name: string, values: Record<string, unknown>, ctx: PrepareContext): Promise<string> {
+  if (!isSavedWorkflowName(name)) return 'comfy_workflows: "name" must be the workflow\'s name, as given to "prepare".';
+  if (!ctx.filesDir) return "comfy_workflows: this task has no folder with a prepared workflow.";
+  const entries = Object.entries(values ?? {});
+  if (!entries.length) return 'comfy_workflows: "values" is empty; give {"<node>.<input>": value} pairs.';
+  if (entries.length > MAX_SET_VALUES) return `comfy_workflows: at most ${MAX_SET_VALUES} values per call.`;
+  const target = path.join(ctx.filesDir, path.basename(name));
+  let graph: any;
+  try { graph = JSON.parse(await readFile(target, "utf-8")); } catch { return `comfy_workflows: there is no prepared copy of "${name}" in this task; run action "prepare" first.`; }
+
+  const infoCache = new Map<string, any>();
+  const nodeInfo = async (type: string) => {
+    if (!infoCache.has(type)) {
+      try { const r = await request(`${base}/object_info/${encodeURIComponent(type)}`); infoCache.set(type, r.ok ? ((await r.json()) as any)?.[type] : undefined); }
+      catch { infoCache.set(type, undefined); }
+    }
+    return infoCache.get(type);
+  };
+  const ui = Array.isArray(graph?.nodes);
+  const subgraphs: any[] = ui && Array.isArray(graph.definitions?.subgraphs) ? graph.definitions.subgraphs : [];
+  const findNode = (id: string): { node: any; where: string } | null => {
+    if (!ui) return graph && typeof graph === "object" && graph[id] ? { node: graph[id], where: "" } : null;
+    const top = graph.nodes.find((n: any) => String(n?.id) === id);
+    if (top) return { node: top, where: "" };
+    for (const s of subgraphs) { const n = (s.nodes ?? []).find((x: any) => String(x?.id) === id); if (n) return { node: n, where: `inside subgraph "${s.name ?? s.id}"` }; }
+    return null;
+  };
+
+  const applied: string[] = [];
+  const problems: string[] = [];
+  for (const [address, value] of entries) {
+    const m = ADDRESS_RE.exec(String(address).trim());
+    if (!m) { problems.push(`"${address}": an address is "<node id>.<input name>", e.g. "6.text"`); continue; }
+    const [, id, input] = m;
+    const found = findNode(id);
+    if (!found) { problems.push(`"${address}": there is no node ${id} in this workflow`); continue; }
+    const { node, where } = found;
+    const type = String(ui ? node.type : node.class_type);
+    const shown = clip(JSON.stringify(value), 80);
+    if (!ui) {
+      const cur = node.inputs?.[input];
+      if (Array.isArray(cur) && cur.length === 2) { problems.push(`"${address}": that input is fed by node ${cur[0]}; change that node instead`); continue; }
+      node.inputs = node.inputs ?? {};
+      node.inputs[input] = value;
+      applied.push(`node ${id} (${type}) ${input} = ${shown}`);
+      continue;
+    }
+    const fed = Array.isArray(node.inputs) ? node.inputs.find((i: any) => (i?.widget?.name ?? i?.name) === input && i?.widget && i.link !== null && i.link !== undefined) : null;
+    if (fed) { problems.push(`"${address}": ${input} of node ${id} is fed by another node (link ${fed.link}); the stored value is not used, change the feeding node instead`); continue; }
+    if (isRecord(node.widgets_values)) {
+      const widgets = widgetInputs(await nodeInfo(type)).map((w) => w.name);
+      if (!(input in node.widgets_values) && widgets.length && !widgets.includes(input)) { problems.push(`"${address}": node ${id} (${type}) has no widget "${input}"; its widgets: ${widgets.join(", ")}`); continue; }
+      node.widgets_values[input] = value;
+      applied.push(`node ${id} (${type})${where ? ` ${where}` : ""} ${input} = ${shown}`);
+      continue;
+    }
+    if (!Array.isArray(node.widgets_values)) { problems.push(`"${address}": node ${id} (${type}) keeps no values`); continue; }
+    const widgets = widgetInputs(await nodeInfo(type));
+    if (!widgets.length) { problems.push(`"${address}": ComfyUI did not describe node type ${type}, so its values cannot be addressed by name; is it installed?`); continue; }
+    // The values pair with the widgets in order; a seed's control word takes a slot of its own.
+    let index = -1;
+    for (let i = 0, w = 0; w < widgets.length && i < node.widgets_values.length; w++, i++) {
+      if (widgets[w].name === input) { index = i; break; }
+      if (/seed/i.test(widgets[w].name) && typeof node.widgets_values[i + 1] === "string" && CONTROL_MARKERS.has(node.widgets_values[i + 1])) i++;
+    }
+    if (index < 0) { problems.push(`"${address}": node ${id} (${type}) has no widget "${input}"; its widgets: ${widgets.map((w) => w.name).join(", ")}`); continue; }
+    node.widgets_values[index] = value;
+    applied.push(`node ${id} (${type})${where ? ` ${where}` : ""} ${input} = ${shown}`);
+  }
+
+  // The same repairs as "prepare", so what was just written reaches the server as meant.
+  const repairs: string[] = [];
+  const types = new Set<string>(graphNodes(graph).nodes.map((n) => n.type));
+  for (const type of types) await nodeInfo(type);
+  for (const r of repairNumbersAsText(graph, (t) => infoCache.get(t))) repairs.push(`repaired a number stored as text: ${r}`);
+  for (const r of repairObjectWidgets(graph, (t) => infoCache.get(t))) repairs.push(`kept a widget's record value: ${r}`);
+  normalizeLineSeparators(graph);
+  if (applied.length) await writeFile(target, JSON.stringify(graph));
+  return [
+    applied.length ? `Set on the prepared copy ${target}:\n${applied.map((a) => `- ${a}`).join("\n")}` : "Nothing was changed.",
+    problems.length ? `Not set:\n${problems.map((p) => `- ${p}`).join("\n")}` : "",
+    repairs.length ? `Also:\n${repairs.map((r) => `- ${r}`).join("\n")}` : "",
+    applied.length ? "Next: validate_workflow on that file, then run_workflow with it." : "",
   ].filter(Boolean).join("\n\n");
 }
 
@@ -861,19 +987,22 @@ export const comfyWorkflowsTool: HydraTool = {
     "action \"collect\" brings a job's result (the files it saved, not its previews) into this task's folder so the user sees them in the chat, and says what each one is: use it for ANY job, also one started from an online template, instead of the connection's fetch_outputs (which leaves the files in a temporary folder the user never sees). " +
     "It waits a little; when the job is still going it says so (how long, and how many jobs are ahead of it) instead of waiting: then tell the user and end, they will ask again later. " +
     "action \"cancel\" stops a job the user no longer wants: a running one is interrupted, a queued one is removed. Both remember the last job this agent launched, so \"did it finish?\" and \"cancel it\" need no prompt_id. " +
+    "action \"set\" changes values on the prepared copy by address (\"<node>.<input>\", as the connection's list_workflow_slots prints them): the safe way to set a prompt, a seed, a file name or a crop region, since the connection's set_workflow_slot drops a node's record values. " +
     "action \"downloads\" tells how far the model downloads this agent started with comfy_download_model got.",
   schema: z.object({
-    action: z.enum(["list", "prepare", "collect", "cancel", "downloads"]).describe('"downloads" shows the model downloads started with comfy_download_model. Otherwise: ' +'"list" the saved workflows, "prepare" one to run, "collect" a job\'s result (or learn that it is still going), or "cancel" a job'),
-    name: z.string().optional().describe('For "prepare": the workflow\'s name exactly as "list" prints it, e.g. "image_to_3d.json". For "collect": a short name for the result file (e.g. "stone_tower").'),
+    action: z.enum(["list", "prepare", "set", "collect", "cancel", "downloads"]).describe('"downloads" shows the model downloads started with comfy_download_model. Otherwise: ' +'"list" the saved workflows, "prepare" one to run, "set" values on the prepared copy, "collect" a job\'s result (or learn that it is still going), or "cancel" a job'),
+    name: z.string().optional().describe('For "prepare" and "set": the workflow\'s name exactly as "list" prints it, e.g. "image_to_3d.json". For "collect": a short name for the result file (e.g. "stone_tower").'),
+    values: z.record(z.string(), z.any()).optional().describe('For "set": the values to write, by address, e.g. {"6.text": "a red bicycle", "3.seed": 42, "338.crop_region": {"x": 0, "y": 0, "width": 512, "height": 512}}. A value fed by another node cannot be set here.'),
     prompt_id: z.string().optional().describe('For "collect" and "cancel": the prompt_id run_workflow returned. Omit it to use the last job this agent launched.'),
     files: z.array(z.string()).optional().describe('For "prepare": the files the user attached, as the conversation names them (e.g. "storage/uploads/1791-photo.jpg"), in the order of the workflow\'s file inputs. Omit for a workflow that reads no file.'),
   }),
-  execute: async ({ action, name, files, prompt_id }, context) => {
+  execute: async ({ action, name, files, prompt_id, values }, context) => {
     const base = comfyBaseUrl(context?.connectionEnv?.("comfyui")?.COMFYUI_URL || process.env.COMFYUI_URL);
     const jobCtx: JobContext = { filesDir: context?.filesDir, uploadsDir: context?.uploadsDir, agentId: context?.agentId, report: context?.addResultFile };
     if (action === "collect") return collect(base, String(prompt_id ?? "").trim(), name, jobCtx);
     if (action === "cancel") return cancel(base, String(prompt_id ?? "").trim(), jobCtx);
     if (action === "downloads") return (await import("../comfy_download/index.js")).downloadsReport({ uploadsDir: context?.uploadsDir, agentId: context?.agentId });
+    if (action === "set") return setValues(base, String(name ?? ""), (values && typeof values === "object" ? values : {}) as Record<string, unknown>, { filesDir: context?.filesDir, uploadsDir: context?.uploadsDir });
     if (action !== "prepare") return listSaved(base);
     const list = Array.isArray(files) ? files.map((f) => String(f)) : [];
     return prepare(base, String(name ?? ""), list, { filesDir: context?.filesDir, uploadsDir: context?.uploadsDir });
