@@ -211,9 +211,9 @@
         "unknownAccount": "non collegato, o non abilitato per questo agente: la pubblicazione verrà rifiutata",
         "parts": "{{n}} parti, un thread",
         "part": "Post",
-        "chars": "{{n}}/280 caratteri",
-        "tooLong": "oltre il limite: X lo rifiuterà",
-        "images": "Immagini",
+        "chars": "{{n}}/{{max}} caratteri",
+        "tooLong": "supera il limite di questo account: X lo rifiuterà",
+        "images": "Allegati",
         "cost": "Circa {{usd}} USD, addebitati da X sul tuo account sviluppatore",
         "linkNote": "un post con un link costa di più"
       }
@@ -648,6 +648,8 @@
       "connectedOn": "collegato il {{date}}",
       "reauth": "sessione scaduta: ricollega",
       "canPost": "Possono pubblicare:",
+      "premium": "Account X Premium",
+      "premiumHint": "Spuntalo se questo account è X Premium (spunta blu): gli agenti potranno pubblicare testi lunghi e video lunghi; i limiti reali li impone X.",
       "nobody": "nessuno per ora",
       "addAgent": "agente",
       "disconnect": "Scollega",

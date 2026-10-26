@@ -17,12 +17,12 @@ export function xLength(text: string): number {
   return text.replace(/https?:\/\/\S+/gi, "x".repeat(23)).length;
 }
 
-async function callApi(method: "GET" | "POST", p: string, body?: unknown): Promise<{ ok: boolean; status: number; data: any }> {
+async function callApi(method: "GET" | "POST", p: string, body?: unknown, timeoutMs = 180_000): Promise<{ ok: boolean; status: number; data: any }> {
   const r = await fetch(`${apiUrl()}/api${p}`, {
     method,
     headers: body !== undefined ? { "content-type": "application/json" } : undefined,
     body: body !== undefined ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(180_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const data: any = await r.json().catch(() => ({}));
   return { ok: r.ok, status: r.status, data };
@@ -47,8 +47,8 @@ export const xAccountsTool: HydraTool = {
       if (!list.length) return `No X account is enabled for ${agentId}. The user assigns accounts to agents in Tools → X.`;
       return [
         `X accounts ${agentId} may publish on:`,
-        ...list.map((a) => `- @${a.username} (${a.name})${a.status !== "connected" ? " — session expired, needs reconnecting in Tools → X" : ""}`),
-        "Limits: 280 weighted characters per part (a URL counts as 23), up to 4 images per part, up to 25 parts in a thread. Every x_post call waits for the user's approval; the user pays X per post (more when a part carries a link).",
+        ...list.map((a) => `- @${a.username} (${a.name})${a.premium ? " — Premium: long posts allowed" : ""}${a.status !== "connected" ? " — session expired, needs reconnecting in Tools → X" : ""}`),
+        "Limits: 280 weighted characters per part (a URL counts as 23) unless the account is Premium (then up to 25,000, but X shows only the start and the user has to ask for a long post explicitly); per part, up to 4 images, or one GIF, or one video (mp4, H.264 + AAC); up to 25 parts in a thread. Every x_post call waits for the user's approval; the user pays X per post (more when a part carries a link).",
       ].join("\n");
     } catch (e: any) {
       return `Could not read the X accounts: ${e?.message || e}`;
@@ -58,7 +58,7 @@ export const xAccountsTool: HydraTool = {
 
 const partSchema = z.object({
   text: z.string().min(1).describe("The part's text, as it will be published. 280 weighted characters at most (a URL counts as 23)."),
-  media: z.array(z.string()).max(4).optional().describe("Up to 4 attached images to put on this part, by the file name the conversation shows (storage/uploads/<name>). png, jpg, gif or webp, 5 MB at most each."),
+  media: z.array(z.string()).max(4).optional().describe("Attachments for this part, by the file name the conversation shows (storage/uploads/<name>): up to 4 images (png, jpg, webp; 5 MB each), or ONE gif (15 MB), or ONE video (mp4 with H.264 video and AAC audio). A video or a GIF goes alone in its part."),
 });
 
 export const xPostTool: HydraTool = {
@@ -67,7 +67,7 @@ export const xPostTool: HydraTool = {
   // Publishes under the user's name: every call waits for the user's approval.
   risk: { sensitive: true, approval: "always" },
   description:
-    "Publish a post or a thread on one of the user's X accounts. `account` is the handle (from x_accounts); `parts` the posts in order, each a reply to the one before. It is never run without the user's approval: they see the account, every part with its length, the images and the cost before deciding. Give the final text, not a draft; count the characters first; put links in the last part. The answer carries the link to the published post.",
+    "Publish a post or a thread on one of the user's X accounts. `account` is the handle (from x_accounts); `parts` the posts in order, each a reply to the one before. It is never run without the user's approval: they see the account, every part with its length, the images or video and the cost before deciding. Give the final text, not a draft; count the characters first (280 per part, unless the account is Premium and the user asked for a long post); put links in the last part. A video is uploaded and processed by X before the post goes out, which can take minutes. The answer carries the link to the published post.",
   schema: z.object({
     account: z.string().min(1).describe("The handle of the account to publish on, without the @ (one of x_accounts)."),
     parts: z.array(partSchema).min(1).max(25).describe("The post, or the parts of the thread in order."),
@@ -75,10 +75,19 @@ export const xPostTool: HydraTool = {
   execute: async ({ account, parts }, ctx) => {
     const agentId = String(ctx?.agentId ?? "").trim();
     if (!agentId) return "This task carries no agent identity, so nothing can be published.";
-    const tooLong = (parts as { text: string }[]).map((p, i) => ({ i: i + 1, n: xLength(p.text) })).filter((p) => p.n > 280);
-    if (tooLong.length) return `Not published: part${tooLong.length > 1 ? "s" : ""} ${tooLong.map((p) => `${p.i} (${p.n} characters)`).join(", ")} over the 280-character limit. Shorten and call again.`;
+    // The 280 rule is X's for a non-Premium account; a Premium one takes long posts (up to 25,000).
+    let premium = false;
     try {
-      const { ok, status, data } = await callApi("POST", "/x/post", { agentId, account, parts });
+      const acc = await callApi("GET", `/x/accounts?agentId=${encodeURIComponent(agentId)}`);
+      const wanted = String(account).trim().replace(/^@/, "").toLowerCase();
+      premium = acc.ok && (acc.data?.accounts ?? []).some((a: any) => String(a.username).toLowerCase() === wanted && a.premium === true);
+    } catch { /* the API decides below anyway */ }
+    const limit = premium ? 25_000 : 280;
+    const tooLong = (parts as { text: string }[]).map((p, i) => ({ i: i + 1, n: xLength(p.text) })).filter((p) => p.n > limit);
+    if (tooLong.length) return `Not published: part${tooLong.length > 1 ? "s" : ""} ${tooLong.map((p) => `${p.i} (${p.n} characters)`).join(", ")} over the ${limit}-character limit${premium ? "" : " of this account (a Premium account could take a long post)"}. Shorten and call again.`;
+    const hasVideo = (parts as { media?: string[] }[]).some((p) => (p.media ?? []).some((m) => /\.mp4$/i.test(m)));
+    try {
+      const { ok, status, data } = await callApi("POST", "/x/post", { agentId, account, parts }, hasVideo ? 20 * 60_000 : 180_000);
       if (!ok) return `Not published${status === 403 || status === 404 || status === 409 || status === 400 ? "" : ` (X answered ${status})`}: ${data?.message || data?.error || "X refused the post."}`;
       const urls: string[] = Array.isArray(data.posts) ? data.posts.map((p: any) => p.url) : [];
       return [

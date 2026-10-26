@@ -276,6 +276,8 @@ export interface XAccount {
   refreshedAt?: string;
   /** The agents allowed to publish with this account (kept by the API). */
   agents: string[];
+  /** The user says the account is X Premium: long posts and long videos are allowed. */
+  premium?: boolean;
 }
 export interface XIntegration {
   enabled: boolean;
@@ -955,7 +957,7 @@ export class ApiService {
   }
 
   /** The switch and the agents allowed per account. */
-  saveXIntegration(cfg: { enabled?: boolean; accounts?: { id: string; agents: string[] }[] }): Observable<XIntegration> {
+  saveXIntegration(cfg: { enabled?: boolean; accounts?: { id: string; agents?: string[]; premium?: boolean }[] }): Observable<XIntegration> {
     return this.http.post<XIntegration>(`${this.base}/system/integrations/x`, cfg);
   }
 

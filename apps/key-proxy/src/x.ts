@@ -19,7 +19,7 @@
  * with X_AUTH_BASE / X_API_BASE (tests).
  */
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { chmod, mkdir, readFile, realpath, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { chmod, mkdir, open, readFile, realpath, rename, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { keyStoreDir, uploadsDir } from "@hydraops/config";
 
@@ -334,21 +334,39 @@ export async function accessToken(id: string): Promise<string> {
 
 export interface XPostPart { text: string; media?: string[] }
 export interface XPostResult { username: string; posts: { id: string; url: string }[]; url: string }
+/** What the API knows about the account that the key-proxy does not: a Premium account may post longer videos. */
+export interface XPostOptions { premium?: boolean }
 
-const MEDIA_MAX_BYTES = 5 * 1024 * 1024;
-const MEDIA_TYPES: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp" };
+// What X takes per media kind (its media upload guide): images 5 MB, GIFs 15 MB, videos 20 min
+// and 8 GB, or 125 min and 16 GB on a Premium account. Duration is X's call: a video over the
+// account's allowance is refused when the post is created.
+const MEDIA_TYPES: Record<string, string> = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".mp4": "video/mp4" };
+export const MEDIA_MAX_BYTES = { image: 5 * 1024 * 1024, gif: 15 * 1024 * 1024, video: 8 * 1024 ** 3, videoPremium: 16 * 1024 ** 3 };
+export const mediaKind = (file: string): "image" | "gif" | "video" | null => {
+  const ext = path.extname(file).toLowerCase();
+  return ext === ".mp4" ? "video" : ext === ".gif" ? "gif" : MEDIA_TYPES[ext] ? "image" : null;
+};
+// Chunks of a video upload: X asks for 5 MB or less per segment.
+const CHUNK_BYTES = 5 * 1024 * 1024;
+// X processes a video after the upload; a short clip takes seconds, a long one minutes.
+const PROCESSING_WAIT_MS = Number(process.env.X_VIDEO_PROCESSING_MS) || 15 * 60_000;
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-/** One image, uploaded for the account; X answers with the media id to attach. */
-async function uploadMedia(token: string, filePath: string): Promise<string> {
+/** The attachment's real path, inside the uploads folder, or an error. */
+async function attachmentPath(filePath: string): Promise<string> {
   const real = await realpath(filePath).catch(() => "");
   const root = await realpath(uploadsDir).catch(() => path.resolve(uploadsDir));
   if (!real || path.dirname(real) !== root || !(await stat(real)).isFile()) throw new XError("bad_media", `"${path.basename(filePath)}" is not one of the files attached in HydraOps.`);
-  filePath = real;
+  return real;
+}
+
+/** One image or GIF, uploaded in one request; X answers with the media id to attach. */
+async function uploadImage(token: string, filePath: string): Promise<string> {
   const ext = path.extname(filePath).toLowerCase();
   const type = MEDIA_TYPES[ext];
-  if (!type) throw new XError("media_type", `"${path.basename(filePath)}" is not an image X takes (png, jpg, gif, webp).`);
   const bytes = await readFile(filePath);
-  if (bytes.length > MEDIA_MAX_BYTES) throw new XError("media_too_large", `"${path.basename(filePath)}" is larger than 5 MB.`);
+  const max = ext === ".gif" ? MEDIA_MAX_BYTES.gif : MEDIA_MAX_BYTES.image;
+  if (bytes.length > max) throw new XError("media_too_large", `"${path.basename(filePath)}" is larger than ${max / 1024 / 1024} MB.`);
   const form = new FormData();
   form.append("media", new Blob([bytes], { type }), path.basename(filePath));
   form.append("media_category", ext === ".gif" ? "tweet_gif" : "tweet_image");
@@ -360,15 +378,81 @@ async function uploadMedia(token: string, filePath: string): Promise<string> {
 }
 
 /**
+ * A video, uploaded the way X asks for anything large: initialize, append the file in chunks,
+ * finalize, then wait until X has processed it (the media id is not usable before). The
+ * file is read chunk by chunk, never whole.
+ */
+async function uploadVideo(token: string, filePath: string, premium: boolean): Promise<string> {
+  const name = path.basename(filePath);
+  const size = (await stat(filePath)).size;
+  const max = premium ? MEDIA_MAX_BYTES.videoPremium : MEDIA_MAX_BYTES.video;
+  if (size > max) throw new XError("media_too_large", `"${name}" is ${(size / 1024 ** 3).toFixed(2)} GB; X takes videos up to ${max / 1024 ** 3} GB${premium ? "" : " (16 GB on a Premium account)"}.`);
+  const auth = { authorization: `Bearer ${token}` };
+  const init = await fetchJson(`${apiBase()}/2/media/upload/initialize`, {
+    method: "POST", headers: { ...auth, "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({ media_type: "video/mp4", total_bytes: size, media_category: "tweet_video" }),
+  }, 60_000);
+  const id = init.body?.data?.id ?? init.body?.id;
+  if (!init.ok || typeof id !== "string") throw new XError(errorCode(init.body) || `http_${init.status}`, errorMessage(init.body, `X did not start the upload of "${name}" (${init.status}).`), init.status);
+  const handle = await open(filePath, "r");
+  try {
+    const buf = Buffer.alloc(CHUNK_BYTES);
+    for (let index = 0, offset = 0; offset < size; index++, offset += CHUNK_BYTES) {
+      const { bytesRead } = await handle.read(buf, 0, Math.min(CHUNK_BYTES, size - offset), offset);
+      const form = new FormData();
+      form.append("segment_index", String(index));
+      form.append("media", new Blob([buf.subarray(0, bytesRead)], { type: "application/octet-stream" }), name);
+      const { ok, status, body } = await fetchJson(`${apiBase()}/2/media/upload/${encodeURIComponent(id)}/append`, { method: "POST", headers: auth, body: form }, 300_000);
+      if (!ok) throw new XError(errorCode(body) || `http_${status}`, errorMessage(body, `X did not take part ${index + 1} of "${name}" (${status}).`), status);
+    }
+  } finally {
+    await handle.close();
+  }
+  const fin = await fetchJson(`${apiBase()}/2/media/upload/${encodeURIComponent(id)}/finalize`, { method: "POST", headers: { ...auth, accept: "application/json" } }, 60_000);
+  if (!fin.ok) throw new XError(errorCode(fin.body) || `http_${fin.status}`, errorMessage(fin.body, `X did not finish the upload of "${name}" (${fin.status}).`), fin.status);
+  // Processing: X says when to ask again; "succeeded" makes the id usable, "failed" ends it.
+  let info = fin.body?.data?.processing_info ?? fin.body?.processing_info;
+  const deadline = Date.now() + PROCESSING_WAIT_MS;
+  while (info && info.state !== "succeeded") {
+    if (info.state === "failed") throw new XError("video_processing_failed", `X could not process "${name}"${info.error?.message ? `: ${info.error.message}` : ""}. It takes MP4 with H.264 video and AAC audio.`);
+    if (Date.now() > deadline) throw new XError("video_processing_timeout", `X is still processing "${name}" after ${Math.round(PROCESSING_WAIT_MS / 60_000)} minutes; the post was not created.`);
+    await sleep(Math.min(Math.max(Number(info.check_after_secs) || 1, 1), 30) * 1000);
+    const st = await fetchJson(`${apiBase()}/2/media/upload?command=STATUS&media_id=${encodeURIComponent(id)}`, { method: "GET", headers: { ...auth, accept: "application/json" } }, 60_000);
+    if (!st.ok) throw new XError(errorCode(st.body) || `http_${st.status}`, errorMessage(st.body, `X did not report the processing of "${name}" (${st.status}).`), st.status);
+    info = st.body?.data?.processing_info ?? st.body?.processing_info ?? { state: "succeeded" };
+  }
+  return id;
+}
+
+/** One attachment uploaded for the account, by its kind. */
+async function uploadMedia(token: string, filePath: string, premium: boolean): Promise<string> {
+  const real = await attachmentPath(filePath);
+  const kind = mediaKind(real);
+  if (!kind) throw new XError("media_type", `"${path.basename(filePath)}" is not a file X takes (png, jpg, gif, webp or mp4).`);
+  return kind === "video" ? uploadVideo(token, real, premium) : uploadImage(token, real);
+}
+
+/** X's rule for one post: up to 4 images, or one GIF, or one video; not mixed. */
+export function mediaRuleError(media: string[]): string | null {
+  if (media.length > 4) return "A part takes up to 4 images.";
+  const kinds = media.map(mediaKind);
+  if (kinds.includes(null)) return "A part's attachments have to be png, jpg, gif, webp or mp4 files.";
+  const single = kinds.filter((k) => k === "video" || k === "gif");
+  if (single.length && media.length > 1) return "A video or a GIF goes alone in its part, with no other attachment.";
+  return null;
+}
+
+/**
  * Publishes one post or a thread (each part a reply to the one before) as one account.
  * The caller (the API) has already checked that the agent may use the account and that
  * the media paths are the user's own attachments; here the tokens are spent, nothing else.
  */
-export async function postThread(accountId: string, parts: XPostPart[]): Promise<XPostResult> {
+export async function postThread(accountId: string, parts: XPostPart[], opts: XPostOptions = {}): Promise<XPostResult> {
   if (!Array.isArray(parts) || !parts.length || parts.length > 25) throw new XError("bad_parts", "A post has 1 to 25 parts.");
   for (const p of parts) {
     if (typeof p?.text !== "string" || !p.text.trim()) throw new XError("empty_part", "Every part needs text.");
-    if (Array.isArray(p.media) && p.media.length > 4) throw new XError("too_many_media", "A part takes up to 4 images.");
+    const rule = mediaRuleError(Array.isArray(p.media) ? p.media : []);
+    if (rule) throw new XError("bad_media", rule);
   }
   const token = await accessToken(accountId);
   const account = (await load()).accounts.find((a) => a.id === accountId)!;
@@ -376,7 +460,7 @@ export async function postThread(accountId: string, parts: XPostPart[]): Promise
   let previous: string | undefined;
   for (const part of parts) {
     const mediaIds: string[] = [];
-    for (const file of part.media ?? []) mediaIds.push(await uploadMedia(token, file));
+    for (const file of part.media ?? []) mediaIds.push(await uploadMedia(token, file, opts.premium === true));
     const payload: any = { text: part.text };
     if (mediaIds.length) payload.media = { media_ids: mediaIds };
     if (previous) payload.reply = { in_reply_to_tweet_id: previous };
@@ -446,7 +530,7 @@ export async function handleControl(req: import("node:http").IncomingMessage, re
     if (path === "/finish" && req.method === "POST") { const b = await readBody(req); sendJson(res, 200, { ok: true, account: await finishConnect(String(b.code ?? ""), String(b.state ?? "")) }); return true; }
     if (path === "/cancel" && req.method === "POST") { cancelConnect(); sendJson(res, 200, { ok: true }); return true; }
     if (path === "/disconnect" && req.method === "POST") { const b = await readBody(req); await disconnect(String(b.id ?? "")); sendJson(res, 200, { ok: true }); return true; }
-    if (path === "/post" && req.method === "POST") { const b = await readBody(req); sendJson(res, 200, await postThread(String(b.accountId ?? ""), Array.isArray(b.parts) ? b.parts : [])); return true; }
+    if (path === "/post" && req.method === "POST") { const b = await readBody(req); sendJson(res, 200, await postThread(String(b.accountId ?? ""), Array.isArray(b.parts) ? b.parts : [], { premium: b.premium === true })); return true; }
     return false;
   } catch (e: any) {
     sendJson(res, e instanceof XError ? e.status : 500, { error: { code: e instanceof XError ? e.code : "x_failed", message: safeMessage(e, "The request to X failed.") } });

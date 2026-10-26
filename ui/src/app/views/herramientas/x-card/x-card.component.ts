@@ -174,6 +174,13 @@ export class XCardComponent implements OnInit, OnDestroy {
     this.setAgents(a, a.agents.filter(x => x !== id));
   }
 
+  togglePremium(a: XAccount): void {
+    const premium = !a.premium;
+    const x = this.x();
+    if (x) this.x.set({ ...x, accounts: x.accounts.map(k => k.id === a.id ? { ...k, premium } : k) });
+    this.api.saveXIntegration({ accounts: [{ id: a.id, agents: a.agents, premium }] }).subscribe({ next: n => { this.apply(n); this.flash(); }, error: e => this.error.set(this.errorText(e)) });
+  }
+
   private setAgents(a: XAccount, agents: string[]): void {
     const x = this.x();
     if (x) this.x.set({ ...x, accounts: x.accounts.map(k => k.id === a.id ? { ...k, agents } : k) });
