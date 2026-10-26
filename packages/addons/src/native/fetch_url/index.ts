@@ -13,14 +13,19 @@ const MAX_OUTPUT = 200_000;
 
 const MAX_HOPS = 10;
 
-interface JarCookie { name: string; value: string; domain: string; hostOnly: boolean; path: string; secure: boolean; expires: number | null }
+interface JarCookie { name: string; value: string; host: string; path: string; expires: number | null }
 
 /**
- * The cookies one request collects while it follows redirects, as a browser would. Some
- * sites only serve the page on the second pass: developer.android.com tries a silent
- * Google sign-in, sets a cookie saying it tried, and sends the reader back; without the
- * cookie that loop never ends. The jar lives for one fetch_url call and is thrown away:
- * nothing is kept between calls or tasks.
+ * The cookies one request collects while it follows redirects. Some sites only serve the
+ * page on the second pass: developer.android.com tries a silent Google sign-in, sets a
+ * cookie saying it tried, and sends the reader back; without the cookie that loop never
+ * ends. The jar lives for one fetch_url call and is thrown away: nothing is kept between
+ * calls or tasks.
+ *
+ * It is narrower than a browser's on purpose. Every cookie is host-only (a Domain=
+ * attribute is ignored), so one site can never plant or read a cookie for another, and
+ * no public-suffix list is needed. Cookies are taken and sent over https only, so none
+ * travels in clear text or crosses a scheme downgrade.
  */
 export class RequestCookieJar {
   private cookies: JarCookie[] = [];
@@ -28,45 +33,41 @@ export class RequestCookieJar {
   /** Takes the Set-Cookie headers of an answer from `url`. */
   store(url: string, setCookies: string[]): void {
     const u = new URL(url);
+    if (u.protocol !== "https:") return;
+    const host = u.hostname.toLowerCase();
     for (const line of setCookies) {
       const [pair, ...attrs] = line.split(";");
       const eq = pair.indexOf("=");
       if (eq <= 0) continue;
       const name = pair.slice(0, eq).trim();
       const value = pair.slice(eq + 1).trim();
-      let domain = u.hostname.toLowerCase(), hostOnly = true, path = "/", secure = false, expires: number | null = null;
+      if (!name) continue;
       const dir = u.pathname.replace(/\/[^/]*$/, "");
-      path = dir.startsWith("/") && dir ? dir : "/";
+      let path = dir.startsWith("/") && dir ? dir : "/";
+      let expires: number | null = null;
       for (const a of attrs) {
         const [k, ...rest] = a.split("=");
         const key = k.trim().toLowerCase();
         const v = rest.join("=").trim();
-        if (key === "domain" && v) {
-          const d = v.replace(/^\./, "").toLowerCase();
-          // A cookie may only be set for the answering host or a parent domain of it.
-          if (domain !== d && !domain.endsWith(`.${d}`)) { domain = ""; break; }
-          domain = d; hostOnly = false;
-        } else if (key === "path" && v.startsWith("/")) path = v;
-        else if (key === "secure") secure = true;
+        if (key === "path" && v.startsWith("/")) path = v;
         else if (key === "max-age" && /^-?\d+$/.test(v)) expires = Date.now() + Number(v) * 1000;
         else if (key === "expires" && expires === null) { const t = Date.parse(v); if (!Number.isNaN(t)) expires = t; }
       }
-      if (!domain || !name) continue;
-      this.cookies = this.cookies.filter((c) => !(c.name === name && c.domain === domain && c.path === path));
-      if (expires === null || expires > Date.now()) this.cookies.push({ name, value, domain, hostOnly, path, secure, expires });
+      this.cookies = this.cookies.filter((c) => !(c.name === name && c.host === host && c.path === path));
+      if (expires === null || expires > Date.now()) this.cookies.push({ name, value, host, path, expires });
     }
   }
 
   /** The Cookie header for a request to `url`, or undefined when no cookie applies. */
   header(url: string): string | undefined {
     const u = new URL(url);
+    if (u.protocol !== "https:") return undefined;
     const host = u.hostname.toLowerCase();
     const now = Date.now();
     const sent = this.cookies.filter((c) =>
       (c.expires === null || c.expires > now) &&
-      (c.hostOnly ? host === c.domain : host === c.domain || host.endsWith(`.${c.domain}`)) &&
-      (u.pathname === c.path || u.pathname.startsWith(c.path.endsWith("/") ? c.path : `${c.path}/`)) &&
-      (!c.secure || u.protocol === "https:"));
+      host === c.host &&
+      (u.pathname === c.path || u.pathname.startsWith(c.path.endsWith("/") ? c.path : `${c.path}/`)));
     return sent.length ? sent.map((c) => `${c.name}=${c.value}`).join("; ") : undefined;
   }
 }
@@ -107,7 +108,7 @@ async function fetchText(url: string, timeoutMs: number) {
       jar.store(current, response.headers.getSetCookie?.() ?? []);
       const location = response.headers.get("location");
       if ([301, 302, 303, 307, 308].includes(response.status) && location) {
-        void response.body?.cancel();
+        response.body?.cancel().catch(() => { /* ignore */ });
         current = new URL(location, current).href;
         continue;
       }
