@@ -11,14 +11,75 @@ const UA =
 // ../../vault.ts); this only stops a runaway page from being read to the end.
 const MAX_OUTPUT = 200_000;
 
+const MAX_HOPS = 10;
+
+interface JarCookie { name: string; value: string; domain: string; hostOnly: boolean; path: string; secure: boolean; expires: number | null }
+
+/**
+ * The cookies one request collects while it follows redirects, as a browser would. Some
+ * sites only serve the page on the second pass: developer.android.com tries a silent
+ * Google sign-in, sets a cookie saying it tried, and sends the reader back; without the
+ * cookie that loop never ends. The jar lives for one fetch_url call and is thrown away:
+ * nothing is kept between calls or tasks.
+ */
+export class RequestCookieJar {
+  private cookies: JarCookie[] = [];
+
+  /** Takes the Set-Cookie headers of an answer from `url`. */
+  store(url: string, setCookies: string[]): void {
+    const u = new URL(url);
+    for (const line of setCookies) {
+      const [pair, ...attrs] = line.split(";");
+      const eq = pair.indexOf("=");
+      if (eq <= 0) continue;
+      const name = pair.slice(0, eq).trim();
+      const value = pair.slice(eq + 1).trim();
+      let domain = u.hostname.toLowerCase(), hostOnly = true, path = "/", secure = false, expires: number | null = null;
+      const dir = u.pathname.replace(/\/[^/]*$/, "");
+      path = dir.startsWith("/") && dir ? dir : "/";
+      for (const a of attrs) {
+        const [k, ...rest] = a.split("=");
+        const key = k.trim().toLowerCase();
+        const v = rest.join("=").trim();
+        if (key === "domain" && v) {
+          const d = v.replace(/^\./, "").toLowerCase();
+          // A cookie may only be set for the answering host or a parent domain of it.
+          if (domain !== d && !domain.endsWith(`.${d}`)) { domain = ""; break; }
+          domain = d; hostOnly = false;
+        } else if (key === "path" && v.startsWith("/")) path = v;
+        else if (key === "secure") secure = true;
+        else if (key === "max-age" && /^-?\d+$/.test(v)) expires = Date.now() + Number(v) * 1000;
+        else if (key === "expires" && expires === null) { const t = Date.parse(v); if (!Number.isNaN(t)) expires = t; }
+      }
+      if (!domain || !name) continue;
+      this.cookies = this.cookies.filter((c) => !(c.name === name && c.domain === domain && c.path === path));
+      if (expires === null || expires > Date.now()) this.cookies.push({ name, value, domain, hostOnly, path, secure, expires });
+    }
+  }
+
+  /** The Cookie header for a request to `url`, or undefined when no cookie applies. */
+  header(url: string): string | undefined {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    const now = Date.now();
+    const sent = this.cookies.filter((c) =>
+      (c.expires === null || c.expires > now) &&
+      (c.hostOnly ? host === c.domain : host === c.domain || host.endsWith(`.${c.domain}`)) &&
+      (u.pathname === c.path || u.pathname.startsWith(c.path.endsWith("/") ? c.path : `${c.path}/`)) &&
+      (!c.secure || u.protocol === "https:"));
+    return sent.length ? sent.map((c) => `${c.name}=${c.value}`).join("; ") : undefined;
+  }
+}
+
 // Redirecciones seguidas a mano para poder validar CADA salto contra el guard
 // SSRF — un redirect a 127.0.0.1/red privada no debe colarse.
 async function fetchText(url: string, timeoutMs: number) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  const jar = new RequestCookieJar();
   try {
     let current = url;
-    for (let hop = 0; hop < 5; hop++) {
+    for (let hop = 0; hop < MAX_HOPS; hop++) {
       // La IP la fija el guard tras validarla; el dispatcher obliga a conectar a
       // ESA dirección (conservando el host para SNI/certificado) en vez de
       // re-resolver el DNS — cierra el rebinding TOCTOU. Un Agent por salto para
@@ -32,8 +93,9 @@ async function fetchText(url: string, timeoutMs: number) {
       });
       let response;
       try {
+        const cookie = jar.header(current);
         response = await fetch(current, {
-          headers: { "User-Agent": UA },
+          headers: { "User-Agent": UA, ...(cookie ? { Cookie: cookie } : {}) },
           signal: ctrl.signal,
           redirect: "manual",
           // @ts-expect-error dispatcher es opción de undici, no está en los tipos DOM
@@ -42,15 +104,17 @@ async function fetchText(url: string, timeoutMs: number) {
       } finally {
         dispatcher.close().catch(() => { /* ignore */ });
       }
+      jar.store(current, response.headers.getSetCookie?.() ?? []);
       const location = response.headers.get("location");
       if ([301, 302, 303, 307, 308].includes(response.status) && location) {
+        void response.body?.cancel();
         current = new URL(location, current).href;
         continue;
       }
       const body = await response.text();
       return { ok: response.ok, status: response.status, body, contentType: response.headers.get("content-type") ?? "" };
     }
-    throw new Error("Too many redirects");
+    throw new Error(`Too many redirects (more than ${MAX_HOPS})`);
   } finally {
     clearTimeout(timer);
   }
