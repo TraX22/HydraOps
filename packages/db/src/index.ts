@@ -1,5 +1,5 @@
 import * as sqliteSchema from "./schema.js";
-import { and, desc, eq, gte, lt, ne } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lt, ne } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
@@ -179,6 +179,7 @@ export async function loadRecentChannelHistory(
       eq(schema.tasks.status, "completed"),
       gte(schema.tasks.createdAt, cutoff),
       ne(schema.tasks.id, taskId),
+      isNull(schema.tasks.replacedBy),
     ))
     .orderBy(desc(schema.tasks.createdAt))
     .limit(limit);

@@ -8,6 +8,8 @@ Escribe y envía. El sistema asigna la tarea a un agente y su respuesta llega al
 
 En el **chat de un agente**, la tarea es para ese agente. En el **chat principal**, si no nombras a nadie (`@luna …`, o el nombre al principio), un modelo rápido lee el mensaje y elige al agente que mejor encaja según el **rol** que declara su `agent.md` y su tipo de worker: código a la programadora, imágenes a la ilustradora, video a la realizadora, y lo demás a quien tenga el rol más afín. Usa el modelo predeterminado salvo que elijas otro en **Config → Modelo de enrutado del Chat Principal** (conviene uno rápido: solo reparte el mensaje; con un modelo de API, ese mensaje sale a ese proveedor). Si el modelo no responde, se reparte por turnos.
 
+**Editar un mensaje.** Pasa el ratón por uno de tus mensajes, pulsa el lápiz, cambia el texto y guarda (Ctrl+Enter; Esc cancela). El mensaje sale de nuevo como si lo acabaras de escribir: el intercambio anterior, respuesta incluida, desaparece del chat y el agente responde al texto nuevo. Una tarea que todavía espera en la cola solo se reescribe. Lo que la ejecución anterior ya hizo (un archivo guardado, un mensaje enviado) no se deshace, y sigue contando en Estadísticas.
+
 ## Adjuntos
 
 El clip **📎** adjunta archivos al mensaje. También puedes **arrastrar archivos al chat** (un marco muestra dónde soltarlos) o **pegar una imagen copiada** con Ctrl+V en el cuadro del mensaje, por ejemplo una captura de pantalla. Cada archivo puede pesar hasta 20 MB:

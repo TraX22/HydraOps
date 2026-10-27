@@ -197,8 +197,21 @@ export class ChatService {
     this.api.deleteTask(taskId).subscribe(() => this.fetchHistory(channel));
   }
 
+  // An edited message goes out again: the old exchange leaves the chat and the agent
+  // answers the new text (a still-queued task is just rewritten, nothing to follow).
   editMessage(taskId: string, newPrompt: string, channel: string): void {
-    this.api.editTaskPrompt(taskId, newPrompt).subscribe(() => this.fetchHistory(channel));
+    if (!newPrompt.trim()) return;
+    this.api.resendTask(taskId, newPrompt).subscribe({
+      next: (task) => {
+        this.fetchHistory(channel);
+        if (task.resent) {
+          const typingMsg = this.typingPlaceholder(task.id, channel);
+          this.messagesByChannel.update(m => ({ ...m, [channel]: [...(m[channel] ?? []), typingMsg] }));
+          this.pollTaskCompletion(task.id, channel);
+        }
+      },
+      error: () => this.fetchHistory(channel),
+    });
   }
 
   startPolling(channel: string): void {

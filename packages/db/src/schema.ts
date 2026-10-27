@@ -35,6 +35,9 @@ export const tasks = sqliteTable("tasks", {
   // A task the worker creates once every call the user was asked to approve on another
   // task has been decided: the agent gets the outcomes and carries on from there.
   continuationOf: text("continuation_of"),
+  // The task that took this one's place when the user edited and re-sent the message: the
+  // chat and the agents' history leave this one out (stats still count it).
+  replacedBy: text("replaced_by"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
