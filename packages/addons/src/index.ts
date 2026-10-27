@@ -11,6 +11,7 @@ import { comfyDownloadModelTool } from './native/comfy_download/index.js';
 import { githubTools } from './native/github/index.js';
 import { huggingfaceTools } from './native/huggingface/index.js';
 import { civitaiTools } from './native/civitai/index.js';
+import { imageEditTool } from './native/image_edit/index.js';
 import { sendToTelegramTool } from './native/send_to_telegram/index.js';
 import { xAccountsTool, xPostTool } from './native/x/index.js';
 import { delegateTaskTool } from './native/delegate_task/index.js';
@@ -44,6 +45,7 @@ export async function createRegistry(): Promise<ToolRegistry> {
   for (const t of githubTools) registry.registerNative({ ...t, source: 'native' });
   for (const t of huggingfaceTools) registry.registerNative({ ...t, source: 'native' });
   for (const t of civitaiTools) registry.registerNative({ ...t, source: 'native' });
+  registry.registerNative({ ...imageEditTool, source: 'native' });
   for (const t of skillsTools) registry.registerNative({ ...t, source: 'native' });
 
   const dir = process.env.MY_ADDONS_DIR ?? myAddonsDir;
