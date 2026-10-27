@@ -46,6 +46,12 @@ export class ChatComponent implements OnInit, OnDestroy {
   inputValue = signal('');
   editingMsgId = signal<string | null>(null);
   editingText = signal('');
+  /** Rows for the edit box: enough for the text (long lines wrap), between 4 and 20. */
+  editRows = computed(() => {
+    const lines = this.editingText().split('\n').reduce((n, l) => n + Math.max(1, Math.ceil(l.length / 80)), 0);
+    return Math.min(20, Math.max(4, lines));
+  });
+  editBox = viewChild<ElementRef<HTMLTextAreaElement>>('editBox');
   copiedMsgId = signal<string | null>(null);
 
   messagesEnd = viewChild<ElementRef>('messagesEnd');
@@ -377,6 +383,13 @@ export class ChatComponent implements OnInit, OnDestroy {
   startEdit(msg: ChatMessage): void {
     this.editingMsgId.set(msg.id);
     this.editingText.set(msg.content);
+    // The box exists after the next render; put the cursor at the end of the text.
+    setTimeout(() => {
+      const box = this.editBox()?.nativeElement;
+      if (!box) return;
+      box.focus();
+      box.setSelectionRange(box.value.length, box.value.length);
+    });
   }
 
   saveEdit(msg: ChatMessage): void {

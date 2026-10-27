@@ -161,7 +161,8 @@
               <div class="msg-cancelled"><app-icon name="square" /> {{ 'chat.cancelled' | translate }}</div>
             } @else if (editingMsgId() === msg.id) {
               <div class="msg-edit">
-                <textarea class="msg-edit-textarea" [(ngModel)]="editingText" rows="3"></textarea>
+                <textarea #editBox class="msg-edit-textarea" [(ngModel)]="editingText" [rows]="editRows()"
+                          (keydown.escape)="cancelEdit()" (keydown.control.enter)="saveEdit(msg)"></textarea>
                 <div class="msg-edit-actions">
                   <button class="msg-edit-save" (click)="saveEdit(msg)">{{ 'common.save' | translate }}</button>
                   <button class="msg-edit-cancel" (click)="cancelEdit()">{{ 'common.cancel' | translate }}</button>

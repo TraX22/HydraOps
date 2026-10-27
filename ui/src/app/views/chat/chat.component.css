@@ -229,9 +229,13 @@
 }
 
 /* Edit */
+/* A row takes the width of its content; while editing, the content is a textarea with no width
+   of its own, so the row would shrink to a few columns. Give the row the full message width. */
+.msg-row:has(.msg-edit) { width: 80%; }
 .msg-edit { display: flex; flex-direction: column; gap: 8px; }
 .msg-edit-textarea {
   width: 100%;
+  min-height: 96px;
   padding: 10px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
