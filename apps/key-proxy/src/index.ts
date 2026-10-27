@@ -20,16 +20,15 @@ import { handleControl as xControl, hasAccounts as xHasAccounts } from "./x.js";
 
 const PORT = Number(process.env.KEY_PROXY_PORT || 9099);
 const KEYS_PATH = keyStoreFile;
+// A model request with a few images is some MB; nothing legitimate comes near this.
+const MAX_BODY_BYTES = 64 * 1024 * 1024;
 
 type AuthStyle = "bearer" | "x-api-key" | "google" | "x-subscription-token";
 // optional: the service answers without a key too (public reads), so a missing key is not an
 // error; the request goes out unauthenticated and the answer carries x-hydra-no-key: 1.
 // noRedirect: a redirect is handed back instead of followed, so the key never reaches the
 // host it points to (Hugging Face sends file downloads to its CDN with a signed link).
-// bufferBody: the request body is read whole before it is sent. fetch() turns a 401 answer
-// to a streamed body into a network error, and for an optional key a 401 is an ordinary
-// answer ("this needs a token") the tool has to see.
-const PROVIDERS: Record<string, { host: string; keyName: string; auth: AuthStyle; optional?: boolean; noRedirect?: boolean; bufferBody?: boolean }> = {
+const PROVIDERS: Record<string, { host: string; keyName: string; auth: AuthStyle; optional?: boolean; noRedirect?: boolean }> = {
   openai:     { host: "https://api.openai.com",                    keyName: "OPENAI_API_KEY",     auth: "bearer" },
   groq:       { host: "https://api.groq.com",                      keyName: "GROQ_API_KEY",       auth: "bearer" },
   xai:        { host: "https://api.x.ai",                          keyName: "XAI_API_KEY",        auth: "bearer" },
@@ -50,10 +49,10 @@ const PROVIDERS: Record<string, { host: string; keyName: string; auth: AuthStyle
   // GitHub REST API — github tool. Bearer works for classic and fine-grained PATs.
   github:     { host: "https://api.github.com",                    keyName: "GITHUB_TOKEN",       auth: "bearer" },
   // Hugging Face Hub and its dataset viewer — huggingface tools. The token is optional.
-  huggingface: { host: "https://huggingface.co",                   keyName: "HF_TOKEN",           auth: "bearer", optional: true, noRedirect: true, bufferBody: true },
-  hfdatasets: { host: "https://datasets-server.huggingface.co",    keyName: "HF_TOKEN",           auth: "bearer", optional: true, noRedirect: true, bufferBody: true },
+  huggingface: { host: "https://huggingface.co",                   keyName: "HF_TOKEN",           auth: "bearer", optional: true, noRedirect: true },
+  hfdatasets: { host: "https://datasets-server.huggingface.co",    keyName: "HF_TOKEN",           auth: "bearer", optional: true, noRedirect: true },
   // Civitai — civitai tools (civitai.red answers the same API; only civitai.com is used). The key is optional.
-  civitai:    { host: "https://civitai.com",                       keyName: "CIVITAI_API_KEY",    auth: "bearer", optional: true, noRedirect: true, bufferBody: true },
+  civitai:    { host: "https://civitai.com",                       keyName: "CIVITAI_API_KEY",    auth: "bearer", optional: true, noRedirect: true },
 };
 
 // Hop-by-hop / auth headers that must never be forwarded as-is
@@ -148,16 +147,20 @@ const server = http.createServer(async (req, res) => {
       targetPath = targetPath.replace(/([?&])key=[^&]*/, `$1key=${encodeURIComponent(realKey)}`);
     }
 
-    const init: RequestInit & { duplex?: string } = { method: req.method, headers, ...(provider.noRedirect ? { redirect: "manual" as const } : {}) };
+    const init: RequestInit = { method: req.method, headers, ...(provider.noRedirect ? { redirect: "manual" as const } : {}) };
     if (req.method && !["GET", "HEAD"].includes(req.method)) {
-      if (provider.bufferBody) {
-        const chunks: Buffer[] = [];
-        for await (const c of req) chunks.push(c as Buffer);
-        init.body = Buffer.concat(chunks);
-      } else {
-        init.body = Readable.toWeb(req) as unknown as BodyInit;
-        init.duplex = "half";
+      // The body is read whole before it goes out. Streamed, an answer the service sends
+      // before it has read the whole request (a 401, a 400 for an image too large, a 429 or
+      // a 529 "overloaded") makes fetch() throw "fetch failed", and the caller gets a 502
+      // with no reason instead of the status it should act on.
+      const chunks: Buffer[] = [];
+      let size = 0;
+      for await (const c of req) {
+        size += (c as Buffer).length;
+        if (size > MAX_BODY_BYTES) return sendJson(res, 413, { error: `Request body over ${MAX_BODY_BYTES / 1024 / 1024} MB` });
+        chunks.push(c as Buffer);
       }
+      init.body = Buffer.concat(chunks);
     }
 
     const upstream = await fetch(provider.host + targetPath, init);
@@ -174,7 +177,8 @@ const server = http.createServer(async (req, res) => {
       res.end();
     }
   } catch (err: any) {
-    console.error("[key-proxy] %s %s failed:", req.method, req.url, err?.message || err);
+    const cause = err?.cause?.code || err?.cause?.message;
+    console.error("[key-proxy] %s %s failed:", req.method, req.url, (err?.message || String(err)) + (cause ? ` (${cause})` : ""));
     if (!res.headersSent) sendJson(res, 502, { error: "Upstream request failed" });
     else res.end();
   }

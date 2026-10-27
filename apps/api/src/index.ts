@@ -1855,11 +1855,22 @@ function threedExtractCode(text: string): string {
 
 // The 3D calls are plain HTTP requests, not tasks: when the client goes away (the
 // Cancel button aborts the request) the model call is aborted with it.
-function abortWhenClientLeaves(res: express.Response): AbortSignal {
+// How long the 3D plugin waits for a scene (minutes; a reasoning model writing a large
+// scene can need more than the default) and for a brief.
+const THREED_GENERATE_MS = Number(process.env.THREED_TIMEOUT_MIN) > 0 ? Number(process.env.THREED_TIMEOUT_MIN) * 60_000 : 600_000;
+const THREED_ENHANCE_MS = 180_000;
+
+// The model call is cut when the client leaves OR the time is up. A call left running after
+// the user was told "timeout" would still finish and be billed, with nobody to receive it.
+function threedGuard(res: express.Response, limitMs: number): { signal: AbortSignal; timedOut: () => boolean; clientLeft: () => boolean; done: () => void } {
   const controller = new AbortController();
-  res.on("close", () => { if (!res.writableEnded) controller.abort(new Error("Client closed the request")); });
-  return controller.signal;
+  let timedOut = false, clientLeft = false;
+  const timer = setTimeout(() => { timedOut = true; controller.abort(new Error("timeout")); }, limitMs);
+  res.on("close", () => { if (!res.writableEnded) { clientLeft = true; controller.abort(new Error("Client closed the request")); } });
+  return { signal: controller.signal, timedOut: () => timedOut, clientLeft: () => clientLeft, done: () => clearTimeout(timer) };
 }
+
+const minutesOf = (ms: number) => `${Math.round(ms / 6000) / 10} min`;
 
 async function threedModelConfig(model: string | undefined) {
   const globalConfigs = await (db as any).select().from(systemConfigs);
@@ -1900,10 +1911,11 @@ api.post("/threed/generate", async (req, res) => {
     if (reference) user += `\n\nUse the attached image as a visual reference for shapes, proportions and colors.${reference}`;
     const message = await buildUserMessage(user, appRoot);
 
-    const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout generating the scene (10 min)")), 600_000));
-    const abortSignal = abortWhenClientLeaves(res);
-    const result = (await Promise.race([generateText(llmConfig, [message], THREED_SYSTEM, undefined, undefined, { abortSignal }), timeout])) as { text: string; success: boolean; error?: string };
-    if (abortSignal.aborted) return; // cancelled from the UI: nobody is listening
+    const guard = threedGuard(res, THREED_GENERATE_MS);
+    const result = (await generateText(llmConfig, [message], THREED_SYSTEM, undefined, undefined, { abortSignal: guard.signal })) as { text: string; success: boolean; error?: string };
+    guard.done();
+    if (guard.clientLeft()) return; // cancelled from the UI: nobody is listening
+    if (guard.timedOut()) return res.status(504).json({ error: `${llmConfig.model} gave no scene within ${minutesOf(THREED_GENERATE_MS)}; the call was stopped. Try a faster model, or a shorter brief.` });
     if (!result.success) return res.status(502).json({ error: result.error || "The model could not write the scene." });
 
     const code = threedExtractCode(result.text || "");
@@ -1934,10 +1946,11 @@ api.post("/threed/enhance", async (req, res) => {
     user += threedReference(imagePath);
     const message = await buildUserMessage(user, appRoot);
 
-    const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout improving the prompt (3 min)")), 180_000));
-    const abortSignal = abortWhenClientLeaves(res);
-    const result = (await Promise.race([generateText(llmConfig, [message], THREED_ENHANCE_SYSTEM, undefined, undefined, { abortSignal }), timeout])) as { text: string; success: boolean; error?: string };
-    if (abortSignal.aborted) return; // cancelled from the UI: nobody is listening
+    const guard = threedGuard(res, THREED_ENHANCE_MS);
+    const result = (await generateText(llmConfig, [message], THREED_ENHANCE_SYSTEM, undefined, undefined, { abortSignal: guard.signal })) as { text: string; success: boolean; error?: string };
+    guard.done();
+    if (guard.clientLeft()) return; // cancelled from the UI: nobody is listening
+    if (guard.timedOut()) return res.status(504).json({ error: `${llmConfig.model} gave no brief within ${minutesOf(THREED_ENHANCE_MS)}; the call was stopped. Try a faster model.` });
     if (!result.success) return res.status(502).json({ error: result.error || "The model could not improve the prompt." });
 
     // Models sometimes wrap the brief in quotes, fences or a "Brief:" label.
