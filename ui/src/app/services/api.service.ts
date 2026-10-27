@@ -839,8 +839,9 @@ export class ApiService {
     return this.http.delete<void>(`${this.base}/tasks/${id}`);
   }
 
-  editTaskPrompt(id: string, prompt: string): Observable<void> {
-    return this.http.patch<void>(`${this.base}/tasks/${id}/prompt`, { prompt });
+  /** An edited message: the task gets the new text if it is still queued, or is replaced by a new one. */
+  resendTask(id: string, prompt: string): Observable<Task & { resent: boolean }> {
+    return this.http.post<Task & { resent: boolean }>(`${this.base}/tasks/${id}/resend`, { prompt });
   }
 
   // ── Config ──

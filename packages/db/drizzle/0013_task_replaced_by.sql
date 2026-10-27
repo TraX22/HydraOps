@@ -1,0 +1,1 @@
+ALTER TABLE `tasks` ADD `replaced_by` text;

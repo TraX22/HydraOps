@@ -8,6 +8,8 @@ Type and send. The system assigns the task to an agent and its reply arrives in 
 
 In an **agent's chat**, the task is for that agent. In the **main chat**, unless you name one (`@luna …`, or the name first), a fast model reads the message and picks the best-fitting agent from the **role** each `agent.md` declares and its worker type: code to the coder, images to the illustrator, video to the video maker, and everything else to whoever's role fits best. It uses the default model unless you choose another in **Config → Main chat routing model** (a fast one is best: it only hands the message out; with an API model, that message is sent to that provider). If the model does not answer, tasks are dealt out in turns.
 
+**Editing a message.** Hover one of your messages, press the pencil, change the text and save (Ctrl+Enter; Esc cancels). The message goes out again as if you had just typed it: the old exchange, reply included, leaves the chat and the agent answers the new text. A task still waiting in the queue is just rewritten. What the earlier run already did (a file saved, a message sent) is not undone, and it still counts in Stats.
+
 ## Attachments
 
 The **📎** clip attaches files to the message. You can also **drag files onto the chat** (a frame shows where to drop them) or **paste a copied image** with Ctrl+V in the message box, a screenshot for instance. Each file can be up to 20 MB:

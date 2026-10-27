@@ -2357,7 +2357,7 @@ api.get("/tasks", async (req, res) => {
     const since = req.query.since ? new Date(String(req.query.since)) : new Date(Date.now() - HISTORY_DAYS * 86_400_000);
 
     const rows = (await (db as any).select().from(tasks)
-      .where(and(eq(tasks.channel, channel), gte(tasks.createdAt, since)))
+      .where(and(eq(tasks.channel, channel), gte(tasks.createdAt, since), isNull(tasks.replacedBy)))
       .orderBy(desc(tasks.createdAt))
       .limit(CHAT_MAX_TASKS)).reverse();
 
@@ -2544,17 +2544,28 @@ api.delete("/tasks/:id", async (req, res) => {
   }
 });
 
-api.patch("/tasks/:id/prompt", async (req, res) => {
+// The user edited one of their messages. A task nobody has taken yet just gets the new text;
+// any other is replaced: a running one is stopped, a new task with the edited text goes out
+// in the same chat, and the old one (with its reply) leaves the chat and the agents' history.
+api.post("/tasks/:id/resend", async (req, res) => {
   try {
     const prompt = String(req.body?.prompt ?? "");
-    if (!prompt) return res.status(400).json({ error: "prompt is required" });
-    await (db as any).update(tasks)
-      .set({ prompt, updatedAt: new Date() })
-      .where(eq(tasks.id, req.params.id))
-      .run();
-    res.json({ success: true });
+    if (!prompt.trim()) return res.status(400).json({ error: "prompt is required" });
+    const [row] = await (db as any).select().from(tasks).where(eq(tasks.id, req.params.id)).limit(1);
+    if (!row) return res.status(404).json({ error: "not_found" });
+    if (row.replacedBy) return res.status(409).json({ error: "replaced", id: row.replacedBy });
+    if (row.status === "pending") {
+      await (db as any).update(tasks).set({ prompt, updatedAt: new Date() }).where(eq(tasks.id, row.id)).run();
+      return res.json({ id: row.id, taskId: row.id, status: "pending", resent: false });
+    }
+    if (row.status === "assigned") await cancelTaskRows([row], "app");
+    const mode = row.mode === "plan" ? "plan" as const : undefined;
+    const plan: Plan | undefined = mode ? { version: 1, status: "pending", goal: "", steps: [], questions: [], request: prompt } : undefined;
+    const taskId = await insertTask({ prompt, channel: row.channel, mode, plan });
+    await (db as any).update(tasks).set({ replacedBy: taskId, updatedAt: new Date() }).where(eq(tasks.id, row.id)).run();
+    res.status(201).json({ id: taskId, taskId, status: "pending", resent: true });
   } catch (err: any) {
-    console.error("[api] PATCH /tasks/:id/prompt failed", err);
+    console.error("[api] POST /tasks/:id/resend failed", err);
     res.status(500).json({ error: "internal_error" });
   }
 });
