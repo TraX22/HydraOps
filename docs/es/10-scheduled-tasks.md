@@ -42,6 +42,25 @@ Una tarea como "tráeme las últimas noticias de este feed" entregaría los mism
 
 El registro está hecho de enlaces, así que pide las fuentes en la tarea ("con el enlace de cada ítem"). Un ítem que viene con su enlace no se repite; uno sin enlace, de una página que sí cambió, no se puede distinguir de uno nuevo y sale como lo escribió el agente. Cada tarea programada lleva su propio registro, las ejecuciones que no encontraron nada no lo borran, y una ejecución fallida no cuenta como entregada.
 
+## El calendario
+
+Junto a los crons hay un **calendario**: entradas por fecha y hora que todos los agentes pueden leer y, con tu aprobación, escribir. Dos tipos:
+
+- Una **nota** es contexto: una reunión, una entrega, "sin GPU hasta el 20". Toda tarea que corre un agente arranca con la agenda de hoy y de los próximos 7 días a la vista, así puede responder "¿qué tengo el jueves?", no programar dos cosas a la vez o escribir con el contexto del día. Una nota con hora te recuerda por Telegram cuando llega.
+- Una **acción** es una tarea dejada para después: en su fecha y hora, el agente que indica recibe el prompt como tarea nueva en su chat, junto con los archivos que la acción reservó. "Thomas, publicá este hilo el viernes a las 10" es una acción. Si la tarea necesita una herramienta que pide aprobación (publicar en X, descargar un modelo), la pide en ese momento, como cualquier tarea.
+
+Los agentes usan cuatro herramientas: `calendar_list` (la agenda entre dos fechas, con el id de cada entrada), `calendar_add`, `calendar_update` y `calendar_remove`. Agregar una nota es libre. **Programar una acción, cambiar una entrada o quitarla espera tu aprobación**, con una tarjeta como cualquier llamada retenida; aprobada, la acción corre a su hora sin volver a preguntar. Un agente puede cambiar tus propias entradas (con esa aprobación) pero nunca quitarlas.
+
+Lo que el calendario garantiza:
+
+- **La zona horaria viaja con la entrada.** Cada entrada guarda su zona (la tuya por defecto, que se fija con `POST /api/calendar/settings {"timezone": "…"}` hasta que salga la vista Calendario); un viaje o una máquina nueva nunca la corren.
+- **Los adjuntos se conservan.** Los archivos que nombra una acción (tus adjuntos, los archivos de la tarea que la programó) se copian al calendario cuando la acción se aprueba, porque los archivos de una tarea se limpian al día. La tarea que corre después recibe las copias.
+- **Repeticiones**: diaria, semanal, mensual, anual, hasta una fecha o hasta 365 veces; el 31 de un mes pasa a ser el 30 o el 28 cuando hace falta, nunca el 1 del siguiente.
+- **Mientras HydraOps estuvo apagado**: una acción vencida hace 6 horas o menos corre al arrancar; una más vieja queda como perdida y te avisa por Telegram. Una nota con hora más vieja que eso ya no recuerda.
+- **Topes**: una tarea puede crear 20 entradas, un dueño puede tener 200 programadas, nada a más de un año. Alcanza para el uso real, no para un agente en bucle.
+
+`GET /api/calendar?from=AAAA-MM-DD&days=14` lista las entradas; `POST`, `PATCH /:id` y `DELETE /:id` las gestionan desde tus propios scripts.
+
 ## Consejos
 
 - Empieza con una programación frecuente (cada minuto) para probar que el prompt hace lo que quieres, y cámbiala después a la definitiva.

@@ -18,6 +18,8 @@ export const workerStatus = schema.workerStatus as any;
 export const toolUsage = schema.toolUsage as any;
 export const securityEvents = schema.securityEvents as any;
 export const pendingActions = schema.pendingActions as any;
+export const calendarEntries = schema.calendarEntries as any;
+export * from "./calendar.js";
 
 export * from "./client.js";
 export * from "./recall.js";

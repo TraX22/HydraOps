@@ -133,6 +133,46 @@ export const cronJobs = sqliteTable("cron_jobs", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 
+// The shared calendar (Complementos → Calendar): entries every agent reads, and may write,
+// by date and time. A `note` is context (a meeting, a delivery) the agents see in their
+// agenda; an `action` makes a task for `agentId` with `prompt` when its time comes. `at` is
+// the NEXT occurrence in UTC; `date`/`time` are the same instant in `timezone`, which is
+// stored with the entry so a travel or a machine change never moves it. Attachments are
+// copies under storage/calendar/<id>/ made when the entry was approved (the task vault
+// empties after a day). See calendar.ts for the clock arithmetic and the limits.
+export const calendarEntries = sqliteTable(
+  "calendar_entries",
+  {
+    id: text("id").primaryKey(),
+    // An agent id, or "user" for the user's own entries.
+    owner: text("owner").notNull(),
+    kind: text("kind").notNull(), // note | action
+    title: text("title").notNull(),
+    notes: text("notes"),
+    at: integer("at", { mode: "timestamp" }).notNull(),
+    timezone: text("timezone").notNull(),
+    date: text("date").notNull(), // YYYY-MM-DD in `timezone`
+    time: text("time"), // HH:MM in `timezone`; null = all day
+    repeat: text("repeat").notNull().default("none"), // none | daily | weekly | monthly | yearly
+    repeatUntil: text("repeat_until"), // YYYY-MM-DD in `timezone`
+    occurrencesLeft: integer("occurrences_left"),
+    agentId: text("agent_id"), // action: who runs it
+    prompt: text("prompt"), // action: the task's text
+    attachments: text("attachments", { mode: "json" }), // [{ name, path, mime, size }]
+    status: text("status").notNull().default("scheduled"), // scheduled | done | missed | cancelled
+    approvedAt: integer("approved_at", { mode: "timestamp" }),
+    createdByTask: text("created_by_task"),
+    lastRunAt: integer("last_run_at", { mode: "timestamp" }),
+    lastTaskId: text("last_task_id"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  },
+  (t) => ({
+    dueIdx: index("calendar_due_idx").on(t.status, t.at),
+    ownerIdx: index("calendar_owner_idx").on(t.owner, t.status),
+  })
+);
+
 export const workerStatus = sqliteTable("worker_status", {
   workerId: text("worker_id").primaryKey(),
   status: text("status").notNull().default("online"),

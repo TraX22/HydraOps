@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import path from "node:path";
-import { readdir, readFile, writeFile, mkdir, rm, access, rename, stat } from "node:fs/promises";
+import { readdir, readFile, writeFile, mkdir, rm, access, rename, stat, copyFile, realpath } from "node:fs/promises";
 import { randomUUID, randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { writeFileSync, chmodSync } from "node:fs";
 import { spawn, execFile } from "node:child_process";
@@ -45,9 +45,9 @@ import {
   blenderImportCode, parseBlenderImportResult, BLENDER_SERVERS, BLENDER_CODE_TOOL,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
-import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, HISTORY_DAYS, isHistoryLevel } from "@hydraops/db";
+import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, HISTORY_DAYS, isHistoryLevel, calendarEntries, listCalendarEntries, zonedToUtc, advance as calendarAdvance, localParts, isTimeZone, listTimeZones, systemTimeZone, isCalendarDate, isCalendarTime, isCalendarRepeat, isCalendarKind, CALENDAR_LIMITS, formatWhen, toDate } from "@hydraops/db";
 import { buildEnvelope } from "@hydraops/events";
-import { eq, and, gte, lt, asc, desc, like, inArray, isNull } from "drizzle-orm";
+import { eq, and, gte, lt, asc, desc, like, inArray, isNull, count } from "drizzle-orm";
 import os from "node:os";
 
 /**
@@ -2582,6 +2582,271 @@ api.post("/tasks/:id/resend", async (req, res) => {
     res.status(500).json({ error: "internal_error" });
   }
 });
+
+// ── The shared calendar (Complementos → Calendar) ─────────────────────────────────────
+// Entries by date and time that every agent reads (the agenda in front of its tasks) and
+// may write through the calendar_* tools; the user through these routes and, later, the
+// Calendar view. A note is context and, when timed, a Telegram reminder; an action makes a
+// task for its agent when due, with the copies of its attachments. The clock at the end
+// runs what came due. Arithmetic and limits: @hydraops/db calendar.ts.
+//
+// Trust: these routes answer the loopback like the rest of the API. `by` says who asks: an
+// agent (through a tool whose approval the user already gave for an action, an update or a
+// removal) or "user". The one rule the API enforces itself: an agent never removes the
+// user's own entries.
+const CALENDAR_TICK_MS = Number(process.env.CALENDAR_TICK_MS) > 0 ? Number(process.env.CALENDAR_TICK_MS) : 30_000;
+const calendarDir = path.join(storageDir, "calendar");
+const CALENDAR_ID_RE = /^[0-9a-f-]{8,40}$/i;
+const OWNER_RE = /^(user|[a-z0-9][a-z0-9_-]{0,63})$/i;
+const CALENDAR_MIMES: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", mp4: "video/mp4", webm: "video/webm", glb: "model/gltf-binary", pdf: "application/pdf", txt: "text/plain", md: "text/markdown", json: "application/json", csv: "text/csv" };
+
+async function calendarTimeZone(): Promise<string> {
+  const [row] = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, "calendar_timezone")).limit(1);
+  return isTimeZone(row?.value) ? row.value : systemTimeZone();
+}
+
+function publicCalendarEntry(r: any) {
+  return {
+    ...r, at: toDate(r.at)?.toISOString(), approvedAt: toDate(r.approvedAt)?.toISOString() ?? null, lastRunAt: toDate(r.lastRunAt)?.toISOString() ?? null,
+    createdAt: toDate(r.createdAt)?.toISOString(), updatedAt: toDate(r.updatedAt)?.toISOString(), attachments: Array.isArray(r.attachments) ? r.attachments : [],
+  };
+}
+
+/** The files an action keeps: the user's attachments and the files of the task that asked,
+ *  copied under storage/calendar/<entry>/ (the task vault empties after a day). A reference
+ *  that resolves nowhere inside those folders is left out and named in the warning. */
+async function reserveCalendarAttachments(entryId: string, refs: string[], byTask?: string): Promise<{ files: { name: string; path: string; mime: string; size: number }[]; warning?: string }> {
+  const roots = [path.join(storageDir, "uploads"), ...(byTask && /^[0-9a-f-]{36}$/i.test(byTask) ? [path.join(storageDir, "results", byTask)] : [])];
+  const files: { name: string; path: string; mime: string; size: number }[] = [];
+  const missing: string[] = [];
+  const used = new Set<string>();
+  for (const ref of refs.slice(0, CALENDAR_LIMITS.attachments)) {
+    const base = path.basename(String(ref));
+    const candidates = [...(String(ref).startsWith("storage/") ? [path.resolve(dataRoot, String(ref))] : []), ...roots.map((r) => path.resolve(r, String(ref))), ...roots.map((r) => path.join(r, base))];
+    // An upload is stored as <timestamp>-<name>: the name alone, as the chat shows it, is enough.
+    const uploads = roots[0];
+    const bySuffix = (await readdir(uploads).catch(() => [] as string[])).filter((f) => f.endsWith(`-${base}`)).sort().reverse()[0];
+    if (bySuffix) candidates.push(path.join(uploads, bySuffix));
+    let found: string | null = null;
+    for (const c of candidates) {
+      const real = await realpath(c).catch(() => "");
+      if (!real) continue;
+      for (const root of roots) {
+        const rr = await realpath(root).catch(() => path.resolve(root));
+        if (real.startsWith(rr + path.sep) && (await stat(real).catch(() => null))?.isFile()) { found = real; break; }
+      }
+      if (found) break;
+    }
+    if (!found) { missing.push(base); continue; }
+    let name = base.replace(/[^\w.\-() ]/g, "_");
+    for (let i = 2; used.has(name); i++) name = base.replace(/(\.[^.]*)?$/, `_${i}$1`);
+    used.add(name);
+    await mkdir(path.join(calendarDir, entryId), { recursive: true });
+    await copyFile(found, path.join(calendarDir, entryId, name));
+    const size = (await stat(found)).size;
+    files.push({ name, path: `storage/calendar/${entryId}/${name}`, mime: CALENDAR_MIMES[name.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream", size });
+  }
+  return { files, ...(missing.length ? { warning: `not kept (not a file of this task or an attachment): ${missing.join(", ")}` } : {}) };
+}
+
+/** What the agent gets when an action comes due. */
+function calendarTaskPrompt(e: any): string {
+  const when = formatWhen(toDate(e.at)!, e.timezone, e.time);
+  const atts: any[] = Array.isArray(e.attachments) ? e.attachments : [];
+  return `[Scheduled from the calendar: "${e.title}", ${when}]\n\n${e.prompt ?? e.title}${atts.length ? `\n\n[ATTACHMENTS]\n${atts.map((a) => `- ${a.path} (${a.mime})`).join("\n")}` : ""}`;
+}
+
+/** Fields of a new or changed entry checked and normalized; a string is the problem. */
+async function calendarFields(body: any, current?: any): Promise<Record<string, any> | string> {
+  const out: Record<string, any> = {};
+  if (body.title !== undefined) { const t = String(body.title).trim(); if (!t || t.length > CALENDAR_LIMITS.titleChars) return `title must be 1 to ${CALENDAR_LIMITS.titleChars} characters`; out.title = t; }
+  if (body.notes !== undefined) { const n = body.notes == null ? null : String(body.notes); if (n && n.length > CALENDAR_LIMITS.notesChars) return `notes over ${CALENDAR_LIMITS.notesChars} characters`; out.notes = n; }
+  if (body.prompt !== undefined) { const p = body.prompt == null ? null : String(body.prompt); if (p && p.length > CALENDAR_LIMITS.promptChars) return `prompt over ${CALENDAR_LIMITS.promptChars} characters`; out.prompt = p; }
+  if (body.timezone !== undefined && body.timezone !== null) { if (!isTimeZone(body.timezone)) return `unknown time zone "${body.timezone}"`; out.timezone = body.timezone; }
+  if (body.date !== undefined) { if (!isCalendarDate(body.date)) return "date must be YYYY-MM-DD"; out.date = body.date; }
+  if (body.time !== undefined) { if (body.time !== null && !isCalendarTime(body.time)) return "time must be HH:MM"; out.time = body.time; }
+  if (body.repeat !== undefined) { if (!isCalendarRepeat(body.repeat)) return "repeat must be none, daily, weekly, monthly or yearly"; out.repeat = body.repeat; }
+  if (body.repeatUntil !== undefined) { if (body.repeatUntil !== null && !isCalendarDate(body.repeatUntil)) return "repeatUntil must be YYYY-MM-DD"; out.repeatUntil = body.repeatUntil; }
+  if (body.agentId !== undefined && body.agentId !== null) {
+    const id = String(body.agentId);
+    if (!OWNER_RE.test(id) || id === "user" || !existsSync(path.join(agentsDir, id))) return `there is no agent "${id}"`;
+    out.agentId = id;
+  }
+  const merged = { ...(current ?? {}), ...out };
+  merged.timezone = merged.timezone || (await calendarTimeZone());
+  if (!merged.date) return "date is required";
+  merged.at = zonedToUtc(merged.date, merged.time ?? null, merged.timezone);
+  if (merged.repeatUntil && merged.repeatUntil < merged.date) return "repeatUntil is before the date";
+  if (merged.at.getTime() > Date.now() + CALENDAR_LIMITS.horizonDays * 86_400_000) return `the date is more than ${CALENDAR_LIMITS.horizonDays} days ahead`;
+  if (merged.repeat && merged.repeat !== "none" && (current == null || out.repeat !== undefined)) merged.occurrencesLeft = CALENDAR_LIMITS.maxOccurrences;
+  if (merged.repeat === "none") merged.occurrencesLeft = null;
+  out.timezone = merged.timezone; out.date = merged.date; out.at = merged.at; out.occurrencesLeft = merged.occurrencesLeft;
+  if (merged.time !== undefined) out.time = merged.time ?? null;
+  return out;
+}
+
+api.get("/calendar/timezones", async (_req, res) => {
+  res.json({ timezones: listTimeZones(), system: systemTimeZone() });
+});
+
+api.get("/calendar/settings", async (_req, res) => {
+  res.json({ timezone: await calendarTimeZone(), system: systemTimeZone() });
+});
+
+api.post("/calendar/settings", async (req, res) => {
+  const tz = req.body?.timezone;
+  if (tz !== null && tz !== "" && !isTimeZone(tz)) return res.status(400).json({ error: `unknown time zone "${tz}"` });
+  const value = tz ? String(tz) : "";
+  await (db as any).insert(systemConfigs).values({ key: "calendar_timezone", value }).onConflictDoUpdate({ target: systemConfigs.key, set: { value } }).run();
+  res.json({ timezone: await calendarTimeZone(), system: systemTimeZone() });
+});
+
+api.get("/calendar", async (req, res) => {
+  try {
+    const tz = await calendarTimeZone();
+    const today = localParts(new Date(), tz).date;
+    const fromDate = isCalendarDate(req.query.from) ? String(req.query.from) : today;
+    const days = Math.min(366, Math.max(1, Number(req.query.days) || 14));
+    const toDateStr = isCalendarDate(req.query.to) ? String(req.query.to) : localParts(new Date(zonedToUtc(fromDate, "00:00", tz).getTime() + days * 86_400_000), tz).date;
+    const from = zonedToUtc(fromDate, "00:00", tz);
+    const to = new Date(zonedToUtc(toDateStr, "00:00", tz).getTime() + 86_400_000 - 1);
+    const owner = typeof req.query.owner === "string" && OWNER_RE.test(req.query.owner) ? req.query.owner : undefined;
+    const rows = await listCalendarEntries(db, { from, to, owner, statuses: req.query.all === "1" ? undefined : ["scheduled"], limit: 500 });
+    res.json({ entries: rows.map(publicCalendarEntry), from: fromDate, to: toDateStr, timezone: tz });
+  } catch (err: any) {
+    console.error("[api] GET /calendar failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+api.post("/calendar", async (req, res) => {
+  try {
+    const b = req.body ?? {};
+    const by = typeof b.by === "string" && OWNER_RE.test(b.by) ? b.by : "user";
+    const owner = by === "user" && typeof b.owner === "string" && OWNER_RE.test(b.owner) ? b.owner : by;
+    if (!isCalendarKind(b.kind)) return res.status(400).json({ error: "kind must be note or action" });
+    if (b.title === undefined) return res.status(400).json({ error: "title is required" });
+    const createdByTask = typeof b.createdByTask === "string" && /^[0-9a-f-]{36}$/i.test(b.createdByTask) ? b.createdByTask : null;
+    if (by !== "user") {
+      if (createdByTask) {
+        const [{ n }] = await (db as any).select({ n: count() }).from(calendarEntries).where(eq(calendarEntries.createdByTask, createdByTask));
+        if (Number(n) >= CALENDAR_LIMITS.perTask) return res.status(429).json({ error: `this task already created ${CALENDAR_LIMITS.perTask} entries, the most one task may` });
+      }
+      const [{ n: active }] = await (db as any).select({ n: count() }).from(calendarEntries).where(and(eq(calendarEntries.owner, by), eq(calendarEntries.status, "scheduled")));
+      if (Number(active) >= CALENDAR_LIMITS.activePerOwner) return res.status(429).json({ error: `${by} already holds ${CALENDAR_LIMITS.activePerOwner} scheduled entries, the most one owner may` });
+    }
+    const fields = await calendarFields({ repeat: "none", ...b, agentId: b.kind === "action" ? (b.agentId ?? (by !== "user" ? by : undefined)) : undefined });
+    if (typeof fields === "string") return res.status(400).json({ error: fields });
+    if (b.kind === "action") {
+      if (!fields.agentId) return res.status(400).json({ error: "an action needs agentId: who runs it" });
+      if (!fields.prompt) return res.status(400).json({ error: "an action needs prompt: what the agent does when the time comes" });
+    }
+    const id = randomUUID();
+    const now = new Date();
+    const kept = b.kind === "action" && Array.isArray(b.attachments) && b.attachments.length ? await reserveCalendarAttachments(id, b.attachments.map(String), createdByTask ?? undefined) : { files: [] };
+    const row = {
+      id, owner, kind: b.kind, title: fields.title, notes: fields.notes ?? null, at: fields.at, timezone: fields.timezone, date: fields.date, time: fields.time ?? null,
+      repeat: fields.repeat ?? "none", repeatUntil: fields.repeatUntil ?? null, occurrencesLeft: fields.occurrencesLeft ?? null,
+      agentId: b.kind === "action" ? fields.agentId : null, prompt: b.kind === "action" ? fields.prompt : null, attachments: kept.files,
+      status: "scheduled", approvedAt: b.kind === "action" ? now : null, createdByTask, createdAt: now, updatedAt: now,
+    };
+    await (db as any).insert(calendarEntries).values(row).run();
+    console.log(`[api] calendar: ${by} added ${b.kind} "${row.title}" for ${row.date} ${row.time ?? "(all day)"} ${row.timezone}${kept.files.length ? ` with ${kept.files.length} file(s)` : ""}`);
+    res.status(201).json({ entry: publicCalendarEntry(row), ...(kept.warning ? { warning: kept.warning } : {}) });
+  } catch (err: any) {
+    console.error("[api] POST /calendar failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+api.patch("/calendar/:id", async (req, res) => {
+  try {
+    if (!CALENDAR_ID_RE.test(req.params.id)) return res.status(400).json({ error: "invalid_id" });
+    const [row] = await (db as any).select().from(calendarEntries).where(eq(calendarEntries.id, req.params.id)).limit(1);
+    if (!row) return res.status(404).json({ error: "not_found" });
+    if (row.status === "cancelled") return res.status(409).json({ error: "the entry was removed" });
+    const b = req.body ?? {};
+    const by = typeof b.by === "string" && OWNER_RE.test(b.by) ? b.by : "user";
+    const fields = await calendarFields(b, row);
+    if (typeof fields === "string") return res.status(400).json({ error: fields });
+    if (row.kind === "action" && fields.prompt === null) return res.status(400).json({ error: "an action needs its prompt" });
+    const now = new Date();
+    const set: Record<string, any> = { ...fields, status: "scheduled", updatedAt: now };
+    await (db as any).update(calendarEntries).set(set).where(eq(calendarEntries.id, row.id)).run();
+    const [updated] = await (db as any).select().from(calendarEntries).where(eq(calendarEntries.id, row.id)).limit(1);
+    console.log(`[api] calendar: ${by} changed "${updated.title}" (${row.id.slice(0, 8)})`);
+    res.json({ entry: publicCalendarEntry(updated) });
+  } catch (err: any) {
+    console.error("[api] PATCH /calendar/:id failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+api.delete("/calendar/:id", async (req, res) => {
+  try {
+    if (!CALENDAR_ID_RE.test(req.params.id)) return res.status(400).json({ error: "invalid_id" });
+    const [row] = await (db as any).select().from(calendarEntries).where(eq(calendarEntries.id, req.params.id)).limit(1);
+    if (!row) return res.status(404).json({ error: "not_found" });
+    const by = typeof req.body?.by === "string" && OWNER_RE.test(req.body.by) ? req.body.by : "user";
+    if (row.owner === "user" && by !== "user") return res.status(403).json({ error: "only the user can remove their own entries; an agent may change them with approval, not remove them" });
+    await (db as any).update(calendarEntries).set({ status: "cancelled", updatedAt: new Date() }).where(eq(calendarEntries.id, row.id)).run();
+    console.log(`[api] calendar: ${by} removed "${row.title}" (${row.id.slice(0, 8)})`);
+    res.json({ entry: publicCalendarEntry({ ...row, status: "cancelled" }) });
+  } catch (err: any) {
+    console.error("[api] DELETE /calendar/:id failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// The clock: what came due runs (an action becomes a task for its agent; a timed note
+// reminds on Telegram), then the entry moves to its next occurrence or is done. An action
+// due while the app was off still runs within CALENDAR_LIMITS.catchUpMs; later it is missed
+// and the user is told. One pass at a time; a failure in one entry does not stop the rest.
+let calendarTicking = false;
+async function tickCalendar(): Promise<void> {
+  if (calendarTicking) return;
+  calendarTicking = true;
+  try {
+    const now = new Date();
+    const due = await listCalendarEntries(db, { to: now, statuses: ["scheduled"], limit: 100 });
+    for (const e of due) {
+      try {
+        const at = toDate(e.at)!;
+        const late = now.getTime() - at.getTime();
+        const when = formatWhen(at, e.timezone, e.time);
+        let outcome: "run" | "reminded" | "missed" | "passed" = "passed";
+        let lastTaskId: string | null = null;
+        if (e.kind === "action") {
+          if (late > CALENDAR_LIMITS.catchUpMs) outcome = "missed";
+          else {
+            lastTaskId = await insertTask({ prompt: calendarTaskPrompt(e), channel: e.agentId || e.owner, userId: "calendar", isRead: false });
+            outcome = "run";
+          }
+        } else if (e.time && late <= CALENDAR_LIMITS.catchUpMs) outcome = "reminded";
+        const next = calendarAdvance(e);
+        await (db as any).update(calendarEntries).set({
+          status: next ? "scheduled" : outcome === "missed" ? "missed" : "done",
+          at: next?.at ?? at, date: next?.date ?? e.date, occurrencesLeft: next ? next.occurrencesLeft : e.occurrencesLeft,
+          lastRunAt: now, ...(lastTaskId ? { lastTaskId } : {}), updatedAt: now,
+        }).where(eq(calendarEntries.id, e.id)).run();
+        console.log(`[api] calendar: "${e.title}" (${e.id.slice(0, 8)}) ${outcome}${next ? `, next ${next.date}` : ""}`);
+        const note = outcome === "run" ? `📅 ${e.title}\n${e.agentId} is on it (scheduled for ${when}).`
+          : outcome === "reminded" ? `📅 ${e.title}\n${when}${e.notes ? `\n${String(e.notes).slice(0, 500)}` : ""}`
+          : outcome === "missed" ? `📅 Missed: ${e.title}\nIt was due ${when}, but HydraOps was off for more than ${Math.round(CALENDAR_LIMITS.catchUpMs / 3_600_000)} hours. It did not run.`
+          : null;
+        if (note) pushTelegram(note).catch(() => {});
+      } catch (err: any) {
+        console.error(`[api] calendar: entry ${e.id} failed`, err?.message ?? err);
+      }
+    }
+  } catch (err: any) {
+    console.error("[api] calendar tick failed", err?.message ?? err);
+  } finally {
+    calendarTicking = false;
+  }
+}
+setInterval(() => void tickCalendar(), CALENDAR_TICK_MS).unref();
+setTimeout(() => void tickCalendar(), Math.min(5_000, CALENDAR_TICK_MS)).unref();
 
 // User profile lives in users/profile.json (single source); the workers read the
 // same file to add a [USER PROFILE] block to every agent's system prompt.

@@ -42,6 +42,25 @@ A task like "bring me the latest news from this feed" would deliver the same ite
 
 The record is made of links, so ask for sources in the task ("with the link of each item"). An item that comes with its link is never repeated; an item without one, from a page that did change, cannot be told apart from a new one and goes out as the agent wrote it. Each scheduled task keeps its own record, runs that found nothing do not erase it, and a failed run does not count as delivered.
 
+## The calendar
+
+Next to the crons there is a **calendar**: entries by date and time that every agent can read and, with your approval, write. Two kinds:
+
+- A **note** is context: a meeting, a delivery, "no GPU until the 20th". Every task an agent runs starts with the agenda of today and the next 7 days in front of it, so it can answer "what do I have on Thursday?", avoid scheduling two things at once, or write with the day's context. A note with a time reminds you on Telegram when it comes.
+- An **action** is a task set for later: at its date and time, the agent it names gets the prompt as a new task in its chat, together with the files the action reserved. "Thomas, publish this thread on Friday at 10" is an action. If the task needs a tool that asks for approval (posting to X, downloading a model), it asks then, as any task does.
+
+Agents use four tools: `calendar_list` (the agenda between two dates, with each entry's id), `calendar_add`, `calendar_update` and `calendar_remove`. Adding a note is free. **Scheduling an action, changing an entry or removing one waits for your approval**, with a card like any held call; approved, the action runs at its time without asking again. An agent may change your own entries (with that approval) but never remove them.
+
+What the calendar guarantees:
+
+- **The time zone travels with the entry.** Each entry stores its own zone (the user's by default, set with `POST /api/calendar/settings {"timezone": "…"}` until the Calendar view ships); a travel or a new machine never moves it.
+- **Attachments are kept.** The files an action names (the user's attachments, the files of the task that scheduled it) are copied into the calendar when the action is approved, because a task's files are cleared after a day. The task that runs later gets the copies.
+- **Repeats**: daily, weekly, monthly, yearly, until a date or up to 365 times; the 31st of a month becomes the 30th or the 28th where needed, never the 1st of the next.
+- **While HydraOps was off**: an action that came due at most 6 hours ago runs when it starts; an older one is marked missed and you are told on Telegram. A timed note older than that no longer reminds.
+- **Limits**: one task may create 20 entries, one owner may hold 200 scheduled entries, nothing further than a year ahead. Enough for real use, not for an agent in a loop.
+
+`GET /api/calendar?from=YYYY-MM-DD&days=14` lists the entries; `POST`, `PATCH /:id` and `DELETE /:id` manage them from your own scripts.
+
 ## Tips
 
 - Start with a frequent schedule (every minute) to check the prompt does what you want, then switch it to the real one.
