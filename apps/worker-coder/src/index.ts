@@ -9,7 +9,7 @@ import { loadEnv, envFile, dataRoot, storageDir, agentsDir, logsDir, usersDir, r
 
 loadDotenv({ path: envFile });
 
-import { cronUnreadSources, cronReadSourcesPrompt, addUsage, CRON_SOURCES_UNREAD, CRON_SOURCES_UNREAD_TEXT, createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, filterCronAnswer, cronNothingNewPrompt, CRON_NOTHING_NEW, loadRecentChannelHistory, historyOptions, searchAgentTasks, isTaskCancelled, modelNeverAnswered, lastTaskToolNames, taskChainAutoApproved } from "@hydraops/db";
+import { cronUnreadSources, cronReadSourcesPrompt, addUsage, CRON_SOURCES_UNREAD, CRON_SOURCES_UNREAD_TEXT, createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, filterCronAnswer, cronNothingNewPrompt, CRON_NOTHING_NEW, loadRecentChannelHistory, historyOptions, searchAgentTasks, isTaskCancelled, modelNeverAnswered, lastTaskToolNames, taskChainAutoApproved, calendarAgendaBlock, isTimeZone, systemTimeZone } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
@@ -197,6 +197,14 @@ loadCraft().then((c) => console.log(`[worker-coder] craft ${c ? "loaded (craft/c
 
 // [USER PROFILE] block for the system prompt, read fresh from users/profile.json
 // on every task (like the personality files) so edits apply without restart.
+// [CALENDAR] block: today and the next days of the shared calendar, in the user's zone.
+async function loadAgenda(): Promise<string> {
+  try {
+    const [row] = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, "calendar_timezone")).limit(1);
+    return await calendarAgendaBlock(db, { tz: isTimeZone(row?.value) ? row.value : systemTimeZone() });
+  } catch { return ""; }
+}
+
 async function loadUserProfile(): Promise<string> {
   try {
     const p = JSON.parse(await readFile(path.join(usersDir, "profile.json"), "utf-8"));
@@ -475,7 +483,7 @@ for await (const m of sub) {
     const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const contextType = channel === 'main' ? 'the main chat' : 'a private conversation';
     const craft = await loadCraft();
-    const userProfile = await loadUserProfile();
+    const userProfile = (await loadUserProfile()) + (await loadAgenda());
 
     const systemPrompt = `You are ${agentName}. Your identity, personality, knowledge, tone, and behavior are defined EXCLUSIVELY by the attached files below. Follow them strictly.
 ${craft}

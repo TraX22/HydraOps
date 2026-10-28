@@ -12,7 +12,7 @@ import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, c
 
 loadDotenv({ path: envFile });
 
-import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, loadRecentChannelHistory, historyOptions, searchAgentTasks, isTaskCancelled, modelNeverAnswered, lastTaskToolNames, taskChainAutoApproved } from "@hydraops/db";
+import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, loadRecentChannelHistory, historyOptions, searchAgentTasks, isTaskCancelled, modelNeverAnswered, lastTaskToolNames, taskChainAutoApproved, calendarAgendaBlock, isTimeZone, systemTimeZone } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { and, desc, eq, ne } from "drizzle-orm";
@@ -261,6 +261,14 @@ loadCraft().then((c) => console.log(`[${consumerName}] craft ${c ? `loaded (craf
 
 // [USER PROFILE] block for the system prompt, read fresh from users/profile.json
 // on every task (like the personality files) so edits apply without restart.
+// [CALENDAR] block: today and the next days of the shared calendar, in the user's zone.
+async function loadAgenda(): Promise<string> {
+  try {
+    const [row] = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, "calendar_timezone")).limit(1);
+    return await calendarAgendaBlock(db, { tz: isTimeZone(row?.value) ? row.value : systemTimeZone() });
+  } catch { return ""; }
+}
+
 async function loadUserProfile(): Promise<string> {
   try {
     const p = JSON.parse(await readFile(path.join(usersDir, "profile.json"), "utf-8"));
@@ -452,7 +460,7 @@ for await (const m of sub) {
     }
     const { context: personality, files: personalityFiles } = await loadPersonality(agentId);
     const craft = await loadCraft();
-    const userProfile = await loadUserProfile();
+    const userProfile = (await loadUserProfile()) + (await loadAgenda());
     const currentDate = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
     const contextType = channel === "main" ? "the main chat" : "a private conversation";
     const systemPrompt = `You are ${agentId}. Your identity is defined EXCLUSIVELY by the attached files. You are a graphic/visual agent with a generate_image tool: whenever the user wants an image, sprite, asset, drawing, icon, logo, background or any visual — in ANY wording — say in 1-3 lines what you will draw, then CALL generate_image with a polished English prompt. After it returns, reply with a short note on the result and suggested Next Steps. Never ask the user to rephrase or to use a "magic phrase".
