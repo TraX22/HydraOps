@@ -2617,7 +2617,9 @@ function publicCalendarEntry(r: any) {
  *  copied under storage/calendar/<entry>/ (the task vault empties after a day). A reference
  *  that resolves nowhere inside those folders is left out and named in the warning. */
 async function reserveCalendarAttachments(entryId: string, refs: string[], byTask?: string): Promise<{ files: { name: string; path: string; mime: string; size: number }[]; warning?: string }> {
-  const roots = [path.join(storageDir, "uploads"), ...(byTask && /^[0-9a-f-]{36}$/i.test(byTask) ? [path.join(storageDir, "results", byTask)] : [])];
+  const uploads = path.resolve(storageDir, "uploads");
+  const taskRoot = byTask && /^[0-9a-f-]{36}$/i.test(byTask) ? path.resolve(storageDir, "results", byTask) : null;
+  const roots = taskRoot ? [uploads, taskRoot] : [uploads];
   const files: { name: string; path: string; mime: string; size: number }[] = [];
   const missing: string[] = [];
   const used = new Set<string>();
@@ -2627,25 +2629,19 @@ async function reserveCalendarAttachments(entryId: string, refs: string[], byTas
     // name characters, no "..": anything else is not a file this task can name.
     const rel = String(ref).replace(/\\/g, "/").replace(/^storage\/uploads\//, "").replace(byTask ? `storage/results/${byTask}/` : "\u0000", "");
     if (rel.includes("..") || path.isAbsolute(rel) || !CALENDAR_REF_RE.test(rel)) { missing.push(String(ref).split(/[\\/]/).pop()!.slice(0, 80)); continue; }
-    const base = path.basename(rel);
-    const uploads = roots[0];
-    const candidates: string[] = [];
-    for (const r of roots) { const c = safeJoin(r, rel); if (c) candidates.push(c); }
-    const plain = safeJoin(uploads, base);
-    if (plain) candidates.push(plain);
+    const base = rel.split("/").pop()!;
     // An upload is stored as <timestamp>-<name>: the name alone, as the chat shows it, is enough.
     const bySuffix = (await readdir(uploads).catch(() => [] as string[])).filter((f) => f.endsWith(`-${base}`)).sort().reverse()[0];
-    const suffixed = bySuffix ? safeJoin(uploads, bySuffix) : null;
-    if (suffixed) candidates.push(suffixed);
+    const tries: [string, string][] = [...roots.map((r): [string, string] => [r, rel]), [uploads, base], ...(bySuffix ? [[uploads, bySuffix] as [string, string]] : [])];
     let found: string | null = null;
-    for (const c of candidates) {
-      const real = await realpath(c).catch(() => "");
+    for (const [root, segment] of tries) {
+      // The candidate, normalized, must stay under its root; so must what it really points at.
+      const normalized = path.normalize(path.join(root, segment));
+      if (!normalized.startsWith(root + path.sep)) continue;
+      const real = await realpath(normalized).catch(() => "");
       if (!real) continue;
-      for (const root of roots) {
-        const rr = await realpath(root).catch(() => path.resolve(root));
-        if (real.startsWith(rr + path.sep) && (await stat(real).catch(() => null))?.isFile()) { found = real; break; }
-      }
-      if (found) break;
+      const rr = await realpath(root).catch(() => root);
+      if (real.startsWith(rr + path.sep) && (await stat(real).catch(() => null))?.isFile()) { found = real; break; }
     }
     if (!found) { missing.push(base); continue; }
     let name = base.replace(/[^\w.\-() ]/g, "_");
