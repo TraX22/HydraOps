@@ -2626,7 +2626,7 @@ async function reserveCalendarAttachments(entryId: string, refs: string[], byTas
     // files, is the same as "x" under that root. A reference is plain path segments of file
     // name characters, no "..": anything else is not a file this task can name.
     const rel = String(ref).replace(/\\/g, "/").replace(/^storage\/uploads\//, "").replace(byTask ? `storage/results/${byTask}/` : "\u0000", "");
-    if (!CALENDAR_REF_RE.test(rel) || rel.split("/").some((s) => s === "..")) { missing.push(path.basename(String(ref)).slice(0, 80)); continue; }
+    if (rel.includes("..") || path.isAbsolute(rel) || !CALENDAR_REF_RE.test(rel)) { missing.push(String(ref).split(/[\\/]/).pop()!.slice(0, 80)); continue; }
     const base = path.basename(rel);
     const uploads = roots[0];
     const candidates: string[] = [];
