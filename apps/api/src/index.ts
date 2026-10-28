@@ -2622,11 +2622,18 @@ async function reserveCalendarAttachments(entryId: string, refs: string[], byTas
   const used = new Set<string>();
   for (const ref of refs.slice(0, CALENDAR_LIMITS.attachments)) {
     const base = path.basename(String(ref));
-    const candidates = [...(String(ref).startsWith("storage/") ? [path.resolve(dataRoot, String(ref))] : []), ...roots.map((r) => path.resolve(r, String(ref))), ...roots.map((r) => path.join(r, base))];
-    // An upload is stored as <timestamp>-<name>: the name alone, as the chat shows it, is enough.
+    // "storage/uploads/x" or "storage/results/<this task>/x", as the chat and the tools name
+    // files, is the same as "x" under that root. Every candidate is kept inside its root.
+    const rel = String(ref).replace(/\\/g, "/").replace(/^storage\/uploads\//, "").replace(byTask ? `storage/results/${byTask}/` : "\u0000", "");
     const uploads = roots[0];
+    const candidates: string[] = [];
+    for (const r of roots) { const c = safeJoin(r, rel); if (c) candidates.push(c); }
+    const plain = safeJoin(uploads, base);
+    if (plain) candidates.push(plain);
+    // An upload is stored as <timestamp>-<name>: the name alone, as the chat shows it, is enough.
     const bySuffix = (await readdir(uploads).catch(() => [] as string[])).filter((f) => f.endsWith(`-${base}`)).sort().reverse()[0];
-    if (bySuffix) candidates.push(path.join(uploads, bySuffix));
+    const suffixed = bySuffix ? safeJoin(uploads, bySuffix) : null;
+    if (suffixed) candidates.push(suffixed);
     let found: string | null = null;
     for (const c of candidates) {
       const real = await realpath(c).catch(() => "");
