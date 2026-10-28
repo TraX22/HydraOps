@@ -2618,7 +2618,11 @@ function publicCalendarEntry(r: any) {
  *  that resolves nowhere inside those folders is left out and named in the warning. */
 async function reserveCalendarAttachments(entryId: string, refs: string[], byTask?: string): Promise<{ files: { name: string; path: string; mime: string; size: number }[]; warning?: string }> {
   const uploads = path.resolve(storageDir, "uploads");
-  const taskRoot = byTask && /^[0-9a-f-]{36}$/i.test(byTask) ? path.resolve(storageDir, "results", byTask) : null;
+  // The task's folder is the entry of storage/results whose name IS the task id, found by
+  // listing: the path is built from what the disk holds, not from the request.
+  const resultsRoot = path.resolve(storageDir, "results");
+  const taskDir = byTask ? (await readdir(resultsRoot).catch(() => [] as string[])).find((d) => d === byTask) : undefined;
+  const taskRoot = taskDir ? path.join(resultsRoot, taskDir) : null;
   const roots = taskRoot ? [uploads, taskRoot] : [uploads];
   const files: { name: string; path: string; mime: string; size: number }[] = [];
   const missing: string[] = [];
