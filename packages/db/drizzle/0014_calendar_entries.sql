@@ -17,6 +17,7 @@ CREATE TABLE `calendar_entries` (
 	`status` text DEFAULT 'scheduled' NOT NULL,
 	`approved_at` integer,
 	`created_by_task` text,
+	`origins` text,
 	`last_run_at` integer,
 	`last_task_id` text,
 	`created_at` integer NOT NULL,

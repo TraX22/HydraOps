@@ -162,6 +162,10 @@ export const calendarEntries = sqliteTable(
     status: text("status").notNull().default("scheduled"), // scheduled | done | missed | cancelled
     approvedAt: integer("approved_at", { mode: "timestamp" }),
     createdByTask: text("created_by_task"),
+    // Where the task that wrote this entry had read outside content (tool + ref), when it
+    // had: such an entry stays out of the agenda block and reaches an agent only as
+    // external data, and a task it starts inherits the taint (see provenance.ts).
+    origins: text("origins", { mode: "json" }),
     lastRunAt: integer("last_run_at", { mode: "timestamp" }),
     lastTaskId: text("last_task_id"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),

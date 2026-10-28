@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4feacdef-1ffa-4dec-878d-2af0601c49de",
+  "id": "7df0f7ee-232f-441b-8f9c-606d8f6c7f74",
   "prevId": "e15e6f0b-2b6c-4040-8fe3-5d9abf6fdcd8",
   "tables": {
     "agent_configs": {
@@ -222,6 +222,13 @@
         },
         "created_by_task": {
           "name": "created_by_task",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "origins": {
+          "name": "origins",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

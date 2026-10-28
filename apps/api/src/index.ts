@@ -2597,6 +2597,7 @@ api.post("/tasks/:id/resend", async (req, res) => {
 const CALENDAR_TICK_MS = Number(process.env.CALENDAR_TICK_MS) > 0 ? Number(process.env.CALENDAR_TICK_MS) : 30_000;
 const calendarDir = path.join(storageDir, "calendar");
 const CALENDAR_ID_RE = /^[0-9a-f-]{8,40}$/i;
+const CALENDAR_REF_RE = /^[\w.\-() ]{1,200}(\/[\w.\-() ]{1,200}){0,4}$/;
 const OWNER_RE = /^(user|[a-z0-9][a-z0-9_-]{0,63})$/i;
 const CALENDAR_MIMES: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", mp4: "video/mp4", webm: "video/webm", glb: "model/gltf-binary", pdf: "application/pdf", txt: "text/plain", md: "text/markdown", json: "application/json", csv: "text/csv" };
 
@@ -2621,10 +2622,12 @@ async function reserveCalendarAttachments(entryId: string, refs: string[], byTas
   const missing: string[] = [];
   const used = new Set<string>();
   for (const ref of refs.slice(0, CALENDAR_LIMITS.attachments)) {
-    const base = path.basename(String(ref));
     // "storage/uploads/x" or "storage/results/<this task>/x", as the chat and the tools name
-    // files, is the same as "x" under that root. Every candidate is kept inside its root.
+    // files, is the same as "x" under that root. A reference is plain path segments of file
+    // name characters, no "..": anything else is not a file this task can name.
     const rel = String(ref).replace(/\\/g, "/").replace(/^storage\/uploads\//, "").replace(byTask ? `storage/results/${byTask}/` : "\u0000", "");
+    if (!CALENDAR_REF_RE.test(rel) || rel.split("/").some((s) => s === "..")) { missing.push(path.basename(String(ref)).slice(0, 80)); continue; }
+    const base = path.basename(rel);
     const uploads = roots[0];
     const candidates: string[] = [];
     for (const r of roots) { const c = safeJoin(r, rel); if (c) candidates.push(c); }
@@ -2751,11 +2754,15 @@ api.post("/calendar", async (req, res) => {
     const id = randomUUID();
     const now = new Date();
     const kept = b.kind === "action" && Array.isArray(b.attachments) && b.attachments.length ? await reserveCalendarAttachments(id, b.attachments.map(String), createdByTask ?? undefined) : { files: [] };
+    // The outside content the writing task had read, shape-checked (see provenance.ts).
+    const origins = by !== "user" && Array.isArray(b.origins)
+      ? b.origins.filter((o: any) => o && typeof o.tool === "string").slice(0, 12).map((o: any) => ({ tool: String(o.tool).slice(0, 80), ...(typeof o.ref === "string" ? { ref: o.ref.slice(0, 200) } : {}) }))
+      : [];
     const row = {
       id, owner, kind: b.kind, title: fields.title, notes: fields.notes ?? null, at: fields.at, timezone: fields.timezone, date: fields.date, time: fields.time ?? null,
       repeat: fields.repeat ?? "none", repeatUntil: fields.repeatUntil ?? null, occurrencesLeft: fields.occurrencesLeft ?? null,
       agentId: b.kind === "action" ? fields.agentId : null, prompt: b.kind === "action" ? fields.prompt : null, attachments: kept.files,
-      status: "scheduled", approvedAt: b.kind === "action" ? now : null, createdByTask, createdAt: now, updatedAt: now,
+      status: "scheduled", approvedAt: b.kind === "action" ? now : null, createdByTask, origins, createdAt: now, updatedAt: now,
     };
     await (db as any).insert(calendarEntries).values(row).run();
     console.log(`[api] calendar: ${by} added ${b.kind} "${row.title}" for ${row.date} ${row.time ?? "(all day)"} ${row.timezone}${kept.files.length ? ` with ${kept.files.length} file(s)` : ""}`);
@@ -2826,7 +2833,8 @@ async function tickCalendar(): Promise<void> {
         if (e.kind === "action") {
           if (late > CALENDAR_LIMITS.catchUpMs) outcome = "missed";
           else {
-            lastTaskId = await insertTask({ prompt: calendarTaskPrompt(e), channel: e.agentId || e.owner, userId: "calendar", isRead: false });
+            // An action written from outside content starts its task tainted, as a delegated task would.
+            lastTaskId = await insertTask({ prompt: calendarTaskPrompt(e), channel: e.agentId || e.owner, userId: "calendar", isRead: false, inheritedTaint: Array.isArray(e.origins) ? e.origins : [] });
             outcome = "run";
           }
         } else if (e.time && late <= CALENDAR_LIMITS.catchUpMs) outcome = "reminded";

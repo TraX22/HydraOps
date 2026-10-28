@@ -57,6 +57,7 @@ What the calendar guarantees:
 - **Attachments are kept.** The files an action names (the user's attachments, the files of the task that scheduled it) are copied into the calendar when the action is approved, because a task's files are cleared after a day. The task that runs later gets the copies.
 - **Repeats**: daily, weekly, monthly, yearly, until a date or up to 365 times; the 31st of a month becomes the 30th or the 28th where needed, never the 1st of the next.
 - **While HydraOps was off**: an action that came due at most 6 hours ago runs when it starts; an older one is marked missed and you are told on Telegram. A timed note older than that no longer reminds.
+- **Outside content stays outside.** An entry written by a task that had read a web page or a feed records that origin: it is left out of the agenda the agents get, `calendar_list` hands it over marked as external data, and a task it starts is treated as tainted, the same way a delegated task is (see [Security](./13-security.md)).
 - **Limits**: one task may create 20 entries, one owner may hold 200 scheduled entries, nothing further than a year ahead. Enough for real use, not for an agent in a loop.
 
 `GET /api/calendar?from=YYYY-MM-DD&days=14` lists the entries; `POST`, `PATCH /:id` and `DELETE /:id` manage them from your own scripts.

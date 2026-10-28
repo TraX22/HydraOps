@@ -57,6 +57,7 @@ Lo que el calendario garantiza:
 - **Los adjuntos se conservan.** Los archivos que nombra una acción (tus adjuntos, los archivos de la tarea que la programó) se copian al calendario cuando la acción se aprueba, porque los archivos de una tarea se limpian al día. La tarea que corre después recibe las copias.
 - **Repeticiones**: diaria, semanal, mensual, anual, hasta una fecha o hasta 365 veces; el 31 de un mes pasa a ser el 30 o el 28 cuando hace falta, nunca el 1 del siguiente.
 - **Mientras HydraOps estuvo apagado**: una acción vencida hace 6 horas o menos corre al arrancar; una más vieja queda como perdida y te avisa por Telegram. Una nota con hora más vieja que eso ya no recuerda.
+- **Lo de afuera se queda afuera.** Una entrada escrita por una tarea que había leído una página o un feed registra ese origen: queda fuera de la agenda que reciben los agentes, `calendar_list` la entrega marcada como contenido externo, y la tarea que dispara se trata como manchada, igual que una tarea delegada (ver [Seguridad](./13-security.md)).
 - **Topes**: una tarea puede crear 20 entradas, un dueño puede tener 200 programadas, nada a más de un año. Alcanza para el uso real, no para un agente en bucle.
 
 `GET /api/calendar?from=AAAA-MM-DD&days=14` lista las entradas; `POST`, `PATCH /:id` y `DELETE /:id` las gestionan desde tus propios scripts.

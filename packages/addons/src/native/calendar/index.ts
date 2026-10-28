@@ -36,7 +36,7 @@ const fail = (r: { status: number; data: any }) => `Calendar: ${r.data?.error ??
 function line(e: any): string {
   const who = e.owner === "user" ? "the user" : e.owner;
   const what = e.kind === "action" ? `action for ${e.agentId ?? e.owner}` : "note";
-  const extra = [e.repeat && e.repeat !== "none" ? `repeats ${e.repeat}${e.repeatUntil ? ` until ${e.repeatUntil}` : ""}` : "", e.status !== "scheduled" ? e.status : "", e.attachments?.length ? `${e.attachments.length} attachment(s)` : ""].filter(Boolean).join("; ");
+  const extra = [e.repeat && e.repeat !== "none" ? `repeats ${e.repeat}${e.repeatUntil ? ` until ${e.repeatUntil}` : ""}` : "", e.status !== "scheduled" ? e.status : "", e.attachments?.length ? `${e.attachments.length} attachment(s)` : "", Array.isArray(e.origins) && e.origins.length ? "written from outside content" : ""].filter(Boolean).join("; ");
   return `- ${e.id} · ${e.date}${e.time ? ` ${e.time}` : " (all day)"} ${e.timezone} · ${e.title} (${who}; ${what}${extra ? `; ${extra}` : ""})${e.notes ? `\n    ${String(e.notes).slice(0, 300).replace(/\n/g, " ")}` : ""}`;
 }
 
@@ -55,7 +55,7 @@ export const calendarListTool: HydraTool = {
     owner: z.string().max(64).optional().describe('Only one owner\'s entries: an agent id, or "user".'),
     include_past: z.boolean().optional().describe("Also entries already done, missed or cancelled in the range."),
   }),
-  execute: async (args: any, _ctx?: ToolContext) => {
+  execute: async (args: any, ctx?: ToolContext) => {
     const q = new URLSearchParams();
     if (args.from) q.set("from", args.from);
     if (args.to) q.set("to", args.to);
@@ -66,7 +66,11 @@ export const calendarListTool: HydraTool = {
     if (!r.ok) return fail(r);
     const rows: any[] = r.data?.entries ?? [];
     if (!rows.length) return `No calendar entries ${r.data?.from && r.data?.to ? `between ${r.data.from} and ${r.data.to}` : "in that range"} (${r.data?.timezone ?? ""}).`;
-    return `${rows.length} entr${rows.length === 1 ? "y" : "ies"} between ${r.data.from} and ${r.data.to} (times in each entry's zone; the user's zone is ${r.data.timezone}):\n${rows.map(line).join("\n")}`.slice(0, MAX_OUTPUT);
+    const text = `${rows.length} entr${rows.length === 1 ? "y" : "ies"} between ${r.data.from} and ${r.data.to} (times in each entry's zone; the user's zone is ${r.data.timezone}):\n${rows.map(line).join("\n")}`.slice(0, MAX_OUTPUT);
+    // An entry written by a task that had read outside content is handed over as external
+    // data, and this task is marked as having read it.
+    const tainted = rows.some((e) => Array.isArray(e.origins) && e.origins.length);
+    return tainted && ctx?.external ? ctx.external("calendar_list", undefined, text) : text;
   },
 };
 
@@ -92,10 +96,13 @@ export const calendarAddTool: HydraTool = {
   execute: async (args: any, ctx?: ToolContext) => {
     const by = ctx?.agentId ?? "user";
     if (args.kind === "action" && !args.prompt) return "An action needs `prompt`: what the agent has to do when the time comes.";
+    // Where this task had read outside content: the entry carries it, so what it says
+    // never reaches another agent as trusted context (see provenance.ts).
+    const origins = ctx?.taintOrigins?.() ?? [];
     const r = await call("POST", "", {
       by, owner: by, kind: args.kind, title: args.title, date: args.date, time: args.time ?? null, timezone: args.timezone, notes: args.notes,
       repeat: args.repeat ?? "none", repeatUntil: args.repeat_until, agentId: args.kind === "action" ? (args.agent ?? by) : undefined, prompt: args.prompt,
-      attachments: args.attachments ?? [], createdByTask: taskIdOf(ctx),
+      attachments: args.attachments ?? [], createdByTask: taskIdOf(ctx), origins,
     });
     if (!r.ok) return fail(r);
     const e = r.data?.entry;
