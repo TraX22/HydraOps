@@ -16,14 +16,15 @@
 
 **Self-hosted multi-agent AI for your own machine.** A desktop app (Windows installer)
 or a headless server, with a chat where several AI agents — each with its own
-personality, model, tools and memory — work on tasks in parallel: research, code, images
-and video. Bring your API keys or run local LLMs; talk to your agents from the app, from
+personality, model, tools and memory — work on tasks in parallel: research, code, images,
+video and 3D. Bring your API keys or run local LLMs; talk to your agents from the app, from
 Telegram, or with `/commands`.
 
 Works with API models (OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, DeepSeek, Qwen,
 Kimi, GLM, MiniMax, OpenRouter, Perplexity, Leonardo) and with local models through any
 OpenAI-compatible server — Ollama, llama.cpp, LM Studio, vLLM. Image and video engines:
-Leonardo, Google Imagen and Veo, xAI Grok Imagine.
+Leonardo, Google Imagen and Veo, xAI Grok Imagine — or your own ComfyUI, where the agents
+run the workflows you saved (images, video and image-to-3D) and fetch the models they need.
 
 > **Status:** in real daily use on Windows (desktop installer) and in **server mode**
 > (headless) — reachable from another machine's browser on your local network with a
@@ -46,13 +47,15 @@ Leonardo, Google Imagen and Veo, xAI Grok Imagine.
   fallback, YouTube transcripts, GitHub, Telegram), your own add-ons in `my_addons/`
   (hot-loaded) and MCP servers, local or remote. Each agent gets only the tools you
   grant it.
-- **Connections.** A catalog of MCP servers ready to install from the app — Blender, a
-  real browser, a document converter — with the program's version pinned and every tool
-  classified by what it does, so the ones that only read run freely.
+- **Connections.** A catalog of MCP servers ready to install from the app — Blender,
+  Unity (its official CLI), ComfyUI, a real browser, a document converter — with the
+  program's version pinned and every tool classified by what it does, so the ones that
+  only read run freely and the rest ask when it matters.
 - **Skills.** Tested procedures (the open Agent Skills format) that agents open when a
   task calls for one: install them from the
-  [catalog](https://github.com/TraX22/HydraOps-Skills), copy your own, or let an agent
-  propose one for your approval.
+  [catalog](https://github.com/TraX22/HydraOps-Skills) or from any GitHub repository
+  (with a preview, the license and a safety scan, and an Update button after), copy your
+  own, or let an agent propose one for your approval.
 - **Plan before doing.** `/plan` puts an agent in a mode where it can only read: it
   proposes the steps, you approve, edit or ask for a revision, and only then does
   anything run.
@@ -72,7 +75,31 @@ Leonardo, Google Imagen and Veo, xAI Grok Imagine.
 - **One Shot.** Draw a task as a flow diagram of nodes and connections and have your
   model compile it into a single, complete prompt.
 - **3D.** Describe an object and a model writes the scene; it renders in an isolated
-  viewer, you iterate on it and export it as `.glb` or a PNG.
+  viewer, you iterate on it and export it as `.glb` or a PNG. Models an agent makes with
+  ComfyUI open in the chat's own 3D viewer, or straight in your Blender.
+- **ComfyUI from the chat.** The workflows you saved in your own ComfyUI run from a
+  message (`comfy_workflows`): the agent prepares a copy with your attachments, sets the
+  values, runs it, waits or lets it go, collects the result and **looks at it** before
+  reporting. Missing models are found and downloaded from Hugging Face or Civitai, with
+  your approval, into the right folder.
+- **Hugging Face and Civitai.** Search models and datasets, read a repository, preview a
+  dataset, study a Civitai model (versions, trigger words, example settings); uploads and
+  comments wait for your approval, adult content is blocked unless you allow it.
+- **Publish on X.** Agents post threads, with images or a video, on the accounts you
+  connect (several, Premium aware) — every post shown to you first, as it will go out.
+- **A shared calendar.** Notes the agents read as context and actions that become tasks
+  when their time comes, with the time zone stored per entry, reserved attachments and
+  Telegram reminders; a Calendar view in Complementos, and the agents' tools held for
+  your approval when they schedule, change or remove something.
+- **Image edits without a GPU.** `image_edit` crops, flips, rotates, resizes, trims and
+  composes images of the task (a sheet of views, a mirrored profile) and shows the agent
+  the result.
+- **Cheaper rounds.** Tools load on demand (a description first, the full tool when
+  named), the earlier chat an agent carries is set per agent (none, short, normal, long),
+  and a loaded tool stays loaded so the provider's prompt cache survives.
+- **Your ChatGPT plan instead of a key**, if you have one: sign in once and the agents
+  use it. Updates arrive in the sidebar, one click installs them; editing a message in
+  the chat sends it again.
 - **Credential firewall.** API keys are never in the repository, the database or the
   `.env`: they live outside the project and a local proxy injects them at the network
   boundary. Workers only ever see the `proxy` placeholder.
@@ -230,6 +257,10 @@ variable.
 The three local-model settings (`LOCAL_LLM_URL`, `LOCAL_LLM_KEY`, `LOCAL_LLM_MODEL`)
 live only in the `.env` on purpose, and the workers re-read it on every task: you can
 switch local servers without restarting anything.
+
+Per agent, from the Agents view: the model, the worker type, the steps a task may take,
+how much earlier chat it carries. The calendar's time zone is in Settings; integrations
+(GitHub, Hugging Face, Civitai, X, Telegram) have their cards in Tools.
 
 ## Security
 
