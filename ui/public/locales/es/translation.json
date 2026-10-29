@@ -1231,6 +1231,8 @@
       "remove": "Quitar",
       "removeSure": "¿Seguro? Quitar",
       "again": "Volver a programar"
-    }
+    },
+    "browserZone": "Tu navegador está en {{tz}}; el calendario usa la zona de la máquina donde corre HydraOps ({{cal}}).",
+    "useBrowserZone": "Usar {{tz}}"
   }
 }

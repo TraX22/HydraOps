@@ -1,7 +1,13 @@
 <div class="cal">
   <!-- Left: the mini month and the agenda of the coming days -->
   <aside class="agenda">
-    <h2>{{ monthLabel() }}</h2>
+    <div class="agenda-head">
+      <h2>{{ monthLabel() }}</h2>
+      <span class="mini-nav">
+        <button type="button" class="btn icon" (click)="stepMonth(-1)" [attr.aria-label]="'calendar.prev' | translate"><app-icon name="chevron-left" /></button>
+        <button type="button" class="btn icon" (click)="stepMonth(1)" [attr.aria-label]="'calendar.next' | translate"><app-icon name="chevron-right" /></button>
+      </span>
+    </div>
     <div class="mini">
       @for (d of weekdaysMini(); track $index) { <div class="h">{{ d }}</div> }
       @for (d of miniDays(); track d) {
@@ -33,13 +39,14 @@
   <!-- Middle: the toolbar and the month / week / day view -->
   <div class="main">
     <div class="bar">
+     <div class="bar-row">
       <button type="button" class="btn ghost" (click)="back()"><app-icon name="chevron-left" /> {{ 'threeD.back' | translate }}</button>
       <div class="nav">
-        <button type="button" class="btn" (click)="step(-1)" [attr.aria-label]="'calendar.prev' | translate">‹</button>
+        <button type="button" class="btn icon" (click)="step(-1)" [attr.aria-label]="'calendar.prev' | translate"><app-icon name="chevron-left" /></button>
         <button type="button" class="btn" (click)="goToday()">{{ 'calendar.today' | translate }}</button>
-        <button type="button" class="btn" (click)="step(1)" [attr.aria-label]="'calendar.next' | translate">›</button>
+        <button type="button" class="btn icon" (click)="step(1)" [attr.aria-label]="'calendar.next' | translate"><app-icon name="chevron-right" /></button>
       </div>
-      <div class="title">
+      <div class="title" [title]="view() === 'month' ? monthLabel() : view() === 'week' ? weekLabel() : longDay(cursor())">
         @switch (view()) {
           @case ('month') { {{ monthLabel() }} }
           @case ('week') { {{ weekLabel() }} }
@@ -51,10 +58,24 @@
         <button type="button" role="tab" [class.on]="view() === 'week'" [attr.aria-selected]="view() === 'week'" (click)="setView('week')">{{ 'calendar.view.week' | translate }}</button>
         <button type="button" role="tab" [class.on]="view() === 'month'" [attr.aria-selected]="view() === 'month'" (click)="setView('month')">{{ 'calendar.view.month' | translate }}</button>
       </div>
+     </div>
+     <div class="bar-row">
       <input id="calendar-search" type="search" [placeholder]="'calendar.search' | translate" [ngModel]="search()" (ngModelChange)="search.set($event)" />
-      <span class="tz" [title]="'calendar.tzHint' | translate">{{ tz() }}</span>
+      <select id="calendar-tz" class="tz" [title]="'calendar.tzHint' | translate" [ngModel]="tz()" (ngModelChange)="setTz($event)">
+        @if (tz() && !timezones().includes(tz())) { <option [value]="tz()">{{ tz() }}</option> }
+        @for (z of timezones(); track z) { <option [value]="z">{{ z }}</option> }
+      </select>
       <button type="button" class="btn primary" (click)="newEntry()"><app-icon name="plus" /> {{ 'calendar.new' | translate }}</button>
+     </div>
     </div>
+    @if (browserTz() && browserTz() !== tz() && !zoneChosen()) {
+      <!-- HydraOps may run on a machine in another country: the calendar starts in that
+           machine's zone, which is not where the person reading this is. -->
+      <div class="zone-note" role="status">
+        {{ 'calendar.browserZone' | translate:{ tz: browserTz(), cal: tz() } }}
+        <button type="button" class="btn" (click)="setTz(browserTz())">{{ 'calendar.useBrowserZone' | translate:{ tz: browserTz() } }}</button>
+      </div>
+    }
     <div class="legend">
       @for (o of owners(); track o.id) { <span><i [style.background]="o.color"></i>{{ o.name }}</span> }
       <span class="key"><i class="sq"></i>{{ 'calendar.legend.action' | translate }} · <i></i>{{ 'calendar.legend.note' | translate }}</span>
@@ -158,7 +179,7 @@
           <dt>{{ 'calendar.detail.approved' | translate }}</dt><dd>{{ e.approvedAt ? ('calendar.detail.approvedYes' | translate) : ('calendar.detail.approvedNo' | translate) }}<br><span class="hint">{{ 'calendar.detail.runsAlone' | translate }}</span></dd>
         }
         @if (e.repeat !== 'none') { <dt>{{ 'calendar.form.repeat' | translate }}</dt><dd>{{ ('calendar.repeat.' + e.repeat) | translate }}@if (e.repeatUntil) { · {{ 'calendar.form.until' | translate }} {{ e.repeatUntil }} }</dd> }
-        @if (e.lastRunAt) { <dt>{{ 'calendar.detail.lastRun' | translate }}</dt><dd>{{ e.lastRunAt | date:'short' }}@if (e.lastTaskId) { · {{ 'calendar.detail.task' | translate }} <code>{{ e.lastTaskId.slice(0, 8) }}</code> }</dd> }
+        @if (e.lastRunAt) { <dt>{{ 'calendar.detail.lastRun' | translate }}</dt><dd>{{ dateTime(e.lastRunAt, e.timezone) }}@if (e.lastTaskId) { · {{ 'calendar.detail.task' | translate }} <code>{{ e.lastTaskId.slice(0, 8) }}</code> }</dd> }
         @if (e.origins?.length) { <dt>{{ 'calendar.detail.origin' | translate }}</dt><dd class="warn">{{ 'calendar.detail.outside' | translate }}</dd> }
       </dl>
       @if (e.prompt) { <div class="box"><h4>{{ 'calendar.form.prompt' | translate }}</h4><pre>{{ e.prompt }}</pre></div> }

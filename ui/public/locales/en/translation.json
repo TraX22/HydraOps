@@ -1231,6 +1231,8 @@
       "remove": "Remove",
       "removeSure": "Sure? Remove",
       "again": "Schedule again"
-    }
+    },
+    "browserZone": "Your browser is in {{tz}}; the calendar uses the zone of the machine HydraOps runs on ({{cal}}).",
+    "useBrowserZone": "Use {{tz}}"
   }
 }
