@@ -200,12 +200,15 @@
               <td class="actions">
                 <button class="ibtn" (click)="previewInstalled(k)">{{ 'herramientas.skills.view' | translate }}</button>
                 @if (k.source === 'github') {
-                  <button class="ibtn" [class.ok]="k.updateAvailable" [disabled]="!!busy()" (click)="updateGitHub(k)" [title]="'herramientas.skills.github.updateHint' | translate">
-                    <app-icon name="refresh" /> {{ 'herramientas.skills.update' | translate }}
+                  <button class="ibtn" [class.ok]="k.updateAvailable" [class.busy]="busy() === k.name" [disabled]="!!busy()" (click)="updateGitHub(k)" [title]="'herramientas.skills.github.updateHint' | translate">
+                    <app-icon name="refresh" /> {{ (busy() === k.name ? 'herramientas.skills.checking' : 'herramientas.skills.update') | translate }}
                   </button>
                 }
                 @if (k.source !== 'builtin') {
                   <button class="ibtn danger" [disabled]="!!busy()" (click)="remove(k)"><app-icon name="trash" /> {{ 'herramientas.skills.delete' | translate }}</button>
+                }
+                @if (rowNote(); as n) {
+                  @if (n.name === k.name) { <div class="row-note" [class.bad]="n.bad" role="status">{{ n.text }}</div> }
                 }
               </td>
             </tr>

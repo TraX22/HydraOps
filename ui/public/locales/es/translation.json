@@ -809,6 +809,8 @@
         "updateHint": "Vuelve a leer la carpeta del repositorio y reemplaza la copia si cambió.",
         "updateDone": "«{{name}}» actualizada al commit {{commit}}.",
         "updateNone": "«{{name}}» ya está igual que el repositorio (commit {{commit}}).",
+        "rowUpToDate": "al día · {{commit}}",
+        "rowUpdated": "actualizada · {{commit}}",
         "updateFindings": "La versión nueva de «{{name}}» tiene {{n}} hallazgos del análisis de seguridad: revisala con «Ver».",
         "renamed": "No se actualizó «{{name}}»: {{detail}}",
         "notInstallable": "No se actualizó «{{name}}»: la versión nueva no se puede instalar ({{detail}}).",

@@ -809,6 +809,8 @@
         "updateHint": "Reads the repository folder again and replaces the copy if it changed.",
         "updateDone": "“{{name}}” updated to commit {{commit}}.",
         "updateNone": "“{{name}}” already matches the repository (commit {{commit}}).",
+        "rowUpToDate": "up to date · {{commit}}",
+        "rowUpdated": "updated · {{commit}}",
         "updateFindings": "The new version of “{{name}}” has {{n}} safety scan findings: check it with “View”.",
         "renamed": "“{{name}}” was not updated: {{detail}}",
         "notInstallable": "“{{name}}” was not updated: the new version cannot be installed ({{detail}}).",

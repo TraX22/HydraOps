@@ -809,6 +809,8 @@
         "updateHint": "Relit le dossier du dépôt et remplace la copie s'il a changé.",
         "updateDone": "« {{name}} » mise à jour au commit {{commit}}.",
         "updateNone": "« {{name}} » est déjà identique au dépôt (commit {{commit}}).",
+        "rowUpToDate": "à jour · {{commit}}",
+        "rowUpdated": "mise à jour · {{commit}}",
         "updateFindings": "La nouvelle version de « {{name}} » a {{n}} signalements de l'analyse de sécurité : vérifiez-la avec « Voir ».",
         "renamed": "« {{name}} » n'a pas été mise à jour : {{detail}}",
         "notInstallable": "« {{name}} » n'a pas été mise à jour : la nouvelle version ne peut pas être installée ({{detail}}).",
