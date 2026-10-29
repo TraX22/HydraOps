@@ -58,6 +58,8 @@ export class SkillsCardComponent implements OnInit {
   busy = signal<string | null>(null);
   error = signal('');
   notice = signal('');
+  /** The outcome of the last Update or Delete, shown in that skill's own row, next to the button that was pressed. */
+  rowNote = signal<{ name: string; text: string; bad?: boolean } | null>(null);
   preview = signal<PreviewState | null>(null);
 
   // ── GitHub: the address typed, the repository read from it, the folders chosen ──
@@ -171,9 +173,10 @@ export class SkillsCardComponent implements OnInit {
     if (this.busy()) return;
     if (!confirm(this.translate.instant('herramientas.skills.deleteConfirm', { name: s.name }))) return;
     this.busy.set(s.name);
+    this.rowNote.set(null);
     this.api.deleteSkill(s.name).subscribe({
       next: () => { this.busy.set(null); this.reload(); },
-      error: () => { this.busy.set(null); this.error.set(this.translate.instant('herramientas.skills.deleteError', { name: s.name })); },
+      error: () => { this.busy.set(null); this.rowNote.set({ name: s.name, text: this.translate.instant('herramientas.skills.deleteError', { name: s.name }), bad: true }); },
     });
   }
 
@@ -296,21 +299,23 @@ export class SkillsCardComponent implements OnInit {
   updateGitHub(s: InstalledSkill): void {
     if (this.busy()) return;
     this.busy.set(s.name);
-    this.error.set('');
-    this.notice.set('');
+    this.rowNote.set(null);
+    // The answer lands in the row itself: the general notices sit by the address box, far
+    // from a table of many installed skills, where a click looked like nothing happened.
     this.api.updateGitHubSkill(s.name).subscribe({
       next: res => {
         this.busy.set(null);
-        this.notice.set(this.translate.instant(res.updated ? 'herramientas.skills.github.updateDone' : 'herramientas.skills.github.updateNone', { name: s.name, commit: res.commit.slice(0, 7) }));
         const high = (res.findings ?? []).filter(f => f.severity === 'high');
-        if (high.length) this.error.set(this.translate.instant('herramientas.skills.github.updateFindings', { name: s.name, n: high.length }));
+        const text = this.translate.instant(res.updated ? 'herramientas.skills.github.rowUpdated' : 'herramientas.skills.github.rowUpToDate', { commit: res.commit.slice(0, 7) })
+          + (high.length ? ' · ' + this.translate.instant('herramientas.skills.github.updateFindings', { name: s.name, n: high.length }) : '');
+        this.rowNote.set({ name: s.name, text, bad: high.length > 0 });
         this.reload();
       },
       error: err => {
         this.busy.set(null);
         const code = err?.error?.error;
         const key = code === 'renamed' ? 'renamed' : code === 'not_installable' ? 'notInstallable' : null;
-        this.error.set(key ? this.translate.instant('herramientas.skills.github.' + key, { name: s.name, detail: String(err?.error?.message ?? '') }) : this.githubErrorText(err, s.name));
+        this.rowNote.set({ name: s.name, bad: true, text: key ? this.translate.instant('herramientas.skills.github.' + key, { name: s.name, detail: String(err?.error?.message ?? '') }) : this.githubErrorText(err, s.name) });
       },
     });
   }

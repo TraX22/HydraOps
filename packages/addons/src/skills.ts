@@ -33,7 +33,7 @@ export const isValidSkillName = (name: unknown): name is string => typeof name =
 export const SKILL_LIMITS = {
   maxFiles: 50,
   maxFileBytes: 128 * 1024,
-  maxTotalBytes: 512 * 1024,
+  maxTotalBytes: 1024 * 1024,
   /** Skills listed in the system prompt; past this the list is cut (and says so). */
   maxInPrompt: 60,
   maxDescriptionInPrompt: 300,
