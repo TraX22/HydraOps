@@ -1146,7 +1146,9 @@
     "pngFailed": "Could not save the image",
     "keptPrevious": "The change did not work: your previous version is kept.",
     "keepFixing": "Keep fixing",
-    "keepFixingHint": "Asks the model again to fix the last code that failed"
+    "keepFixingHint": "Asks the model again to fix the last code that failed",
+    "frontView": "Front view: the camera in front of the object, 30° above (the view for a screenshot)",
+    "turntable": "Turn 360°: a full turn from the front, in 8 seconds"
   },
   "calendar": {
     "name": "Calendar",

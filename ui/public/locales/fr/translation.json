@@ -1146,7 +1146,9 @@
     "pngFailed": "Impossible d'enregistrer l'image",
     "keptPrevious": "La modification n'a pas marché : votre version précédente est conservée.",
     "keepFixing": "Continuer à corriger",
-    "keepFixingHint": "Redemande au modèle de corriger le dernier code qui a échoué"
+    "keepFixingHint": "Redemande au modèle de corriger le dernier code qui a échoué",
+    "frontView": "Vue de face : la caméra devant l’objet, 30° au-dessus (la vue pour une capture)",
+    "turntable": "Tour 360° : un tour complet depuis la face, en 8 secondes"
   },
   "calendar": {
     "name": "Calendrier",

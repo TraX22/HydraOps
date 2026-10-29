@@ -20,6 +20,12 @@
       <button class="td-btn ghost" (click)="resetView()" [disabled]="!hasCode()" [title]="'threeD.resetView' | translate">
         <app-icon name="maximize" />
       </button>
+      <button class="td-btn ghost td-front" (click)="frontView()" [disabled]="!hasCode() || turning()" [title]="'threeD.frontView' | translate">
+        <app-icon name="cube" />
+      </button>
+      <button class="td-btn ghost td-turn" (click)="turntable()" [class.active]="turning()" [disabled]="!hasCode() || turning()" [title]="'threeD.turntable' | translate">
+        <app-icon name="refresh" />
+      </button>
       <button class="td-btn ghost" (click)="toggleClean()" [class.active]="clean()" [title]="'threeD.cleanView' | translate">
         <app-icon name="square" />
       </button>
