@@ -17,14 +17,16 @@
 **IA multi-agente autoalojada, en tu propia máquina.** Una aplicación de escritorio
 (instalador para Windows) o un servidor sin pantalla, con un chat donde varios agentes de
 IA — cada uno con su personalidad, su modelo, sus herramientas y su memoria — resuelven
-tareas en paralelo: investigación, código, imágenes y vídeo. Con tus claves de API o con
-modelos locales; hablás con tus agentes desde la aplicación, desde Telegram o con
+tareas en paralelo: investigación, código, imágenes, vídeo y 3D. Con tus claves de API o
+con modelos locales; hablás con tus agentes desde la aplicación, desde Telegram o con
 `/comandos`.
 
 Funciona con modelos de API (OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, DeepSeek,
 Qwen, Kimi, GLM, MiniMax, OpenRouter, Perplexity, Leonardo) y con modelos locales por
 cualquier servidor compatible con OpenAI — Ollama, llama.cpp, LM Studio, vLLM. Motores de
-imagen y vídeo: Leonardo, Google Imagen y Veo, xAI Grok Imagine.
+imagen y vídeo: Leonardo, Google Imagen y Veo, xAI Grok Imagine — o tu propio ComfyUI,
+donde los agentes corren los flujos que guardaste (imagen, vídeo e imagen a 3D) y bajan
+los modelos que necesitan.
 
 > **Estado:** en uso real sobre Windows (instalador de escritorio) y en **modo servidor**
 > (headless) — accesible desde el navegador de otro equipo en tu red local con un token, o
@@ -49,13 +51,14 @@ imagen y vídeo: Leonardo, Google Imagen y Veo, xAI Grok Imagine.
   `my_addons/` (se cargan en caliente) y servidores MCP, locales o remotos. Cada agente
   recibe solo las herramientas que le concedés.
 - **Conexiones.** Un catálogo de servidores MCP listos para instalar desde la app
-  —Blender, un navegador real, un conversor de documentos— con la versión del programa
-  fijada y cada herramienta clasificada por lo que hace, así las que solo leen corren
-  libres.
+  —Blender, Unity (su CLI oficial), ComfyUI, un navegador real, un conversor de
+  documentos— con la versión del programa fijada y cada herramienta clasificada por lo
+  que hace, así las que solo leen corren libres y el resto pide permiso cuando importa.
 - **Skills.** Procedimientos probados (el formato abierto Agent Skills) que los agentes
   abren cuando una tarea los necesita: se instalan desde el
-  [catálogo](https://github.com/TraX22/HydraOps-Skills), copiás las tuyas, o dejás que
-  un agente proponga una para que la apruebes.
+  [catálogo](https://github.com/TraX22/HydraOps-Skills) o desde cualquier repositorio de
+  GitHub (con vista previa, licencia y escaneo de seguridad, y un botón Actualizar
+  después), copiás las tuyas, o dejás que un agente proponga una para que la apruebes.
 - **Planificar antes de hacer.** `/plan` pone al agente en un modo en el que solo puede
   leer: propone los pasos, vos aprobás, editás o pedís una revisión, y recién entonces
   se ejecuta algo.
@@ -76,7 +79,34 @@ imagen y vídeo: Leonardo, Google Imagen y Veo, xAI Grok Imagine.
 - **One Shot.** Dibujás una tarea como un diagrama de flujo de nodos y conexiones y tu
   modelo lo compila en un único prompt completo.
 - **3D.** Describís un objeto y un modelo escribe la escena; se renderiza en un visor
-  aislado, la vas iterando y la exportás como `.glb` o PNG.
+  aislado, la vas iterando y la exportás como `.glb` o PNG. Los modelos que un agente hace
+  con ComfyUI se abren en el visor 3D del chat, o directo en tu Blender.
+- **ComfyUI desde el chat.** Los flujos que guardaste en tu propio ComfyUI corren desde un
+  mensaje (`comfy_workflows`): el agente prepara una copia con tus adjuntos, fija los
+  valores, lo corre, espera o lo suelta, recoge el resultado y **lo mira** antes de
+  informar. Los modelos que faltan se buscan y descargan de Hugging Face o Civitai, con
+  tu aprobación, a la carpeta correcta.
+- **Hugging Face y Civitai.** Buscar modelos y datasets, leer un repositorio, previsualizar
+  un dataset, estudiar un modelo de Civitai (versiones, trigger words, ajustes de ejemplo);
+  subir y comentar esperan tu aprobación, el contenido adulto queda bloqueado salvo que lo
+  permitas.
+- **Publicar en X.** Los agentes publican hilos, con imágenes o un vídeo, en las cuentas
+  que conectás (varias, con Premium) — cada post se te muestra antes, tal como va a salir.
+- **Un calendario compartido.** Notas que los agentes leen como contexto y acciones que se
+  vuelven tareas cuando llega su hora, con la zona horaria guardada por entrada, adjuntos
+  reservados y recordatorios por Telegram; una vista Calendario en Complementos, y las
+  herramientas de los agentes retenidas para tu aprobación cuando programan, cambian o
+  quitan algo.
+- **Ediciones de imagen sin GPU.** `image_edit` recorta, voltea, rota, escala, quita el
+  fondo y compone imágenes de la tarea (una hoja de vistas, un perfil espejado) y le
+  muestra el resultado al agente.
+- **Rondas más baratas.** Las herramientas se cargan bajo demanda (primero la descripción,
+  la herramienta completa cuando se la nombra), cuánta conversación anterior lleva cada
+  agente se ajusta por agente (nada, corta, normal, larga), y una herramienta cargada se
+  queda, así la caché de prompt del proveedor sobrevive.
+- **Tu plan de ChatGPT en vez de una clave**, si lo tenés: iniciás sesión una vez y los
+  agentes lo usan. Las actualizaciones llegan a la barra lateral y se instalan con un clic;
+  editar un mensaje en el chat lo vuelve a enviar.
 - **Cortafuegos de credenciales.** Las claves de API nunca están en el repositorio, ni en
   la base de datos, ni en el `.env`: viven fuera del proyecto y un proxy local las inyecta
   en la frontera de red. Los workers solo ven el marcador `proxy`.
@@ -236,6 +266,11 @@ que explica cada variable.
 Los tres ajustes del modelo local (`LOCAL_LLM_URL`, `LOCAL_LLM_KEY`, `LOCAL_LLM_MODEL`)
 viven únicamente en el `.env` a propósito, y los workers lo releen en cada tarea: puedes
 cambiar de servidor local sin reiniciar nada.
+
+Por agente, desde la vista Agentes: el modelo, el tipo de worker, los pasos que puede dar
+una tarea, cuánta conversación anterior lleva. La zona horaria del calendario está en
+Configuración; las integraciones (GitHub, Hugging Face, Civitai, X, Telegram) tienen sus
+tarjetas en Herramientas.
 
 ## Seguridad
 
