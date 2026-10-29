@@ -1,5 +1,4 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { Agent, ApiService, CalendarEntry, CalendarEntryInput } from '../../../services/api.service';
@@ -27,7 +26,7 @@ const mondayOf = (d: string) => addDays(d, -((toUtc(d).getUTCDay() + 6) % 7));
 @Component({
   selector: 'app-calendar',
   standalone: true,
-  imports: [FormsModule, DatePipe, TranslatePipe, IconComponent],
+  imports: [FormsModule, TranslatePipe, IconComponent],
   templateUrl: './calendar.component.html',
   styleUrl: './calendar.component.css',
 })
@@ -53,6 +52,11 @@ export class CalendarComponent implements OnInit {
   readonly notice = signal('');
   readonly confirmRemove = signal(false);
   readonly loading = signal(true);
+  readonly timezones = signal<string[]>([]);
+  /** The browser's zone: when HydraOps runs on a machine elsewhere, that is where the reader is. */
+  readonly browserTz = signal(this.detectBrowserTz());
+  /** True once the user chose a zone (saved, or the calendar's equals the browser's). */
+  readonly zoneChosen = signal(false);
 
   readonly weekdays = computed(() => this.weekdayNames('short'));
   readonly weekdaysMini = computed(() => this.weekdayNames('narrow'));
@@ -101,10 +105,33 @@ export class CalendarComponent implements OnInit {
 
   ngOnInit(): void {
     this.api.getCalendarSettings().subscribe({
-      next: s => { this.tz.set(s.timezone); const t = this.localToday(s.timezone); this.today.set(t); this.cursor.set(t); this.load(); },
+      next: s => { this.tz.set(s.timezone); this.zoneChosen.set(s.timezone !== s.system); const t = this.localToday(s.timezone); this.today.set(t); this.cursor.set(t); this.load(); },
       error: () => { this.load(); },
     });
+    this.api.getTimezones().subscribe({ next: t => this.timezones.set(t.timezones), error: () => {} });
     this.api.getAgents().subscribe({ next: a => this.agents.set(a), error: () => {} });
+  }
+
+  /** The calendar's zone, saved for every entry made from now on (the same setting as in Settings). */
+  setTz(tz: string): void {
+    if (!tz || tz === this.tz()) { this.zoneChosen.set(true); return; }
+    this.api.saveCalendarSettings(tz).subscribe({
+      next: s => { this.tz.set(s.timezone); this.zoneChosen.set(true); const t = this.localToday(s.timezone); this.today.set(t); this.load(); },
+      error: () => this.error.set(this.i18n.instant('calendar.saveError')),
+    });
+  }
+  /** A month back or forward, whatever the view (the arrows by the mini month). */
+  stepMonth(n: number): void {
+    const [y, m] = this.cursor().split('-').map(Number);
+    this.cursor.set(iso(new Date(Date.UTC(y, m - 1 + n, 1))));
+    this.load();
+  }
+  /** An instant as the user reads it, in the entry's zone and the interface's language. */
+  dateTime(isoDate: string, tz: string): string {
+    try { return new Intl.DateTimeFormat(this.i18n.currentLang() || 'en', { timeZone: tz, dateStyle: 'medium', timeStyle: 'short' }).format(new Date(isoDate)); } catch { return isoDate; }
+  }
+  private detectBrowserTz(): string {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { return ''; }
   }
 
   // ── Data ──

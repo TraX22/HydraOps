@@ -1231,6 +1231,8 @@
       "remove": "Remover",
       "removeSure": "Certeza? Remover",
       "again": "Agendar de novo"
-    }
+    },
+    "browserZone": "Seu navegador está em {{tz}}; o calendário usa o fuso da máquina onde o HydraOps roda ({{cal}}).",
+    "useBrowserZone": "Usar {{tz}}"
   }
 }

@@ -1231,6 +1231,8 @@
       "remove": "Retirer",
       "removeSure": "Sûr ? Retirer",
       "again": "Reprogrammer"
-    }
+    },
+    "browserZone": "Votre navigateur est en {{tz}} ; le calendrier utilise le fuseau de la machine où tourne HydraOps ({{cal}}).",
+    "useBrowserZone": "Utiliser {{tz}}"
   }
 }
