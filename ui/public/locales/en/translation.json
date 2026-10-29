@@ -216,6 +216,20 @@
         "images": "Attachments",
         "cost": "About {{usd}} USD, charged by X to your developer account",
         "linkNote": "a post with a link costs more"
+      },
+      "calendar": {
+        "add": "Schedule",
+        "update": "Change",
+        "remove": "Remove",
+        "when": "When",
+        "agent": "Agent",
+        "repeat": "Repeat",
+        "prompt": "Task",
+        "notes": "Notes",
+        "attachments": "Attachments",
+        "addNote": "If you approve, it goes into the calendar and runs at its time without asking again.",
+        "updateNote": "If you approve, the entry changes as shown.",
+        "removeNote": "If you approve, the entry leaves the calendar."
       }
     },
     "linkUnverified": "⚠ Not verified: the agent did not open or see this address in this conversation. It may exist, but it came from its memory, not from a lookup.",
@@ -290,6 +304,9 @@
       "alreadyDecided": "This plan was already decided.",
       "revisingHint": "Your message goes to the agent as a revision of plan v{{n}}.",
       "sendAsNew": "Send as a new request instead"
+    },
+    "calendar": {
+      "scheduled": "From the calendar: {{title}}"
     }
   },
   "agents": {
@@ -481,6 +498,11 @@
       "copy": "Copy",
       "copied": "Copied",
       "tokenHint": "This token only shows on this computer. Other devices ask for it once; keep it like a password."
+    },
+    "calendarTimezone": {
+      "title": "Calendar time zone",
+      "system": "The system's ({{tz}})",
+      "hint": "Each entry keeps the zone it was created in; changing it here affects new entries only."
     }
   },
   "cron": {
@@ -985,7 +1007,8 @@
     "create": "Create",
     "close": "Close",
     "delete": "Delete",
-    "version": "version"
+    "version": "version",
+    "edit": "Edit"
   },
   "links": {
     "leaving": "You are about to leave for the internet",
@@ -1124,5 +1147,90 @@
     "keptPrevious": "The change did not work: your previous version is kept.",
     "keepFixing": "Keep fixing",
     "keepFixingHint": "Asks the model again to fix the last code that failed"
+  },
+  "calendar": {
+    "name": "Calendar",
+    "tagline": "The agenda your agents read and, with your approval, write: notes and tasks scheduled by date.",
+    "you": "You",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "prev": "Previous",
+    "next": "Next",
+    "allDay": "all day",
+    "search": "Search",
+    "new": "New entry",
+    "loading": "Loading…",
+    "nothingSoon": "Nothing in the coming days.",
+    "nothingThatDay": "Nothing that day.",
+    "loadError": "The calendar could not be read.",
+    "saveError": "It could not be saved.",
+    "added": "Entry added.",
+    "saved": "Saved.",
+    "tzHint": "The calendar's time zone (set in Settings). Each entry keeps its own.",
+    "weatherSoon": "Weather: coming later",
+    "emptyDetail": "Pick an entry to see its detail, or make a new one. Double-click a day to create it there.",
+    "permsHint": "Agents add notes freely; scheduling an action, changing or removing an entry asks for your approval. Your entries they may change with approval, never remove.",
+    "view": {
+      "day": "Day",
+      "week": "Week",
+      "month": "Month"
+    },
+    "kind": {
+      "note": "note",
+      "action": "action"
+    },
+    "legend": {
+      "action": "action (runs a task)",
+      "note": "note"
+    },
+    "repeat": {
+      "none": "Does not repeat",
+      "daily": "Every day",
+      "weekly": "Every week",
+      "monthly": "Every month",
+      "yearly": "Every year"
+    },
+    "status": {
+      "scheduled": "scheduled",
+      "done": "done",
+      "missed": "missed",
+      "cancelled": "cancelled"
+    },
+    "form": {
+      "newTitle": "New entry",
+      "editTitle": "Edit entry",
+      "title": "Title",
+      "date": "Date",
+      "time": "Time",
+      "repeat": "Repeat",
+      "until": "Until",
+      "timezone": "Time zone",
+      "agent": "Agent",
+      "prompt": "Task",
+      "promptPlaceholder": "What the agent has to do at that time, the way you would ask in the chat.",
+      "notes": "Notes",
+      "noteHint": "A note is context: the agents see it in their agenda and, with a time, it reminds you on Telegram.",
+      "actionHint": "An action makes a task for the chosen agent, in its chat, when the time comes.",
+      "needTitle": "The title is missing.",
+      "needPrompt": "An action needs the task it has to do."
+    },
+    "detail": {
+      "when": "When",
+      "owner": "Owner",
+      "agent": "Agent",
+      "approved": "Approval",
+      "approvedYes": "Approved",
+      "approvedNo": "Pending",
+      "runsAlone": "At its time it runs without asking again.",
+      "lastRun": "Last run",
+      "task": "task",
+      "origin": "Origin",
+      "outside": "Written by an agent that had read outside content: it stays out of the other agents' agenda.",
+      "attachments": "Reserved attachments",
+      "kept": "copied on approval",
+      "remove": "Remove",
+      "removeSure": "Sure? Remove",
+      "again": "Schedule again"
+    }
   }
 }

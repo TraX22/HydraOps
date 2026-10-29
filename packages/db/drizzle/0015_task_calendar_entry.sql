@@ -1,0 +1,1 @@
+ALTER TABLE `tasks` ADD `calendar_entry_id` text;

@@ -181,6 +181,10 @@
                   <span>✅ {{ 'chat.held.continuing' | translate }}</span>
                   <details><summary>{{ 'chat.held.continuingDetail' | translate }}</summary><pre>{{ msg.content }}</pre></details>
                 </div>
+              } @else if (msg.role === 'user' && msg.fromCalendar) {
+                <!-- A task the calendar started when its time came: the prompt as it was written, marked -->
+                <div class="cal-mark">📅 {{ 'chat.calendar.scheduled' | translate:{ title: msg.fromCalendar.title } }}</div>
+                <div class="msg-bubble" [innerHTML]="displayContent(msg) | markdown: linkCheck(msg)"></div>
               } @else if (displayContent(msg)) {
                 <div class="msg-bubble" [innerHTML]="displayContent(msg) | markdown: linkCheck(msg)"></div>
               }

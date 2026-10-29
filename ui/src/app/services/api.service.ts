@@ -13,6 +13,45 @@ export interface Agent {
   llmModel?: string;
 }
 
+// The shared calendar: one entry as the API returns it (dates in the entry's own zone).
+export interface CalendarEntry {
+  id: string;
+  owner: string;
+  kind: 'note' | 'action';
+  title: string;
+  notes: string | null;
+  at: string;
+  timezone: string;
+  date: string;
+  time: string | null;
+  repeat: 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+  repeatUntil: string | null;
+  occurrencesLeft: number | null;
+  agentId: string | null;
+  prompt: string | null;
+  attachments: { name: string; path: string; mime: string; size: number }[];
+  status: 'scheduled' | 'done' | 'missed' | 'cancelled';
+  approvedAt: string | null;
+  createdByTask: string | null;
+  origins?: { tool: string; ref?: string }[] | null;
+  lastRunAt: string | null;
+  lastTaskId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface CalendarEntryInput {
+  kind: 'note' | 'action';
+  title: string;
+  date: string;
+  time: string | null;
+  timezone?: string;
+  notes?: string | null;
+  repeat?: CalendarEntry['repeat'];
+  repeatUntil?: string | null;
+  agentId?: string | null;
+  prompt?: string | null;
+}
+
 // One Shot mini-app: a drawn flow diagram sent to the backend for compilation.
 export interface PromptGraph {
   nodes: { id: string; text: string }[];
@@ -73,6 +112,8 @@ export interface ChatMessage {
   avatarUrl?: string;
   timestamp: string;
   taskId?: string;
+  /** The calendar action that started this task when its time came. */
+  fromCalendar?: { id: string; title: string };
   isTyping?: boolean;
   /** The user stopped this task: shown as a quiet note instead of a reply. */
   cancelled?: boolean;
@@ -842,6 +883,29 @@ export class ApiService {
   /** An edited message: the task gets the new text if it is still queued, or is replaced by a new one. */
   resendTask(id: string, prompt: string): Observable<Task & { resent: boolean }> {
     return this.http.post<Task & { resent: boolean }>(`${this.base}/tasks/${id}/resend`, { prompt });
+  }
+
+  // ── The shared calendar (Complementos → Calendar) ──
+  listCalendar(from: string, to: string, all = true): Observable<{ entries: CalendarEntry[]; from: string; to: string; timezone: string }> {
+    return this.http.get<{ entries: CalendarEntry[]; from: string; to: string; timezone: string }>(`${this.base}/calendar`, { params: { from, to, ...(all ? { all: '1' } : {}) } });
+  }
+  addCalendarEntry(body: CalendarEntryInput): Observable<{ entry: CalendarEntry; warning?: string }> {
+    return this.http.post<{ entry: CalendarEntry; warning?: string }>(`${this.base}/calendar`, body);
+  }
+  updateCalendarEntry(id: string, body: Partial<CalendarEntryInput>): Observable<{ entry: CalendarEntry }> {
+    return this.http.patch<{ entry: CalendarEntry }>(`${this.base}/calendar/${id}`, body);
+  }
+  removeCalendarEntry(id: string): Observable<{ entry: CalendarEntry }> {
+    return this.http.delete<{ entry: CalendarEntry }>(`${this.base}/calendar/${id}`, { body: {} });
+  }
+  getCalendarSettings(): Observable<{ timezone: string; system: string }> {
+    return this.http.get<{ timezone: string; system: string }>(`${this.base}/calendar/settings`);
+  }
+  saveCalendarSettings(timezone: string): Observable<{ timezone: string; system: string }> {
+    return this.http.post<{ timezone: string; system: string }>(`${this.base}/calendar/settings`, { timezone });
+  }
+  getTimezones(): Observable<{ timezones: string[]; system: string }> {
+    return this.http.get<{ timezones: string[]; system: string }>(`${this.base}/calendar/timezones`);
   }
 
   // ── Config ──

@@ -151,6 +151,16 @@
       <p class="hint">{{ 'config.routerModelHint' | translate }}</p>
     </section>
 
+    <!-- The calendar's time zone (stored with every entry made from now on) -->
+    <section class="config-section">
+      <h3>{{ 'config.calendarTimezone.title' | translate }}</h3>
+      <select class="model-select" id="calendar-timezone" [ngModel]="calendarTz()" (ngModelChange)="setCalendarTz($event)">
+        <option value="">{{ 'config.calendarTimezone.system' | translate:{ tz: systemTz() } }}</option>
+        @for (z of timezones(); track z) { <option [value]="z">{{ z }}</option> }
+      </select>
+      <p class="hint">{{ 'config.calendarTimezone.hint' | translate }}@if (tzSaved()) { <span class="saved-inline"> · {{ 'common.saved' | translate }}</span> }</p>
+    </section>
+
     <!-- Language -->
     <section class="config-section">
       <h3>{{ 'config.languages' | translate }}</h3>

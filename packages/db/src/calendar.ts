@@ -123,11 +123,38 @@ export function advance(entry: { date: string; time: string | null; timezone: st
   return { date, at: zonedToUtc(date, entry.time, entry.timezone), occurrencesLeft: left };
 }
 
-/** "Fri 30 Oct 2026, 10:00" in the entry's zone (English, for the agents). */
-export function formatWhen(at: Date, tz: string, time: string | null | undefined): string {
+/** "Fri 30 Oct 2026, 10:00" in the entry's zone: English for the agents, or the locale given
+ *  (the machine's, for what the user reads on Telegram). */
+export function formatWhen(at: Date, tz: string, time: string | null | undefined, locale = "en-GB"): string {
   const p: Record<string, string> = {};
-  for (const part of new Intl.DateTimeFormat("en-GB", { timeZone: tz, weekday: "short", day: "numeric", month: "short", year: "numeric" }).formatToParts(at)) if (part.type !== "literal") p[part.type] = part.value;
-  return `${p.weekday} ${p.day} ${p.month} ${p.year}${time ? `, ${localParts(at, tz).time}` : " (all day)"}`;
+  let parts: Intl.DateTimeFormatPart[];
+  try { parts = new Intl.DateTimeFormat(locale, { timeZone: tz, weekday: "short", day: "numeric", month: "short", year: "numeric" }).formatToParts(at); }
+  catch { parts = new Intl.DateTimeFormat("en-GB", { timeZone: tz, weekday: "short", day: "numeric", month: "short", year: "numeric" }).formatToParts(at); }
+  for (const part of parts) if (part.type !== "literal") p[part.type] = part.value;
+  const allDay = locale.startsWith("es") ? " (todo el día)" : locale.startsWith("pt") ? " (dia inteiro)" : locale.startsWith("it") ? " (tutto il giorno)" : locale.startsWith("fr") ? " (toute la journée)" : " (all day)";
+  return `${p.weekday} ${p.day} ${p.month} ${p.year}${time ? `, ${localParts(at, tz).time}` : allDay}`;
+}
+
+/** The machine's language, for what the user reads (Telegram); HYDRA_LANG overrides it. */
+export function userLocale(): string {
+  const env = (process.env.HYDRA_LANG || "").trim();
+  if (env) return env;
+  try { return Intl.DateTimeFormat().resolvedOptions().locale || "en-GB"; } catch { return "en-GB"; }
+}
+
+/** The line a worker puts in front of a task the calendar started, so the agent knows. */
+export async function calendarTaskContext(db: any, taskId: string): Promise<string> {
+  try {
+    const [task] = await db.select({ calendarEntryId: schema.tasks.calendarEntryId }).from(schema.tasks).where(eq(schema.tasks.id, taskId)).limit(1);
+    if (!task?.calendarEntryId) return "";
+    const [entry] = await db.select().from(schema.calendarEntries).where(eq(schema.calendarEntries.id, task.calendarEntryId)).limit(1);
+    if (!entry) return "";
+    // The occurrence that ran: the day it ran (a repeated entry's `at` has moved on), at the
+    // entry's own time.
+    const ran = toDate(entry.lastRunAt) ?? toDate(entry.at)!;
+    const at = zonedToUtc(localParts(ran, entry.timezone).date, entry.time, entry.timezone);
+    return `[Scheduled from the calendar: "${oneLine(entry.title)}", ${formatWhen(at, entry.timezone, entry.time)}. The user set this up earlier; do it now and report as you would for any task.]\n\n`;
+  } catch { return ""; }
 }
 
 export interface CalendarEntryRow {

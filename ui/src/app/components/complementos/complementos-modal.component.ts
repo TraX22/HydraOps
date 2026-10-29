@@ -3,6 +3,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { IconComponent } from '../icon/icon.component';
 import { OneShotComponent } from './one-shot/one-shot.component';
 import { ThreeDComponent } from './three-d/three-d.component';
+import { CalendarComponent } from './calendar/calendar.component';
 import { ComplementosService } from '../../services/complementos.service';
 
 // The Complementos overlay ("pop up"): a hub of in-app mini-apps. Hosted once in
@@ -11,7 +12,7 @@ import { ComplementosService } from '../../services/complementos.service';
 @Component({
   selector: 'app-complementos-modal',
   standalone: true,
-  imports: [TranslatePipe, IconComponent, OneShotComponent, ThreeDComponent],
+  imports: [TranslatePipe, IconComponent, OneShotComponent, ThreeDComponent, CalendarComponent],
   templateUrl: './complementos-modal.component.html',
   styleUrl: './complementos-modal.component.css',
 })

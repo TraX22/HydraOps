@@ -1,0 +1,191 @@
+<div class="cal">
+  <!-- Left: the mini month and the agenda of the coming days -->
+  <aside class="agenda">
+    <h2>{{ monthLabel() }}</h2>
+    <div class="mini">
+      @for (d of weekdaysMini(); track $index) { <div class="h">{{ d }}</div> }
+      @for (d of miniDays(); track d) {
+        <button type="button" class="d" [class.o]="!inMonth(d)" [class.t]="d === today()" [class.c]="d === cursor()" (click)="pick(d)" [attr.aria-label]="longDay(d)">
+          {{ +d.slice(8, 10) }}
+          <span class="dots">
+            @for (e of (byDay().get(d) ?? []).slice(0, 3); track e.id) { <i [style.background]="d === today() ? '#fff' : colorOf(e.owner)"></i> }
+          </span>
+        </button>
+      }
+    </div>
+    @if (loading()) { <p class="muted">{{ 'calendar.loading' | translate }}</p> }
+    @else if (!agenda().length) { <p class="muted">{{ 'calendar.nothingSoon' | translate }}</p> }
+    @for (day of agenda(); track day.date) {
+      <div class="day-h"><span>{{ agendaHead(day.date) }}</span>@if (day.date === today() || agendaHead(day.date) !== dayLabel(day.date)) { <span class="w">{{ dayLabel(day.date) }}</span> }</div>
+      @for (e of day.entries; track e.id) {
+        <button type="button" class="ag" [class.sel]="selected()?.id === e.id" [class.done]="e.status !== 'scheduled'" (click)="select(e)">
+          <i [style.background]="colorOf(e.owner)" [class.action]="e.kind === 'action'"></i>
+          <span>
+            <span class="t">{{ e.time || ('calendar.allDay' | translate) }}</span>
+            <span class="n">{{ e.title }}</span>
+            <span class="who">{{ ownerName(e.owner) }} · {{ (e.kind === 'action' ? 'calendar.kind.action' : 'calendar.kind.note') | translate }}@if (e.attachments.length) { · 📎 {{ e.attachments.length }} }</span>
+          </span>
+        </button>
+      }
+    }
+  </aside>
+
+  <!-- Middle: the toolbar and the month / week / day view -->
+  <div class="main">
+    <div class="bar">
+      <button type="button" class="btn ghost" (click)="back()"><app-icon name="chevron-left" /> {{ 'threeD.back' | translate }}</button>
+      <div class="nav">
+        <button type="button" class="btn" (click)="step(-1)" [attr.aria-label]="'calendar.prev' | translate">‹</button>
+        <button type="button" class="btn" (click)="goToday()">{{ 'calendar.today' | translate }}</button>
+        <button type="button" class="btn" (click)="step(1)" [attr.aria-label]="'calendar.next' | translate">›</button>
+      </div>
+      <div class="title">
+        @switch (view()) {
+          @case ('month') { {{ monthLabel() }} }
+          @case ('week') { {{ weekLabel() }} }
+          @case ('day') { {{ longDay(cursor()) }} }
+        }
+      </div>
+      <div class="seg" role="tablist">
+        <button type="button" role="tab" [class.on]="view() === 'day'" [attr.aria-selected]="view() === 'day'" (click)="setView('day')">{{ 'calendar.view.day' | translate }}</button>
+        <button type="button" role="tab" [class.on]="view() === 'week'" [attr.aria-selected]="view() === 'week'" (click)="setView('week')">{{ 'calendar.view.week' | translate }}</button>
+        <button type="button" role="tab" [class.on]="view() === 'month'" [attr.aria-selected]="view() === 'month'" (click)="setView('month')">{{ 'calendar.view.month' | translate }}</button>
+      </div>
+      <input id="calendar-search" type="search" [placeholder]="'calendar.search' | translate" [ngModel]="search()" (ngModelChange)="search.set($event)" />
+      <span class="tz" [title]="'calendar.tzHint' | translate">{{ tz() }}</span>
+      <button type="button" class="btn primary" (click)="newEntry()"><app-icon name="plus" /> {{ 'calendar.new' | translate }}</button>
+    </div>
+    <div class="legend">
+      @for (o of owners(); track o.id) { <span><i [style.background]="o.color"></i>{{ o.name }}</span> }
+      <span class="key"><i class="sq"></i>{{ 'calendar.legend.action' | translate }} · <i></i>{{ 'calendar.legend.note' | translate }}</span>
+    </div>
+
+    @switch (view()) {
+      @case ('month') {
+        <div class="grid">
+          @for (d of weekdays(); track $index) { <div class="dow">{{ d }}</div> }
+          @for (d of monthDays(); track d) {
+            <div class="cell" [class.o]="!inMonth(d)" [class.t]="d === today()" (dblclick)="newEntry(d)">
+              <div class="top"><button type="button" class="n" (click)="openDay(d)">{{ dayNumber(d) }}</button><span class="wx" [title]="'calendar.weatherSoon' | translate"></span></div>
+              @for (e of (byDay().get(d) ?? []).slice(0, 4); track e.id) {
+                <button type="button" class="ev" [class.sel]="selected()?.id === e.id" [class.done]="e.status !== 'scheduled'" [class.user]="e.owner === 'user'" (click)="select(e)" [title]="e.title + ' · ' + ownerName(e.owner)">
+                  <i [style.background]="colorOf(e.owner)" [class.action]="e.kind === 'action'"></i><span class="l">{{ e.title }}</span><span class="h">{{ e.time ?? '' }}</span>
+                </button>
+              }
+              @if ((byDay().get(d)?.length ?? 0) > 4) { <button type="button" class="more" (click)="openDay(d)">+{{ (byDay().get(d)?.length ?? 0) - 4 }}</button> }
+            </div>
+          }
+        </div>
+      }
+      @case ('week') {
+        <div class="week">
+          @for (d of weekDays(); track d) {
+            <div class="col" [class.t]="d === today()">
+              <button type="button" class="col-h" (click)="openDay(d)">{{ dayLabel(d) }}</button>
+              @for (e of byDay().get(d) ?? []; track e.id) {
+                <button type="button" class="ev" [class.sel]="selected()?.id === e.id" [class.done]="e.status !== 'scheduled'" (click)="select(e)">
+                  <i [style.background]="colorOf(e.owner)" [class.action]="e.kind === 'action'"></i><span class="l">{{ e.title }}</span><span class="h">{{ e.time ?? '' }}</span>
+                </button>
+              }
+              @if (!(byDay().get(d)?.length)) { <span class="empty">—</span> }
+            </div>
+          }
+        </div>
+      }
+      @case ('day') {
+        <div class="dayview">
+          @for (e of byDay().get(cursor()) ?? []; track e.id) {
+            <button type="button" class="row" [class.sel]="selected()?.id === e.id" [class.done]="e.status !== 'scheduled'" (click)="select(e)">
+              <span class="t">{{ e.time || ('calendar.allDay' | translate) }}</span>
+              <i [style.background]="colorOf(e.owner)" [class.action]="e.kind === 'action'"></i>
+              <span class="n">{{ e.title }}</span>
+              <span class="who">{{ ownerName(e.owner) }}@if (e.kind === 'action') { → {{ ownerName(e.agentId) }} }</span>
+              <span class="st">{{ statusKey(e) | translate }}</span>
+            </button>
+          }
+          @if (!(byDay().get(cursor())?.length)) { <p class="muted">{{ 'calendar.nothingThatDay' | translate }}</p> }
+        </div>
+      }
+    }
+  </div>
+
+  <!-- Right: one entry, or the form -->
+  <aside class="detail">
+    @if (form(); as f) {
+      <h3>{{ (f.id ? 'calendar.form.editTitle' : 'calendar.form.newTitle') | translate }}</h3>
+      <div class="seg kind" role="tablist">
+        <button type="button" [class.on]="f.kind === 'note'" (click)="patchForm({ kind: 'note' })">{{ 'calendar.kind.note' | translate }}</button>
+        <button type="button" [class.on]="f.kind === 'action'" (click)="patchForm({ kind: 'action' })">{{ 'calendar.kind.action' | translate }}</button>
+      </div>
+      <p class="hint">{{ (f.kind === 'action' ? 'calendar.form.actionHint' : 'calendar.form.noteHint') | translate }}</p>
+      <label>{{ 'calendar.form.title' | translate }}<input id="cal-title" type="text" [ngModel]="f.title" (ngModelChange)="patchForm({ title: $event })" maxlength="200" /></label>
+      <div class="two">
+        <label>{{ 'calendar.form.date' | translate }}<input id="cal-date" type="date" [ngModel]="f.date" (ngModelChange)="patchForm({ date: $event })" /></label>
+        <label>{{ 'calendar.form.time' | translate }}<input id="cal-time" type="time" [ngModel]="f.time" (ngModelChange)="patchForm({ time: $event })" [disabled]="f.allDay" /></label>
+      </div>
+      <label class="check"><input id="cal-allday" type="checkbox" [ngModel]="f.allDay" (ngModelChange)="patchForm({ allDay: $event })" /> {{ 'calendar.allDay' | translate }}</label>
+      <div class="two">
+        <label>{{ 'calendar.form.repeat' | translate }}
+          <select id="cal-repeat" [ngModel]="f.repeat" (ngModelChange)="patchForm({ repeat: $event })">
+            @for (r of ['none', 'daily', 'weekly', 'monthly', 'yearly']; track r) { <option [value]="r">{{ ('calendar.repeat.' + r) | translate }}</option> }
+          </select>
+        </label>
+        @if (f.repeat !== 'none') { <label>{{ 'calendar.form.until' | translate }}<input id="cal-until" type="date" [ngModel]="f.repeatUntil" (ngModelChange)="patchForm({ repeatUntil: $event })" /></label> }
+      </div>
+      <label>{{ 'calendar.form.timezone' | translate }}<input id="cal-tz" type="text" [ngModel]="f.timezone" (ngModelChange)="patchForm({ timezone: $event })" list="cal-tz-list" /></label>
+      @if (f.kind === 'action') {
+        <label>{{ 'calendar.form.agent' | translate }}
+          <select id="cal-agent" [ngModel]="f.agentId" (ngModelChange)="patchForm({ agentId: $event })">
+            @for (a of agents(); track a.id) { <option [value]="a.id">{{ a.name }}</option> }
+          </select>
+        </label>
+        <label>{{ 'calendar.form.prompt' | translate }}<textarea id="cal-prompt" rows="5" [ngModel]="f.prompt" (ngModelChange)="patchForm({ prompt: $event })" [placeholder]="'calendar.form.promptPlaceholder' | translate"></textarea></label>
+      }
+      <label>{{ 'calendar.form.notes' | translate }}<textarea id="cal-notes" rows="3" [ngModel]="f.notes" (ngModelChange)="patchForm({ notes: $event })"></textarea></label>
+      @if (error()) { <p class="err">{{ error() }}</p> }
+      <div class="actions">
+        <button type="button" class="btn primary" [disabled]="busy()" (click)="save()">{{ 'common.save' | translate }}</button>
+        <button type="button" class="btn" [disabled]="busy()" (click)="cancelForm()">{{ 'common.cancel' | translate }}</button>
+      </div>
+    } @else if (selected(); as e) {
+      <span class="kind-chip" [class.action]="e.kind === 'action'">{{ (e.kind === 'action' ? 'calendar.kind.action' : 'calendar.kind.note') | translate }} · {{ statusKey(e) | translate }}</span>
+      <h3>{{ e.title }}</h3>
+      <dl class="kv">
+        <dt>{{ 'calendar.detail.when' | translate }}</dt><dd><b>{{ whenText(e) }}</b><br><span class="hint">{{ e.timezone }}</span></dd>
+        <dt>{{ 'calendar.detail.owner' | translate }}</dt><dd><i class="dot" [style.background]="colorOf(e.owner)"></i>{{ ownerName(e.owner) }}</dd>
+        @if (e.kind === 'action') {
+          <dt>{{ 'calendar.detail.agent' | translate }}</dt><dd>{{ ownerName(e.agentId) }}</dd>
+          <dt>{{ 'calendar.detail.approved' | translate }}</dt><dd>{{ e.approvedAt ? ('calendar.detail.approvedYes' | translate) : ('calendar.detail.approvedNo' | translate) }}<br><span class="hint">{{ 'calendar.detail.runsAlone' | translate }}</span></dd>
+        }
+        @if (e.repeat !== 'none') { <dt>{{ 'calendar.form.repeat' | translate }}</dt><dd>{{ ('calendar.repeat.' + e.repeat) | translate }}@if (e.repeatUntil) { · {{ 'calendar.form.until' | translate }} {{ e.repeatUntil }} }</dd> }
+        @if (e.lastRunAt) { <dt>{{ 'calendar.detail.lastRun' | translate }}</dt><dd>{{ e.lastRunAt | date:'short' }}@if (e.lastTaskId) { · {{ 'calendar.detail.task' | translate }} <code>{{ e.lastTaskId.slice(0, 8) }}</code> }</dd> }
+        @if (e.origins?.length) { <dt>{{ 'calendar.detail.origin' | translate }}</dt><dd class="warn">{{ 'calendar.detail.outside' | translate }}</dd> }
+      </dl>
+      @if (e.prompt) { <div class="box"><h4>{{ 'calendar.form.prompt' | translate }}</h4><pre>{{ e.prompt }}</pre></div> }
+      @if (e.notes) { <div class="box"><h4>{{ 'calendar.form.notes' | translate }}</h4><pre>{{ e.notes }}</pre></div> }
+      @if (e.attachments.length) {
+        <div class="box">
+          <h4>{{ 'calendar.detail.attachments' | translate }}</h4>
+          @for (a of e.attachments; track a.path) {
+            <div class="att"><a [href]="attachmentUrl(a.path)" target="_blank" rel="noopener">{{ a.name }}</a><span class="m">{{ kb(a.size) }} · {{ 'calendar.detail.kept' | translate }}</span></div>
+          }
+        </div>
+      }
+      @if (error()) { <p class="err">{{ error() }}</p> }
+      @if (notice()) { <p class="ok">{{ notice() }}</p> }
+      <div class="actions">
+        @if (e.status === 'scheduled') {
+          <button type="button" class="btn primary" (click)="edit(e)">{{ 'common.edit' | translate }}</button>
+          <button type="button" class="btn danger" [disabled]="busy()" (click)="remove(e)">{{ (confirmRemove() ? 'calendar.detail.removeSure' : 'calendar.detail.remove') | translate }}</button>
+        } @else {
+          <button type="button" class="btn" (click)="edit(e)">{{ 'calendar.detail.again' | translate }}</button>
+        }
+      </div>
+    } @else {
+      <h3>{{ 'calendar.name' | translate }}</h3>
+      <p class="hint">{{ 'calendar.emptyDetail' | translate }}</p>
+      <p class="hint">{{ 'calendar.permsHint' | translate }}</p>
+      @if (notice()) { <p class="ok">{{ notice() }}</p> }
+    }
+  </aside>
+</div>

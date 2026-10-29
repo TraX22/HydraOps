@@ -45,7 +45,7 @@ import {
   blenderImportCode, parseBlenderImportResult, BLENDER_SERVERS, BLENDER_CODE_TOOL,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
-import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, HISTORY_DAYS, isHistoryLevel, calendarEntries, listCalendarEntries, zonedToUtc, advance as calendarAdvance, localParts, isTimeZone, listTimeZones, systemTimeZone, isCalendarDate, isCalendarTime, isCalendarRepeat, isCalendarKind, CALENDAR_LIMITS, formatWhen, toDate } from "@hydraops/db";
+import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, HISTORY_DAYS, isHistoryLevel, calendarEntries, listCalendarEntries, zonedToUtc, advance as calendarAdvance, localParts, isTimeZone, listTimeZones, systemTimeZone, isCalendarDate, isCalendarTime, isCalendarRepeat, isCalendarKind, CALENDAR_LIMITS, formatWhen, toDate, userLocale } from "@hydraops/db";
 import { buildEnvelope } from "@hydraops/events";
 import { eq, and, gte, lt, asc, desc, like, inArray, isNull, count } from "drizzle-orm";
 import os from "node:os";
@@ -2289,6 +2289,8 @@ async function insertTask(opts: {
   inheritedTaint?: { tool: string; ref?: string }[];
   /** "plan": the agent only reads and proposes (see @hydraops/addons plan.ts). */
   mode?: "plan"; plan?: Plan; planOf?: string;
+  /** The calendar action that started this task when its time came. */
+  calendarEntryId?: string;
 }): Promise<string> {
   const taskId = randomUUID();
   const eventId = randomUUID();
@@ -2310,6 +2312,7 @@ async function insertTask(opts: {
       status: "pending",
       isRead: opts.isRead !== false,
       ...(opts.inheritedTaint?.length ? { inheritedTaint: opts.inheritedTaint } : {}),
+      ...(opts.calendarEntryId ? { calendarEntryId: opts.calendarEntryId } : {}),
       ...(opts.mode ? { mode: opts.mode } : {}),
       ...(opts.plan ? { plan: opts.plan } : {}),
       ...(opts.planOf ? { planOf: opts.planOf } : {}),
@@ -2384,6 +2387,10 @@ api.get("/tasks", async (req, res) => {
       if (!heldByTask.has(a.taskId)) heldByTask.set(a.taskId, []);
       heldByTask.get(a.taskId)!.push(publicPendingAction(a));
     }
+    // Tasks the calendar started carry their entry's title, for the mark on the message.
+    const calendarIds = [...new Set(rows.map((r: any) => r.calendarEntryId).filter(Boolean))] as string[];
+    const calendarTitles = new Map<string, string>();
+    if (calendarIds.length) for (const e of await (db as any).select({ id: calendarEntries.id, title: calendarEntries.title }).from(calendarEntries).where(inArray(calendarEntries.id, calendarIds))) calendarTitles.set(e.id, e.title);
 
     const messages: any[] = [];
     for (const row of rows) {
@@ -2393,6 +2400,7 @@ api.get("/tasks", async (req, res) => {
         role: "user",
         ...(row.planOf ? { planOf: row.planOf } : {}),
         ...(row.continuationOf ? { continuationOf: row.continuationOf } : {}),
+        ...(row.calendarEntryId ? { fromCalendar: { id: row.calendarEntryId, title: calendarTitles.get(row.calendarEntryId) ?? "" } } : {}),
         content: row.prompt,
         timestamp: created,
         taskId: row.id,
@@ -2659,11 +2667,12 @@ async function reserveCalendarAttachments(entryId: string, refs: string[], byTas
   return { files, ...(missing.length ? { warning: `not kept (not a file of this task or an attachment): ${missing.join(", ")}` } : {}) };
 }
 
-/** What the agent gets when an action comes due. */
+/** What the agent gets when an action comes due: the prompt as written, with the kept files.
+ *  The chat shows it as the user's message with a calendar mark (tasks.calendarEntryId); the
+ *  worker adds the "scheduled from the calendar" line for the agent (calendarTaskContext). */
 function calendarTaskPrompt(e: any): string {
-  const when = formatWhen(toDate(e.at)!, e.timezone, e.time);
   const atts: any[] = Array.isArray(e.attachments) ? e.attachments : [];
-  return `[Scheduled from the calendar: "${e.title}", ${when}]\n\n${e.prompt ?? e.title}${atts.length ? `\n\n[ATTACHMENTS]\n${atts.map((a) => `- ${a.path} (${a.mime})`).join("\n")}` : ""}`;
+  return `${e.prompt ?? e.title}${atts.length ? `\n\n[ATTACHMENTS]\n${atts.map((a) => `- ${a.path} (${a.mime})`).join("\n")}` : ""}`;
 }
 
 /** Fields of a new or changed entry checked and normalized; a string is the problem. */
@@ -2827,14 +2836,15 @@ async function tickCalendar(): Promise<void> {
       try {
         const at = toDate(e.at)!;
         const late = now.getTime() - at.getTime();
-        const when = formatWhen(at, e.timezone, e.time);
+        // What the user reads on Telegram, in the machine's language.
+        const when = formatWhen(at, e.timezone, e.time, userLocale());
         let outcome: "run" | "reminded" | "missed" | "passed" = "passed";
         let lastTaskId: string | null = null;
         if (e.kind === "action") {
           if (late > CALENDAR_LIMITS.catchUpMs) outcome = "missed";
           else {
             // An action written from outside content starts its task tainted, as a delegated task would.
-            lastTaskId = await insertTask({ prompt: calendarTaskPrompt(e), channel: e.agentId || e.owner, userId: "calendar", isRead: false, inheritedTaint: Array.isArray(e.origins) ? e.origins : [] });
+            lastTaskId = await insertTask({ prompt: calendarTaskPrompt(e), channel: e.agentId || e.owner, userId: "calendar", isRead: false, inheritedTaint: Array.isArray(e.origins) ? e.origins : [], calendarEntryId: e.id });
             outcome = "run";
           }
         } else if (e.time && late <= CALENDAR_LIMITS.catchUpMs) outcome = "reminded";
@@ -2845,9 +2855,11 @@ async function tickCalendar(): Promise<void> {
           lastRunAt: now, ...(lastTaskId ? { lastTaskId } : {}), updatedAt: now,
         }).where(eq(calendarEntries.id, e.id)).run();
         console.log(`[api] calendar: "${e.title}" (${e.id.slice(0, 8)}) ${outcome}${next ? `, next ${next.date}` : ""}`);
-        const note = outcome === "run" ? `📅 ${e.title}\n${e.agentId} is on it (scheduled for ${when}).`
+        const es = userLocale().startsWith("es");
+        const hours = Math.round(CALENDAR_LIMITS.catchUpMs / 3_600_000);
+        const note = outcome === "run" ? `📅 ${e.title}\n${es ? `${e.agentId} ya está en eso (programada para ${when}).` : `${e.agentId} is on it (scheduled for ${when}).`}`
           : outcome === "reminded" ? `📅 ${e.title}\n${when}${e.notes ? `\n${String(e.notes).slice(0, 500)}` : ""}`
-          : outcome === "missed" ? `📅 Missed: ${e.title}\nIt was due ${when}, but HydraOps was off for more than ${Math.round(CALENDAR_LIMITS.catchUpMs / 3_600_000)} hours. It did not run.`
+          : outcome === "missed" ? (es ? `📅 Perdida: ${e.title}\nVencía ${when}, pero HydraOps estuvo apagado más de ${hours} horas. No se ejecutó.` : `📅 Missed: ${e.title}\nIt was due ${when}, but HydraOps was off for more than ${hours} hours. It did not run.`)
           : null;
         if (note) pushTelegram(note).catch(() => {});
       } catch (err: any) {
