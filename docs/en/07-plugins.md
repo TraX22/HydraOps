@@ -63,6 +63,8 @@ With the scene on screen, type the change ("make the roof red and add a chimney"
 
 ### Clean view and PNG
 
+Two more buttons in the toolbar: **Front view** puts the camera in front of the object, 30° above (where generated scenes put doors and faces), the view to take a PNG from; **Turn 360°** makes a full turn from the front, back to the front, in eight seconds, for a recording or a look around.
+
 The viewer frames each object on its own, whether it is a 20 cm flower pot or a 10 m house, and the grid follows its scale. The square button turns on the **clean view**: no grid, a soft backdrop and a shadow under the object, made for pictures. **PNG** saves what you see, at twice the resolution, named after the scene. The clean view is remembered for next time.
 
 ### Export to Unity, Unreal, Blender…

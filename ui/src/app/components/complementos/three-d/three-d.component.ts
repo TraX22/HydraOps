@@ -193,6 +193,9 @@ export class ThreeDComponent implements OnInit, OnDestroy {
     if (e.source !== this.frame()?.nativeElement.contentWindow) return;
     const d = e.data ?? {};
     switch (d.type) {
+      case 'turntable':
+        this.turning.set(false);
+        break;
       case 'ready':
         this.ready.set(true);
         if (this.status() === 'loading') this.status.set('idle');
@@ -485,6 +488,11 @@ export class ThreeDComponent implements OnInit, OnDestroy {
   // ── View ──
   toggleWire(): void { this.wire.update(v => !v); this.send({ type: 'view', mode: 'wireframe', value: this.wire() }); }
   resetView(): void { this.send({ type: 'view', mode: 'reset' }); }
+  /** The camera in front of the object, 30° above: the view for a screenshot. */
+  frontView(): void { this.send({ type: 'view', mode: 'camera', value: { azimuth: 0, elevation: 30 } }); }
+  /** A full turn from the front, back to the front, in eight seconds. */
+  turntable(): void { this.turning.set(true); this.send({ type: 'view', mode: 'turntable', value: { seconds: 8, elevation: 30 } }); }
+  readonly turning = signal(false);
   toggleClean(): void {
     this.clean.update(v => !v);
     this.send({ type: 'view', mode: 'clean', value: this.clean() });

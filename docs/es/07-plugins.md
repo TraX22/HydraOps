@@ -63,6 +63,8 @@ Con la escena en pantalla, escribís el cambio ("hacé el techo rojo y agregale 
 
 ### Vista limpia y PNG
 
+Dos botones más en la barra: **Vista frontal** pone la cámara de frente al objeto, 30° por encima (donde las escenas generadas ponen puertas y caras), la vista para sacar un PNG; **Vuelta 360°** da una vuelta completa desde el frente hasta volver al frente, en ocho segundos, para una grabación o para mirarlo todo.
+
 El visor encuadra solo cada objeto, sea una maceta de 20 cm o una casa de 10 m, y la grilla se adapta a su escala. El botón del cuadrado activa la **vista limpia**: sin grilla, con un fondo suave y una sombra debajo del objeto, pensada para capturas. **PNG** guarda lo que ves, al doble de resolución, con el nombre de la escena. La vista limpia se recuerda para la próxima vez.
 
 ### Exportar a Unity, Unreal, Blender…

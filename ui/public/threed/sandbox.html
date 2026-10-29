@@ -111,6 +111,37 @@
 
   // Frames the object whatever its size: the distance comes from its bounding sphere
   // and the narrower field of view, so a 20 cm pot fills the view like a 10 m house.
+  // The camera on its sphere around the object: azimuth 0 is in front of it (the +z side,
+  // where generated scenes put doors and faces), growing to the right; elevation is the
+  // angle above the ground. The distance stays what fit() or the mouse left it.
+  function setCamera(v) {
+    const az = ((Number(v?.azimuth) || 0) * Math.PI) / 180;
+    const el = ((v?.elevation == null ? 30 : Number(v.elevation)) * Math.PI) / 180;
+    const target = controls.target.clone();
+    const r = camera.position.distanceTo(target);
+    camera.position.set(target.x + r * Math.cos(el) * Math.sin(az), target.y + r * Math.sin(el), target.z + r * Math.cos(el) * Math.cos(az));
+    camera.lookAt(target);
+    controls.update();
+  }
+
+  // A full turn from the front, back to the front, for a recording or a look around; the
+  // mouse is off meanwhile and a new turn replaces the running one.
+  let turning = 0;
+  function turntable(v) {
+    const seconds = Math.min(60, Math.max(1, Number(v?.seconds) || 8));
+    const el = v?.elevation == null ? 30 : Number(v.elevation);
+    const id = ++turning;
+    const t0 = performance.now();
+    controls.enabled = false;
+    (function step() {
+      if (id !== turning) return;
+      const p = Math.min(1, (performance.now() - t0) / (seconds * 1000));
+      setCamera({ azimuth: p * 360, elevation: el });
+      if (p < 1) requestAnimationFrame(step);
+      else { controls.enabled = true; post({ type: "turntable", done: true }); }
+    })();
+  }
+
   function fit() {
     const box = new T.Box3().setFromObject(root);
     if (box.isEmpty() || ![box.min.x, box.min.y, box.min.z, box.max.x, box.max.y, box.max.z].every(Number.isFinite)) return;
@@ -392,6 +423,10 @@
       applyClean();
     } else if (mode === "reset") {
       fit();
+    } else if (mode === "camera") {
+      setCamera(value);
+    } else if (mode === "turntable") {
+      turntable(value);
     } else if (mode === "bg") {
       bgColor = value;
       applyClean();

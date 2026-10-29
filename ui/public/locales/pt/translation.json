@@ -1146,7 +1146,9 @@
     "pngFailed": "Não foi possível salvar a imagem",
     "keptPrevious": "A mudança não funcionou: sua versão anterior foi mantida.",
     "keepFixing": "Continuar corrigindo",
-    "keepFixingHint": "Pede de novo ao modelo que corrija o último código que falhou"
+    "keepFixingHint": "Pede de novo ao modelo que corrija o último código que falhou",
+    "frontView": "Vista frontal: a câmera de frente para o objeto, 30° acima (a vista para uma captura)",
+    "turntable": "Volta 360°: uma volta completa a partir da frente, em 8 segundos"
   },
   "calendar": {
     "name": "Calendário",
