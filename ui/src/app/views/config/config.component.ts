@@ -185,6 +185,22 @@ export class ConfigComponent implements OnInit, OnDestroy {
   fetchConfig(): void {
     this.api.getConfig().subscribe(c => this.config.set(c));
     this.api.getModels().subscribe(m => this.models.set(m));
+    this.api.getCalendarSettings().subscribe({ next: s => { this.systemTz.set(s.system); this.calendarTz.set(s.timezone === s.system ? '' : s.timezone); }, error: () => {} });
+    this.api.getTimezones().subscribe({ next: t => this.timezones.set(t.timezones), error: () => {} });
+  }
+
+  // The calendar's zone: saved on change, apart from the rest of the form (it lives in the
+  // calendar's settings, not in the .env).
+  readonly timezones = signal<string[]>([]);
+  readonly calendarTz = signal('');
+  readonly systemTz = signal('');
+  readonly tzSaved = signal(false);
+  setCalendarTz(tz: string): void {
+    this.calendarTz.set(tz);
+    this.api.saveCalendarSettings(tz).subscribe({
+      next: s => { this.systemTz.set(s.system); this.tzSaved.set(true); setTimeout(() => this.tzSaved.set(false), 2500); },
+      error: () => {},
+    });
   }
 
   updateField(key: string, value: string): void {

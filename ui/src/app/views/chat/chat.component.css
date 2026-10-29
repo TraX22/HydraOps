@@ -228,6 +228,9 @@
   cursor: default;
 }
 
+/* A message the calendar sent on the user's behalf */
+.cal-mark { font-size: 11px; color: var(--text-muted); margin-bottom: 3px; text-align: right; }
+
 /* Edit */
 /* A row takes the width of its content; while editing, the content is a textarea with no width
    of its own, so the row would shrink to a few columns. Give the row the full message width. */

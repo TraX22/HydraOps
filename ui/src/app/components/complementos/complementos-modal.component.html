@@ -21,6 +21,11 @@
                 <div class="cmp-card-name">3D<span class="cmp-card-beta">beta</span></div>
                 <div class="cmp-card-desc">{{ 'threeD.tagline' | translate }}</div>
               </button>
+              <button class="cmp-card" (click)="svc.openApp('calendar')">
+                <div class="cmp-card-icon"><app-icon name="calendar" /></div>
+                <div class="cmp-card-name">{{ 'calendar.name' | translate }}<span class="cmp-card-beta">beta</span></div>
+                <div class="cmp-card-desc">{{ 'calendar.tagline' | translate }}</div>
+              </button>
             </div>
           </div>
         }
@@ -34,6 +39,13 @@
         @case ('3d') {
           @defer (on immediate) {
             <app-three-d />
+          } @loading (minimum 150ms) {
+            <div class="cmp-loading">{{ 'stats.loading' | translate }}</div>
+          }
+        }
+        @case ('calendar') {
+          @defer (on immediate) {
+            <app-calendar />
           } @loading (minimum 150ms) {
             <div class="cmp-loading">{{ 'stats.loading' | translate }}</div>
           }

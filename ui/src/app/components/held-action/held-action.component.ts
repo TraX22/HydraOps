@@ -55,6 +55,17 @@ import { IconComponent } from '../icon/icon.component';
           }
           <p class="post-cost">{{ 'chat.held.x.cost' | translate:{ usd: post.usd } }}@if (post.hasLink) { · {{ 'chat.held.x.linkNote' | translate }} }</p>
         </div>
+      } @else if (calendar; as c) {
+        <div class="cal">
+          <div class="cal-head"><span class="cal-kind">{{ ('chat.held.calendar.' + c.verb) | translate }}</span> <b>{{ c.title }}</b></div>
+          @if (c.when) { <div class="cal-row"><span class="cal-label">{{ 'chat.held.calendar.when' | translate }}</span>{{ c.when }}</div> }
+          @if (c.agent) { <div class="cal-row"><span class="cal-label">{{ 'chat.held.calendar.agent' | translate }}</span>{{ c.agent }}</div> }
+          @if (c.repeat) { <div class="cal-row"><span class="cal-label">{{ 'chat.held.calendar.repeat' | translate }}</span>{{ c.repeat }}</div> }
+          @if (c.prompt) { <div class="cal-row"><span class="cal-label">{{ 'chat.held.calendar.prompt' | translate }}</span><pre class="cal-pre">{{ c.prompt }}</pre></div> }
+          @if (c.notes) { <div class="cal-row"><span class="cal-label">{{ 'chat.held.calendar.notes' | translate }}</span><pre class="cal-pre">{{ c.notes }}</pre></div> }
+          @if (c.attachments.length) { <div class="cal-row"><span class="cal-label">{{ 'chat.held.calendar.attachments' | translate }}</span>{{ c.attachments.join(', ') }}</div> }
+          <p class="cal-note">{{ ('chat.held.calendar.' + (c.verb === 'add' ? 'addNote' : c.verb === 'update' ? 'updateNote' : 'removeNote')) | translate }}</p>
+        </div>
       } @else if (argLines.length) {
         <dl class="held-args">
           @for (a of argLines; track a.key) {
@@ -99,6 +110,13 @@ import { IconComponent } from '../icon/icon.component';
     .held-status { margin-left: auto; color: var(--text-muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .03em; }
     .held-why { margin: 6px 0 0; color: var(--text-muted); }
     .held-args { margin: 8px 0 0; display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; }
+    .cal { margin: 8px 0 0; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+    .cal-head { font-size: 13px; }
+    .cal-kind { font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--accent); margin-right: 4px; }
+    .cal-row { display: grid; grid-template-columns: 84px 1fr; gap: 8px; align-items: baseline; }
+    .cal-label { color: var(--text-muted); font-size: 11px; }
+    .cal-pre { margin: 0; white-space: pre-wrap; font: inherit; color: var(--text-secondary); max-height: 140px; overflow: auto; }
+    .cal-note { margin: 4px 0 0; font-size: 11.5px; color: var(--text-muted); }
     .held-args dt { color: var(--text-muted); font-family: ui-monospace, monospace; font-size: 11.5px; }
     .held-args dd { margin: 0; white-space: pre-wrap; word-break: break-word; color: var(--text-primary); }
     .held-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
@@ -181,6 +199,20 @@ export class HeldActionComponent implements OnInit {
       };
     });
     return { account: String(args['account'] ?? '').replace(/^@/, ''), parts, usd: usd.toFixed(3), hasLink };
+  }
+
+  /** A calendar_add / calendar_update / calendar_remove call, read as the entry it describes. */
+  get calendar(): { verb: 'add' | 'update' | 'remove'; title: string; when: string; agent: string; repeat: string; prompt: string; notes: string; attachments: string[] } | null {
+    const m = /^calendar_(add|update|remove)$/.exec(this.action.toolName);
+    if (!m) return null;
+    const a = (this.action.args ?? {}) as Record<string, unknown>;
+    const s = (k: string) => (typeof a[k] === 'string' ? (a[k] as string) : '');
+    const when = s('date') ? `${s('date')}${s('time') ? ` ${s('time')}` : ''}${s('timezone') ? ` (${s('timezone')})` : ''}` : '';
+    const repeat = s('repeat') && s('repeat') !== 'none' ? `${s('repeat')}${s('repeat_until') ? ` → ${s('repeat_until')}` : ''}` : '';
+    return {
+      verb: m[1] as 'add' | 'update' | 'remove', title: s('title') || s('id'), when, agent: s('agent') || (s('kind') === 'action' ? this.action.agentId : ''), repeat,
+      prompt: s('prompt'), notes: s('notes'), attachments: Array.isArray(a['attachments']) ? (a['attachments'] as unknown[]).map(String) : [],
+    };
   }
 
   get origins(): string {

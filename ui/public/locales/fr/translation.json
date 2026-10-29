@@ -216,6 +216,20 @@
         "images": "Pièces jointes",
         "cost": "Environ {{usd}} USD, facturés par X sur votre compte développeur",
         "linkNote": "une publication avec un lien coûte plus cher"
+      },
+      "calendar": {
+        "add": "Programmer",
+        "update": "Modifier",
+        "remove": "Retirer",
+        "when": "Quand",
+        "agent": "Agent",
+        "repeat": "Répétition",
+        "prompt": "Tâche",
+        "notes": "Notes",
+        "attachments": "Pièces jointes",
+        "addNote": "Si vous approuvez, l'entrée va au calendrier et s'exécute à son heure sans redemander.",
+        "updateNote": "Si vous approuvez, l'entrée change comme indiqué.",
+        "removeNote": "Si vous approuvez, l'entrée quitte le calendrier."
       }
     },
     "linkUnverified": "⚠ Non vérifié : l'agent n'a ni ouvert ni vu cette adresse dans cette conversation. Elle peut exister, mais elle vient de sa mémoire, pas d'une consultation.",
@@ -290,6 +304,9 @@
       "alreadyDecided": "Ce plan a déjà été décidé.",
       "revisingHint": "Votre message part à l'agent comme révision du plan v{{n}}.",
       "sendAsNew": "Envoyer comme nouvelle demande"
+    },
+    "calendar": {
+      "scheduled": "Du calendrier : {{title}}"
     }
   },
   "agents": {
@@ -481,6 +498,11 @@
       "copy": "Copier",
       "copied": "Copié",
       "tokenHint": "Ce jeton ne s'affiche que sur cet ordinateur. Les autres appareils le demandent une fois ; gardez-le comme un mot de passe."
+    },
+    "calendarTimezone": {
+      "title": "Fuseau horaire du calendrier",
+      "system": "Celui du système ({{tz}})",
+      "hint": "Chaque entrée garde le fuseau de sa création ; le changer ici n'affecte que les nouvelles."
     }
   },
   "cron": {
@@ -985,7 +1007,8 @@
     "create": "Créer",
     "close": "Fermer",
     "delete": "Supprimer",
-    "version": "version"
+    "version": "version",
+    "edit": "Modifier"
   },
   "links": {
     "leaving": "Vous allez sortir sur internet",
@@ -1124,5 +1147,90 @@
     "keptPrevious": "La modification n'a pas marché : votre version précédente est conservée.",
     "keepFixing": "Continuer à corriger",
     "keepFixingHint": "Redemande au modèle de corriger le dernier code qui a échoué"
+  },
+  "calendar": {
+    "name": "Calendrier",
+    "tagline": "L'agenda que vos agents lisent et, avec votre accord, écrivent : notes et tâches programmées par date.",
+    "you": "Vous",
+    "today": "Aujourd'hui",
+    "tomorrow": "Demain",
+    "prev": "Précédent",
+    "next": "Suivant",
+    "allDay": "toute la journée",
+    "search": "Rechercher",
+    "new": "Nouvelle entrée",
+    "loading": "Chargement…",
+    "nothingSoon": "Rien dans les prochains jours.",
+    "nothingThatDay": "Rien ce jour-là.",
+    "loadError": "Impossible de lire le calendrier.",
+    "saveError": "Impossible d’enregistrer.",
+    "added": "Entrée ajoutée.",
+    "saved": "Enregistré.",
+    "tzHint": "Fuseau horaire du calendrier (réglé dans Configuration). Chaque entrée garde le sien.",
+    "weatherSoon": "Météo : bientôt",
+    "emptyDetail": "Choisissez une entrée pour voir son détail, ou créez-en une. Double-clic sur un jour la crée là.",
+    "permsHint": "Les agents ajoutent des notes librement ; programmer une action, modifier ou retirer une entrée demande votre accord. Vos entrées, ils peuvent les modifier avec accord, jamais les retirer.",
+    "view": {
+      "day": "Jour",
+      "week": "Semaine",
+      "month": "Mois"
+    },
+    "kind": {
+      "note": "note",
+      "action": "action"
+    },
+    "legend": {
+      "action": "action (lance une tâche)",
+      "note": "note"
+    },
+    "repeat": {
+      "none": "Ne se répète pas",
+      "daily": "Chaque jour",
+      "weekly": "Chaque semaine",
+      "monthly": "Chaque mois",
+      "yearly": "Chaque année"
+    },
+    "status": {
+      "scheduled": "programmée",
+      "done": "faite",
+      "missed": "manquée",
+      "cancelled": "annulée"
+    },
+    "form": {
+      "newTitle": "Nouvelle entrée",
+      "editTitle": "Modifier l'entrée",
+      "title": "Titre",
+      "date": "Date",
+      "time": "Heure",
+      "repeat": "Répétition",
+      "until": "Jusqu'au",
+      "timezone": "Fuseau horaire",
+      "agent": "Agent",
+      "prompt": "Tâche",
+      "promptPlaceholder": "Ce que l'agent doit faire à cette heure, comme vous le demanderiez dans le chat.",
+      "notes": "Notes",
+      "noteHint": "Une note est du contexte : les agents la voient dans leur agenda et, avec une heure, elle vous le rappelle sur Telegram.",
+      "actionHint": "Une action crée, à l'heure dite, une tâche pour l'agent choisi, dans son chat.",
+      "needTitle": "Le titre manque.",
+      "needPrompt": "Une action a besoin de la tâche à faire."
+    },
+    "detail": {
+      "when": "Quand",
+      "owner": "Propriétaire",
+      "agent": "Agent",
+      "approved": "Accord",
+      "approvedYes": "Approuvée",
+      "approvedNo": "En attente",
+      "runsAlone": "À l'heure dite elle s'exécute sans redemander.",
+      "lastRun": "Dernière fois",
+      "task": "tâche",
+      "origin": "Origine",
+      "outside": "Écrite par un agent qui avait lu du contenu extérieur : elle n'entre pas dans l'agenda des autres.",
+      "attachments": "Pièces jointes réservées",
+      "kept": "copiée à l'accord",
+      "remove": "Retirer",
+      "removeSure": "Sûr ? Retirer",
+      "again": "Reprogrammer"
+    }
   }
 }

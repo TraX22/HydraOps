@@ -35,6 +35,9 @@ export const tasks = sqliteTable("tasks", {
   // A task the worker creates once every call the user was asked to approve on another
   // task has been decided: the agent gets the outcomes and carries on from there.
   continuationOf: text("continuation_of"),
+  // The calendar entry (an action) that started this task when its time came: the chat marks
+  // the message and the worker tells the agent it was scheduled (see calendar.ts).
+  calendarEntryId: text("calendar_entry_id"),
   // The task that took this one's place when the user edited and re-sent the message: the
   // chat and the agents' history leave this one out (stats still count it).
   replacedBy: text("replaced_by"),

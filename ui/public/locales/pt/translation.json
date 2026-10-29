@@ -216,6 +216,20 @@
         "images": "Anexos",
         "cost": "Cerca de {{usd}} USD, cobrados pelo X na sua conta de desenvolvedor",
         "linkNote": "uma publicação com link custa mais"
+      },
+      "calendar": {
+        "add": "Agendar",
+        "update": "Alterar",
+        "remove": "Remover",
+        "when": "Quando",
+        "agent": "Agente",
+        "repeat": "Repetição",
+        "prompt": "Tarefa",
+        "notes": "Notas",
+        "attachments": "Anexos",
+        "addNote": "Se aprovar, vai para o calendário e roda na hora sem perguntar de novo.",
+        "updateNote": "Se aprovar, a entrada muda como mostrado.",
+        "removeNote": "Se aprovar, a entrada sai do calendário."
       }
     },
     "linkUnverified": "⚠ Não verificado: o agente não abriu nem viu este endereço nesta conversa. Pode existir, mas veio da memória dele, não de uma consulta.",
@@ -290,6 +304,9 @@
       "alreadyDecided": "Este plano já foi decidido.",
       "revisingHint": "Sua mensagem vai ao agente como revisão do plano v{{n}}.",
       "sendAsNew": "Enviar como pedido novo"
+    },
+    "calendar": {
+      "scheduled": "Do calendário: {{title}}"
     }
   },
   "agents": {
@@ -481,6 +498,11 @@
       "copy": "Copiar",
       "copied": "Copiado",
       "tokenHint": "Este token só aparece neste computador. Os outros dispositivos pedem uma vez; guarde-o como uma senha."
+    },
+    "calendarTimezone": {
+      "title": "Fuso horário do calendário",
+      "system": "O do sistema ({{tz}})",
+      "hint": "Cada entrada guarda o fuso em que foi criada; mudar aqui vale só para as novas."
     }
   },
   "cron": {
@@ -985,7 +1007,8 @@
     "create": "Criar",
     "close": "Fechar",
     "delete": "Excluir",
-    "version": "versão"
+    "version": "versão",
+    "edit": "Editar"
   },
   "links": {
     "leaving": "Você vai sair para a internet",
@@ -1124,5 +1147,90 @@
     "keptPrevious": "A mudança não funcionou: sua versão anterior foi mantida.",
     "keepFixing": "Continuar corrigindo",
     "keepFixingHint": "Pede de novo ao modelo que corrija o último código que falhou"
+  },
+  "calendar": {
+    "name": "Calendário",
+    "tagline": "A agenda que seus agentes leem e, com a sua aprovação, escrevem: notas e tarefas agendadas por data.",
+    "you": "Você",
+    "today": "Hoje",
+    "tomorrow": "Amanhã",
+    "prev": "Anterior",
+    "next": "Próximo",
+    "allDay": "dia inteiro",
+    "search": "Buscar",
+    "new": "Nova entrada",
+    "loading": "Carregando…",
+    "nothingSoon": "Nada nos próximos dias.",
+    "nothingThatDay": "Nada nesse dia.",
+    "loadError": "Não foi possível ler o calendário.",
+    "saveError": "Não foi possível salvar.",
+    "added": "Entrada adicionada.",
+    "saved": "Salvo.",
+    "tzHint": "Fuso horário do calendário (definido em Configurações). Cada entrada guarda o seu.",
+    "weatherSoon": "Clima: em breve",
+    "emptyDetail": "Escolha uma entrada para ver o detalhe, ou crie uma nova. Duplo clique em um dia cria ali.",
+    "permsHint": "Os agentes adicionam notas livremente; agendar uma ação, alterar ou remover uma entrada pede sua aprovação. Suas entradas eles podem alterar com aprovação, nunca remover.",
+    "view": {
+      "day": "Dia",
+      "week": "Semana",
+      "month": "Mês"
+    },
+    "kind": {
+      "note": "nota",
+      "action": "ação"
+    },
+    "legend": {
+      "action": "ação (executa uma tarefa)",
+      "note": "nota"
+    },
+    "repeat": {
+      "none": "Não se repete",
+      "daily": "Todo dia",
+      "weekly": "Toda semana",
+      "monthly": "Todo mês",
+      "yearly": "Todo ano"
+    },
+    "status": {
+      "scheduled": "agendada",
+      "done": "feita",
+      "missed": "perdida",
+      "cancelled": "cancelada"
+    },
+    "form": {
+      "newTitle": "Nova entrada",
+      "editTitle": "Editar entrada",
+      "title": "Título",
+      "date": "Data",
+      "time": "Hora",
+      "repeat": "Repetição",
+      "until": "Até",
+      "timezone": "Fuso horário",
+      "agent": "Agente",
+      "prompt": "Tarefa",
+      "promptPlaceholder": "O que o agente deve fazer nessa hora, como você pediria no chat.",
+      "notes": "Notas",
+      "noteHint": "Uma nota é contexto: os agentes a veem na agenda e, com hora, ela lembra você no Telegram.",
+      "actionHint": "Uma ação cria, na hora marcada, uma tarefa para o agente escolhido, no chat dele.",
+      "needTitle": "Falta o título.",
+      "needPrompt": "Uma ação precisa da tarefa a fazer."
+    },
+    "detail": {
+      "when": "Quando",
+      "owner": "Dono",
+      "agent": "Agente",
+      "approved": "Aprovação",
+      "approvedYes": "Aprovada",
+      "approvedNo": "Pendente",
+      "runsAlone": "Na hora marcada roda sem pedir de novo.",
+      "lastRun": "Última vez",
+      "task": "tarefa",
+      "origin": "Origem",
+      "outside": "Escrita por um agente que tinha lido conteúdo externo: não entra na agenda dos outros.",
+      "attachments": "Anexos reservados",
+      "kept": "copiado na aprovação",
+      "remove": "Remover",
+      "removeSure": "Certeza? Remover",
+      "again": "Agendar de novo"
+    }
   }
 }

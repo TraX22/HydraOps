@@ -29,6 +29,15 @@ El diagrama representa la **lógica** de lo que quieres (de dónde sale la infor
 
 Cada diagrama se **guarda solo** mientras trabajas, con un nombre que puedes editar. El panel de la derecha lista tus diagramas, el más reciente arriba; desde ahí creas uno nuevo, abres otro o lo borras (con confirmación, para no perder trabajo de un clic). Todo se guarda en tu navegador, en este equipo.
 
+## Calendario
+
+El calendario compartido que los agentes leen y escriben (ver [Tareas programadas](./10-scheduled-tasks.md#el-calendario)), como página: a la izquierda un mini mes con un punto por dueño en cada día y la agenda de los próximos días; en el medio el mes (seis semanas), la semana o el día, con buscador, la zona horaria del calendario y **Nueva entrada**; a la derecha la entrada elegida o el formulario.
+
+- Cada entrada lleva el color de su dueño (vos, o un agente); un cuadrado marca una **acción** (una tarea que el agente recibe a su hora), un círculo una **nota**. Las ya hechas, perdidas o quitadas se ven atenuadas.
+- **Nueva entrada** (o doble clic en un día) abre el formulario: nota o acción, título, fecha, hora o todo el día, repetición (hasta una fecha), zona horaria, notas; para una acción, el agente y el texto de la tarea. Una entrada tuya es tuya: los agentes pueden cambiarla con tu aprobación, nunca quitarla.
+- El detalle muestra cuándo y dónde, el dueño, el agente y la aprobación de una acción, la última vez que corrió y su tarea, los adjuntos que la acción reservó, y si fue escrita desde contenido de afuera. **Editar** abre el formulario; **Quitar** pregunta dos veces.
+- La zona horaria que se muestra es la del calendario (Configuración → Zona horaria del calendario); cada entrada guarda la suya.
+
 ## 3D
 
 > 3D está en **beta**.

@@ -53,12 +53,14 @@ Agents use four tools: `calendar_list` (the agenda between two dates, with each 
 
 What the calendar guarantees:
 
-- **The time zone travels with the entry.** Each entry stores its own zone (the user's by default, set with `POST /api/calendar/settings {"timezone": "…"}` until the Calendar view ships); a travel or a new machine never moves it.
+- **The time zone travels with the entry.** Each entry stores its own zone (yours by default: Settings → Calendar time zone, the system's unless you pick one); a travel or a new machine never moves it.
 - **Attachments are kept.** The files an action names (the user's attachments, the files of the task that scheduled it) are copied into the calendar when the action is approved, because a task's files are cleared after a day. The task that runs later gets the copies.
 - **Repeats**: daily, weekly, monthly, yearly, until a date or up to 365 times; the 31st of a month becomes the 30th or the 28th where needed, never the 1st of the next.
 - **While HydraOps was off**: an action that came due at most 6 hours ago runs when it starts; an older one is marked missed and you are told on Telegram. A timed note older than that no longer reminds.
 - **Outside content stays outside.** An entry written by a task that had read a web page or a feed records that origin: it is left out of the agenda the agents get, `calendar_list` hands it over marked as external data, and a task it starts is treated as tainted, the same way a delegated task is (see [Security](./13-security.md)).
 - **Limits**: one task may create 20 entries, one owner may hold 200 scheduled entries, nothing further than a year ahead. Enough for real use, not for an agent in a loop.
+
+The **Calendar** in Complementos shows all of it: month, week and day, the agenda of the coming days, each entry's detail with its attachments, a form to add or change entries (see [Complementos](./07-plugins.md)). A task the calendar started shows in the agent's chat as your message with a "From the calendar" mark; the agent is told it was scheduled.
 
 `GET /api/calendar?from=YYYY-MM-DD&days=14` lists the entries; `POST`, `PATCH /:id` and `DELETE /:id` manage them from your own scripts.
 

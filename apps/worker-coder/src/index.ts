@@ -9,7 +9,7 @@ import { loadEnv, envFile, dataRoot, storageDir, agentsDir, logsDir, usersDir, r
 
 loadDotenv({ path: envFile });
 
-import { cronUnreadSources, cronReadSourcesPrompt, addUsage, CRON_SOURCES_UNREAD, CRON_SOURCES_UNREAD_TEXT, createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, filterCronAnswer, cronNothingNewPrompt, CRON_NOTHING_NEW, loadRecentChannelHistory, historyOptions, searchAgentTasks, isTaskCancelled, modelNeverAnswered, lastTaskToolNames, taskChainAutoApproved, calendarAgendaBlock, isTimeZone, systemTimeZone } from "@hydraops/db";
+import { cronUnreadSources, cronReadSourcesPrompt, addUsage, CRON_SOURCES_UNREAD, CRON_SOURCES_UNREAD_TEXT, createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, filterCronAnswer, cronNothingNewPrompt, CRON_NOTHING_NEW, loadRecentChannelHistory, historyOptions, searchAgentTasks, isTaskCancelled, modelNeverAnswered, lastTaskToolNames, taskChainAutoApproved, calendarAgendaBlock, isTimeZone, systemTimeZone, calendarTaskContext } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
@@ -390,6 +390,8 @@ for await (const m of sub) {
     
     // Priority: 1. Prompt from event, 2. Prompt from DB
     let userPrompt = (envlp.data as any).prompt as string || task?.prompt || '';
+    // A task the calendar started: the agent is told so (the chat shows the prompt as written).
+    userPrompt = (await calendarTaskContext(db, taskId)) + userPrompt;
     // A continuation: the user decided on the calls held in the original task; the message
     // carries the outcomes so the agent picks up where it stopped (see approvals.ts).
     const continuationOf = taskRows[0]?.continuationOf ? String(taskRows[0].continuationOf) : null;

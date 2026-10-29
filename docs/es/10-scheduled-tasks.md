@@ -53,12 +53,14 @@ Los agentes usan cuatro herramientas: `calendar_list` (la agenda entre dos fecha
 
 Lo que el calendario garantiza:
 
-- **La zona horaria viaja con la entrada.** Cada entrada guarda su zona (la tuya por defecto, que se fija con `POST /api/calendar/settings {"timezone": "…"}` hasta que salga la vista Calendario); un viaje o una máquina nueva nunca la corren.
+- **La zona horaria viaja con la entrada.** Cada entrada guarda su zona (la tuya por defecto: Configuración → Zona horaria del calendario, la del sistema salvo que elijas otra); un viaje o una máquina nueva nunca la corren.
 - **Los adjuntos se conservan.** Los archivos que nombra una acción (tus adjuntos, los archivos de la tarea que la programó) se copian al calendario cuando la acción se aprueba, porque los archivos de una tarea se limpian al día. La tarea que corre después recibe las copias.
 - **Repeticiones**: diaria, semanal, mensual, anual, hasta una fecha o hasta 365 veces; el 31 de un mes pasa a ser el 30 o el 28 cuando hace falta, nunca el 1 del siguiente.
 - **Mientras HydraOps estuvo apagado**: una acción vencida hace 6 horas o menos corre al arrancar; una más vieja queda como perdida y te avisa por Telegram. Una nota con hora más vieja que eso ya no recuerda.
 - **Lo de afuera se queda afuera.** Una entrada escrita por una tarea que había leído una página o un feed registra ese origen: queda fuera de la agenda que reciben los agentes, `calendar_list` la entrega marcada como contenido externo, y la tarea que dispara se trata como manchada, igual que una tarea delegada (ver [Seguridad](./13-security.md)).
 - **Topes**: una tarea puede crear 20 entradas, un dueño puede tener 200 programadas, nada a más de un año. Alcanza para el uso real, no para un agente en bucle.
+
+El **Calendario** de Complementos lo muestra todo: mes, semana y día, la agenda de los próximos días, el detalle de cada entrada con sus adjuntos, y un formulario para agregar o cambiar entradas (ver [Complementos](./07-plugins.md)). Una tarea que el calendario disparó aparece en el chat del agente como mensaje tuyo con la marca "Del calendario"; al agente se le dice que estaba programada.
 
 `GET /api/calendar?from=AAAA-MM-DD&days=14` lista las entradas; `POST`, `PATCH /:id` y `DELETE /:id` las gestionan desde tus propios scripts.
 

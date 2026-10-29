@@ -29,6 +29,15 @@ The diagram captures the **logic** of what you want (where the input comes from 
 
 Each diagram **autosaves** as you work, under a name you can edit. The right-hand panel lists your diagrams, most recent first; from there you create a new one, open another, or delete it (with a confirmation, so a stray click can't discard your work). Everything is stored in your browser, on this machine.
 
+## Calendar
+
+The shared calendar the agents read and write (see [Scheduled tasks](./10-scheduled-tasks.md#the-calendar)), as a page: on the left a mini month with a dot per owner on each day and the agenda of the coming days; in the middle the month (six weeks), the week or the day, with a search box, the calendar's time zone and **New entry**; on the right the selected entry or the form.
+
+- Each entry carries its owner's color (you, or an agent); a square marks an **action** (a task the agent gets when the time comes), a circle a **note**. Entries already done, missed or removed show greyed.
+- **New entry** (or a double-click on a day) opens the form: note or action, title, date, time or all day, repeat (until a date), time zone, notes; for an action, the agent and the task text. An entry you make is yours: agents may change it with your approval, never remove it.
+- The detail shows when and where, the owner, the agent and approval of an action, the last run and its task, the attachments the action reserved, and whether it was written from outside content. **Edit** opens the form; **Remove** asks twice.
+- The time zone shown is the calendar's (Settings → Calendar time zone); each entry keeps its own.
+
 ## 3D
 
 > 3D is in **beta**.
