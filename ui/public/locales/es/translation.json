@@ -423,6 +423,11 @@
   "config": {
     "title": "Configuración",
     "apiKeys": "Claves API",
+    "keystore": {
+      "keyring": "Las claves se guardan cifradas (AES-256-GCM); la clave que las abre vive en el llavero de tu sistema (Administrador de credenciales de Windows, Keychain de macOS o el llavero del escritorio en Linux), nunca en un archivo.",
+      "passphrase": "Las claves se guardan cifradas (AES-256-GCM); la clave que las abre se deriva de la frase de HYDRA_KEYSTORE_PASSPHRASE y nunca se escribe en disco.",
+      "file": "Las claves se guardan cifradas (AES-256-GCM), pero esta máquina no tiene llavero, así que la clave que las abre está en master.key junto al almacén. Eso solo frena a otros usuarios de esta computadora; en un servidor, define HYDRA_KEYSTORE_PASSPHRASE."
+    },
     "defaultModel": "Modelo de IA predeterminado",
     "selectModel": "Selecciona un modelo...",
     "modelUnavailable": "no disponible (selecciona otro)",
@@ -666,7 +671,7 @@
       "pasteHint": "Si el navegador no estaba en esta computadora (HydraOps corre en un servidor), copiá la dirección que muestra tu página de vuelta (o la dirección entera de la barra del navegador, aunque muestre un error de conexión) y pegala acá.",
       "pastePlaceholder": "http://127.0.0.1:3000/api/integrations/x/callback?state=…&code=…",
       "finish": "Terminar",
-      "tokensHint": "Los tokens de la cuenta van al almacén de claves de HydraOps (un archivo que solo tu usuario puede leer, no cifrado) y se renuevan solos. Nada pasa por la base de datos.",
+      "tokensHint": "Los tokens de la cuenta van al almacén de claves cifrado de HydraOps y se renuevan solos. Nada pasa por la base de datos.",
       "connectedOn": "conectada el {{date}}",
       "reauth": "sesión vencida: conectar de nuevo",
       "canPost": "Pueden publicar:",
@@ -705,7 +710,7 @@
       "tokenMissing": "Sin token",
       "tokenPlaceholder": "Fine-grained PAT de GitHub",
       "getToken": "Crear un token",
-      "connectHint": "Usa un token fine-grained y acota sus permisos y repos en GitHub. El token vive solo en el almacén cifrado; nunca lo ve el agente. Lo que puede hacer lo decide el propio token."
+      "connectHint": "Usa un token fine-grained y acota sus permisos y repos en GitHub. El token vive solo en el almacén de claves cifrado; nunca lo ve el agente. Lo que puede hacer lo decide el propio token."
     },
     "huggingface": {
       "name": "Hugging Face",

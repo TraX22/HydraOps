@@ -423,6 +423,11 @@
   "config": {
     "title": "Réglages",
     "apiKeys": "Clés API",
+    "keystore": {
+      "keyring": "Les clés sont stockées chiffrées (AES-256-GCM) ; la clé qui les ouvre vit dans le trousseau de votre système (Gestionnaire d'identifiants Windows, Trousseau macOS ou le trousseau du bureau sous Linux), jamais dans un fichier.",
+      "passphrase": "Les clés sont stockées chiffrées (AES-256-GCM) ; la clé qui les ouvre est dérivée de la phrase de HYDRA_KEYSTORE_PASSPHRASE et n'est jamais écrite sur le disque.",
+      "file": "Les clés sont stockées chiffrées (AES-256-GCM), mais cette machine n'a pas de trousseau : la clé qui les ouvre se trouve dans master.key à côté du coffre. Cela n'arrête que les autres utilisateurs de cet ordinateur ; sur un serveur, définissez HYDRA_KEYSTORE_PASSPHRASE."
+    },
     "defaultModel": "Modèle d'IA par défaut",
     "selectModel": "Sélectionnez un modèle...",
     "modelUnavailable": "indisponible (choisissez-en un autre)",
@@ -666,7 +671,7 @@
       "pasteHint": "Si le navigateur n'était pas sur cet ordinateur (HydraOps tourne sur un serveur), copiez l'adresse qu'affiche votre page de retour (ou l'adresse entière de la barre du navigateur, même sur une erreur de connexion) et collez-la ici.",
       "pastePlaceholder": "http://127.0.0.1:3000/api/integrations/x/callback?state=…&code=…",
       "finish": "Terminer",
-      "tokensHint": "Les jetons du compte vont dans le coffre de clés de HydraOps (un fichier lisible par votre seul utilisateur, non chiffré) et se renouvellent seuls. Rien ne passe par la base de données.",
+      "tokensHint": "Les jetons du compte vont dans le coffre de clés chiffré de HydraOps et se renouvellent seuls. Rien ne passe par la base de données.",
       "connectedOn": "connecté le {{date}}",
       "reauth": "session expirée : reconnecter",
       "canPost": "Peuvent publier :",
@@ -705,7 +710,7 @@
       "tokenMissing": "Aucun jeton",
       "tokenPlaceholder": "PAT fine-grained de GitHub",
       "getToken": "Créer un jeton",
-      "connectHint": "Utilisez un jeton fine-grained et limitez ses permissions et dépôts sur GitHub. Le jeton ne vit que dans le coffre chiffré ; l'agent ne le voit jamais. Ce qu'il peut faire est décidé par le jeton lui-même."
+      "connectHint": "Utilisez un jeton fine-grained et limitez ses permissions et dépôts sur GitHub. Le jeton ne vit que dans le coffre de clés chiffré ; l'agent ne le voit jamais. Ce qu'il peut faire est décidé par le jeton lui-même."
     },
     "huggingface": {
       "name": "Hugging Face",

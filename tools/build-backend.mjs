@@ -41,7 +41,7 @@ const SERVICES = [
  * Módulos que NO se pueden meter en el bundle porque cargan binarios .node.
  * Se copian enteros al node_modules de salida.
  */
-const NATIVE = ["better-sqlite3", "sharp"];
+const NATIVE = ["better-sqlite3", "sharp", "@napi-rs/keyring"];
 
 /** Cualquier módulo que NO sea uno de los nativos (ni un subcamino suyo). */
 const NOT_NATIVE = new RegExp(`^(?!(${NATIVE.join("|")})($|/))`);
@@ -69,6 +69,7 @@ const RESOLVE_BASES = [
   path.join(REPO, "packages", "db"),
   path.join(REPO, "apps", "api"),
   path.join(REPO, "packages", "llm"),
+  path.join(REPO, "packages", "config"), // @napi-rs/keyring (the encrypted key store)
   REPO,
 ];
 
@@ -100,8 +101,8 @@ function siblingBase(pkgDir, name) {
   return dir;
 }
 
-/** Nombres de variantes de sharp para otras plataformas: no hacen falta aquí. */
-const FOREIGN_PLATFORM = /^@img\/sharp-(?!win32-x64)/;
+/** Variantes de sharp y del llavero para otras plataformas: no hacen falta aquí. */
+const FOREIGN_PLATFORM = /^@img\/sharp-(?!win32-x64)|^@napi-rs\/keyring-(?!win32-x64-msvc)/;
 
 /** Copia un paquete y todo lo que arrastre (incluidas las opcionales). */
 function copyPackage(name, seen = new Set(), extraBases = []) {

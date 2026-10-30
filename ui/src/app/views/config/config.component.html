@@ -7,6 +7,9 @@
     <!-- API Keys -->
     <section class="config-section">
       <h3>{{ 'config.apiKeys' | translate }}</h3>
+      @if (config().keystore; as ks) {
+        <p class="hint" [class.warn]="ks.protection === 'file'">{{ ('config.keystore.' + ks.protection) | translate }}</p>
+      }
       <div class="fields-grid">
         @for (field of apiKeyFields; track field.key) {
           <div class="field">

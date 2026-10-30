@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 export * from "./paths.js";
+export * from "./private-file.js";
+export * from "./keystore.js";
 export * from "./local-llm.js";
 
 export const EnvSchema = z.object({

@@ -8,6 +8,8 @@ The keys you enter in Settings go to a store outside the application (`%APPDATA%
 
 Practical consequence: you can share your project folder, your logs or your database without fear of leaking keys. If you ever see a real key outside that store, that is a bug — report it.
 
+The store is **encrypted** (AES-256-GCM): the file on disk is an envelope that reveals nothing without the key that opens it, and any altered byte is refused. Where that key lives depends on the machine. On a desktop it is generated the first time HydraOps runs and kept in your system's keyring (the Windows Credential Manager, the macOS Keychain, or gnome-keyring/KWallet on a Linux desktop), which the system unlocks with your session password; it is never written to a file. On a server without a desktop there is no keyring: set `HYDRA_KEYSTORE_PASSPHRASE` in the service's `.env` and the key is derived from that phrase and never stored; if you set nothing, HydraOps generates `master.key` next to the store, readable by your user only, and says so in Settings — that only keeps out other users of the same machine, because the key sits beside the data. What encryption protects: a copy of the file (a backup, a synced folder, a disk pulled from the machine, another user). What it does not: a program running under your own account, which can ask the keyring just like HydraOps does — keep your session password and consider disk encryption (BitLocker, LUKS, FileVault). Keys from one computer cannot be read on another: enter them again there. A backup never includes `master.key` or the passphrase, so restoring it works on the same machine and account.
+
 ## Tools go through a guard
 
 Every tool an agent executes — native, yours or MCP — goes through a filter that:

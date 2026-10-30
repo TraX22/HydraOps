@@ -22,10 +22,10 @@
  */
 import { createHash, createPublicKey, randomBytes, randomUUID, timingSafeEqual, verify as verifySignature } from "node:crypto";
 import http from "node:http";
-import { chmod, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
-import { keyStoreDir } from "@hydraops/config";
+import { KeystoreError, keyStoreDir, readStore, writeStore } from "@hydraops/config";
 
 const issuer = () => (process.env.CHATGPT_ISSUER || "https://auth.openai.com").replace(/\/$/, "");
 const apiBase = () => (process.env.CHATGPT_API_BASE || "https://api.openai.com").replace(/\/$/, "");
@@ -89,19 +89,18 @@ let cache: Store | null = null;
 async function load(): Promise<Store> {
   if (cache) return cache;
   try {
-    const raw = JSON.parse(await readFile(STORE_FILE, "utf-8"));
-    if (raw && raw.version === 1 && typeof raw.hostId === "string") cache = raw as Store;
-  } catch { /* no store yet, or unreadable: start over */ }
+    const raw = await readStore<Store>(STORE_FILE);
+    if (raw && raw.version === 1 && typeof raw.hostId === "string") cache = raw;
+  } catch (e) {
+    if (e instanceof KeystoreError) throw e; // undecryptable is not "no store": never start over on top of it
+    /* unreadable: start over */
+  }
   cache ??= { version: 1, hostId: `urn:uuid:${randomUUID()}`, status: "disconnected" };
   return cache;
 }
 async function save(store: Store): Promise<void> {
   cache = store;
-  await mkdir(path.dirname(STORE_FILE), { recursive: true });
-  const tmp = `${STORE_FILE}.${process.pid}.tmp`;
-  await writeFile(tmp, JSON.stringify(store, null, 2), { encoding: "utf-8", mode: 0o600 });
-  await chmod(tmp, 0o600).catch(() => {});
-  await rename(tmp, STORE_FILE);
+  await writeStore(STORE_FILE, store);
 }
 /** Test hook: forget the cached store (the file is re-read). */
 export function resetChatGPTCache(): void { cache = null; }

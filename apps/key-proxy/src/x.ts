@@ -19,9 +19,9 @@
  * with X_AUTH_BASE / X_API_BASE (tests).
  */
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { chmod, mkdir, open, readFile, realpath, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { open, readFile, realpath, stat, unlink } from "node:fs/promises";
 import path from "node:path";
-import { keyStoreDir, uploadsDir } from "@hydraops/config";
+import { KeystoreError, keyStoreDir, readStore, uploadsDir, writeStore } from "@hydraops/config";
 
 const authBase = () => (process.env.X_AUTH_BASE || "https://x.com").replace(/\/$/, "");
 const apiBase = () => (process.env.X_API_BASE || "https://api.x.com").replace(/\/$/, "");
@@ -95,19 +95,18 @@ let cache: Store | null = null;
 async function load(): Promise<Store> {
   if (cache) return cache;
   try {
-    const raw = JSON.parse(await readFile(STORE_FILE, "utf-8"));
-    if (raw && raw.version === 1 && Array.isArray(raw.accounts)) cache = raw as Store;
-  } catch { /* no store yet, or unreadable: start over */ }
+    const raw = await readStore<Store>(STORE_FILE);
+    if (raw && raw.version === 1 && Array.isArray(raw.accounts)) cache = raw;
+  } catch (e) {
+    if (e instanceof KeystoreError) throw e; // undecryptable is not "no store": never start over on top of it
+    /* unreadable: start over */
+  }
   cache ??= { version: 1, accounts: [] };
   return cache;
 }
 async function save(store: Store): Promise<void> {
   cache = store;
-  await mkdir(path.dirname(STORE_FILE), { recursive: true });
-  const tmp = `${STORE_FILE}.${process.pid}.tmp`;
-  await writeFile(tmp, JSON.stringify(store, null, 2), { encoding: "utf-8", mode: 0o600 });
-  await chmod(tmp, 0o600).catch(() => {});
-  await rename(tmp, STORE_FILE);
+  await writeStore(STORE_FILE, store);
 }
 /** Test hooks: forget the cached store, or delete the file. */
 export function resetXCache(): void { cache = null; }

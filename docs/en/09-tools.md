@@ -22,7 +22,7 @@ BotFather also gives you the link to your bot (`t.me/YourBot`). Keep it: that's 
 
 Go to **Tools → Telegram** and:
 
-1. **Paste the token** in the field and press **Save**. The badge turns to "Token set". The token goes to an encrypted store outside the project — never to the repository, the database or any `.env` (see [Security](./13-security.md)).
+1. **Paste the token** in the field and press **Save**. The badge turns to "Token set". The token goes to HydraOps' encrypted key store outside the project — never to the repository, the database or any `.env` (see [Security](./13-security.md)).
 2. **Pick a default agent** (optional): with one set, plain messages go to that agent without having to name it.
 3. **Generate a pairing code** with the button. It's a short number that authorizes whoever uses it.
 4. **Enable** the toggle (ON). The bot starts listening within seconds, no restart needed.

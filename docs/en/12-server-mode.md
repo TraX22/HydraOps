@@ -30,6 +30,14 @@ From another device, the browser asks for the token once (login screen) and keep
 
 Connections from the server's own machine never need the token. If the token cannot be saved (the `.env` is read-only), the API refuses to open to the network and stays on `127.0.0.1`.
 
+**The key store on a server.** API keys and tokens are kept encrypted; on a desktop the key that opens them lives in the system keyring, which a headless server does not have. Put a long passphrase in the service's `.env` before you enter any key:
+
+```
+HYDRA_KEYSTORE_PASSPHRASE=<a long random phrase>
+```
+
+The key is derived from it on every start and never written to disk; lose the phrase and the keys have to be entered again. Without it HydraOps falls back to a `master.key` file next to the store (readable by the service's user only) and says so in Settings — that only keeps out other users of the same machine. See [Security](./13-security.md).
+
 ### `0.0.0.0` or a specific address
 
 `0.0.0.0` means "listen on every network interface": your cable and your Wi-Fi, so any device that can reach the machine. Behind a home router that is your local network, which is fine. Two things to keep in mind:
