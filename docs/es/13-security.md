@@ -8,6 +8,8 @@ Las claves que pones en Configuración van a un almacén fuera de la aplicación
 
 Consecuencia práctica: puedes compartir tu carpeta del proyecto, tus logs o tu base de datos sin miedo a filtrar claves. Si alguna vez ves una clave real fuera de ese almacén, eso es un fallo — repórtalo.
 
+El almacén **no está cifrado**: es un JSON plano que solo tu cuenta de usuario puede leer. Eso lo fija HydraOps: en Windows la lista de acceso del archivo nombra solo a tu usuario; en Linux y macOS el archivo queda en modo 600 y su carpeta en 700. Cifrarlo requeriría el llavero del sistema (DPAPI, Keychain, libsecret), que un servidor sin escritorio no tiene, y el archivo seguiría siendo legible para cualquier programa que corra con tu usuario, así que aportaría poco. Lo que protege las claves es la cuenta: una contraseña en tu sesión y el disco cifrado (BitLocker, LUKS, FileVault) si la máquina se puede perder o robar. Un respaldo que incluya las claves contiene el mismo archivo plano; trátalo igual.
+
 ## Las herramientas pasan por un guard
 
 Toda herramienta que ejecuta un agente —nativa, tuya o MCP— pasa por un filtro que:

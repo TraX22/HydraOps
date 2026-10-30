@@ -705,7 +705,7 @@
       "tokenMissing": "No token",
       "tokenPlaceholder": "GitHub fine-grained PAT",
       "getToken": "Create a token",
-      "connectHint": "Use a fine-grained token and scope its permissions and repos on GitHub. The token lives only in the encrypted store; the agent never sees it. What it can do is decided by the token itself."
+      "connectHint": "Use a fine-grained token and scope its permissions and repos on GitHub. The token goes to HydraOps' key store (a file only your user can read, not encrypted); the agent never sees it. What it can do is decided by the token itself."
     },
     "huggingface": {
       "name": "Hugging Face",

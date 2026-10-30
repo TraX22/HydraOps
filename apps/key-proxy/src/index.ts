@@ -14,7 +14,7 @@
 import http from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { Readable } from "node:stream";
-import { keyStoreFile } from "@hydraops/config";
+import { keyStoreDir, keyStoreFile, securePrivateDir } from "@hydraops/config";
 import { handleControl as chatgptControl, isConnected as chatgptConnected, proxy as chatgptProxy } from "./chatgpt.js";
 import { handleControl as xControl, hasAccounts as xHasAccounts } from "./x.js";
 
@@ -185,6 +185,12 @@ const server = http.createServer(async (req, res) => {
 });
 
 // Loopback only: never reachable from the network
+// Installations from before 0.1.82 left the store folder and keys.json with the system
+// defaults (world-readable on Linux); tighten them once at start.
+securePrivateDir(keyStoreDir).then((failed) => {
+  if (failed.length) console.warn(`[key-proxy] could not restrict permissions of: ${failed.join(", ")}`);
+}).catch(() => {});
+
 server.listen(PORT, "127.0.0.1", () => {
   console.log(`[key-proxy] listening on http://127.0.0.1:${PORT} — keys file: ${KEYS_PATH}`);
 });

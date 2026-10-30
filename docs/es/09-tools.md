@@ -22,7 +22,7 @@ BotFather también te da el enlace a tu bot (`t.me/TuBot`). Guárdalo: es donde 
 
 Ve a **Herramientas → Telegram** y:
 
-1. **Pega el token** en el campo y pulsa **Guardar**. La insignia pasa a "Token configurado". El token va a un almacén cifrado fuera del proyecto — nunca al repositorio, la base de datos ni ningún `.env` (ver [Seguridad](./13-security.md)).
+1. **Pega el token** en el campo y pulsa **Guardar**. La insignia pasa a "Token configurado". El token va al almacén de claves de HydraOps, fuera del proyecto: un archivo que solo tu usuario puede leer (no cifrado) — nunca al repositorio, la base de datos ni ningún `.env` (ver [Seguridad](./13-security.md)).
 2. **Elige un agente predeterminado** (opcional): con él, los mensajes normales van a ese agente sin tener que nombrarlo.
 3. **Genera un código de emparejamiento** con el botón. Es un número corto que autoriza a quien lo use.
 4. **Activa** el interruptor (ON). El bot empieza a escuchar en segundos, sin reiniciar nada.

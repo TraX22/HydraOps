@@ -705,7 +705,7 @@
       "tokenMissing": "Sem token",
       "tokenPlaceholder": "PAT fine-grained do GitHub",
       "getToken": "Criar um token",
-      "connectHint": "Use um token fine-grained e limite suas permissões e repositórios no GitHub. O token vive apenas no cofre criptografado; o agente nunca o vê. O que ele pode fazer é decidido pelo próprio token."
+      "connectHint": "Use um token fine-grained e limite suas permissões e repositórios no GitHub. O token vai para o cofre de chaves do HydraOps (um arquivo que só o seu usuário pode ler, não cifrado); o agente nunca o vê. O que ele pode fazer é decidido pelo próprio token."
     },
     "huggingface": {
       "name": "Hugging Face",

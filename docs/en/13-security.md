@@ -8,6 +8,8 @@ The keys you enter in Settings go to a store outside the application (`%APPDATA%
 
 Practical consequence: you can share your project folder, your logs or your database without fear of leaking keys. If you ever see a real key outside that store, that is a bug — report it.
 
+The store is **not encrypted**: it is a plain JSON file that only your user account can read. HydraOps sets that itself — on Windows the file's access list names your user alone; on Linux and macOS the file is mode 600 and its folder 700. Encrypting it would need the system keyring (DPAPI, Keychain, libsecret), which a headless server does not have, and the file would still be readable by any program running under your user, so it would add little. What protects the keys is the account: a password on your session, and disk encryption (BitLocker, LUKS, FileVault) if the machine can be lost or stolen. A backup that includes the keys holds the same plain file; treat it the same way.
+
 ## Tools go through a guard
 
 Every tool an agent executes — native, yours or MCP — goes through a filter that:

@@ -19,9 +19,9 @@
  * with X_AUTH_BASE / X_API_BASE (tests).
  */
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { chmod, mkdir, open, readFile, realpath, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { open, readFile, realpath, stat, unlink } from "node:fs/promises";
 import path from "node:path";
-import { keyStoreDir, uploadsDir } from "@hydraops/config";
+import { keyStoreDir, uploadsDir, writePrivateFile } from "@hydraops/config";
 
 const authBase = () => (process.env.X_AUTH_BASE || "https://x.com").replace(/\/$/, "");
 const apiBase = () => (process.env.X_API_BASE || "https://api.x.com").replace(/\/$/, "");
@@ -103,11 +103,7 @@ async function load(): Promise<Store> {
 }
 async function save(store: Store): Promise<void> {
   cache = store;
-  await mkdir(path.dirname(STORE_FILE), { recursive: true });
-  const tmp = `${STORE_FILE}.${process.pid}.tmp`;
-  await writeFile(tmp, JSON.stringify(store, null, 2), { encoding: "utf-8", mode: 0o600 });
-  await chmod(tmp, 0o600).catch(() => {});
-  await rename(tmp, STORE_FILE);
+  await writePrivateFile(STORE_FILE, JSON.stringify(store, null, 2));
 }
 /** Test hooks: forget the cached store, or delete the file. */
 export function resetXCache(): void { cache = null; }

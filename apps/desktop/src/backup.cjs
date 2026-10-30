@@ -31,6 +31,22 @@ const fsp = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
 const { createHash } = require("node:crypto");
+const { execFile } = require("node:child_process");
+
+/**
+ * Leaves a key file or folder readable by the current user only: mode 600/700, or on
+ * Windows an access list with that one entry (the same as @hydraops/config writePrivateFile;
+ * duplicated here because this module is CommonJS and loads before the stack). Best effort.
+ */
+async function restrictToOwner(target, kind) {
+  if (process.platform === "win32") {
+    const user = process.env.USERDOMAIN ? `${process.env.USERDOMAIN}\\${os.userInfo().username}` : os.userInfo().username;
+    const grant = kind === "dir" ? `${user}:(OI)(CI)F` : `${user}:F`;
+    await new Promise((resolve) => execFile("icacls", [target, "/inheritance:r", "/grant:r", grant, "/Q"], { windowsHide: true, timeout: 15000 }, () => resolve()));
+    return;
+  }
+  await fsp.chmod(target, kind === "dir" ? 0o700 : 0o600).catch(() => {});
+}
 
 const BACKUPS_DIR = "backups";
 const DB_FILE = "db.sqlite3";
@@ -168,7 +184,12 @@ async function createBackup({ dataRoot, keyStoreDir, version, kind = "manual", l
       for (const f of KEY_FILES) {
         if (await copyItem(path.join(keyStoreDir, f), path.join(dir, KEYS_ITEM, f))) any = true;
       }
-      if (any) items.push(KEYS_ITEM);
+      if (any) {
+        // The copy holds the same plain keys as the store: same permissions.
+        await restrictToOwner(path.join(dir, KEYS_ITEM), "dir");
+        for (const f of KEY_FILES) if (fs.existsSync(path.join(dir, KEYS_ITEM, f))) await restrictToOwner(path.join(dir, KEYS_ITEM, f), "file");
+        items.push(KEYS_ITEM);
+      }
     }
     const manifest = {
       schema: 1,
@@ -233,7 +254,7 @@ async function restoreBackup({ dataRoot, keyStoreDir, name, version, log = () =>
       if (!keyStoreDir) continue;
       for (const f of KEY_FILES) {
         const src = path.join(dir, KEYS_ITEM, f);
-        if (fs.existsSync(src)) { await fsp.mkdir(keyStoreDir, { recursive: true }); await fsp.copyFile(src, path.join(keyStoreDir, f)); }
+        if (fs.existsSync(src)) { await fsp.mkdir(keyStoreDir, { recursive: true }); await fsp.copyFile(src, path.join(keyStoreDir, f)); await restrictToOwner(path.join(keyStoreDir, f), "file"); }
       }
       restored.push(item);
       continue;

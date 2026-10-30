@@ -24,7 +24,7 @@ import {
   envFile,
   keyStoreFile,
   keyStoreDir,
-  readLocalLlmEnv, scenesDir, skillsDir, resultsDir } from "@hydraops/config";
+  readLocalLlmEnv, scenesDir, skillsDir, resultsDir, writePrivateFile } from "@hydraops/config";
 import { createRequire } from "node:module";
 // Copies of the installation and their restore requests: one module shared with both
 // supervisors (tools/serve.mjs and the desktop's main.js), plain CommonJS so the packaged
@@ -1342,9 +1342,9 @@ async function loadKeyStore(): Promise<Record<string, string>> {
   }
 }
 
+// Only the current user may read the store: mode 600 / a one-entry ACL, written atomically.
 async function saveKeyStore(keys: Record<string, string>): Promise<void> {
-  await mkdir(path.dirname(KEY_STORE_PATH), { recursive: true });
-  await writeFile(KEY_STORE_PATH, JSON.stringify(keys, null, 2), "utf-8");
+  await writePrivateFile(KEY_STORE_PATH, JSON.stringify(keys, null, 2));
 }
 
 const isRealKeyValue = (v: string | undefined | null): v is string =>

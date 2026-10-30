@@ -22,10 +22,10 @@
  */
 import { createHash, createPublicKey, randomBytes, randomUUID, timingSafeEqual, verify as verifySignature } from "node:crypto";
 import http from "node:http";
-import { chmod, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { readFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
-import { keyStoreDir } from "@hydraops/config";
+import { keyStoreDir, writePrivateFile } from "@hydraops/config";
 
 const issuer = () => (process.env.CHATGPT_ISSUER || "https://auth.openai.com").replace(/\/$/, "");
 const apiBase = () => (process.env.CHATGPT_API_BASE || "https://api.openai.com").replace(/\/$/, "");
@@ -97,11 +97,7 @@ async function load(): Promise<Store> {
 }
 async function save(store: Store): Promise<void> {
   cache = store;
-  await mkdir(path.dirname(STORE_FILE), { recursive: true });
-  const tmp = `${STORE_FILE}.${process.pid}.tmp`;
-  await writeFile(tmp, JSON.stringify(store, null, 2), { encoding: "utf-8", mode: 0o600 });
-  await chmod(tmp, 0o600).catch(() => {});
-  await rename(tmp, STORE_FILE);
+  await writePrivateFile(STORE_FILE, JSON.stringify(store, null, 2));
 }
 /** Test hook: forget the cached store (the file is re-read). */
 export function resetChatGPTCache(): void { cache = null; }
