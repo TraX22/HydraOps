@@ -570,6 +570,8 @@ export interface AppConfig {
   /** The model that picks the agent for a main-chat message; empty = the default model. */
   routerModel?: string;
   logLevel: string;
+  /** How the key store is protected (read-only, from the API). */
+  keystore?: { encrypted: boolean; protection: 'keyring' | 'passphrase' | 'file'; detail: string } | null;
   /** Tools on demand: 'on' (default) | 'off'. */
   toolsOnDemand?: string;
   /** Minutes one model round may take to answer; empty = 10 in the cloud, 15 with the local model. */

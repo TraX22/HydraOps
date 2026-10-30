@@ -423,6 +423,11 @@
   "config": {
     "title": "Configuration",
     "apiKeys": "API Keys",
+    "keystore": {
+      "keyring": "Keys are stored encrypted (AES-256-GCM); the key that opens them lives in your system's keyring (Windows Credential Manager, macOS Keychain or the desktop keyring on Linux), never in a file.",
+      "passphrase": "Keys are stored encrypted (AES-256-GCM); the key that opens them is derived from the passphrase in HYDRA_KEYSTORE_PASSPHRASE and is never written to disk.",
+      "file": "Keys are stored encrypted (AES-256-GCM), but this machine has no keyring, so the key that opens them sits in master.key next to the store. That only keeps out other users of this computer; on a server, set HYDRA_KEYSTORE_PASSPHRASE instead."
+    },
     "defaultModel": "Default AI Model",
     "selectModel": "Select a model...",
     "modelUnavailable": "unavailable (pick another)",
@@ -666,7 +671,7 @@
       "pasteHint": "If the browser was not on this computer (HydraOps runs on a server), copy the address your callback page shows (or the whole address from the browser's bar, even on a connection error) and paste it here.",
       "pastePlaceholder": "http://127.0.0.1:3000/api/integrations/x/callback?state=…&code=…",
       "finish": "Finish",
-      "tokensHint": "The account's tokens go to HydraOps' key store (a file only your user can read, not encrypted) and refresh on their own. Nothing passes through the database.",
+      "tokensHint": "The account's tokens go to HydraOps' encrypted key store and refresh on their own. Nothing passes through the database.",
       "connectedOn": "connected on {{date}}",
       "reauth": "session expired: connect again",
       "canPost": "May post:",
@@ -705,7 +710,7 @@
       "tokenMissing": "No token",
       "tokenPlaceholder": "GitHub fine-grained PAT",
       "getToken": "Create a token",
-      "connectHint": "Use a fine-grained token and scope its permissions and repos on GitHub. The token goes to HydraOps' key store (a file only your user can read, not encrypted); the agent never sees it. What it can do is decided by the token itself."
+      "connectHint": "Use a fine-grained token and scope its permissions and repos on GitHub. The token lives only in the encrypted key store; the agent never sees it. What it can do is decided by the token itself."
     },
     "huggingface": {
       "name": "Hugging Face",

@@ -23,6 +23,7 @@ import net from "node:net";
 const SENSITIVE_PATH_PATTERNS: { re: RegExp; label: string }[] = [
   { re: /keys\.json/i, label: "HydraOps key store" },
   { re: /[\\/](appdata[\\/]roaming[\\/])?hydraops[\\/]keys/i, label: "HydraOps key store" },
+  { re: /[\\/]hydraops[\\/](master\.key|master\.lock|chatgpt\.json|x\.json)/i, label: "HydraOps key store" },
   { re: /(^|[\\/"'\s])\.env(\.\w+)?($|["'\s\\/])/i, label: ".env file" },
   { re: /[\\/]\.ssh([\\/]|$)/i, label: "SSH directory" },
   { re: /id_(rsa|ed25519|ecdsa|dsa)/i, label: "SSH private key" },

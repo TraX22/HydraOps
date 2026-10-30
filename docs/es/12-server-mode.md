@@ -30,6 +30,14 @@ Desde otro equipo, el navegador te pedirá el token una vez (pantalla de login) 
 
 Las conexiones desde la propia máquina del servidor nunca necesitan token. Si el token no se puede guardar (el `.env` es de solo lectura), la API se niega a abrirse a la red y se queda en `127.0.0.1`.
 
+**El almacén de claves en un servidor.** Las claves de API y los tokens se guardan cifrados; en un escritorio la clave que los abre vive en el llavero del sistema, que un servidor sin escritorio no tiene. Pon una frase larga en el `.env` del servicio antes de cargar ninguna clave:
+
+```
+HYDRA_KEYSTORE_PASSPHRASE=<una frase larga y aleatoria>
+```
+
+La clave se deriva de ella en cada arranque y nunca se escribe en disco; si pierdes la frase, hay que volver a cargar las claves. Sin ella, HydraOps recurre a un archivo `master.key` junto al almacén (legible solo por el usuario del servicio) y lo avisa en Configuración — eso solo frena a otros usuarios de la misma máquina. Ver [Seguridad](./13-security.md).
+
 ### `0.0.0.0` o una dirección concreta
 
 `0.0.0.0` significa "escuchar en todas las interfaces de red": el cable y el Wi-Fi, o sea cualquier dispositivo que pueda llegar a la máquina. Detrás del router de casa eso es tu red local, y está bien. Dos cosas a tener en cuenta:

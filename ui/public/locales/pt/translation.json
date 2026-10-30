@@ -423,6 +423,11 @@
   "config": {
     "title": "Configurações",
     "apiKeys": "Chaves de API",
+    "keystore": {
+      "keyring": "As chaves ficam guardadas cifradas (AES-256-GCM); a chave que as abre vive no chaveiro do seu sistema (Gerenciador de Credenciais do Windows, Keychain do macOS ou o chaveiro do desktop no Linux), nunca em um arquivo.",
+      "passphrase": "As chaves ficam guardadas cifradas (AES-256-GCM); a chave que as abre é derivada da frase em HYDRA_KEYSTORE_PASSPHRASE e nunca é gravada em disco.",
+      "file": "As chaves ficam guardadas cifradas (AES-256-GCM), mas esta máquina não tem chaveiro, então a chave que as abre está em master.key ao lado do cofre. Isso só impede outros usuários deste computador; em um servidor, defina HYDRA_KEYSTORE_PASSPHRASE."
+    },
     "defaultModel": "Modelo de IA padrão",
     "selectModel": "Selecione um modelo...",
     "modelUnavailable": "indisponível (escolha outro)",
@@ -666,7 +671,7 @@
       "pasteHint": "Se o navegador não estava neste computador (o HydraOps roda num servidor), copie o endereço que a sua página de retorno mostra (ou o endereço inteiro da barra do navegador, mesmo com um erro de conexão) e cole aqui.",
       "pastePlaceholder": "http://127.0.0.1:3000/api/integrations/x/callback?state=…&code=…",
       "finish": "Concluir",
-      "tokensHint": "Os tokens da conta vão para o cofre de chaves do HydraOps (um arquivo que só o seu usuário pode ler, não cifrado) e se renovam sozinhos. Nada passa pelo banco de dados.",
+      "tokensHint": "Os tokens da conta vão para o cofre de chaves cifrado do HydraOps e se renovam sozinhos. Nada passa pelo banco de dados.",
       "connectedOn": "conectada em {{date}}",
       "reauth": "sessão vencida: conectar de novo",
       "canPost": "Podem publicar:",
@@ -705,7 +710,7 @@
       "tokenMissing": "Sem token",
       "tokenPlaceholder": "PAT fine-grained do GitHub",
       "getToken": "Criar um token",
-      "connectHint": "Use um token fine-grained e limite suas permissões e repositórios no GitHub. O token vai para o cofre de chaves do HydraOps (um arquivo que só o seu usuário pode ler, não cifrado); o agente nunca o vê. O que ele pode fazer é decidido pelo próprio token."
+      "connectHint": "Use um token fine-grained e limite suas permissões e repositórios no GitHub. O token vive apenas no cofre de chaves cifrado; o agente nunca o vê. O que ele pode fazer é decidido pelo próprio token."
     },
     "huggingface": {
       "name": "Hugging Face",

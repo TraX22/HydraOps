@@ -1,8 +1,7 @@
 import { config as loadDotenv } from "dotenv";
-import { loadEnv, envFile, logsDir, keyStoreFile } from "@hydraops/config";
+import { loadEnv, envFile, logsDir, keyStoreFile, readStore } from "@hydraops/config";
 import { createDb, systemConfigs, workerStatus } from "@hydraops/db";
 import { eq } from "drizzle-orm";
-import { readFile } from "node:fs/promises";
 
 import type { CommandResult } from "@hydraops/commands";
 import { toTelegramHtml } from "./format.js";
@@ -111,7 +110,7 @@ async function updateConfig(mutate: (c: TelegramConfig) => void): Promise<Telegr
 // --- Bot token (real value lives only in the key store, like provider keys) ---
 async function readToken(): Promise<string> {
   try {
-    const store = JSON.parse(await readFile(keyStoreFile, "utf-8"));
+    const store = (await readStore<Record<string, string>>(keyStoreFile)) ?? {};
     const v = (store[TELEGRAM_KEY_NAME] || "").trim();
     return v && v !== KEY_PLACEHOLDER ? v : "";
   } catch {

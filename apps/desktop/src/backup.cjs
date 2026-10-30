@@ -54,7 +54,8 @@ const DB_FILE = "db.sqlite3";
 const BASE_ITEMS = ["agents", "skills", "my_addons", "users", ".env"];
 const STORAGE_ITEM = "storage";
 const STORAGE_SKIP = new Set(["logs"]);
-const KEY_FILES = ["keys.json", "chatgpt.json"];
+// The encrypted stores. master.key is never copied: a backup must not carry the key that opens it.
+const KEY_FILES = ["keys.json", "chatgpt.json", "x.json"];
 const KEYS_ITEM = "keys";
 const KINDS = new Set(["manual", "before-update", "before-restore"]);
 const KEEP_AUTO = 5;

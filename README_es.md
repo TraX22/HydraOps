@@ -156,7 +156,7 @@ Descarga el `.exe` de la página de *Releases*. No necesita Node, ni pnpm, ni es
 repositorio: los servicios corren sobre el Node que trae Electron.
 
 Tus datos van a `%APPDATA%\HydraOps\data` y las claves a
-`%APPDATA%\hydraops\keys.json`, fuera del directorio de instalación, así que actualizar
+`%APPDATA%\hydraops\` (cifradas), fuera del directorio de instalación, así que actualizar
 la aplicación no toca nada tuyo.
 
 ### Opción B — desde el código

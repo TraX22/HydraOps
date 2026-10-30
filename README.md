@@ -148,8 +148,8 @@ The user manual lives in [`docs/`](docs/README.md) (Spanish and English) and is 
 Download the `.exe` from the *Releases* page. It needs no Node, no pnpm, and not this
 repository: the services run on the Node bundled with Electron.
 
-Your data goes to `%APPDATA%\HydraOps\data` and your keys to
-`%APPDATA%\hydraops\keys.json`, outside the installation directory, so updating the
+Your data goes to `%APPDATA%\HydraOps\data` and your keys, encrypted, to
+`%APPDATA%\hydraops\`, outside the installation directory, so updating the
 application never touches anything of yours.
 
 ### Option B — from source

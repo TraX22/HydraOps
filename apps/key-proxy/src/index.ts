@@ -12,9 +12,9 @@
  * The file is managed by the API (Config view) and re-read here on change.
  */
 import http from "node:http";
-import { readFile, stat } from "node:fs/promises";
+import { stat } from "node:fs/promises";
 import { Readable } from "node:stream";
-import { keyStoreDir, keyStoreFile, securePrivateDir } from "@hydraops/config";
+import { KeystoreError, keyStoreDir, keyStoreFile, readStore, securePrivateDir } from "@hydraops/config";
 import { handleControl as chatgptControl, isConnected as chatgptConnected, proxy as chatgptProxy } from "./chatgpt.js";
 import { handleControl as xControl, hasAccounts as xHasAccounts } from "./x.js";
 
@@ -66,13 +66,20 @@ const STRIP_RESPONSE_HEADERS = new Set([
 ]);
 
 let keysCache: { mtimeMs: number; keys: Record<string, string> } = { mtimeMs: -1, keys: {} };
+let keystoreComplaint = "";
 async function loadKeys(): Promise<Record<string, string>> {
   try {
     const st = await stat(KEYS_PATH);
     if (st.mtimeMs !== keysCache.mtimeMs) {
-      keysCache = { mtimeMs: st.mtimeMs, keys: JSON.parse(await readFile(KEYS_PATH, "utf-8")) };
+      keysCache = { mtimeMs: st.mtimeMs, keys: (await readStore<Record<string, string>>(KEYS_PATH)) ?? {} };
+      keystoreComplaint = "";
     }
-  } catch {
+  } catch (e) {
+    if (e instanceof KeystoreError) {
+      // Undecryptable is not "no keys": keep what we had and say so once.
+      if (keystoreComplaint !== e.message) { keystoreComplaint = e.message; console.error(`[key-proxy] ${e.message}`); }
+      return keysCache.keys;
+    }
     keysCache = { mtimeMs: -1, keys: {} };
   }
   return keysCache.keys;

@@ -24,7 +24,7 @@ import {
   envFile,
   keyStoreFile,
   keyStoreDir,
-  readLocalLlmEnv, scenesDir, skillsDir, resultsDir, writePrivateFile } from "@hydraops/config";
+  readLocalLlmEnv, scenesDir, skillsDir, resultsDir, readStore, writeStore, keystoreStatus } from "@hydraops/config";
 import { createRequire } from "node:module";
 // Copies of the installation and their restore requests: one module shared with both
 // supervisors (tools/serve.mjs and the desktop's main.js), plain CommonJS so the packaged
@@ -1334,17 +1334,14 @@ const KEY_PLACEHOLDER = "proxy";
 const KEY_MASK_DOTS = "...............";
 const KEY_STORE_PATH = keyStoreFile;
 
+// The store is encrypted (see @hydraops/config keystore). A missing file is an empty store;
+// a file that cannot be decrypted throws, so no route ever overwrites it with an empty one.
 async function loadKeyStore(): Promise<Record<string, string>> {
-  try {
-    return JSON.parse(await readFile(KEY_STORE_PATH, "utf-8"));
-  } catch {
-    return {};
-  }
+  return (await readStore<Record<string, string>>(KEY_STORE_PATH)) ?? {};
 }
 
-// Only the current user may read the store: mode 600 / a one-entry ACL, written atomically.
 async function saveKeyStore(keys: Record<string, string>): Promise<void> {
-  await writePrivateFile(KEY_STORE_PATH, JSON.stringify(keys, null, 2));
+  await writeStore(KEY_STORE_PATH, keys);
 }
 
 const isRealKeyValue = (v: string | undefined | null): v is string =>
@@ -2127,7 +2124,8 @@ api.get("/config", async (req, res) => {
       config[cfgKey] = real ? maskKey(real) : "";
     }
 
-    res.json(config);
+    // How the key store is protected, for the Settings page.
+    res.json({ ...config, keystore: await keystoreStatus().catch(() => null) });
   } catch (err) {
     console.error("[api] GET /config failed", err);
     res.status(500).json({ error: "Failed to read config" });
