@@ -1,49 +1,53 @@
-# Compila y publica el instalador de Windows al empujar un tag de versión.
+# Builds and publishes the Windows installer when a version tag is pushed.
 #
-# Cómo sacar una release:
-#   1. Sube la versión en apps/desktop/package.json (p. ej. 0.1.1).
+# How to cut a release:
+#   1. Bump the version in apps/desktop/package.json (e.g. 0.1.1).
 #   2. git commit + git tag v0.1.1 && git push origin main --tags
-#   El tag DEBE coincidir con esa versión: electron-updater compara la versión
-#   instalada con la del latest.yml que se sube aquí.
+#   The tag MUST match that version: electron-updater compares the installed
+#   version with the one in the latest.yml uploaded here.
 #
-# El instalador va sin firmar todavía (SmartScreen avisará en la primera
-# instalación); la actualización automática funciona igual, por hash. La firma
-# con SignPath es un paso posterior.
+# Run it by hand (workflow_dispatch) to check that the toolchain still builds the
+# installer: everything runs except the publish step, which only runs for a tag.
+#
+# The installer is still unsigned (SmartScreen warns on the first install); the
+# automatic update works the same, by hash. Signing with SignPath comes later.
 name: Release
 
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
-  contents: write # crear la Release y subirle los archivos
+  contents: write # create the Release and upload its files
 
 jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4 # lee la versión de packageManager
+      - uses: pnpm/action-setup@v6 # reads the version from packageManager
 
-      - uses: actions/setup-node@v4
+      # The same Node line the desktop app ships (Electron 44 bundles Node 24).
+      - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
-      - name: Instalar dependencias
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Compilar paquetes, interfaz y backend
+      - name: Build packages, interface and backend
         run: |
           pnpm build
           pnpm --filter ui build
           pnpm build:backend
 
-      # El binario de nats-server no vive en el repo; el empaquetado lo espera en
-      # nats/nats-server-v<ver>-windows-amd64/nats-server.exe (ver electron-builder.yml).
-      - name: Descargar nats-server
+      # The nats-server binary does not live in the repo; packaging expects it at
+      # nats/nats-server-v<ver>-windows-amd64/nats-server.exe (see electron-builder.yml).
+      - name: Download nats-server
         shell: pwsh
         run: |
           $ver = "2.10.22"
@@ -51,22 +55,29 @@ jobs:
           Invoke-WebRequest -Uri $url -OutFile nats.zip
           Expand-Archive nats.zip -DestinationPath nats -Force
           if (-not (Test-Path "nats/nats-server-v$ver-windows-amd64/nats-server.exe")) {
-            throw "nats-server.exe no quedó donde el empaquetado lo espera"
+            throw "nats-server.exe is not where packaging expects it"
           }
 
-      # electron-builder solo COMPILA (genera el .exe, su .blockmap y latest.yml).
-      # Publicamos nosotros con gh: si se deja publicar a electron-builder, al
-      # subir los artefactos en paralelo y no existir aún la release, dos hilos
-      # la crean a la vez y salen DOS borradores con los archivos partidos.
-      - name: Empaquetar
+      # electron-builder only BUILDS (the .exe, its .blockmap and latest.yml). We
+      # publish with gh ourselves: left to electron-builder, the artifacts upload in
+      # parallel before the release exists, two threads create it at once and two
+      # drafts come out with the files split between them.
+      - name: Package
         working-directory: apps/desktop
         run: pnpm exec electron-builder --publish never
 
-      # Una sola Release, con los tres archivos que necesita la autoactualización
-      # (.exe + latest.yml + .blockmap). --generate-notes arma el changelog.
-      - name: Publicar la Release
+      - name: Installer built
+        shell: pwsh
+        working-directory: apps/desktop/release
+        run: Get-Item *-setup.exe, *.blockmap, latest.yml | Format-Table Name, Length
+
+      # One Release with the three files the auto-update needs (.exe + latest.yml +
+      # .blockmap). --generate-notes writes the changelog. Tags only: a manual run
+      # stops at the build.
+      - name: Publish the Release
+        if: startsWith(github.ref, 'refs/tags/')
         shell: pwsh
         working-directory: apps/desktop/release
         run: gh release create $env:GITHUB_REF_NAME (Get-Item *-setup.exe, *.blockmap, latest.yml) --title $env:GITHUB_REF_NAME --generate-notes
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # lo da GitHub Actions, no hay que crearlo
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # provided by GitHub Actions, nothing to create
