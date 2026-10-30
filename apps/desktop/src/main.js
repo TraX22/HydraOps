@@ -62,6 +62,7 @@ const { ServiceSupervisor, REPO_ROOT, UI_ROOT } = require("./services");
 const { ensureDataDir } = require("./data-dir");
 const { initAutoUpdate, checkForUpdatesNow, checkQuietly, restartToInstall, getState: getUpdaterState, onStateChange: onUpdaterStateChange } = require("./updater");
 const shellI18n = require("./i18n");
+const { BrowserPanel } = require("./browser-panel");
 
 // Language of the native menu and of the About window. It starts on the same default
 // as the UI (en) and follows `hydra_lang`: read from the renderer on load, and every
@@ -92,6 +93,10 @@ const DEV_UI_URL = process.env.HYDRA_DEV_UI_URL || ""; // p.ej. http://localhost
 const APP_DATA_HOME = path.join(app.getPath("appData"), "HydraOps");
 if (app.isPackaged) {
   app.setPath("userData", path.join(APP_DATA_HOME, "shell"));
+} else if (process.env.HYDRA_SHELL_USER_DATA) {
+  // Development and tests: an isolated shell state (Electron ignores APPDATA on Windows and
+  // would share the real %APPDATA%\@hydraops\desktop between every run).
+  app.setPath("userData", path.resolve(process.env.HYDRA_SHELL_USER_DATA));
 }
 
 /**
@@ -111,6 +116,8 @@ function resolveDataRoot() {
 let dataRoot = REPO_ROOT;
 let supervisor = null;
 let mainWindow = null;
+/** The browser panel beside the chat (real Chromium tabs drawn over the window); created with the window. */
+let browserPanel = null;
 let splashWindow = null;
 let tray = null;
 
@@ -399,7 +406,13 @@ function createMainWindow(url) {
       .catch(() => { /* sin acceso: se queda en el por defecto */ });
   });
 
-  mainWindow.on("closed", () => { mainWindow = null; });
+  mainWindow.on("closed", () => { browserPanel?.destroy(); browserPanel = null; mainWindow = null; });
+  browserPanel = new BrowserPanel({
+    window: mainWindow,
+    stateFile: path.join(app.getPath("userData"), "browser-tabs.json"),
+    log: shellLog,
+    strings: () => shellI18n.t(currentLang),
+  });
   if (startInTray) {
     // No splash, no page yet: the interface loads the first time the window is opened.
     uiLoadPending = true;
@@ -544,6 +557,23 @@ function registerIpc() {
   // La UI avisa del idioma elegido (al arrancar y al cambiarlo) para que el
   // menú nativo y el Acerca de lo respeten.
   ipcMain.on("ui:lang", (_event, lang) => setShellLang(lang));
+  // The browser panel: the UI says where its page area is and when the pages may show; the
+  // tabs are driven by id. Every call is a no-op before the window exists.
+  ipcMain.handle("browser:state", () => browserPanel?.snapshot() ?? null);
+  ipcMain.on("browser:bounds", (_event, rect) => browserPanel?.setBounds(rect));
+  ipcMain.on("browser:shown", (_event, shown) => browserPanel?.setShown(shown));
+  ipcMain.on("browser:panel", (_event, open) => { if (open) browserPanel?.ensureTabs(); });
+  ipcMain.on("browser:background", (_event, color) => browserPanel?.setBackground(color));
+  ipcMain.handle("browser:tab:new", (_event, url) => browserPanel?.newTab(String(url || "") || undefined) ?? null);
+  ipcMain.handle("browser:tab:close", (_event, id) => browserPanel?.closeTab(String(id)));
+  ipcMain.handle("browser:tab:activate", (_event, id) => browserPanel?.activate(String(id)));
+  ipcMain.handle("browser:tab:navigate", (_event, id, input) => browserPanel?.navigate(id ? String(id) : null, String(input ?? "")) ?? false);
+  ipcMain.handle("browser:tab:back", (_event, id) => browserPanel?.back(id ? String(id) : null));
+  ipcMain.handle("browser:tab:forward", (_event, id) => browserPanel?.forward(id ? String(id) : null));
+  ipcMain.handle("browser:tab:reload", (_event, id) => browserPanel?.reload(id ? String(id) : null));
+  ipcMain.handle("browser:tab:stop", (_event, id) => browserPanel?.stop(id ? String(id) : null));
+  ipcMain.handle("browser:tab:visibility", (_event, id, visibility) => browserPanel?.setVisibility(String(id), String(visibility)));
+  ipcMain.handle("browser:tab:external", (_event, id) => browserPanel?.openExternal(id ? String(id) : null));
   ipcMain.handle("services:list", () => supervisor.snapshot());
   ipcMain.handle("services:logs", (_event, id) => supervisor.logsFor(id));
   ipcMain.handle("services:restart", (_event, id) => supervisor.restart(id));

@@ -1241,5 +1241,26 @@
     },
     "browserZone": "Il tuo browser è in {{tz}}; il calendario usa il fuso della macchina su cui gira HydraOps ({{cal}}).",
     "useBrowserZone": "Usa {{tz}}"
+  },
+  "browser": {
+    "openPanel": "Apri il browser",
+    "closePanel": "Chiudi il browser",
+    "newTab": "Nuova scheda",
+    "closeTab": "Chiudi scheda",
+    "back": "Indietro",
+    "forward": "Avanti",
+    "reload": "Ricarica",
+    "stop": "Interrompi",
+    "address": "Indirizzo o ricerca",
+    "readable": "Visibile agli agenti",
+    "notReadable": "Nascosta agli agenti",
+    "readableHint": "Gli agenti possono leggere questa scheda. Clic per nasconderla.",
+    "notReadableHint": "Gli agenti non possono leggere questa scheda. Clic per consentirlo.",
+    "openExternal": "Apri nel browser di sistema",
+    "resize": "Trascina per ridimensionare il pannello",
+    "empty": "Scrivi un indirizzo o una ricerca per iniziare. Gli agenti leggono la scheda che stai guardando; le altre restano nascoste finché non le attivi.",
+    "loadError": "Impossibile caricare la pagina: {{error}}",
+    "profile": "Profilo HydraOps · le sessioni si conservano",
+    "tabCount": "{{n}} scheda/e"
   }
 }

@@ -1241,5 +1241,26 @@
     },
     "browserZone": "Tu navegador está en {{tz}}; el calendario usa la zona de la máquina donde corre HydraOps ({{cal}}).",
     "useBrowserZone": "Usar {{tz}}"
+  },
+  "browser": {
+    "openPanel": "Abrir el navegador",
+    "closePanel": "Cerrar el navegador",
+    "newTab": "Pestaña nueva",
+    "closeTab": "Cerrar pestaña",
+    "back": "Atrás",
+    "forward": "Adelante",
+    "reload": "Recargar",
+    "stop": "Detener",
+    "address": "Dirección o búsqueda",
+    "readable": "Visible para los agentes",
+    "notReadable": "Oculta para los agentes",
+    "readableHint": "Los agentes pueden leer esta pestaña. Clic para ocultársela.",
+    "notReadableHint": "Los agentes no pueden leer esta pestaña. Clic para permitirlo.",
+    "openExternal": "Abrir en el navegador del sistema",
+    "resize": "Arrastra para cambiar el ancho del panel",
+    "empty": "Escribe una dirección o una búsqueda para empezar. Los agentes leen la pestaña que estás mirando; las demás quedan ocultas salvo que las enciendas.",
+    "loadError": "No se pudo cargar la página: {{error}}",
+    "profile": "Perfil HydraOps · las sesiones se conservan",
+    "tabCount": "{{n}} pestaña(s)"
   }
 }

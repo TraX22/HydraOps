@@ -15,6 +15,8 @@ import { DropOverlayComponent } from '../../components/drop-overlay/drop-overlay
 import { HeldActionComponent } from '../../components/held-action/held-action.component';
 import { ModelCardComponent } from '../../components/model-card/model-card.component';
 import { MediaCardComponent } from '../../components/media-card/media-card.component';
+import { BrowserPanelComponent } from '../../components/browser-panel/browser-panel.component';
+import { BrowserPanelService } from '../../services/browser-panel.service';
 import { PlanCardComponent, type PlanVersionRef } from '../../components/plan-card/plan-card.component';
 import { modelLabel } from '../../shared/model-groups';
 import { CommandService, PaletteItem } from '../../services/command.service';
@@ -22,7 +24,7 @@ import { CommandService, PaletteItem } from '../../services/command.service';
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [FormsModule, TranslatePipe, MarkdownPipe, DatePipe, IconComponent, HeldActionComponent, PlanCardComponent, DropOverlayComponent, ModelCardComponent, MediaCardComponent],
+  imports: [FormsModule, TranslatePipe, MarkdownPipe, DatePipe, IconComponent, HeldActionComponent, PlanCardComponent, DropOverlayComponent, ModelCardComponent, MediaCardComponent, BrowserPanelComponent],
   templateUrl: './chat.component.html',
   styleUrl: './chat.component.css',
 })
@@ -32,6 +34,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   commands = inject(CommandService);
   whatsNew = inject(WhatsNewService);
+  browser = inject(BrowserPanelService);
   readonly whatsNewTab = WHATS_NEW_TAB;
   readonly isWhatsNew = computed(() => this.chat.activeTab() === WHATS_NEW_TAB);
   private router = inject(Router);
@@ -105,6 +108,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.browser.attach();
     this.clock = setInterval(() => this.now.set(Date.now()), 1000);
     if (this.chat.activeTab() !== WHATS_NEW_TAB) {
       this.chat.fetchHistory(this.chat.activeTab());
@@ -121,6 +125,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.browser.detach();
     if (this.clock) clearInterval(this.clock);
     this.chat.stopPolling();
     this.stopMermaid?.();

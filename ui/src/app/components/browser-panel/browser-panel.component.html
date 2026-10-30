@@ -1,0 +1,69 @@
+<div class="bp" [style.width.px]="browser.width()">
+  <div class="bp-handle" (pointerdown)="startDrag($event)" [title]="'browser.resize' | translate"></div>
+
+  <div class="bp-tabs">
+    @for (tab of browser.state().tabs; track tab.id) {
+      <button class="bp-tab" [class.active]="tab.id === browser.state().activeId" (click)="browser.activate(tab.id)" [title]="tab.url || ('browser.newTab' | translate)">
+        <span class="bp-eye" [class.on]="tab.readable" (click)="toggleEye(tab, $event)"
+              [title]="(tab.readable ? 'browser.readableHint' : 'browser.notReadableHint') | translate">
+          <app-icon [name]="tab.readable ? 'eye' : 'eye-off'" />
+        </span>
+        @if (tab.favicon) { <img class="bp-favicon" [src]="tab.favicon" alt="" /> }
+        <span class="bp-tab-label">{{ label(tab) || ('browser.newTab' | translate) }}</span>
+        @if (tab.loading) { <span class="bp-spin"></span> }
+        <span class="bp-tab-x" (click)="closeTab(tab, $event)" [title]="'browser.closeTab' | translate"><app-icon name="x" /></span>
+      </button>
+    }
+    <button class="bp-icon-btn bp-plus" (click)="addTab()" [title]="'browser.newTab' | translate"><app-icon name="plus" /></button>
+    <button class="bp-icon-btn bp-close-panel" (click)="browser.toggle()" [title]="'browser.closePanel' | translate"><app-icon name="x" /></button>
+  </div>
+
+  <div class="bp-bar">
+    <button class="bp-icon-btn" (click)="browser.back()" [disabled]="!browser.active()?.canGoBack" [title]="'browser.back' | translate"><app-icon name="chevron-left" /></button>
+    <button class="bp-icon-btn" (click)="browser.forward()" [disabled]="!browser.active()?.canGoForward" [title]="'browser.forward' | translate"><app-icon name="chevron-right" /></button>
+    @if (browser.active()?.loading) {
+      <button class="bp-icon-btn" (click)="browser.stop()" [title]="'browser.stop' | translate"><app-icon name="x" /></button>
+    } @else {
+      <button class="bp-icon-btn" (click)="browser.reload()" [disabled]="!browser.active()?.url" [title]="'browser.reload' | translate"><app-icon name="refresh" /></button>
+    }
+    <label class="bp-url" [class.editing]="editing()">
+      @if (!editing() && browser.active()?.url; as url) {
+        <span class="bp-url-show" aria-hidden="true">
+          @if (isSecure(url)) { <span class="bp-lock">🔒</span> }
+          <span class="bp-host">{{ hostOf(url) }}</span><span class="bp-path">{{ pathOf(url) }}</span>
+        </span>
+      }
+      <input #address class="bp-url-input" type="text" [class.transparent]="!editing() && !!browser.active()?.url"
+             [ngModel]="draft()" (ngModelChange)="draft.set($event)"
+             (focus)="onFocus()" (blur)="onBlur()" (keydown.enter)="go()" (keydown.escape)="cancelEdit()"
+             [placeholder]="'browser.address' | translate" spellcheck="false" autocomplete="off" />
+    </label>
+    @if (browser.active(); as tab) {
+      <button class="bp-vis" [class.on]="tab.readable" (click)="browser.toggleVisibility(tab)"
+              [title]="(tab.readable ? 'browser.readableHint' : 'browser.notReadableHint') | translate">
+        <span class="bp-switch"></span>
+        <span class="bp-vis-label">{{ (tab.readable ? 'browser.readable' : 'browser.notReadable') | translate }}</span>
+      </button>
+    }
+    <button class="bp-icon-btn" (click)="browser.openExternal()" [disabled]="!browser.active()?.url" [title]="'browser.openExternal' | translate"><app-icon name="external-link" /></button>
+  </div>
+
+  <!-- Electron draws the page over this box. It shows through only while there is nothing to draw. -->
+  <div #page class="bp-page" (click)="focusAddress()">
+    @if (!browser.active()?.url) {
+      <div class="bp-empty">
+        <app-icon name="globe" />
+        <p>{{ 'browser.empty' | translate }}</p>
+      </div>
+    } @else if (browser.active()?.error; as err) {
+      <div class="bp-empty bp-error">
+        <p>{{ 'browser.loadError' | translate: { error: err } }}</p>
+      </div>
+    }
+  </div>
+
+  <div class="bp-status">
+    <span>{{ 'browser.profile' | translate }}</span>
+    <span>{{ 'browser.tabCount' | translate: { n: browser.state().tabs.length } }}</span>
+  </div>
+</div>
