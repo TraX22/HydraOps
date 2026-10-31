@@ -230,6 +230,14 @@
         "addNote": "Se aprovar, vai para o calendário e roda na hora sem perguntar de novo.",
         "updateNote": "Se aprovar, a entrada muda como mostrado.",
         "removeNote": "Se aprovar, a entrada sai do calendário."
+      },
+      "browser": {
+        "open": "quer abrir uma página no seu navegador",
+        "url": "Endereço",
+        "where": "Onde",
+        "newTab": "uma nova aba",
+        "currentTab": "a aba que você está vendo",
+        "why": "O painel navega com as suas sessões. Um endereço escolhido pelo agente (ou sugerido por uma página que ele leu) espera por você: aprovar o abre no painel."
       }
     },
     "linkUnverified": "⚠ Não verificado: o agente não abriu nem viu este endereço nesta conversa. Pode existir, mas veio da memória dele, não de uma consulta.",
@@ -307,7 +315,9 @@
     },
     "calendar": {
       "scheduled": "Do calendário: {{title}}"
-    }
+    },
+    "readFromBrowser": "navegador",
+    "readFromBrowserHint": "Lido da aba aberta no painel do navegador"
   },
   "agents": {
     "title": "Agentes",

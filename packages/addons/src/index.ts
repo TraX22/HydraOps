@@ -13,6 +13,7 @@ import { huggingfaceTools } from './native/huggingface/index.js';
 import { civitaiTools } from './native/civitai/index.js';
 import { imageEditTool } from './native/image_edit/index.js';
 import { calendarTools } from './native/calendar/index.js';
+import { browserTools } from './native/browser/index.js';
 import { sendToTelegramTool } from './native/send_to_telegram/index.js';
 import { xAccountsTool, xPostTool } from './native/x/index.js';
 import { delegateTaskTool } from './native/delegate_task/index.js';
@@ -48,6 +49,7 @@ export async function createRegistry(): Promise<ToolRegistry> {
   for (const t of civitaiTools) registry.registerNative({ ...t, source: 'native' });
   registry.registerNative({ ...imageEditTool, source: 'native' });
   for (const t of calendarTools) registry.registerNative({ ...t, source: 'native' });
+  for (const t of browserTools) registry.registerNative({ ...t, source: 'native' });
   for (const t of skillsTools) registry.registerNative({ ...t, source: 'native' });
 
   const dir = process.env.MY_ADDONS_DIR ?? myAddonsDir;

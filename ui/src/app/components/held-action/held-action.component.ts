@@ -55,6 +55,13 @@ import { IconComponent } from '../icon/icon.component';
           }
           <p class="post-cost">{{ 'chat.held.x.cost' | translate:{ usd: post.usd } }}@if (post.hasLink) { · {{ 'chat.held.x.linkNote' | translate }} }</p>
         </div>
+      } @else if (browserOpen; as b) {
+        <div class="browser-open">
+          <div class="cal-head"><app-icon name="globe" /> <span class="cal-kind">{{ 'chat.held.browser.open' | translate }}</span></div>
+          <div class="cal-row"><span class="cal-label">{{ 'chat.held.browser.url' | translate }}</span><code class="browser-url">{{ b.url }}</code></div>
+          <div class="cal-row"><span class="cal-label">{{ 'chat.held.browser.where' | translate }}</span>{{ (b.newTab ? 'chat.held.browser.newTab' : 'chat.held.browser.currentTab') | translate }}</div>
+          <p class="browser-why">{{ 'chat.held.browser.why' | translate }}</p>
+        </div>
       } @else if (calendar; as c) {
         <div class="cal">
           <div class="cal-head"><span class="cal-kind">{{ ('chat.held.calendar.' + c.verb) | translate }}</span> <b>{{ c.title }}</b></div>
@@ -111,6 +118,9 @@ import { IconComponent } from '../icon/icon.component';
     .held-why { margin: 6px 0 0; color: var(--text-muted); }
     .held-args { margin: 8px 0 0; display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; }
     .cal { margin: 8px 0 0; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+    .browser-open .cal-head app-icon { font-size: 15px; margin-right: 4px; }
+    .browser-url { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; word-break: break-all; }
+    .browser-why { margin: 8px 0 0; font-size: 12px; color: var(--text-secondary); }
     .cal-head { font-size: 13px; }
     .cal-kind { font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--accent); margin-right: 4px; }
     .cal-row { display: grid; grid-template-columns: 84px 1fr; gap: 8px; align-items: baseline; }
@@ -213,6 +223,13 @@ export class HeldActionComponent implements OnInit {
       verb: m[1] as 'add' | 'update' | 'remove', title: s('title') || s('id'), when, agent: s('agent') || (s('kind') === 'action' ? this.action.agentId : ''), repeat,
       prompt: s('prompt'), notes: s('notes'), attachments: Array.isArray(a['attachments']) ? (a['attachments'] as unknown[]).map(String) : [],
     };
+  }
+
+  /** browser_open: the address the agent wants the panel to show, and where. */
+  get browserOpen(): { url: string; newTab: boolean } | null {
+    if (this.action.toolName !== 'browser_open') return null;
+    const a = (this.action.args ?? {}) as Record<string, unknown>;
+    return { url: typeof a['url'] === 'string' ? (a['url'] as string) : '', newTab: !!a['new_tab'] };
   }
 
   get origins(): string {

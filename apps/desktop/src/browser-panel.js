@@ -67,6 +67,8 @@ class BrowserPanel {
     this.activeId = null;
     this.bounds = null;
     this.shown = false;
+    /** The interface has the panel open: only then is the active tab "the one the user looks at". */
+    this.panelOpen = false;
     this.restored = false;
     this.background = "#0f0f1a";
     this.saveTimer = null;
@@ -96,6 +98,55 @@ class BrowserPanel {
     this.log(`navegador: ${this.order.length} pestaña(s) restaurada(s)`);
   }
 
+  setPanelOpen(open) {
+    this.panelOpen = !!open;
+    if (this.panelOpen) this.ensureTabs();
+    this.changed();
+  }
+
+  /** May an agent read this tab right now? Its eye on, or the tab the user is looking at. */
+  isReadable(tab) {
+    return tab.visibility === "on" || (tab.visibility === "auto" && this.panelOpen && tab.id === this.activeId);
+  }
+
+  /** The tabs an agent may read right now, the active one first. */
+  readableTabs() {
+    const list = this.order.map((id) => this.tabs.get(id)).filter((t) => this.isReadable(t));
+    return list.sort((a, b) => (a.id === this.activeId ? -1 : b.id === this.activeId ? 1 : 0));
+  }
+
+  /**
+   * The tab an agent asked for (a piece of its title or address, or its id) among the readable
+   * ones, or the readable one when nothing was asked. Null when none fits: a named tab that
+   * is not readable is refused, never swapped for another.
+   */
+  readableTab(ref) {
+    const wanted = String(ref || "").trim().toLowerCase();
+    const candidates = this.readableTabs();
+    if (!candidates.length) return null;
+    if (!wanted) return candidates[0];
+    return candidates.find((t) => t.id === wanted || (t.title || "").toLowerCase().includes(wanted) || (t.view.webContents.getURL() || "").toLowerCase().includes(wanted)) || null;
+  }
+
+  /** An agent opens a page (after the user's approval): in the active tab, or a new one. Returns the tab id, or null if refused. */
+  openForAgent(url, newTab) {
+    if (!isAllowed(url) || url === NEW_TAB) return null;
+    this.ensureTabs();
+    const active = this.tabs.get(this.activeId);
+    if (newTab || !active || !active.url || active.url === NEW_TAB) {
+      if (active && (!active.url || active.url === NEW_TAB)) { this.navigate(active.id, url); return active.id; }
+      return this.newTab(url, { activate: true });
+    }
+    this.navigate(active.id, url);
+    return active.id;
+  }
+
+  /** The state the API keeps for the tools: the tabs with their readability, and whether the panel is open. */
+  snapshotForAgents() {
+    const s = this.snapshot();
+    return { panelOpen: this.panelOpen, activeId: s.activeId, tabs: s.tabs.map((t) => ({ id: t.id, title: t.title, url: t.url, readable: t.readable, loading: t.loading })) };
+  }
+
   destroy() {
     clearTimeout(this.saveTimer); clearTimeout(this.pushTimer);
     this.saveNow();
@@ -106,7 +157,8 @@ class BrowserPanel {
 
   newTab(url = NEW_TAB, { visibility = "auto", activate = true, title = "" } = {}) {
     if (this.order.length >= MAX_TABS) { this.log("navegador: tope de pestañas"); return this.activeId; }
-    const target = isAllowed(url) ? url : NEW_TAB;
+    // What the UI sends may be what the user typed (no scheme, or a search): normalise it too.
+    const target = url === NEW_TAB || !url ? NEW_TAB : isAllowed(url) ? url : (toUrl(url) || NEW_TAB);
     const id = `t${Date.now().toString(36)}${(this.seq++).toString(36)}`;
     const view = new WebContentsView({
       webPreferences: { partition: PARTITION, sandbox: true, contextIsolation: true, nodeIntegration: false, webviewTag: false, spellcheck: true },
@@ -299,7 +351,7 @@ class BrowserPanel {
         return {
           id, title: t.title || (url === NEW_TAB ? "" : url), url: url === NEW_TAB ? "" : url, favicon: t.favicon, loading: t.loading, error: t.error,
           canGoBack: wc.navigationHistory.canGoBack(), canGoForward: wc.navigationHistory.canGoForward(),
-          visibility: t.visibility, readable: t.visibility === "on" || (t.visibility === "auto" && id === this.activeId),
+          visibility: t.visibility, readable: this.isReadable(t),
         };
       }),
     };
@@ -309,6 +361,8 @@ class BrowserPanel {
     clearTimeout(this.pushTimer);
     this.pushTimer = setTimeout(() => {
       if (this.window && !this.window.isDestroyed()) this.window.webContents.send("browser:state", this.snapshot());
+      // The bridge keeps the API's copy of the state fresh (see browser-bridge.js).
+      this.onChange?.();
     }, 16);
     clearTimeout(this.saveTimer);
     this.saveTimer = setTimeout(() => this.saveNow(), 800);

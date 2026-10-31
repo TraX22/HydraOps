@@ -230,6 +230,14 @@
         "addNote": "Si vous approuvez, l'entrée va au calendrier et s'exécute à son heure sans redemander.",
         "updateNote": "Si vous approuvez, l'entrée change comme indiqué.",
         "removeNote": "Si vous approuvez, l'entrée quitte le calendrier."
+      },
+      "browser": {
+        "open": "veut ouvrir une page dans votre navigateur",
+        "url": "Adresse",
+        "where": "Où",
+        "newTab": "un nouvel onglet",
+        "currentTab": "l'onglet que vous regardez",
+        "why": "Le panneau navigue avec vos sessions. Une adresse choisie par l'agent (ou suggérée par une page qu'il a lue) vous attend : approuver l'ouvre dans le panneau."
       }
     },
     "linkUnverified": "⚠ Non vérifié : l'agent n'a ni ouvert ni vu cette adresse dans cette conversation. Elle peut exister, mais elle vient de sa mémoire, pas d'une consultation.",
@@ -307,7 +315,9 @@
     },
     "calendar": {
       "scheduled": "Du calendrier : {{title}}"
-    }
+    },
+    "readFromBrowser": "navigateur",
+    "readFromBrowserHint": "Lu depuis l'onglet ouvert dans le panneau du navigateur"
   },
   "agents": {
     "title": "Agents",

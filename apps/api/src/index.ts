@@ -2873,6 +2873,90 @@ async function tickCalendar(): Promise<void> {
 setInterval(() => void tickCalendar(), CALENDAR_TICK_MS).unref();
 setTimeout(() => void tickCalendar(), Math.min(5_000, CALENDAR_TICK_MS)).unref();
 
+
+// ── Browser panel bridge ───────────────────────────────────────────────────────
+// The browser panel's pages live in the desktop shell (Electron main), which has no server:
+// the shell long-polls here with the panel's state and takes one request at a time (read a
+// tab, open an address); the tool's call waits for the shell's answer. Both ends are on this
+// machine, so the shell's endpoints accept loopback only. Without a shell polling, the tools
+// get 503 and fall back to fetch_url.
+type ShellRequest = { id: string; kind: "read" | "open"; args: unknown; resolve: (v: unknown) => void; reject: (e: Error & { code?: string }) => void; timer: NodeJS.Timeout };
+const SHELL_ALIVE_MS = 45_000;
+const SHELL_POLL_MS = 25_000;
+const browserShell = {
+  lastSeen: 0,
+  snapshot: null as null | { panelOpen: boolean; activeId: string | null; tabs: { id: string; title: string; url: string; readable: boolean; loading: boolean }[] },
+  queue: [] as ShellRequest[],
+  pending: new Map<string, ShellRequest>(),
+  waiter: null as null | ((r: ShellRequest | null) => void),
+};
+const shellConnected = () => Date.now() - browserShell.lastSeen < SHELL_ALIVE_MS;
+function askShell(kind: ShellRequest["kind"], args: unknown, timeoutMs: number): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    if (!shellConnected()) return reject(Object.assign(new Error("no desktop shell is connected"), { code: "no_browser" }));
+    const id = randomUUID();
+    const req: ShellRequest = { id, kind, args, resolve, reject, timer: setTimeout(() => { browserShell.pending.delete(id); browserShell.queue = browserShell.queue.filter((r) => r.id !== id); reject(Object.assign(new Error("the browser panel did not answer in time"), { code: "timeout" })); }, timeoutMs) };
+    browserShell.pending.set(id, req);
+    if (browserShell.waiter) { const w = browserShell.waiter; browserShell.waiter = null; w(req); } else browserShell.queue.push(req);
+  });
+}
+const shellOnly = (req: express.Request, res: express.Response) => { if (isLoopbackAddress(req.socket.remoteAddress)) return true; res.status(403).json({ error: "loopback_only" }); return false; };
+const publicShellRequest = (r: ShellRequest) => ({ id: r.id, kind: r.kind, args: r.args });
+
+api.post("/browser/shell/poll", async (req, res) => {
+  if (!shellOnly(req, res)) return;
+  browserShell.lastSeen = Date.now();
+  if (req.body?.snapshot && typeof req.body.snapshot === "object") browserShell.snapshot = req.body.snapshot;
+  const next = browserShell.queue.shift();
+  if (next) return res.json(publicShellRequest(next));
+  // Park this poll until a request arrives or the poll window closes.
+  let settled = false;
+  const finish = (r: ShellRequest | null) => { if (settled) return; settled = true; clearTimeout(timer); if (browserShell.waiter === finish) browserShell.waiter = null; res.json(r ? publicShellRequest(r) : {}); };
+  const timer = setTimeout(() => finish(null), SHELL_POLL_MS);
+  browserShell.waiter = finish;
+  req.on("close", () => { if (!settled) { settled = true; clearTimeout(timer); if (browserShell.waiter === finish) browserShell.waiter = null; } });
+});
+
+api.post("/browser/shell/result", async (req, res) => {
+  if (!shellOnly(req, res)) return;
+  browserShell.lastSeen = Date.now();
+  const id = String(req.body?.id ?? "");
+  const pending = browserShell.pending.get(id);
+  if (!pending) return res.json({ ok: false, error: "unknown_request" });
+  browserShell.pending.delete(id);
+  clearTimeout(pending.timer);
+  if (req.body?.ok) pending.resolve(req.body.result);
+  else pending.reject(Object.assign(new Error(String(req.body?.error || "the shell failed")), { code: String(req.body?.code || "failed") }));
+  res.json({ ok: true });
+});
+
+/** For the interface and the tools: is a shell here, and which tabs may be read. */
+api.get("/browser/status", async (_req, res) => {
+  const s = browserShell.snapshot;
+  res.json({ available: shellConnected(), panelOpen: !!s?.panelOpen, tabs: shellConnected() && s ? s.tabs.filter((t) => t.readable).map((t) => ({ id: t.id, title: t.title, url: t.url })) : [] });
+});
+
+const shellFailure = (res: express.Response, e: any) => {
+  const code = e?.code || "failed";
+  const status = code === "no_browser" ? 503 : code === "timeout" ? 504 : code === "not_readable" ? 409 : code === "bad_url" ? 400 : 500;
+  res.status(status).json({ error: code, message: e?.message || String(e) });
+};
+
+api.post("/browser/read", async (req, res) => {
+  try {
+    const tab = typeof req.body?.tab === "string" ? req.body.tab.slice(0, 200) : undefined;
+    res.json(await askShell("read", { tab, screenshot: !!req.body?.screenshot }, 35_000));
+  } catch (e: any) { shellFailure(res, e); }
+});
+
+api.post("/browser/open", async (req, res) => {
+  try {
+    const url = String(req.body?.url ?? "").trim();
+    if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: "bad_url", message: "only http and https addresses can be opened" });
+    res.json(await askShell("open", { url, newTab: !!req.body?.newTab }, 35_000));
+  } catch (e: any) { shellFailure(res, e); }
+});
+
 // User profile lives in users/profile.json (single source); the workers read the
 // same file to add a [USER PROFILE] block to every agent's system prompt.
 const USER_PROFILE_PATH = path.join(usersDir, "profile.json");

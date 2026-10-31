@@ -230,6 +230,14 @@
         "addNote": "Se approvi, va nel calendario e alla sua ora parte senza chiedere di nuovo.",
         "updateNote": "Se approvi, la voce cambia come mostrato.",
         "removeNote": "Se approvi, la voce esce dal calendario."
+      },
+      "browser": {
+        "open": "vuole aprire una pagina nel tuo browser",
+        "url": "Indirizzo",
+        "where": "Dove",
+        "newTab": "una nuova scheda",
+        "currentTab": "la scheda che stai guardando",
+        "why": "Il pannello naviga con le tue sessioni. Un indirizzo scelto dall'agente (o suggerito da una pagina che ha letto) ti aspetta: approvare lo apre nel pannello."
       }
     },
     "linkUnverified": "⚠ Non verificato: l'agente non ha aperto né visto questo indirizzo in questa conversazione. Può esistere, ma viene dalla sua memoria, non da una consultazione.",
@@ -307,7 +315,9 @@
     },
     "calendar": {
       "scheduled": "Dal calendario: {{title}}"
-    }
+    },
+    "readFromBrowser": "browser",
+    "readFromBrowserHint": "Letto dalla scheda aperta nel pannello del browser"
   },
   "agents": {
     "title": "Agenti",

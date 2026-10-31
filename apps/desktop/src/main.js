@@ -63,6 +63,7 @@ const { ensureDataDir } = require("./data-dir");
 const { initAutoUpdate, checkForUpdatesNow, checkQuietly, restartToInstall, getState: getUpdaterState, onStateChange: onUpdaterStateChange } = require("./updater");
 const shellI18n = require("./i18n");
 const { BrowserPanel } = require("./browser-panel");
+const { startBrowserBridge } = require("./browser-bridge");
 
 // Language of the native menu and of the About window. It starts on the same default
 // as the UI (en) and follows `hydra_lang`: read from the renderer on load, and every
@@ -120,6 +121,8 @@ let supervisor = null;
 let mainWindow = null;
 /** The browser panel beside the chat (real Chromium tabs drawn over the window); created with the window. */
 let browserPanel = null;
+/** The loop that serves the agents' browser_read / browser_open through the API. */
+let browserBridge = null;
 let splashWindow = null;
 let tray = null;
 
@@ -415,6 +418,13 @@ function createMainWindow(url) {
     log: shellLog,
     strings: () => shellI18n.t(currentLang),
   });
+  // The agents reach the panel through the API; the shell polls it (see browser-bridge.js).
+  browserBridge ??= startBrowserBridge({
+    apiBase: () => (appUrl ? `${appUrl.replace(/\/$/, "")}/api` : ""),
+    panel: () => browserPanel,
+    log: shellLog,
+    showPanel: () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("browser:open-panel"); },
+  });
   if (startInTray) {
     // No splash, no page yet: the interface loads the first time the window is opened.
     uiLoadPending = true;
@@ -564,7 +574,7 @@ function registerIpc() {
   ipcMain.handle("browser:state", () => browserPanel?.snapshot() ?? null);
   ipcMain.on("browser:bounds", (_event, rect) => browserPanel?.setBounds(rect));
   ipcMain.on("browser:shown", (_event, shown) => browserPanel?.setShown(shown));
-  ipcMain.on("browser:panel", (_event, open) => { if (open) browserPanel?.ensureTabs(); });
+  ipcMain.on("browser:panel", (_event, open) => browserPanel?.setPanelOpen(open));
   ipcMain.on("browser:background", (_event, color) => browserPanel?.setBackground(color));
   ipcMain.handle("browser:tab:new", (_event, url) => browserPanel?.newTab(String(url || "") || undefined) ?? null);
   ipcMain.handle("browser:tab:close", (_event, id) => browserPanel?.closeTab(String(id)));

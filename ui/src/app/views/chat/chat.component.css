@@ -6,6 +6,8 @@
   background: var(--bg-app);
   position: relative;
 }
+.msg-source-browser { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 11px; color: var(--accent); background: var(--accent-soft); }
+.msg-source-browser app-icon { font-size: 12px; }
 .chat-column {
   flex: 1;
   min-width: 0;
