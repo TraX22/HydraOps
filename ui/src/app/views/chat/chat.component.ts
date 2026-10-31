@@ -59,6 +59,8 @@ export class ChatComponent implements OnInit, OnDestroy {
 
   messagesEnd = viewChild<ElementRef>('messagesEnd');
   messagesArea = viewChild<ElementRef<HTMLElement>>('messagesArea');
+  tabsBar = viewChild<ElementRef<HTMLElement>>('tabsBar');
+  private readonly revealOnTabChange = effect(() => { this.chat.activeTab(); this.revealActiveTab(); });
 
   // Floating "scroll to bottom" button: shown once the user has scrolled up
   // far enough from the latest message.
@@ -109,6 +111,7 @@ export class ChatComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.browser.attach();
+    this.revealActiveTab();
     this.clock = setInterval(() => this.now.set(Date.now()), 1000);
     if (this.chat.activeTab() !== WHATS_NEW_TAB) {
       this.chat.fetchHistory(this.chat.activeTab());
@@ -366,6 +369,19 @@ export class ChatComponent implements OnInit, OnDestroy {
       e.preventDefault();
       this.send();
     }
+  }
+
+  /** A vertical wheel over the tabs scrolls them sideways (the bar has no visible scrollbar). */
+  onTabsWheel(event: WheelEvent): void {
+    const bar = this.tabsBar()?.nativeElement;
+    if (!bar || bar.scrollWidth <= bar.clientWidth || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+    event.preventDefault();
+    bar.scrollLeft += event.deltaY;
+  }
+
+  /** The active tab is brought into view: with many agents it could sit past the bar's edge. */
+  private revealActiveTab(): void {
+    queueMicrotask(() => this.tabsBar()?.nativeElement.querySelector<HTMLElement>('.tab.active')?.scrollIntoView({ inline: 'nearest', block: 'nearest' }));
   }
 
   switchTab(tabId: string): void {

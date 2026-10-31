@@ -53,7 +53,20 @@
   cursor: pointer;
   transition: background 0.15s ease;
 }
-.agent-item:hover { background: #C4C4F2; }
+.agent-item:hover { background: var(--bg-surface-alt); }
+/* The agent whose chat is open: a darker grey than the hover, plus an accent edge. */
+.agent-item.active { background: var(--bg-hover); box-shadow: inset 3px 0 0 var(--accent); }
+.agent-item.active:hover { background: var(--bg-hover); }
+
+.agents-mini { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 0; overflow-y: auto; scrollbar-width: none; }
+.agents-mini::-webkit-scrollbar { display: none; }
+.agent-mini { position: relative; width: 40px; height: 40px; border: 0; border-radius: 10px; background: transparent; display: grid; place-items: center; cursor: pointer; padding: 0; }
+.agent-mini:hover { background: var(--bg-surface-alt); }
+.agent-mini.active { background: var(--bg-hover); box-shadow: inset 3px 0 0 var(--accent); }
+.agent-mini .agent-avatar { width: 30px; height: 30px; }
+.agent-mini .avatar-letter { font-size: 12px; }
+.agent-mini .agent-status-dot { width: 9px; height: 9px; }
+.mini-badge { position: absolute; top: 0; right: 0; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 600; display: grid; place-items: center; }
 
 .agent-avatar {
   width: 36px;

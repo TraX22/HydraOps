@@ -57,7 +57,9 @@
     "stats": "Statistiche",
     "docs": "Docs",
     "config": "Impostazioni",
-    "me": "Profilo"
+    "me": "Profilo",
+    "collapse": "Comprimi la barra",
+    "expand": "Espandi la barra"
   },
   "chat": {
     "title": "Chat",
