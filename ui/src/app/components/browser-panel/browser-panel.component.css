@@ -1,5 +1,6 @@
-:host { display: block; height: 100vh; flex: none; position: relative; max-width: calc(100% - 380px); }
-.bp { position: relative; height: 100%; display: flex; flex-direction: column; min-width: 360px; background: var(--bg-surface); border-left: 1px solid var(--border-color); }
+/* The host carries the width (bound from the component); everything inside fills it. */
+:host { display: block; height: 100vh; flex: none; position: relative; min-width: 0; overflow: hidden; }
+.bp { position: relative; height: 100%; width: 100%; min-width: 0; display: flex; flex-direction: column; background: var(--bg-surface); border-left: 1px solid var(--border-color); }
 
 /* The draggable edge */
 .bp-handle { position: absolute; left: -4px; top: 0; bottom: 0; width: 8px; cursor: col-resize; z-index: 2; }

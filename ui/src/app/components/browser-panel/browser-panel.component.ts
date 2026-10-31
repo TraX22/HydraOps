@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnDestroy, afterNextRender, effect, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, HostBinding, OnDestroy, afterNextRender, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import { IconComponent } from '../icon/icon.component';
@@ -25,6 +25,20 @@ export class BrowserPanelComponent implements OnDestroy {
   /** What the address bar shows; follows the active tab unless the user is typing. */
   readonly draft = signal('');
   readonly editing = signal(false);
+  /** The chat view's width, measured. */
+  readonly avail = signal(0);
+  /**
+   * The width the panel really takes: the remembered one, capped so the chat column keeps
+   * 380px, never under the minimum. The cap lives on the host, so the panel can never be
+   * wider than the box it is given (a wider inner box would overflow under the agents rail
+   * while the page view, drawn above everything, followed the overflow).
+   */
+  readonly effectiveWidth = computed(() => {
+    const a = this.avail();
+    const max = a > 0 ? Math.max(BROWSER_MIN_WIDTH, a - 380) : Number.POSITIVE_INFINITY;
+    return Math.round(Math.min(this.browser.width(), max));
+  });
+  @HostBinding('style.width.px') get hostWidth(): number { return this.effectiveWidth(); }
   private observer: ResizeObserver | null = null;
   private poll: ReturnType<typeof setInterval> | null = null;
   private lastRect = '';
@@ -40,6 +54,8 @@ export class BrowserPanelComponent implements OnDestroy {
       this.observer = new ResizeObserver(() => this.report());
       this.observer.observe(el);
       this.observer.observe(document.documentElement);
+      const parent = this.host.nativeElement.parentElement;
+      if (parent) this.observer.observe(parent);
       // The box can move without changing size (the sidebar collapses): a cheap check covers that.
       this.poll = setInterval(() => this.report(), 300);
       this.report();
@@ -55,6 +71,8 @@ export class BrowserPanelComponent implements OnDestroy {
   private report(): void {
     const el = this.page()?.nativeElement;
     if (!el) return;
+    const parent = this.host.nativeElement.parentElement;
+    if (parent) { const w = Math.round(parent.getBoundingClientRect().width); if (w !== this.avail()) this.avail.set(w); }
     const r = el.getBoundingClientRect();
     const key = `${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)},${Math.round(r.height)}`;
     if (key === this.lastRect) return;
@@ -97,8 +115,7 @@ export class BrowserPanelComponent implements OnDestroy {
     this.browser.dragging.set(true);
     const right = this.host.nativeElement.getBoundingClientRect().right;
     // The chat column keeps at least 380px of the chat view's width.
-    const view = this.host.nativeElement.parentElement?.getBoundingClientRect();
-    const max = Math.max(BROWSER_MIN_WIDTH, (view?.width ?? window.innerWidth) - 380);
+    const max = Math.max(BROWSER_MIN_WIDTH, (this.avail() || window.innerWidth) - 380);
     // Listened for on the window: the pointer leaves the thin handle at once, and while the
     // drag lasts the page view is hidden, so nothing else takes the events.
     const move = (e: PointerEvent) => this.browser.setWidth(Math.min(max, Math.max(BROWSER_MIN_WIDTH, right - e.clientX)));
