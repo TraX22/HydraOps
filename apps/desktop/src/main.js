@@ -91,12 +91,14 @@ const DEV_UI_URL = process.env.HYDRA_DEV_UI_URL || ""; // p.ej. http://localhost
  * keys.json.
  */
 const APP_DATA_HOME = path.join(app.getPath("appData"), "HydraOps");
-if (app.isPackaged) {
-  app.setPath("userData", path.join(APP_DATA_HOME, "shell"));
-} else if (process.env.HYDRA_SHELL_USER_DATA) {
-  // Development and tests: an isolated shell state (Electron ignores APPDATA on Windows and
-  // would share the real %APPDATA%\@hydraops\desktop between every run).
+if (process.env.HYDRA_SHELL_USER_DATA) {
+  // Development and tests, packaged or not: an isolated shell state (settings, logs, the
+  // browser panel's tabs). Electron ignores APPDATA on Windows, so without this every
+  // development run would share %APPDATA%\@hydraops\desktop and a test of the installed
+  // layout would share the real shell folder.
   app.setPath("userData", path.resolve(process.env.HYDRA_SHELL_USER_DATA));
+} else if (app.isPackaged) {
+  app.setPath("userData", path.join(APP_DATA_HOME, "shell"));
 }
 
 /**
