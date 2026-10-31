@@ -863,7 +863,9 @@
           "script": "script",
           "code": "codice",
           "text": "testo"
-        }
+        },
+        "upToDate": "Aggiornata",
+        "upToDateHint": "La copia corrisponde al repository. Clic per chiedere di nuovo."
       }
     },
     "connections": {
