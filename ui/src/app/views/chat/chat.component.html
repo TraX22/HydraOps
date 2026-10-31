@@ -231,6 +231,7 @@
                       <li [class.read]="src.kind === 'read'">
                         <a [href]="src.url" target="_blank" rel="noopener noreferrer" [title]="src.url">{{ src.title || src.url }}</a>
                         <span class="msg-source-host">{{ src.host }}</span>
+                        @if (src.via === 'browser_read') { <span class="msg-source-browser" [title]="'chat.readFromBrowserHint' | translate"><app-icon name="globe" /> {{ 'chat.readFromBrowser' | translate }}</span> }
                       </li>
                     }
                   </ul>

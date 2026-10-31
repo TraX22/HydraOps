@@ -230,6 +230,14 @@
         "addNote": "Si aprobás, queda en el calendario y a su hora corre sin volver a preguntar.",
         "updateNote": "Si aprobás, la entrada cambia como se muestra.",
         "removeNote": "Si aprobás, la entrada se quita del calendario."
+      },
+      "browser": {
+        "open": "quiere abrir una página en tu navegador",
+        "url": "Dirección",
+        "where": "Dónde",
+        "newTab": "una pestaña nueva",
+        "currentTab": "la pestaña que estás mirando",
+        "why": "El panel navega con tus sesiones. Una dirección que eligió el agente (o que sugirió una página que leyó) te espera: aprobar la abre en el panel."
       }
     },
     "linkUnverified": "⚠ No verificado: el agente no abrió ni vio esta dirección en esta conversación. Puede existir, pero salió de su memoria, no de una consulta.",
@@ -307,7 +315,9 @@
     },
     "calendar": {
       "scheduled": "Del calendario: {{title}}"
-    }
+    },
+    "readFromBrowser": "navegador",
+    "readFromBrowserHint": "Leído de la pestaña abierta en el panel del navegador"
   },
   "agents": {
     "title": "Agentes",

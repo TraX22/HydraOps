@@ -28,6 +28,8 @@ interface BrowserBridge {
   bounds(rect: { x: number; y: number; width: number; height: number }): void;
   shown(shown: boolean): void;
   panel(open: boolean): void;
+  /** The shell asks the interface to show the panel (an agent opened a page in it). */
+  onOpenPanel(cb: () => void): () => void;
   background(color: string): void;
   newTab(url?: string): Promise<string>;
   closeTab(id: string): Promise<void>;
@@ -78,6 +80,7 @@ export class BrowserPanelService {
     if (!this.bridge) return;
     const bridge = this.bridge;
     bridge.onState((s) => this.state.set(s));
+    bridge.onOpenPanel?.(() => this.open.set(true));
     bridge.state().then((s) => s && this.state.set(s)).catch(() => {});
     effect(() => bridge.panel(this.open()));
     effect(() => bridge.shown(this.pageShown()));

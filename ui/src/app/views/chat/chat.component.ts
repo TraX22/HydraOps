@@ -663,15 +663,15 @@ export class ChatComponent implements OnInit, OnDestroy {
     return check;
   }
 
-  sources(msg: ChatMessage): { url: string; title?: string; kind: string; host: string }[] {
+  sources(msg: ChatMessage): { url: string; title?: string; kind: string; host: string; via?: string }[] {
     const raw = (msg.resultMeta as Record<string, unknown> | undefined)?.['sources'];
     if (!Array.isArray(raw)) return [];
     return raw
-      .filter((s): s is { url: string; title?: string; kind?: string } => !!s && typeof (s as any).url === 'string' && /^https?:\/\//i.test((s as any).url))
+      .filter((s): s is { url: string; title?: string; kind?: string; via?: string } => !!s && typeof (s as any).url === 'string' && /^https?:\/\//i.test((s as any).url))
       .map(s => {
         let host = '';
         try { host = new URL(s.url).hostname.replace(/^www\./, ''); } catch { /* keep empty */ }
-        return { url: s.url, title: s.title, kind: s.kind ?? 'found', host };
+        return { url: s.url, title: s.title, kind: s.kind ?? 'found', host , via: s.via };
       });
   }
 

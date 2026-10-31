@@ -75,7 +75,8 @@ run the workflows you saved (images, video and image-to-3D) and fetch the models
 - **A browser beside the chat** (desktop app). The globe at the top of the chat opens real
   Chromium tabs next to it, with your sessions kept. Each tab has an eye that says whether an
   agent may read it: the tab you are looking at, yes; the others only if you switch them on.
-  The tools that let agents read and open pages there come next.
+  `browser_read` gives an agent what you see (sessions included, passwords never);
+  `browser_open` navigates the panel with your approval.
 - **One Shot.** Draw a task as a flow diagram of nodes and connections and have your
   model compile it into a single, complete prompt.
 - **3D.** Describe an object and a model writes the scene; it renders in an isolated

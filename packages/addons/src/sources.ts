@@ -77,6 +77,11 @@ export function extractSources(toolName: string, args: any, result: unknown): To
   if (!failed) {
     for (const key of ['url', 'videoUrl', 'video_url', 'link']) add(args?.[key], 'read');
   }
+  // The browser panel: the tab's address and title head the result ("[Browser tab: …]" / "URL: …").
+  if (!failed && toolName === 'browser_read') {
+    const m = /^\[Browser tab: ([^\]]*)\]\nURL: (\S+)/.exec(text);
+    if (m) add(m[2], 'read', m[1]);
+  }
   if (failed || !text) return out;
 
   // Search tools return a JSON list of { title, link|url, snippet }.

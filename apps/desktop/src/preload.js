@@ -42,6 +42,12 @@ contextBridge.exposeInMainWorld("hydraDesktop", {
     shown: (shown) => ipcRenderer.send("browser:shown", !!shown),
     // The panel is open in the UI: the shell restores or creates the tabs (not before).
     panel: (open) => ipcRenderer.send("browser:panel", !!open),
+    // An agent opened a page in the panel (after approval): the interface shows the panel.
+    onOpenPanel: (callback) => {
+      const listener = () => callback();
+      ipcRenderer.on("browser:open-panel", listener);
+      return () => ipcRenderer.removeListener("browser:open-panel", listener);
+    },
     background: (color) => ipcRenderer.send("browser:background", color),
     newTab: (url) => ipcRenderer.invoke("browser:tab:new", url ?? ""),
     closeTab: (id) => ipcRenderer.invoke("browser:tab:close", id),

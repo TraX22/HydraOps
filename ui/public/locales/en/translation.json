@@ -230,6 +230,14 @@
         "addNote": "If you approve, it goes into the calendar and runs at its time without asking again.",
         "updateNote": "If you approve, the entry changes as shown.",
         "removeNote": "If you approve, the entry leaves the calendar."
+      },
+      "browser": {
+        "open": "wants to open a page in your browser",
+        "url": "Address",
+        "where": "Where",
+        "newTab": "a new tab",
+        "currentTab": "the tab you are looking at",
+        "why": "The panel browses with your sessions. An address the agent chose (or that a page it read suggested) waits for you: approving opens it in the panel."
       }
     },
     "linkUnverified": "⚠ Not verified: the agent did not open or see this address in this conversation. It may exist, but it came from its memory, not from a lookup.",
@@ -307,7 +315,9 @@
     },
     "calendar": {
       "scheduled": "From the calendar: {{title}}"
-    }
+    },
+    "readFromBrowser": "browser",
+    "readFromBrowserHint": "Read from the tab open in the browser panel"
   },
   "agents": {
     "title": "Agents",

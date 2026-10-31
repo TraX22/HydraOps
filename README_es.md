@@ -79,7 +79,8 @@ los modelos que necesitan.
 - **Un navegador al lado del chat** (app de escritorio). El globo arriba del chat abre
   pestañas de Chromium de verdad al costado, con tus sesiones guardadas. Cada pestaña tiene un
   ojo que dice si un agente puede leerla: la que estás mirando, sí; las demás solo si las
-  encendés. Las herramientas para que los agentes lean y abran páginas ahí vienen después.
+  encendés. `browser_read` le da al agente lo que ves (sesiones incluidas, contraseñas nunca);
+  `browser_open` navega el panel con tu aprobación.
 - **One Shot.** Dibujás una tarea como un diagrama de flujo de nodos y conexiones y tu
   modelo lo compila en un único prompt completo.
 - **3D.** Describís un objeto y un modelo escribe la escena; se renderiza en un visor
