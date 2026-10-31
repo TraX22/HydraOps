@@ -159,6 +159,12 @@ class BrowserPanel {
     if (this.order.length >= MAX_TABS) { this.log("navegador: tope de pestañas"); return this.activeId; }
     // What the UI sends may be what the user typed (no scheme, or a search): normalise it too.
     const target = url === NEW_TAB || !url ? NEW_TAB : isAllowed(url) ? url : (toUrl(url) || NEW_TAB);
+    // An address typed while the active tab is still empty goes there: no second blank tab.
+    const current = this.tabs.get(this.activeId);
+    if (target !== NEW_TAB && current && (!current.url || current.url === NEW_TAB) && !current.view.webContents.getURL()) {
+      this.navigate(current.id, target);
+      return current.id;
+    }
     const id = `t${Date.now().toString(36)}${(this.seq++).toString(36)}`;
     const view = new WebContentsView({
       webPreferences: { partition: PARTITION, sandbox: true, contextIsolation: true, nodeIntegration: false, webviewTag: false, spellcheck: true },

@@ -2931,7 +2931,13 @@ api.post("/browser/shell/result", async (req, res) => {
 });
 
 /** For the interface and the tools: is a shell here, and which tabs may be read. */
-api.get("/browser/status", async (_req, res) => {
+// The three routes the tools and the interface use: loopback only (the workers run here) and the
+// same site (the API answers any origin elsewhere; a hostile page in a browser could otherwise read
+// the user's readable tab through the local API, or steer the panel).
+const browserCallerOk = (req: express.Request, res: express.Response) => shellOnly(req, res) && sameSiteOnly(req, res);
+
+api.get("/browser/status", async (req, res) => {
+  if (!browserCallerOk(req, res)) return;
   const s = browserShell.snapshot;
   res.json({ available: shellConnected(), panelOpen: !!s?.panelOpen, tabs: shellConnected() && s ? s.tabs.filter((t) => t.readable).map((t) => ({ id: t.id, title: t.title, url: t.url })) : [] });
 });
@@ -2943,6 +2949,7 @@ const shellFailure = (res: express.Response, e: any) => {
 };
 
 api.post("/browser/read", async (req, res) => {
+  if (!browserCallerOk(req, res)) return;
   try {
     const tab = typeof req.body?.tab === "string" ? req.body.tab.slice(0, 200) : undefined;
     res.json(await askShell("read", { tab, screenshot: !!req.body?.screenshot }, 35_000));
@@ -2950,6 +2957,7 @@ api.post("/browser/read", async (req, res) => {
 });
 
 api.post("/browser/open", async (req, res) => {
+  if (!browserCallerOk(req, res)) return;
   try {
     const url = String(req.body?.url ?? "").trim();
     if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: "bad_url", message: "only http and https addresses can be opened" });
