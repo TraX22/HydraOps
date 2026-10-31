@@ -200,8 +200,12 @@
               <td class="actions">
                 <button class="ibtn" (click)="previewInstalled(k)">{{ 'herramientas.skills.view' | translate }}</button>
                 @if (k.source === 'github') {
-                  <button class="ibtn" [class.ok]="k.updateAvailable" [class.busy]="busy() === k.name" [disabled]="!!busy()" (click)="updateGitHub(k)" [title]="'herramientas.skills.github.updateHint' | translate">
-                    <app-icon name="refresh" /> {{ (busy() === k.name ? 'herramientas.skills.checking' : 'herramientas.skills.update') | translate }}
+                  <!-- Always there for a GitHub skill (it is how you ask the repository again); it says its state:
+                       green "Update" when the folder moved on since the install, "Up to date" otherwise. -->
+                  <button class="ibtn" [class.ok]="k.updateAvailable" [class.busy]="busy() === k.name" [disabled]="!!busy()" (click)="updateGitHub(k)"
+                          [title]="(k.updateAvailable ? 'herramientas.skills.github.updateHint' : 'herramientas.skills.github.upToDateHint') | translate">
+                    <app-icon [name]="k.updateAvailable || busy() === k.name ? 'refresh' : 'check'" />
+                    {{ (busy() === k.name ? 'herramientas.skills.checking' : k.updateAvailable ? 'herramientas.skills.update' : 'herramientas.skills.github.upToDate') | translate }}
                   </button>
                 }
                 @if (k.source !== 'builtin') {

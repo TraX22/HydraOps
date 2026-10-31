@@ -863,7 +863,9 @@
           "script": "script",
           "code": "código",
           "text": "texto"
-        }
+        },
+        "upToDate": "Al día",
+        "upToDateHint": "La copia coincide con el repositorio. Clic para volver a preguntar."
       }
     },
     "connections": {

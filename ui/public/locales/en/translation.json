@@ -863,7 +863,9 @@
           "script": "script",
           "code": "code",
           "text": "text"
-        }
+        },
+        "upToDate": "Up to date",
+        "upToDateHint": "The copy matches the repository. Click to ask again."
       }
     },
     "connections": {

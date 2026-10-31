@@ -863,7 +863,9 @@
           "script": "script",
           "code": "code",
           "text": "texte"
-        }
+        },
+        "upToDate": "À jour",
+        "upToDateHint": "La copie correspond au dépôt. Cliquez pour redemander."
       }
     },
     "connections": {
