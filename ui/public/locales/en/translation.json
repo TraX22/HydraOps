@@ -57,7 +57,9 @@
     "stats": "Stats",
     "docs": "Docs",
     "config": "Config",
-    "me": "Me"
+    "me": "Me",
+    "collapse": "Collapse the sidebar",
+    "expand": "Expand the sidebar"
   },
   "chat": {
     "title": "Chat",

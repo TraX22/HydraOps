@@ -29,6 +29,10 @@
   color: var(--text-sidebar);
   white-space: nowrap;
 }
+.logo-chevron { margin-left: auto; font-size: 14px; color: var(--text-sidebar-muted); opacity: .85; flex-shrink: 0; }
+.sidebar-logo:hover .logo-chevron { opacity: 1; color: var(--text-sidebar); }
+.sidebar.minimized .sidebar-logo { flex-direction: column; gap: 4px; padding: 14px 8px 10px; }
+.sidebar.minimized .logo-chevron { margin-left: 0; font-size: 12px; }
 
 .sidebar-nav {
   flex: 1;

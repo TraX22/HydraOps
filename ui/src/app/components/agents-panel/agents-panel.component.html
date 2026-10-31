@@ -9,6 +9,26 @@
     </button>
   </div>
 
+  @if (minimized()) {
+    <!-- Collapsed: the avatars stay, with their status dot and unread count, so the rail still
+         says who is online or working; a click opens that agent's chat. -->
+    <div class="agents-mini">
+      @for (agent of agentsService.agents(); track agent.id) {
+        <button type="button" class="agent-mini" [class.active]="isActive(agent)" (click)="onAgentClick(agent)" (dblclick)="onAgentDblClick(agent)"
+                [title]="agent.name + ' · ' + agent.status" [attr.aria-label]="agent.name">
+          <div class="agent-avatar">
+            @if (agent.avatarUrl) {
+              <img [src]="agent.avatarUrl" [alt]="agent.name" class="avatar-img" />
+            } @else {
+              <span class="avatar-letter">{{ agent.name[0] }}</span>
+            }
+            <span class="agent-status-dot" [style.background]="statusColor(agent.status)"></span>
+          </div>
+          @if (agent.unreadCount) { <span class="mini-badge">{{ agent.unreadCount }}</span> }
+        </button>
+      }
+    </div>
+  }
   @if (!minimized()) {
     <!-- Primer arranque: sin agentes no se puede hacer nada, y una tarea enviada
          se quedaría en "pending" sin explicación (el orchestrator no encuentra a
@@ -25,7 +45,7 @@
     } @else {
     <div class="agents-list">
       @for (agent of agentsService.agents(); track agent.id) {
-        <div class="agent-item" (click)="onAgentClick(agent)" (dblclick)="onAgentDblClick(agent)">
+        <div class="agent-item" [class.active]="isActive(agent)" (click)="onAgentClick(agent)" (dblclick)="onAgentDblClick(agent)">
           <div class="agent-avatar">
             @if (agent.avatarUrl) {
               <img [src]="agent.avatarUrl" [alt]="agent.name" class="avatar-img" />

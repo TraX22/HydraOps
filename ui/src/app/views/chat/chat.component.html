@@ -13,7 +13,7 @@
         </button>
       }
     </div>
-    <div class="tabs-bar">
+    <div class="tabs-bar" #tabsBar (wheel)="onTabsWheel($event)">
       <button class="tab main-tab" [class.active]="chat.activeTab() === 'main'" (click)="switchTab('main')">
         <span class="tab-dot main-dot"></span>
         {{ 'chat.mainChannel' | translate }}

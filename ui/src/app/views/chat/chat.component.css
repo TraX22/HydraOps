@@ -42,7 +42,12 @@
   gap: 4px;
   overflow-x: auto;
   padding-bottom: 0;
+  /* The scrollbar used to sit over the active tab's underline: the bar scrolls with the wheel
+     and by touch instead, and the active tab is brought into view when it changes. */
+  scrollbar-width: none;
+  scroll-behavior: smooth;
 }
+.tabs-bar::-webkit-scrollbar { display: none; }
 .tab {
   display: flex;
   align-items: center;

@@ -1,10 +1,12 @@
 <aside class="sidebar" [class.minimized]="minimized()">
   <!-- Logo -->
-  <div class="sidebar-logo" (click)="toggleMinimized()">
+  <div class="sidebar-logo" (click)="toggleMinimized()" [title]="(minimized() ? 'nav.expand' : 'nav.collapse') | translate">
     <img class="logo-icon" src="icon-192.png" alt="HydraOps" />
     @if (!minimized()) {
       <span class="logo-text">HydraOps</span>
     }
+    <!-- The row has always collapsed the sidebar; now it says so. -->
+    <app-icon class="logo-chevron" [name]="minimized() ? 'chevron-right' : 'chevron-left'" />
   </div>
 
   <!-- Navigation -->

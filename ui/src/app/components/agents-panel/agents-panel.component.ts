@@ -1,6 +1,7 @@
 import { Component, inject, signal, output } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AgentsService } from '../../services/agents.service';
+import { ChatService } from '../../services/chat.service';
 import { Agent } from '../../services/api.service';
 import { IconComponent } from '../icon/icon.component';
 
@@ -13,6 +14,7 @@ import { IconComponent } from '../icon/icon.component';
 })
 export class AgentsPanelComponent {
   agentsService = inject(AgentsService);
+  private chat = inject(ChatService);
   minimized = signal(localStorage.getItem('hydra_agents_mini') === 'true');
 
   agentClicked = output<Agent>();
@@ -45,6 +47,9 @@ export class AgentsPanelComponent {
 
   // offline (worker down) is RED — 'idle' (alive, nothing pending) keeps the
   // neutral grey. Painting both grey made a healthy idle agent look dead.
+  /** The agent whose chat tab is active: marked in the rail, collapsed or not. */
+  isActive(agent: Agent): boolean { return this.chat.activeTab() === agent.id; }
+
   statusColor(status: string): string {
     switch (status) {
       case 'online': return 'var(--status-online)';
