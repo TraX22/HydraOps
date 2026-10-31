@@ -76,6 +76,10 @@ los modelos que necesitan.
   tokens — `/agents`, `/use luna`, `/status`, `/delegate karen …`, `/remember`,
   `/recall` — con alias en español; los mismos comandos funcionan en Telegram.
   Ver [Comandos](docs/es/15-commands.md).
+- **Un navegador al lado del chat** (app de escritorio). El globo arriba del chat abre
+  pestañas de Chromium de verdad al costado, con tus sesiones guardadas. Cada pestaña tiene un
+  ojo que dice si un agente puede leerla: la que estás mirando, sí; las demás solo si las
+  encendés. Las herramientas para que los agentes lean y abran páginas ahí vienen después.
 - **One Shot.** Dibujás una tarea como un diagrama de flujo de nodos y conexiones y tu
   modelo lo compila en un único prompt completo.
 - **3D.** Describís un objeto y un modelo escribe la escena; se renderiza en un visor

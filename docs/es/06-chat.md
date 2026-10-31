@@ -102,6 +102,14 @@ Un enlace con subrayado punteado y un triángulo amarillo de advertencia es uno 
 
 Lo que escribe un agente se muestra como Markdown, pero nunca como HTML activo: antes de pintarse, cada respuesta pasa por un filtro que elimina scripts, formularios, marcos incrustados, estilos y cualquier cosa que pueda ejecutar código o disfrazarse de parte de la app. Las imágenes solo se cargan si las sirve el propio HydraOps; una imagen de otro sitio aparece como un enlace (🖼) para que abrirla sea tu decisión y ver una respuesta nunca haga pedidos a terceros. Esto importa porque un agente que lee páginas web puede ser manipulado por el contenido de esas páginas.
 
+## El panel del navegador
+
+En la aplicación de escritorio, el botón del globo arriba a la derecha del chat abre un navegador al lado: pestañas de Chromium de verdad (el que trae la aplicación), con barra de dirección, atrás y adelante, y un botón para abrir la página en el navegador del sistema. Las sesiones se conservan: inicias sesión una vez y el sitio sigue abierto. Arrastra el borde izquierdo del panel para cambiar su ancho. Los enlaces que una página quiere abrir en una ventana nueva se abren aquí como pestaña nueva; el panel nunca concede a una página la cámara, el micrófono, tu ubicación ni las notificaciones.
+
+Cada pestaña tiene un ojo. Dice si un agente puede leer esa pestaña: la que estás mirando es legible; las demás quedan ocultas salvo que las enciendas, así una página que dejas abierta en segundo plano no la lee una tarea que no va de eso. Las contraseñas y las cookies nunca llegan a un agente. Las herramientas con las que los agentes leen y abren páginas en este panel llegan en una versión posterior; por ahora el ojo solo guarda tu elección.
+
+En modo servidor (la interfaz en un navegador normal) no hay panel: necesita la aplicación de escritorio.
+
 ## Novedades
 
 Después de cada actualización aparece en el chat la pestaña **Novedades** con lo que trae la versión nueva: qué se agregó, qué se mejoró y qué se corrigió. Si te salteaste versiones, muestra todas las que te perdiste, de la más nueva a la más vieja. Las notas están en inglés y viajan dentro de la aplicación, así que se ven también sin internet.

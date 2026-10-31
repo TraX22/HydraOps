@@ -1,10 +1,26 @@
+/* A row: the chat column, and the browser panel beside it when it is open (desktop app only). */
 .chat-view {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   height: 100vh;
   background: var(--bg-app);
   position: relative;
 }
+.chat-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+.header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.browser-toggle {
+  width: 32px; height: 32px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 17px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-surface-alt);
+  color: var(--text-secondary); cursor: pointer; margin-top: -2px;
+}
+.browser-toggle:hover { color: var(--text-primary); background: var(--bg-hover); }
+.browser-toggle.on { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
 
 /* Header */
 .chat-header {

@@ -1241,5 +1241,26 @@
     },
     "browserZone": "Votre navigateur est en {{tz}} ; le calendrier utilise le fuseau de la machine où tourne HydraOps ({{cal}}).",
     "useBrowserZone": "Utiliser {{tz}}"
+  },
+  "browser": {
+    "openPanel": "Ouvrir le navigateur",
+    "closePanel": "Fermer le navigateur",
+    "newTab": "Nouvel onglet",
+    "closeTab": "Fermer l'onglet",
+    "back": "Retour",
+    "forward": "Suivant",
+    "reload": "Recharger",
+    "stop": "Arrêter",
+    "address": "Adresse ou recherche",
+    "readable": "Visible pour les agents",
+    "notReadable": "Masqué pour les agents",
+    "readableHint": "Les agents peuvent lire cet onglet. Cliquez pour le leur masquer.",
+    "notReadableHint": "Les agents ne peuvent pas lire cet onglet. Cliquez pour l'autoriser.",
+    "openExternal": "Ouvrir dans le navigateur du système",
+    "resize": "Faites glisser pour redimensionner le panneau",
+    "empty": "Saisissez une adresse ou une recherche pour commencer. Les agents lisent l'onglet que vous regardez ; les autres restent masqués sauf si vous les activez.",
+    "loadError": "La page n'a pas pu être chargée : {{error}}",
+    "profile": "Profil HydraOps · les sessions sont conservées",
+    "tabCount": "{{n}} onglet(s)"
   }
 }

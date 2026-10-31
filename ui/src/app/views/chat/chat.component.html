@@ -2,9 +2,17 @@
   @if (dropActive()) {
     <app-drop-overlay [title]="'chat.dropHere' | translate" [hint]="'chat.dropHint' | translate" />
   }
+  <div class="chat-column">
   <!-- Header + Tabs -->
   <div class="chat-header">
-    <h2 class="header-title">{{ 'chat.title' | translate }}</h2>
+    <div class="header-row">
+      <h2 class="header-title">{{ 'chat.title' | translate }}</h2>
+      @if (browser.available) {
+        <button class="browser-toggle" [class.on]="browser.open()" (click)="browser.toggle()" [title]="(browser.open() ? 'browser.closePanel' : 'browser.openPanel') | translate">
+          <app-icon name="globe" />
+        </button>
+      }
+    </div>
     <div class="tabs-bar">
       <button class="tab main-tab" [class.active]="chat.activeTab() === 'main'" (click)="switchTab('main')">
         <span class="tab-dot main-dot"></span>
@@ -345,6 +353,12 @@
     </div>
   </div>
 
+  }
+
+  </div>
+
+  @if (browser.available && browser.open()) {
+    <app-browser-panel />
   }
 
   <!-- Lightbox (double-click on an image) -->

@@ -102,6 +102,14 @@ A link with a dotted underline and a yellow warning triangle is one the agent **
 
 What an agent writes is shown as Markdown, never as live HTML: before it is painted, every reply goes through a filter that removes scripts, forms, embedded frames, styles and anything that could run code or pose as part of the app. Images load only when HydraOps itself serves them; an image from another site appears as a link (🖼), so opening it is your call and viewing a reply never makes requests to third parties. This matters because an agent that reads web pages can be manipulated by what those pages say.
 
+## The browser panel
+
+In the desktop app, the globe button at the top right of the chat opens a browser beside it: real Chromium tabs (the one bundled with the app), with an address bar, back and forward, and a button to open the page in your system browser. Sessions persist: sign in once and the site stays signed in. Drag the panel's left edge to resize it. Links a page wants to open in a new window open as a new tab here; the panel never grants a page the camera, the microphone, your location or notifications.
+
+Each tab has an eye. It says whether an agent may read that tab: the tab you are looking at is readable; the others are hidden unless you switch them on, so a page you keep open in the background is not read by a task you did not ask about it. Passwords and cookies never reach an agent. The tools that let agents read and open pages in this panel come in a later version; for now the eye only records your choice.
+
+In server mode (the interface in a plain browser) there is no panel: it needs the desktop app.
+
 ## What's new
 
 After every update a **What's new** tab shows up in the chat with what the new version brings: what was added, improved and fixed. If you skipped versions it lists all the ones you missed, newest first. The notes are in English and ship inside the app, so they show without internet too.

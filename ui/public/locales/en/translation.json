@@ -1241,5 +1241,26 @@
     },
     "browserZone": "Your browser is in {{tz}}; the calendar uses the zone of the machine HydraOps runs on ({{cal}}).",
     "useBrowserZone": "Use {{tz}}"
+  },
+  "browser": {
+    "openPanel": "Open the browser",
+    "closePanel": "Close the browser",
+    "newTab": "New tab",
+    "closeTab": "Close tab",
+    "back": "Back",
+    "forward": "Forward",
+    "reload": "Reload",
+    "stop": "Stop",
+    "address": "Address or search",
+    "readable": "Visible to the agents",
+    "notReadable": "Hidden from the agents",
+    "readableHint": "The agents can read this tab. Click to hide it from them.",
+    "notReadableHint": "The agents cannot read this tab. Click to let them.",
+    "openExternal": "Open in the system browser",
+    "resize": "Drag to resize the panel",
+    "empty": "Type an address or a search to start. Agents read the tab you are looking at; the other tabs stay hidden unless you switch them on.",
+    "loadError": "The page could not be loaded: {{error}}",
+    "profile": "HydraOps profile · sessions are kept",
+    "tabCount": "{{n}} tab(s)"
   }
 }
