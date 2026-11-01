@@ -113,6 +113,7 @@ export class AgentsComponent implements OnInit {
   }
 
   fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
+  toolsInput = viewChild<ElementRef<HTMLInputElement>>('toolsInput');
 
   // ── Create agent ──
   creatingAgent = signal(false);      // modal open
@@ -373,6 +374,14 @@ export class AgentsComponent implements OnInit {
     if (this.isSelected(name)) return;
     this.toolTags.update(t => [...t, name]);
     this.toolsFilter.set('');
+    // The option button just clicked is gone: keep the cursor in the filter for the next one (and for Escape)
+    this.toolsInput()?.nativeElement.focus();
+  }
+
+  /** The "Add tool" button: open the list and put the cursor in the filter. */
+  focusToolsInput(): void {
+    this.toolsDropdownOpen.set(true);
+    this.toolsInput()?.nativeElement.focus();
   }
 
   removeToolTag(tag: string): void {

@@ -255,11 +255,15 @@
                       {{ tag }}
                     </span>
                   }
-                  <input class="tag-input" spellcheck="false"
-                         [placeholder]="toolTags().length === 0 ? ('agents.toolsEditor.placeholder' | translate) : ''"
+                  <input class="tag-input" #toolsInput spellcheck="false"
+                         [placeholder]="(toolTags().length === 0 ? 'agents.toolsEditor.placeholder' : 'agents.toolsEditor.filter') | translate"
                          [ngModel]="toolsFilter()" (ngModelChange)="toolsFilter.set($event)"
                          (focus)="toolsDropdownOpen.set(true)"
                          (keydown)="onToolsFilterKeydown($event)" />
+                  <!-- The visible way in: the box also opens on a click anywhere in it, but nothing said so -->
+                  <button class="tag-add" type="button" (click)="focusToolsInput(); $event.stopPropagation()">
+                    <app-icon name="plus" /> {{ 'agents.toolsEditor.add' | translate }}
+                  </button>
                 </div>
                 @if (toolsDropdownOpen()) {
                   <div class="tag-dropdown">

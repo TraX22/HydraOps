@@ -369,7 +369,9 @@
       "empty": "Aucun outil : cet agent ne pourra en utiliser aucun",
       "noResults": "Aucun résultat",
       "editRaw": "Éditer en texte",
-      "editTags": "Éditer avec le sélecteur"
+      "editTags": "Éditer avec le sélecteur",
+      "add": "Ajouter un outil",
+      "filter": "Rechercher…"
     },
     "securityMode": "Contenu externe",
     "securityModeHint": "Ce que fait l'agent quand il veut agir après avoir lu une page, une recherche ou un fichier tiers",
