@@ -116,7 +116,9 @@ const LOCATE = (spec) => `(() => {
   if (spec.action === "submit") {
     // The named thing is a field or a button of the form, or the form itself; what is submitted is the form.
     const scored = pool.map((el) => ({ el, s: score(el) })).filter((x) => x.s > 0).sort((a, b) => b.s - a.s);
-    const pick = scored[0]?.el || (want ? null : document.querySelector("form"));
+    // Nothing of the form matched the name (agents often name the page or its heading): the page's only form.
+    const forms = [...document.querySelectorAll("form")].filter(visible);
+    const pick = scored[0]?.el || (forms.length === 1 ? forms[0] : null);
     if (!pick) return { ok: false, code: "not_found" };
     const form = pick.tagName === "FORM" ? pick : pick.form || pick.closest("form");
     if (!form) return { ok: false, code: "not_found", detail: "the element is not in a form" };
