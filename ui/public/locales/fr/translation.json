@@ -239,7 +239,17 @@
         "where": "Où",
         "newTab": "un nouvel onglet",
         "currentTab": "l'onglet que vous regardez",
-        "why": "Le panneau navigue avec vos sessions. Une adresse choisie par l'agent (ou suggérée par une page qu'il a lue) vous attend : approuver l'ouvre dans le panneau."
+        "why": "Le panneau navigue avec vos sessions. Une adresse choisie par l'agent (ou suggérée par une page qu'il a lue) vous attend : approuver l'ouvre dans le panneau.",
+        "act": {
+          "click": "veut cliquer sur « {{target}} » dans votre navigateur",
+          "type": "veut écrire dans « {{target}} » dans votre navigateur",
+          "select": "veut choisir une option dans « {{target}} » dans votre navigateur",
+          "submit": "veut envoyer le formulaire de « {{target}} » dans votre navigateur",
+          "scroll": "veut faire défiler jusqu'à « {{target}} » dans votre navigateur",
+          "text": "Texte",
+          "enter": "Puis appuie sur Entrée.",
+          "why": "L'action s'exécute dans l'onglet lisible par les agents, avec vos sessions, après votre accord ; l'élément est d'abord mis en évidence. Les champs de mot de passe, de carte et de fichier ne sont jamais touchés."
+        }
       }
     },
     "linkUnverified": "⚠ Non vérifié : l'agent n'a ni ouvert ni vu cette adresse dans cette conversation. Elle peut exister, mais elle vient de sa mémoire, pas d'une consultation.",

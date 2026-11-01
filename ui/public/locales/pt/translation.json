@@ -239,7 +239,17 @@
         "where": "Onde",
         "newTab": "uma nova aba",
         "currentTab": "a aba que você está vendo",
-        "why": "O painel navega com as suas sessões. Um endereço escolhido pelo agente (ou sugerido por uma página que ele leu) espera por você: aprovar o abre no painel."
+        "why": "O painel navega com as suas sessões. Um endereço escolhido pelo agente (ou sugerido por uma página que ele leu) espera por você: aprovar o abre no painel.",
+        "act": {
+          "click": "quer clicar em “{{target}}” no seu navegador",
+          "type": "quer digitar em “{{target}}” no seu navegador",
+          "select": "quer escolher uma opção em “{{target}}” no seu navegador",
+          "submit": "quer enviar o formulário de “{{target}}” no seu navegador",
+          "scroll": "quer rolar até “{{target}}” no seu navegador",
+          "text": "Texto",
+          "enter": "Depois pressiona Enter.",
+          "why": "A ação roda na aba que os agentes podem ler, com as suas sessões, depois que você aprova; antes o elemento é destacado. Campos de senha, cartão e arquivo nunca são tocados."
+        }
       }
     },
     "linkUnverified": "⚠ Não verificado: o agente não abriu nem viu este endereço nesta conversa. Pode existir, mas veio da memória dele, não de uma consulta.",

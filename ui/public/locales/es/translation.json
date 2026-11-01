@@ -239,7 +239,17 @@
         "where": "Dónde",
         "newTab": "una pestaña nueva",
         "currentTab": "la pestaña que estás mirando",
-        "why": "El panel navega con tus sesiones. Una dirección que eligió el agente (o que sugirió una página que leyó) te espera: aprobar la abre en el panel."
+        "why": "El panel navega con tus sesiones. Una dirección que eligió el agente (o que sugirió una página que leyó) te espera: aprobar la abre en el panel.",
+        "act": {
+          "click": "quiere hacer clic en «{{target}}» en tu navegador",
+          "type": "quiere escribir en «{{target}}» en tu navegador",
+          "select": "quiere elegir una opción en «{{target}}» en tu navegador",
+          "submit": "quiere enviar el formulario de «{{target}}» en tu navegador",
+          "scroll": "quiere desplazarse hasta «{{target}}» en tu navegador",
+          "text": "Texto",
+          "enter": "Después pulsa Enter.",
+          "why": "La acción corre en la pestaña que los agentes pueden leer, con tus sesiones, cuando aprobás; antes se resalta el elemento. Los campos de contraseña, tarjeta y archivo nunca se tocan."
+        }
       }
     },
     "linkUnverified": "⚠ No verificado: el agente no abrió ni vio esta dirección en esta conversación. Puede existir, pero salió de su memoria, no de una consulta.",

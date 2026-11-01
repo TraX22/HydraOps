@@ -55,6 +55,13 @@ import { IconComponent } from '../icon/icon.component';
           }
           <p class="post-cost">{{ 'chat.held.x.cost' | translate:{ usd: post.usd } }}@if (post.hasLink) { · {{ 'chat.held.x.linkNote' | translate }} }</p>
         </div>
+      } @else if (browserAct; as a) {
+        <div class="browser-open">
+          <div class="cal-head"><app-icon name="globe" /> <span class="cal-kind">{{ ('chat.held.browser.act.' + a.action) | translate:{ target: a.target } }}</span></div>
+          @if (a.text) { <div class="cal-row"><span class="cal-label">{{ 'chat.held.browser.act.text' | translate }}</span><pre class="cal-pre">{{ a.text }}</pre></div> }
+          @if (a.enter) { <div class="cal-row">{{ 'chat.held.browser.act.enter' | translate }}</div> }
+          <p class="browser-why">{{ 'chat.held.browser.act.why' | translate }}</p>
+        </div>
       } @else if (browserOpen; as b) {
         <div class="browser-open">
           <div class="cal-head"><app-icon name="globe" /> <span class="cal-kind">{{ 'chat.held.browser.open' | translate }}</span></div>
@@ -223,6 +230,15 @@ export class HeldActionComponent implements OnInit {
       verb: m[1] as 'add' | 'update' | 'remove', title: s('title') || s('id'), when, agent: s('agent') || (s('kind') === 'action' ? this.action.agentId : ''), repeat,
       prompt: s('prompt'), notes: s('notes'), attachments: Array.isArray(a['attachments']) ? (a['attachments'] as unknown[]).map(String) : [],
     };
+  }
+
+  /** browser_act: what the agent wants to do on the page, on which element, with which text. */
+  get browserAct(): { action: string; target: string; text: string; enter: boolean } | null {
+    if (this.action.toolName !== 'browser_act') return null;
+    const a = (this.action.args ?? {}) as Record<string, unknown>;
+    const s = (k: string) => (typeof a[k] === 'string' ? (a[k] as string) : '');
+    const action = ['click', 'type', 'select', 'submit', 'scroll'].includes(s('action')) ? s('action') : 'click';
+    return { action, target: s('target'), text: s('text'), enter: !!a['enter'] };
   }
 
   /** browser_open: the address the agent wants the panel to show, and where. */

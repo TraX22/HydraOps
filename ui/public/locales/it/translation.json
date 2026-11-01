@@ -239,7 +239,17 @@
         "where": "Dove",
         "newTab": "una nuova scheda",
         "currentTab": "la scheda che stai guardando",
-        "why": "Il pannello naviga con le tue sessioni. Un indirizzo scelto dall'agente (o suggerito da una pagina che ha letto) ti aspetta: approvare lo apre nel pannello."
+        "why": "Il pannello naviga con le tue sessioni. Un indirizzo scelto dall'agente (o suggerito da una pagina che ha letto) ti aspetta: approvare lo apre nel pannello.",
+        "act": {
+          "click": "vuole fare clic su «{{target}}» nel tuo browser",
+          "type": "vuole scrivere in «{{target}}» nel tuo browser",
+          "select": "vuole scegliere un'opzione in «{{target}}» nel tuo browser",
+          "submit": "vuole inviare il modulo di «{{target}}» nel tuo browser",
+          "scroll": "vuole scorrere fino a «{{target}}» nel tuo browser",
+          "text": "Testo",
+          "enter": "Poi preme Invio.",
+          "why": "L'azione avviene nella scheda leggibile dagli agenti, con le tue sessioni, dopo la tua approvazione; prima l'elemento viene evidenziato. I campi password, carta e file non vengono mai toccati."
+        }
       }
     },
     "linkUnverified": "⚠ Non verificato: l'agente non ha aperto né visto questo indirizzo in questa conversazione. Può esistere, ma viene dalla sua memoria, non da una consultazione.",

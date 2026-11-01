@@ -96,4 +96,38 @@ export const browserOpenTool: HydraTool = {
   },
 };
 
-export const browserTools: HydraTool[] = [browserReadTool, browserOpenTool];
+export const browserActTool: HydraTool = {
+  name: "browser_act",
+  title: "Browser panel: act",
+  risk: HELD,
+  description:
+    "Act on the page open in the browser panel beside the chat (desktop app): click an element, type into a field (optionally pressing Enter), pick an option of a select, submit a form, or scroll. " +
+    "Name the target by what a person sees: the text of the button or link, the label or placeholder of the field; never a selector. Always waits for the user's approval, who sees the element you named and the exact text you will type; the element is highlighted before the action. " +
+    "Password, card and file fields are never touched. Only the readable tab (the one the user is looking at, or one whose eye is on). The result says what happened and gives a short excerpt of the page; read it fully with browser_read.",
+  schema: z.object({
+    action: z.enum(["click", "type", "select", "submit", "scroll"]).describe("What to do."),
+    target: z.string().max(200).describe("The element as a person sees it: a button's or link's text, a field's label or placeholder, a select's label. For scroll: 'down', 'up', 'top', 'bottom' or a piece of visible text to scroll to. For submit: a field or button of the form (or empty for the page's form)."),
+    text: z.string().max(4000).optional().describe("For type: the text to type (replaces the field's content). For select: the option's visible text."),
+    enter: z.boolean().optional().describe("For type: press Enter afterwards."),
+    tab: z.string().max(200).optional().describe("A piece of the title or address of the readable tab to act on (default: the one the user is looking at)."),
+  }),
+  execute: async (args: any, _ctx?: ToolContext) => {
+    let r: { status: number; data: any };
+    try {
+      r = await call("/browser/act", { action: args?.action, target: String(args?.target ?? ""), text: args?.text, enter: !!args?.enter, tab: args?.tab }, 60_000);
+    } catch {
+      return NO_BROWSER;
+    }
+    if (r.status !== 200) {
+      if (r.status === 422) return `browser_act refused: ${r.data?.message || r.data?.error}`;
+      return explain(r.status, r.data);
+    }
+    const d = r.data;
+    const lines = [`Done: ${d.did}.`, `Now: ${d.title || "(untitled)"} — ${d.url}${d.navigated ? " (the page changed)" : ""}`];
+    if (d.excerpt) lines.push("", "Page excerpt:", d.excerpt);
+    lines.push("", "Call browser_read for the full page.");
+    return lines.join("\n");
+  },
+};
+
+export const browserTools: HydraTool[] = [browserReadTool, browserOpenTool, browserActTool];

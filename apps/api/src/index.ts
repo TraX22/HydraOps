@@ -2880,7 +2880,7 @@ setTimeout(() => void tickCalendar(), Math.min(5_000, CALENDAR_TICK_MS)).unref()
 // tab, open an address); the tool's call waits for the shell's answer. Both ends are on this
 // machine, so the shell's endpoints accept loopback only. Without a shell polling, the tools
 // get 503 and fall back to fetch_url.
-type ShellRequest = { id: string; kind: "read" | "open"; args: unknown; resolve: (v: unknown) => void; reject: (e: Error & { code?: string }) => void; timer: NodeJS.Timeout };
+type ShellRequest = { id: string; kind: "read" | "open" | "act"; args: unknown; resolve: (v: unknown) => void; reject: (e: Error & { code?: string }) => void; timer: NodeJS.Timeout };
 const SHELL_ALIVE_MS = 45_000;
 const SHELL_POLL_MS = 25_000;
 const browserShell = {
@@ -2963,6 +2963,24 @@ api.post("/browser/open", async (req, res) => {
     if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: "bad_url", message: "only http and https addresses can be opened" });
     res.json(await askShell("open", { url, newTab: !!req.body?.newTab }, 35_000));
   } catch (e: any) { shellFailure(res, e); }
+});
+
+// An approved action on the readable tab (browser_act): what the shell refuses (a password
+// field, an ambiguous or missing target) comes back as 422 with the reason.
+const BROWSER_ACTIONS = new Set(["click", "type", "select", "submit", "scroll"]);
+api.post("/browser/act", async (req, res) => {
+  if (!browserCallerOk(req, res)) return;
+  try {
+    const action = String(req.body?.action ?? "").toLowerCase();
+    if (!BROWSER_ACTIONS.has(action)) return res.status(400).json({ error: "bad_action", message: "action must be click, type, select, submit or scroll" });
+    const target = String(req.body?.target ?? "").slice(0, 200);
+    const text = typeof req.body?.text === "string" ? req.body.text.slice(0, 4000) : undefined;
+    const tab = typeof req.body?.tab === "string" ? req.body.tab.slice(0, 200) : undefined;
+    res.json(await askShell("act", { action, target, text, enter: !!req.body?.enter, tab }, 55_000));
+  } catch (e: any) {
+    if (e?.code === "sensitive" || e?.code === "not_found" || e?.code === "bad_action") return res.status(422).json({ error: e.code, message: e.message });
+    shellFailure(res, e);
+  }
 });
 
 // User profile lives in users/profile.json (single source); the workers read the

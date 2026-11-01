@@ -80,7 +80,7 @@ los modelos que necesitan.
   pestañas de Chromium de verdad al costado, con tus sesiones guardadas. Cada pestaña tiene un
   ojo que dice si un agente puede leerla: la que estás mirando, sí; las demás solo si las
   encendés. `browser_read` le da al agente lo que ves (sesiones incluidas, contraseñas nunca);
-  `browser_open` navega el panel con tu aprobación.
+  `browser_open` navega el panel y `browser_act` hace clic, escribe y envía, cada una con tu aprobación.
 - **One Shot.** Dibujás una tarea como un diagrama de flujo de nodos y conexiones y tu
   modelo lo compila en un único prompt completo.
 - **3D.** Describís un objeto y un modelo escribe la escena; se renderiza en un visor
