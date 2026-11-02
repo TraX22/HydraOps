@@ -281,6 +281,11 @@ export class McpClientManager {
     for (const [server, names] of this.serverTools) if (names.has(toolName)) return server;
     return undefined;
   }
+  /** Whether a server is a program started on this computer (a command), as opposed to an address. */
+  isLocalServer(serverName: string): boolean {
+    const cfg = this.serverConfigs.get(serverName);
+    return !!cfg && typeof cfg.command === 'string' && cfg.command.trim() !== '';
+  }
   // When each server was last retried / restarted, to keep a broken one from costing
   // every task a connection timeout.
   private lastRetryAt = new Map<string, number>();
