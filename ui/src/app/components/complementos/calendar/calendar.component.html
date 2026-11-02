@@ -19,6 +19,8 @@
         </button>
       }
     </div>
+    <!-- Only this list scrolls; the heading and the mini month above stay put -->
+    <div class="agenda-list">
     @if (loading()) { <p class="muted">{{ 'calendar.loading' | translate }}</p> }
     @else if (!agenda().length) { <p class="muted">{{ 'calendar.nothingSoon' | translate }}</p> }
     @for (day of agenda(); track day.date) {
@@ -34,6 +36,7 @@
         </button>
       }
     }
+    </div>
   </aside>
 
   <!-- Middle: the toolbar and the month / week / day view -->

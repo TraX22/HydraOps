@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { Agent, ApiService, CalendarEntry, CalendarEntryInput } from '../../../services/api.service';
@@ -30,7 +30,7 @@ const mondayOf = (d: string) => addDays(d, -((toUtc(d).getUTCDay() + 6) % 7));
   templateUrl: './calendar.component.html',
   styleUrl: './calendar.component.css',
 })
-export class CalendarComponent implements OnInit {
+export class CalendarComponent implements OnInit, OnDestroy {
   readonly api = inject(ApiService);
   private readonly i18n = inject(TranslateService);
   private readonly complementos = inject(ComplementosService);
@@ -103,13 +103,38 @@ export class CalendarComponent implements OnInit {
     return [...seen.entries()].map(([id, name]) => ({ id, name, color: this.colorOf(id) }));
   });
 
+  // The calendar may stay open for days (the Complements window keeps it alive): "today" is
+  // re-read every minute and whenever the window comes back to the front, so the day and the
+  // week views do not keep showing yesterday after midnight.
+  private clock: ReturnType<typeof setInterval> | null = null;
+  private readonly onVisible = () => { if (document.visibilityState === 'visible') this.refreshToday(); };
+
   ngOnInit(): void {
+    this.clock = setInterval(() => this.refreshToday(), 60_000);
+    document.addEventListener('visibilitychange', this.onVisible);
+    window.addEventListener('focus', this.onVisible);
     this.api.getCalendarSettings().subscribe({
       next: s => { this.tz.set(s.timezone); this.zoneChosen.set(s.timezone !== s.system); const t = this.localToday(s.timezone); this.today.set(t); this.cursor.set(t); this.load(); },
       error: () => { this.load(); },
     });
     this.api.getTimezones().subscribe({ next: t => this.timezones.set(t.timezones), error: () => {} });
     this.api.getAgents().subscribe({ next: a => this.agents.set(a), error: () => {} });
+  }
+
+  ngOnDestroy(): void {
+    if (this.clock) clearInterval(this.clock);
+    document.removeEventListener('visibilitychange', this.onVisible);
+    window.removeEventListener('focus', this.onVisible);
+  }
+
+  /** A new day in the calendar's zone: today moves, and so does the cursor if it was on today; the entries are reloaded. */
+  refreshToday(): void {
+    const t = this.localToday(this.tz() || 'UTC');
+    if (t === this.today()) return;
+    const wasOnToday = this.cursor() === this.today();
+    this.today.set(t);
+    if (wasOnToday) this.cursor.set(t);
+    this.load();
   }
 
   /** The calendar's zone, saved for every entry made from now on (the same setting as in Settings). */
