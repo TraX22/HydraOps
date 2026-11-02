@@ -68,6 +68,7 @@ export * from './plan.js';
 export * from './vault.js';
 export * from './presets.js';
 export * from './result-files.js';
+export * from './conversation-files.js';
 export * from './blender-import.js';
 export * from './tool-images.js';
 export { setupToolsOnDemand, buildToolIndex, createToolLoader, preloadFromText, namedGroups, summarize, LOAD_TOOL_NAME, ON_DEMAND_MIN_TOOLS, PRELOAD_GROUP_MAX } from "./tools-on-demand.js";
