@@ -201,7 +201,7 @@ export class ToolRegistry {
         const harvesting: HydraTool = context
           ? { ...mt, execute: async (args: any, ctx?: ToolContext) => {
               const c = ctx ?? context;
-              const sent = local ? await resolveTaskPathsInArgs(args, { filesDir: c?.filesDir, uploadsDir: c?.uploadsDir }) : args;
+              const sent = local ? await resolveTaskPathsInArgs(args, { filesDir: c?.filesDir, uploadsDir: c?.uploadsDir, conversationFiles: c?.conversationFiles?.() }) : args;
               const r = await mt.execute(sent, ctx);
               if (!c?.addResultFile) return r;
               await harvestMediaFiles(r, {

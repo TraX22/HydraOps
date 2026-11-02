@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { realpath, stat } from 'node:fs/promises';
+import { resolveConversationFile, type ConversationFile } from './conversation-files.js';
 
 /**
  * The conversation names files by where the app keeps them, relative to its storage:
@@ -9,13 +10,14 @@ import { realpath, stat } from 'node:fs/promises';
  * the relative path up in its own folder and fails. Before a call to a connection that
  * runs on this computer, every argument that names such a file is turned into the
  * file's absolute path. Only a reference to an existing file inside this task's folder
- * or the uploads folder changes; any other value is left exactly as it came.
+ * or the uploads folder, or one of the conversation's recent files, changes; any other
+ * value is left exactly as it came.
  */
 const UPLOAD_REF = /^(?:storage\/)?uploads\/([^/]+)$/;
 const RESULT_REF = /^(?:storage\/)?results\/([^/]+)\/([^/]+)$/;
 const MAX_DEPTH = 6;
 
-export interface TaskPathRoots { filesDir?: string; uploadsDir?: string }
+export interface TaskPathRoots { filesDir?: string; uploadsDir?: string; conversationFiles?: ConversationFile[] }
 
 /** The absolute path of a conversation file reference, or null when it names none. */
 export async function resolveTaskPath(value: string, roots: TaskPathRoots): Promise<string | null> {
@@ -26,6 +28,7 @@ export async function resolveTaskPath(value: string, roots: TaskPathRoots): Prom
   const rs = RESULT_REF.exec(ref);
   if (up) { root = roots.uploadsDir; name = up[1]; }
   else if (rs && roots.filesDir && path.basename(roots.filesDir) === rs[1]) { root = roots.filesDir; name = rs[2]; }
+  else if (rs) return (await resolveConversationFile(ref, roots.conversationFiles))?.absPath ?? null;
   if (!root || !name || name === '.' || name === '..') return null;
   const base = await realpath(root).catch(() => '');
   if (!base) return null;
@@ -37,7 +40,7 @@ export async function resolveTaskPath(value: string, roots: TaskPathRoots): Prom
 
 /** `args` with every file reference resolved, in strings, arrays and plain objects; everything else untouched. */
 export async function resolveTaskPathsInArgs(args: unknown, roots: TaskPathRoots, depth = 0): Promise<unknown> {
-  if (depth > MAX_DEPTH || (!roots.filesDir && !roots.uploadsDir)) return args;
+  if (depth > MAX_DEPTH || (!roots.filesDir && !roots.uploadsDir && !roots.conversationFiles?.length)) return args;
   if (typeof args === 'string') return (await resolveTaskPath(args, roots)) ?? args;
   if (Array.isArray(args)) return Promise.all(args.map((v) => resolveTaskPathsInArgs(v, roots, depth + 1)));
   if (args && typeof args === 'object' && Object.getPrototypeOf(args) === Object.prototype) {

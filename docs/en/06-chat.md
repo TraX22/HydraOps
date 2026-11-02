@@ -31,7 +31,7 @@ Results from image and video agents appear inline in the chat. Click an image to
 
 ## Files a task brings
 
-When a tool brings an image or a video into a task (what a [ComfyUI](./09-tools.md) workflow saved, or a picture a connection's tool returns on the spot, such as a Unity or Blender capture or a browser screenshot), it appears under the reply as a card with its name, its size and a preview: click an image to see it full size, play a video in place, and use the card's button to **download** the file.
+When a tool brings an image or a video into a task (what a [ComfyUI](./09-tools.md) workflow saved, or a picture a connection's tool returns on the spot, such as a Unity or Blender capture or a browser screenshot), it appears under the reply as a card with its name, its size and a preview: click an image to see it full size, play a video in place, and use the card's button to **download** the file. Those files stay at hand for the agent in that conversation: the next request can be about them ("now remove its background", "send that model to Blender"), and the agent's tools open them by the path shown, without you attaching them again.
 
 ## 3D models
 

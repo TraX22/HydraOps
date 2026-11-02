@@ -16,7 +16,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, resolveLLMConfig, resolveMaxSteps, buildUserMessage } from "@hydraops/llm";
-import { createResultFiles, taskFilesContext, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, carriedSkillsPrompt, noteSkillsOpened, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan, setupToolsOnDemand, harvestMediaFiles, connectionOrigins } from "@hydraops/addons";
+import { createResultFiles, taskFilesContext, conversationFiles, conversationFilesPrompt, type ConversationFile, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, carriedSkillsPrompt, noteSkillsOpened, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan, setupToolsOnDemand, harvestMediaFiles, connectionOrigins } from "@hydraops/addons";
 import { AckPolicy } from "nats";
 
 const WORKER_TYPE = "general";
@@ -472,6 +472,8 @@ ${EXTERNAL_CONTENT_RULE}
     // Bind the calling agent's identity so identity-aware tools (`remember`,
     // `recall`) act on the right agent without trusting model input.
     const resultFiles = createResultFiles(storageDir);
+    // The files earlier replies of this chat left (filled once the history is loaded below).
+    const convFiles: ConversationFile[] = [];
     const toolContext = {
       agentId,
       searchPastTasks: (query: string, limit?: number) => searchAgentTasks(sqliteClient, agentId, query, limit),
@@ -484,6 +486,8 @@ ${EXTERNAL_CONTENT_RULE}
       ...taskFilesContext(storageDir, String(taskId), mcpServersConfigStr),
       // Files a tool leaves for the user: stored with the result, shown in the chat.
       addResultFile: resultFiles.add,
+      // Tools that take a file accept the conversation's recent files by the path the chat shows.
+      conversationFiles: () => convFiles,
       // The task's start: media older than this in a connection's folder is not harvested.
       since: started,
     };
@@ -530,6 +534,8 @@ ${EXTERNAL_CONTENT_RULE}
     // cron-fired tasks (see loadRecentChannelHistory).
     // How much of it is the agent's own setting (Agents → history), capped for a local model.
     const historyRows = await loadRecentChannelHistory(db, channel, taskId, historyOptions(cfgRows[0]?.historyLevel, llmConfig.provider));
+    convFiles.push(...conversationFiles(storageDir, historyRows));
+    const conversationFilesSection = conversationFilesPrompt(convFiles);
     const history = historyRows.reverse().flatMap((t: any) => {
       const assistantText = historyAssistantText(t.resultMeta);
       return [
@@ -549,7 +555,7 @@ ${EXTERNAL_CONTENT_RULE}
     let stepBreakdown: any[] = [];
     const modelTools = { ...(planTools ? { ...aiTools, ...planTools.ai } : aiTools), ...(onDemand?.tools ?? {}) };
     const runModel = (extra: any[] = []) => withTimeout(
-      llmGenerateText(llmConfig, [...history, userMessage, ...extra], systemPrompt + skillsSection + planSection + cronDedup + vault.promptSection() + (onDemand?.promptSection ?? ""), modelTools, planTools ? [...rawTools, ...planTools.raw] : rawTools, { abortSignal: controller.signal, prepareStep: (step: any) => vault.prepareStep(step), stepImages: stepToolImages, maxSteps: resolveMaxSteps(cfgRows[0]?.maxSteps), roundTimeoutMs: ROUND_TIMEOUT_MS(llmConfig.provider, getGlobalConfig), ...(onDemand ? onDemand.llmOptionsFor(modelTools) : {}), onBreakdown: (b: any[]) => { stepBreakdown = b; } }),
+      llmGenerateText(llmConfig, [...history, userMessage, ...extra], systemPrompt + skillsSection + planSection + cronDedup + vault.promptSection() + conversationFilesSection + (onDemand?.promptSection ?? ""), modelTools, planTools ? [...rawTools, ...planTools.raw] : rawTools, { abortSignal: controller.signal, prepareStep: (step: any) => vault.prepareStep(step), stepImages: stepToolImages, maxSteps: resolveMaxSteps(cfgRows[0]?.maxSteps), roundTimeoutMs: ROUND_TIMEOUT_MS(llmConfig.provider, getGlobalConfig), ...(onDemand ? onDemand.llmOptionsFor(modelTools) : {}), onBreakdown: (b: any[]) => { stepBreakdown = b; } }),
       LLM_TIMEOUT_MS(),
       `LLM call`,
       () => controller.abort(new Error("LLM call timed out")),

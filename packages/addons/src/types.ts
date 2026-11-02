@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ReportedFile } from "./result-files.js";
+import type { ConversationFile } from "./conversation-files.js";
 import type { ToolRisk } from "./provenance.js";
 
 // An add-on that needs an API key declares it here. The UI (Addons section)
@@ -56,6 +57,9 @@ export interface ToolContext {
   // A file this tool left for the user in the task's folder (see result-files.ts): the
   // worker stores it with the task's result and the chat shows it next to the answer.
   addResultFile?: (file: ReportedFile) => void;
+  // The files the conversation's recent replies left (see conversation-files.ts): a tool
+  // that takes a file accepts them by the path the chat shows, read-only.
+  conversationFiles?: () => ConversationFile[];
   // When this task started (ms since the epoch). A file in a connection's folder that is
   // older than this is the project's own asset, not something the task made, and stays
   // where it is (see harvest-files.ts).

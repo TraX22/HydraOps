@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { HydraTool } from "../../types.js";
+import { resolveConversationFile } from "../../conversation-files.js";
 import type { ReportedFile, ResultFileKind } from "../../result-files.js";
 import { keepToolImage, toolImageMarker } from "../../tool-images.js";
 
@@ -78,7 +79,7 @@ async function listSaved(base: string): Promise<string> {
     .slice(0, MAX_LISTED);
   if (!list.length) return NONE_SAVED;
   return `Workflows saved in the user's ComfyUI (${list.length}):\n${list.map((n) => `- ${n}`).join("\n")}\n\n` +
-    `Prepare one with action "prepare", its name exactly as listed, and in "files" the files the user attached (as the conversation names them). ` +
+    `Prepare one with action "prepare", its name exactly as listed, and in "files" the files the user attached (as the conversation names them) or a file an earlier reply left (results/<task>/<name>). ` +
     `If more than one could fit the request and the user did not say which, ask.`;
 }
 
@@ -499,8 +500,18 @@ export function repairObjectWidgets(graph: unknown, nodeInfo: (type: string) => 
 
 // ── The user's files ───────────────────────────────────────────────────────────
 
-/** An attachment as the conversation names it ("storage/uploads/<name>" or the bare name), inside the uploads folder. */
-async function resolveAttachment(ref: string, uploadsDir: string | undefined): Promise<{ path: string; name: string } | string> {
+/**
+ * An attachment as the conversation names it ("storage/uploads/<name>" or the bare name), inside
+ * the uploads folder; or a file an earlier reply of this conversation left ("results/<task>/<name>").
+ */
+async function resolveAttachment(ref: string, ctx: { uploadsDir?: string; conversationFiles?: () => any[] } | undefined): Promise<{ path: string; name: string } | string> {
+  const uploadsDir = ctx?.uploadsDir;
+  const earlier = await resolveConversationFile(String(ref ?? ""), ctx?.conversationFiles?.());
+  if (earlier) {
+    const st = await stat(earlier.absPath).catch(() => null);
+    if (st && st.size > MAX_UPLOAD_BYTES) return `"${earlier.name}" is larger than this tool uploads`;
+    return { path: earlier.absPath, name: earlier.name };
+  }
   const name = path.basename(String(ref ?? "").replace(/\\/g, "/").trim());
   if (!name || name === "." || name === "..") return `"${ref}" is not a file name`;
   if (!uploadsDir) return "this task has no access to the attached files";
@@ -511,7 +522,7 @@ async function resolveAttachment(ref: string, uploadsDir: string | undefined): P
     if (!st.isFile()) return `"${name}" is not a file`;
     if (st.size > MAX_UPLOAD_BYTES) return `"${name}" is larger than this tool uploads`;
   } catch {
-    return `there is no attached file named "${name}" (use the name the conversation shows, e.g. storage/uploads/<name>)`;
+    return `there is no attached file named "${name}" (use the name the conversation shows, e.g. storage/uploads/<name>, or the path of a file from earlier in this conversation, results/<task>/<name>)`;
   }
   return { path: full, name };
 }
@@ -579,7 +590,7 @@ async function prepare(base: string, name: string, files: string[], ctx: Prepare
     if (files.length > inputs.length) return `comfy_workflows: "${name}" reads ${inputs.length} file(s) and you gave ${files.length}. ${describeWorkflow(graph)}`;
     const resolved: { path: string; name: string }[] = [];
     for (const ref of files) {
-      const r = await resolveAttachment(ref, ctx.uploadsDir);
+      const r = await resolveAttachment(ref, ctx);
       if (typeof r === "string") return `comfy_workflows: ${r}.`;
       resolved.push(r);
     }
