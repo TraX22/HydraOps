@@ -7,6 +7,7 @@ import { extractSources, extractSeenUrls, contentDigest, type ToolSourceSink } f
 import { resolveToolRisk, type TaskSecurity, type ToolRisk } from './provenance.js';
 import type { ToolProgressSink } from './progress.js';
 import { createVaultTools, type TaskVault } from './vault.js';
+import { resolveTaskPathsInArgs } from './task-paths.js';
 
 /**
  * Called once per tool invocation for usage tracking. `source` is native |
@@ -188,15 +189,21 @@ export class ToolRegistry {
         activeTools.push(finalize(nt, nt.source === 'my_addons' ? 'my_addons' : 'native'));
       }
 
-      // MCP tools. Media a connection's tool names in its answer (a saved image's path, a
-      // /view address on this computer) is brought into the task so the chat shows it.
+      // MCP tools. A file the conversation names in the arguments (an attachment, a file of
+      // this task) reaches a server on this computer as its absolute path, since the server
+      // cannot find the app's relative form. Media a connection's tool names in its answer
+      // (a saved image's path, a /view address on this computer) is brought into the task so
+      // the chat shows it.
       const mt = this.mcpManager.mcpTools.get(name);
       if (mt) {
-        const harvesting: HydraTool = context?.addResultFile
+        const server = this.mcpManager.serverOfTool(name);
+        const local = !!server && this.mcpManager.isLocalServer(server);
+        const harvesting: HydraTool = context
           ? { ...mt, execute: async (args: any, ctx?: ToolContext) => {
-              const r = await mt.execute(args, ctx);
               const c = ctx ?? context;
-              const server = this.mcpManager.serverOfTool(name);
+              const sent = local ? await resolveTaskPathsInArgs(args, { filesDir: c?.filesDir, uploadsDir: c?.uploadsDir }) : args;
+              const r = await mt.execute(sent, ctx);
+              if (!c?.addResultFile) return r;
               await harvestMediaFiles(r, {
                 ...c,
                 allowedOrigins: server ? connectionOrigins(c?.connectionEnv?.(server)) : [],

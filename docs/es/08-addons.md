@@ -54,6 +54,8 @@ Cada servidor tiene su interruptor, y la vista muestra su estado real según lo 
 
 Los servidores empiezan a conectarse **cuando arranca la app**, no con la primera tarea. Cada worker conecta solo los servidores que usan sus agentes: uno que ningún agente tiene en sus herramientas no se arranca. Si uno no conectó (docker todavía levantando, la aplicación que maneja estaba cerrada), se **reintenta solo** en la tarea siguiente, como mucho una vez por minuto; y si un servidor avisa que perdió su conexión (cerraste y reabriste Blender, por ejemplo), HydraOps lo reinicia para que se reconecte. No hace falta tocar la configuración.
 
+Cuando un agente le pasa a una conexión un archivo que la conversación nombra (un adjunto, que aparece como `storage/uploads/<nombre>`, o un archivo que produjo esta tarea), la conexión recibe la ruta completa del archivo en esta computadora, así lo encuentra; una conexión en otra máquina recibe el nombre tal como está escrito.
+
 ### Imágenes que devuelve una herramienta
 
 Algunas herramientas responden con una imagen: una captura del visor de Blender, una captura de página de un servidor de navegador. Si el modelo del agente ve imágenes (los modelos de chat de OpenAI, Anthropic y Gemini, y otros cuyo nombre lo indica), la imagen se le muestra justo después del resultado de la herramienta, así puede comprobar de verdad su trabajo; las dos más recientes siguen adjuntas mientras dura la tarea. A un modelo que no ve imágenes se le dice claramente que no se le mostró, para que no afirme haberla mirado.

@@ -54,6 +54,8 @@ Every server has its own switch, and the view shows its real status as reported 
 
 Servers start connecting **when the app starts**, not with the first task. Each worker connects only the servers its agents use: one that no agent has in its tools is not started. If one did not connect (docker still coming up, the application it drives was closed), it is **retried by itself** on the next task, at most once a minute; and if a server says it lost its connection (you closed and reopened Blender, say), HydraOps restarts it so it reconnects. No need to touch the configuration.
 
+When an agent hands a connection a file the conversation names (an attachment, shown as `storage/uploads/<name>`, or a file this task produced), the connection receives the file's full path on this computer, so it finds it; a connection on another machine receives the name as written.
+
 ### Images a tool returns
 
 Some tools answer with a picture: a viewport capture from Blender, a page screenshot from a browser server. If the agent's model can see images (OpenAI, Anthropic and Gemini chat models, and others whose name says so), the picture is shown to it right after the tool result, so it can actually check its work; the two most recent ones stay attached while the task goes on. A model that cannot see images is told plainly that it was not shown the picture, so it does not claim to have looked at it.
