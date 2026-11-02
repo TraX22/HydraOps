@@ -369,7 +369,9 @@
       "empty": "Sin herramientas: este agente no podrá usar ninguna",
       "noResults": "Sin resultados",
       "editRaw": "Editar como texto",
-      "editTags": "Editar con selector"
+      "editTags": "Editar con selector",
+      "add": "Agregar herramienta",
+      "filter": "Buscar…"
     },
     "securityMode": "Contenido externo",
     "securityModeHint": "Qué hace el agente cuando quiere actuar después de leer una página, una búsqueda o un archivo de terceros",

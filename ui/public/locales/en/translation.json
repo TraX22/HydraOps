@@ -369,7 +369,9 @@
       "empty": "No tools: this agent will not be able to use any",
       "noResults": "No results",
       "editRaw": "Edit as text",
-      "editTags": "Edit with selector"
+      "editTags": "Edit with selector",
+      "add": "Add tool",
+      "filter": "Search…"
     },
     "securityMode": "Outside content",
     "securityModeHint": "What the agent does when it wants to act after reading a third-party page, search or file",

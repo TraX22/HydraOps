@@ -245,6 +245,14 @@
   flex: 1; min-width: 120px; border: none; outline: none; background: transparent;
   color: var(--text-primary); font-size: 0.85rem; padding: 4px 2px;
 }
+/* Sits at the end of the last row, flush right */
+.tag-add {
+  display: inline-flex; align-items: center; gap: 4px; margin-left: auto; align-self: flex-end;
+  padding: 4px 10px; font-size: 0.78rem; font-weight: 500; cursor: pointer;
+  color: var(--accent); background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+}
+.tag-add:hover { border-color: var(--accent); background: var(--bg-hover); }
+.tag-add app-icon { font-size: 13px; }
 .tag-dropdown {
   max-height: 240px; overflow-y: auto;
   background: var(--bg-surface); border: 1px solid var(--border-color);
