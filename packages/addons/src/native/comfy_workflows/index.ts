@@ -254,23 +254,31 @@ const MAX_DECLARED = 24;
  * model, instead of guessing one. `loads` is the file the node is set to load now, which
  * the user may have changed from the declared one. Interface format only (the API format
  * keeps no properties); walks the top level and every subgraph.
+ *
+ * A loader inside a subgraph may have its file chosen on the subgraph's own panel: the
+ * template promotes the widget, and the value lives in the top-level instance node's
+ * widgets_values, in the order of its widget inputs, while the inner node keeps the
+ * template's default. What the instance sets is what runs, so it wins over the inner value
+ * (the Klein template ships int8 defaults inside and the user picks bf16 outside).
  */
 export function declaredModels(graph: unknown): DeclaredModel[] {
   const g = graph as any;
   if (!g || !Array.isArray(g.nodes)) return [];
   const subgraphs: any[] = Array.isArray(g.definitions?.subgraphs) ? g.definitions.subgraphs : [];
+  const subgraphById = new Map<string, any>(subgraphs.filter((s) => s && typeof s.id === "string").map((s) => [s.id, s]));
   const out: DeclaredModel[] = [];
   const seen = new Set<string>();
-  for (const n of [...g.nodes, ...subgraphs.flatMap((s) => (Array.isArray(s.nodes) ? s.nodes : []))]) {
+  const emit = (n: any, promoted?: string) => {
     const models = n?.properties?.models;
-    if (!Array.isArray(models)) continue;
+    if (!Array.isArray(models)) return;
     const values: unknown[] = Array.isArray(n.widgets_values) ? n.widgets_values : [];
     for (const m of models) {
       if (!m || typeof m.name !== "string" || typeof m.directory !== "string") continue;
       const name = clip(m.name, 160);
       const folder = clip(m.directory, 64);
       if (!MODEL_FILE_RE.test(name) || !/^[\w.-]+$/.test(folder)) continue;
-      const set = values.find((v): v is string => typeof v === "string" && v === m.name)
+      const set = promoted
+        ?? values.find((v): v is string => typeof v === "string" && v === m.name)
         ?? values.find((v): v is string => typeof v === "string" && MODEL_FILE_RE.test(v));
       const loads = set ? clip(set, 160) : name;
       const key = `${folder}/${loads}`;
@@ -279,8 +287,47 @@ export function declaredModels(graph: unknown): DeclaredModel[] {
       const url = typeof m.url === "string" && /^https:\/\/\S+$/i.test(m.url) ? clip(m.url, 300) : "";
       out.push({ node: String(n.id), type: String(n.type ?? ""), folder, name, loads, url });
     }
+  };
+  const instantiated = new Set<string>();
+  for (const n of g.nodes) {
+    const sg = subgraphById.get(String(n?.type ?? ""));
+    if (!sg) { emit(n); continue; }
+    instantiated.add(sg.id);
+    const promoted = promotedModelValues(sg, n);
+    for (const inner of Array.isArray(sg.nodes) ? sg.nodes : []) emit(inner, promoted.get(String(inner.id)));
   }
+  // A subgraph defined but not placed is still part of the file: its inner values stand.
+  for (const sg of subgraphs) if (!instantiated.has(sg.id)) for (const inner of Array.isArray(sg.nodes) ? sg.nodes : []) emit(inner);
   return out.slice(0, MAX_DECLARED);
+}
+
+/**
+ * The model files a subgraph instance sets through its promoted widgets, by the id of the
+ * inner node each one feeds. The instance's widgets_values follow its widget inputs in
+ * order; each of those inputs is one of the subgraph's inputs (matched by name and label),
+ * whose links lead to the inner node. Links come as objects or as the older arrays.
+ */
+function promotedModelValues(sg: any, instance: any): Map<string, string> {
+  const result = new Map<string, string>();
+  const values: unknown[] = Array.isArray(instance?.widgets_values) ? instance.widgets_values : [];
+  const widgetInputs: any[] = (Array.isArray(instance?.inputs) ? instance.inputs : []).filter((i: any) => i && i.widget);
+  const sgInputs: any[] = Array.isArray(sg?.inputs) ? sg.inputs : [];
+  const links = new Map<number, { target: string }>();
+  for (const l of Array.isArray(sg?.links) ? sg.links : []) {
+    if (Array.isArray(l) && l.length >= 5) links.set(Number(l[0]), { target: String(l[3]) });
+    else if (l && typeof l === "object" && "target_id" in l) links.set(Number((l as any).id), { target: String((l as any).target_id) });
+  }
+  widgetInputs.forEach((wi, k) => {
+    const value = values[k];
+    if (typeof value !== "string" || !MODEL_FILE_RE.test(value)) return;
+    const sgInput = sgInputs.find((i) => i && i.name === wi.name && (!wi.label || !i.label || i.label === wi.label))
+      ?? (sgInputs.length === widgetInputs.length ? sgInputs[k] : undefined);
+    for (const id of Array.isArray(sgInput?.linkIds) ? sgInput.linkIds : []) {
+      const target = links.get(Number(id))?.target;
+      if (target) result.set(target, value);
+    }
+  });
+  return result;
 }
 
 /**
