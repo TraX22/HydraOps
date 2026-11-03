@@ -53,6 +53,8 @@
 .cmp-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  /* Every row as tall as the tallest: a card alone on the last row is not shorter than the rest */
+  grid-auto-rows: 1fr;
   gap: 14px;
 }
 .cmp-card {
