@@ -29,6 +29,10 @@ export interface CalendarEntry {
   occurrencesLeft: number | null;
   agentId: string | null;
   prompt: string | null;
+  /** An action that is one approved tool call (a post scheduled with x_post publish_at), run as-is when due. */
+  call?: { toolName: string; args: Record<string, unknown> } | null;
+  /** What that call answered the last time it ran (the post's link, or the failure). */
+  lastResult?: string | null;
   attachments: { name: string; path: string; mime: string; size: number }[];
   status: 'scheduled' | 'done' | 'missed' | 'cancelled';
   approvedAt: string | null;

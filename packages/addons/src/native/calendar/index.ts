@@ -35,8 +35,8 @@ const fail = (r: { status: number; data: any }) => `Calendar: ${r.data?.error ??
 
 function line(e: any): string {
   const who = e.owner === "user" ? "the user" : e.owner;
-  const what = e.kind === "action" ? `action for ${e.agentId ?? e.owner}` : "note";
-  const extra = [e.repeat && e.repeat !== "none" ? `repeats ${e.repeat}${e.repeatUntil ? ` until ${e.repeatUntil}` : ""}` : "", e.status !== "scheduled" ? e.status : "", e.attachments?.length ? `${e.attachments.length} attachment(s)` : "", Array.isArray(e.origins) && e.origins.length ? "written from outside content" : ""].filter(Boolean).join("; ");
+  const what = e.kind === "action" ? (e.call?.toolName === "x_post" ? `post on X as @${e.call.args?.account ?? "?"} by ${e.agentId ?? e.owner}, exactly as approved` : `action for ${e.agentId ?? e.owner}`) : "note";
+  const extra = [e.repeat && e.repeat !== "none" ? `repeats ${e.repeat}${e.repeatUntil ? ` until ${e.repeatUntil}` : ""}` : "", e.status !== "scheduled" ? e.status : "", e.lastResult ? `result: ${String(e.lastResult).slice(0, 200)}` : "", e.attachments?.length ? `${e.attachments.length} attachment(s)` : "", Array.isArray(e.origins) && e.origins.length ? "written from outside content" : ""].filter(Boolean).join("; ");
   return `- ${e.id} · ${e.date}${e.time ? ` ${e.time}` : " (all day)"} ${e.timezone} · ${e.title} (${who}; ${what}${extra ? `; ${extra}` : ""})${e.notes ? `\n    ${String(e.notes).slice(0, 300).replace(/\n/g, " ")}` : ""}`;
 }
 

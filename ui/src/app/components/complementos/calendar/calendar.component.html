@@ -179,8 +179,10 @@
         <dt>{{ 'calendar.detail.owner' | translate }}</dt><dd><i class="dot" [style.background]="colorOf(e.owner)"></i>{{ ownerName(e.owner) }}</dd>
         @if (e.kind === 'action') {
           <dt>{{ 'calendar.detail.agent' | translate }}</dt><dd>{{ ownerName(e.agentId) }}</dd>
-          <dt>{{ 'calendar.detail.approved' | translate }}</dt><dd>{{ e.approvedAt ? ('calendar.detail.approvedYes' | translate) : ('calendar.detail.approvedNo' | translate) }}<br><span class="hint">{{ 'calendar.detail.runsAlone' | translate }}</span></dd>
+          <dt>{{ 'calendar.detail.approved' | translate }}</dt><dd>{{ e.approvedAt ? ('calendar.detail.approvedYes' | translate) : ('calendar.detail.approvedNo' | translate) }}<br><span class="hint">{{ (e.call ? 'calendar.detail.postRunsAlone' : 'calendar.detail.runsAlone') | translate }}</span></dd>
         }
+        @if (e.call?.toolName === 'x_post') { <dt>{{ 'calendar.detail.post' | translate }}</dt><dd>&#64;{{ e.call?.args?.['account'] }}<br><span class="hint">{{ 'calendar.detail.postAsApproved' | translate }}</span></dd> }
+        @if (e.lastResult) { <dt>{{ 'calendar.detail.result' | translate }}</dt><dd>{{ e.lastResult }}</dd> }
         @if (e.repeat !== 'none') { <dt>{{ 'calendar.form.repeat' | translate }}</dt><dd>{{ ('calendar.repeat.' + e.repeat) | translate }}@if (e.repeatUntil) { · {{ 'calendar.form.until' | translate }} {{ e.repeatUntil }} }</dd> }
         @if (e.lastRunAt) { <dt>{{ 'calendar.detail.lastRun' | translate }}</dt><dd>{{ dateTime(e.lastRunAt, e.timezone) }}@if (e.lastTaskId) { · {{ 'calendar.detail.task' | translate }} <code>{{ e.lastTaskId.slice(0, 8) }}</code> }</dd> }
         @if (e.origins?.length) { <dt>{{ 'calendar.detail.origin' | translate }}</dt><dd class="warn">{{ 'calendar.detail.outside' | translate }}</dd> }

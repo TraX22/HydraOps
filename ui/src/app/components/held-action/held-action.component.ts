@@ -54,6 +54,7 @@ import { IconComponent } from '../icon/icon.component';
             </div>
           }
           <p class="post-cost">{{ 'chat.held.x.cost' | translate:{ usd: post.usd } }}@if (post.hasLink) { · {{ 'chat.held.x.linkNote' | translate }} }</p>
+          @if (post.scheduled) { <p class="post-when"><app-icon name="calendar" /> {{ 'chat.held.x.scheduled' | translate:{ when: post.scheduled } }}</p> }
         </div>
       } @else if (browserAct; as a) {
         <div class="browser-open">
@@ -165,6 +166,8 @@ import { IconComponent } from '../icon/icon.component';
     .post-images img { width: 96px; height: 96px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-color); }
     .post-images video { max-width: 100%; max-height: 240px; border-radius: 6px; border: 1px solid var(--border-color); background: #000; }
     .post-cost { margin: 0; color: var(--text-muted); font-size: 11.5px; }
+    .post-when { margin: 0; display: flex; align-items: center; gap: 6px; color: var(--text-primary); font-size: 12.5px; }
+    .post-when app-icon { font-size: 14px; color: var(--accent); }
   `],
 })
 export class HeldActionComponent implements OnInit {
@@ -196,7 +199,7 @@ export class HeldActionComponent implements OnInit {
   isVideo(name: string): boolean { return /\.mp4$/i.test(name); }
 
   /** The x_post arguments, read as a post: account, parts with their weighted length and images, cost. */
-  get post(): { account: string; parts: { text: string; chars: number; media: string[] }[]; usd: string; hasLink: boolean } | null {
+  get post(): { account: string; parts: { text: string; chars: number; media: string[] }[]; usd: string; hasLink: boolean; scheduled: string } | null {
     if (this.action.toolName !== 'x_post') return null;
     const args = (this.action.args ?? {}) as Record<string, unknown>;
     const raw = Array.isArray(args['parts']) ? args['parts'] as Record<string, unknown>[] : [];
@@ -215,7 +218,10 @@ export class HeldActionComponent implements OnInit {
         media: Array.isArray(p?.['media']) ? (p['media'] as unknown[]).map(String) : [],
       };
     });
-    return { account: String(args['account'] ?? '').replace(/^@/, ''), parts, usd: usd.toFixed(3), hasLink };
+    // publish_at: the post is scheduled, not published now (see the Calendar).
+    const at = typeof args['publish_at'] === 'string' ? (args['publish_at'] as string) : '';
+    const scheduled = at ? `${at}${typeof args['timezone'] === 'string' && args['timezone'] ? ` (${args['timezone']})` : ''}` : '';
+    return { account: String(args['account'] ?? '').replace(/^@/, ''), parts, usd: usd.toFixed(3), hasLink, scheduled };
   }
 
   /** A calendar_add / calendar_update / calendar_remove call, read as the entry it describes. */

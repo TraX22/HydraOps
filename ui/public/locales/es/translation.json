@@ -217,7 +217,8 @@
         "tooLong": "pasa el límite de esta cuenta: X lo va a rechazar",
         "images": "Adjuntos",
         "cost": "Unos {{usd}} USD, que X cobra de tu cuenta de desarrollador",
-        "linkNote": "una publicación con enlace cuesta más"
+        "linkNote": "una publicación con enlace cuesta más",
+        "scheduled": "Programada para {{when}}: aprobala ahora y se publica a esa hora, tal cual, sin volver a preguntar. Hasta entonces podés quitarla del Calendario."
       },
       "calendar": {
         "add": "Programar",
@@ -1262,6 +1263,10 @@
       "outside": "Escrita por un agente que había leído contenido de afuera: no entra a la agenda de los demás.",
       "attachments": "Adjuntos reservados",
       "kept": "copiado al aprobar",
+      "post": "Publicación en X",
+      "postAsApproved": "El texto y los archivos salen tal cual se aprobaron; no se le vuelve a pedir nada al agente.",
+      "postRunsAlone": "A la hora se publica sin volver a pedir permiso.",
+      "result": "Resultado",
       "remove": "Quitar",
       "removeSure": "¿Seguro? Quitar",
       "again": "Volver a programar"

@@ -217,7 +217,8 @@
         "tooLong": "dépasse la limite de ce compte : X le refusera",
         "images": "Pièces jointes",
         "cost": "Environ {{usd}} USD, facturés par X sur votre compte développeur",
-        "linkNote": "une publication avec un lien coûte plus cher"
+        "linkNote": "une publication avec un lien coûte plus cher",
+        "scheduled": "Programmée pour {{when}} : approuvez maintenant et elle sera publiée à cette heure, telle quelle, sans redemander. D'ici là vous pouvez la retirer du Calendrier."
       },
       "calendar": {
         "add": "Programmer",
@@ -1262,6 +1263,10 @@
       "outside": "Écrite par un agent qui avait lu du contenu extérieur : elle n'entre pas dans l'agenda des autres.",
       "attachments": "Pièces jointes réservées",
       "kept": "copiée à l'accord",
+      "post": "Publication sur X",
+      "postAsApproved": "Le texte et les fichiers partent exactement comme approuvés ; rien n'est redemandé à l'agent.",
+      "postRunsAlone": "À l'heure dite la publication part sans redemander.",
+      "result": "Résultat",
       "remove": "Retirer",
       "removeSure": "Sûr ? Retirer",
       "again": "Reprogrammer"
