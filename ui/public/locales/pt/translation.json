@@ -970,7 +970,8 @@
         "approve": "cada chamada espera a sua aprovação, tenha a tarefa lido o que for e em qualquer modo de segurança (código executado dentro do aplicativo)"
       },
       "envHint": "Suas variáveis de ambiente, com os valores que traz. Altere-as em Complementos → Servidores MCP depois de instalar; a atualização mantém os seus valores.",
-      "envEmpty": "(vazia: preencha se precisar)"
+      "envEmpty": "(vazia: preencha se precisar)",
+      "cwdHint": "Inicia dentro desta pasta (um nome entre chaves duplas é uma das variáveis acima; vazia, o programa inicia onde o HydraOps roda)."
     }
   },
   "addons": {

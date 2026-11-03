@@ -68,6 +68,8 @@ Con un modelo local, pon `LOCAL_LLM_VISION=1` en el `.env` si tu servidor tiene 
 
 Un servidor local que maneja una aplicación tuya (por `command`) también se configura acá. HydraOps no sabe qué hace cada herramienta de un servidor que no conoce, así que la trata como el peor caso: que **lee contenido de terceros y actúa**. Con eso, apenas el agente usa dos herramientas de ese servidor en una tarea, la segunda queda retenida para tu aprobación (ver [Seguridad](./13-security.md)), aunque solo esté leyendo. `toolRisk` le dice qué hace cada una:
 
+`cwd` nombra la carpeta donde arranca el programa, para servidores que trabajan sobre una instalación o un proyecto que encuentran alrededor (las herramientas de ComfyUI buscan el ComfyUI dentro del cual se las arranca): sin ella el programa arranca donde corre HydraOps. Como los argumentos, puede llevar una `{{VAR}}` que se completa desde el `env` de la entrada; una carpeta que no existe aparece como error de conexión con su ruta.
+
 ```json
 {
   "mcpServers": {

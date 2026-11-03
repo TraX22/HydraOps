@@ -172,6 +172,10 @@
             <div class="req-row"><code>{{ v.key }}</code><small> = {{ v.value || ('herramientas.connections.envEmpty' | translate) }}</small></div>
           }
         }
+        @if (p.data?.preset.server?.cwd; as cwd) {
+          <div class="req-row"><small>{{ 'herramientas.connections.cwdHint' | translate }}</small></div>
+          <div class="req-row"><code>{{ cwd }}</code></div>
+        }
       </div>
 
       <div class="box">

@@ -7,7 +7,8 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { HydraTool } from "./types.js";
 import { classifyMcpTool } from "./provenance.js";
 import path from "node:path";
-import { MIN_TOOL_TIMEOUT_SECONDS, MAX_TOOL_TIMEOUT_SECONDS, expandServerArgs } from "./presets.js";
+import { stat } from "node:fs/promises";
+import { MIN_TOOL_TIMEOUT_SECONDS, MAX_TOOL_TIMEOUT_SECONDS, expandServerArgs, expandServerCwd } from "./presets.js";
 
 // --- Server state types ---
 export type McpServerState = 'connecting' | 'connected' | 'failed' | 'timeout' | 'disconnected';
@@ -220,7 +221,8 @@ export function mcpServerDirs(configStr: string, serverName: string): string[] {
   const entry = mcpServerEntry(configStr, serverName);
   if (!entry) return [];
   const env = mcpServerEnv(configStr, serverName);
-  const values = [...expandServerArgs(entry.args, env), ...Object.values(env)].map((v) => v.trim());
+  const cwd = expandServerCwd(entry.cwd, env);
+  const values = [...expandServerArgs(entry.args, env), ...Object.values(env), ...(cwd ? [cwd] : [])].map((v) => v.trim());
   return [...new Set(values.filter((v) => v && path.isAbsolute(v)))];
 }
 
@@ -438,12 +440,17 @@ export class McpClientManager {
         await withTimeout((async () => {
           let client: Client;
           if (config.command) {
-            console.log(`[MCP] Connecting to ${serverName} via STDIO (${config.command})...`);
+            // The entry may name the folder the program starts in (a ComfyUI install, a project),
+            // with {{VAR}} placeholders like the arguments; a folder that is not there is said so.
+            const cwd = expandServerCwd(config.cwd, config.env || {});
+            if (cwd && !(await stat(cwd).then((s) => s.isDirectory()).catch(() => false))) throw new Error(`working folder not found: ${cwd}`);
+            console.log(`[MCP] Connecting to ${serverName} via STDIO (${config.command}${cwd ? `, in ${cwd}` : ""})...`);
             transport = new StdioClientTransport({
               command: config.command,
               // A catalog entry's arguments may carry {{VAR}} placeholders filled in from its env.
               args: expandServerArgs(config.args || [], config.env || {}),
-              env: { ...process.env, ...(config.env || {}) }
+              env: { ...process.env, ...(config.env || {}) },
+              ...(cwd ? { cwd } : {}),
             });
             client = new Client({ name: "hydraops", version: "1.0.0" }, { capabilities: {} });
             await client.connect(transport);

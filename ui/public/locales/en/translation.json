@@ -970,7 +970,8 @@
         "approve": "every call waits for your approval, whatever the task read and whatever the security mode (code run inside the application)"
       },
       "envHint": "Its environment variables, with the values it ships. Change them in Add-ons → MCP servers after installing; updating keeps your values.",
-      "envEmpty": "(empty: fill it in if you need it)"
+      "envEmpty": "(empty: fill it in if you need it)",
+      "cwdHint": "Starts inside this folder (a name between double braces is one of the variables above; left empty, the program starts where HydraOps runs)."
     }
   },
   "addons": {
