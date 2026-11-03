@@ -795,6 +795,14 @@ ${EXTERNAL_CONTENT_RULE}
       .where(and(eq(tasks.id, taskId), ne(tasks.status, "cancelled")));
 
     console.log(`[${consumerName}] Task ${taskId} ${neverAnswered ? "failed (the model never answered)" : "completed"}.`);
+    // The user may have decided the held calls while the task was still running: that path
+    // found the task incomplete and created no continuation, so it is tried again now.
+    if (!neverAnswered) {
+      try {
+        const next = await createContinuationTask(db, { taskId, producer: consumerName });
+        if (next) console.log(`[${consumerName}] Continuation task ${next} created for ${taskId} (its calls were decided while it ran).`);
+      } catch (e: any) { console.warn(`[${consumerName}] could not create the continuation task: ${e?.message ?? e}`); }
+    }
     if (neverAnswered) {
       // The same event a crash publishes, so a cron's subscribers (the Telegram bot) hear of it.
       try {
