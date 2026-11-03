@@ -59,9 +59,20 @@ export class ChatService {
     return this.messagesByChannel()[this.activeTab()] ?? [];
   }
 
-  addSystemMessage(channel: string, content: string, kind: NonNullable<ChatMessage['kind']>, card?: PowerCard): void {
+  /** A local note in the thread (a command line, its outcome); returns the note's id. */
+  addSystemMessage(channel: string, content: string, kind: NonNullable<ChatMessage['kind']>, card?: PowerCard): string {
     const note: ChatMessage = { id: `sys-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, role: 'system', kind, content, timestamp: new Date().toISOString(), ...(card ? { card } : {}) };
     this.systemByChannel.update(m => ({ ...m, [channel]: [...(m[channel] ?? []), note] }));
+    return note.id;
+  }
+
+  /**
+   * The notes a command left (its line, "Planning…") belong to the task it started: when the
+   * user deletes that task's message, they leave the chat with it instead of lingering.
+   */
+  linkNotesToTask(channel: string, noteIds: string[], taskId: string): void {
+    const ids = new Set(noteIds);
+    this.systemByChannel.update(m => ({ ...m, [channel]: (m[channel] ?? []).map(n => ids.has(n.id) ? { ...n, taskId } : n) }));
   }
 
   /**
@@ -194,7 +205,10 @@ export class ChatService {
   }
 
   deleteMessage(taskId: string, channel: string): void {
-    this.api.deleteTask(taskId).subscribe(() => this.fetchHistory(channel));
+    this.api.deleteTask(taskId).subscribe(() => {
+      this.systemByChannel.update(m => ({ ...m, [channel]: (m[channel] ?? []).filter(n => n.taskId !== taskId) }));
+      this.fetchHistory(channel);
+    });
   }
 
   // An edited message goes out again: the old exchange leaves the chat and the agent

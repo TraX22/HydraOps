@@ -45,19 +45,22 @@ export class CommandService {
 
   run(line: string, opts: { echo?: boolean } = {}): void {
     const channel = this.chat.activeTab();
-    if (opts.echo !== false) this.chat.addSystemMessage(channel, line, 'echo');
+    const echoId = opts.echo !== false ? this.chat.addSystemMessage(channel, line, 'echo') : null;
     this.running.set(true);
     this.api.runCommand(line, channel).subscribe({
       next: r => {
         this.running.set(false);
+        let noteId: string | null = null;
         if (r.card?.kind === 'power') {
           // A decision settles the card that asked for it; a new question (or an outcome with no card
           // left to settle, after a reload) gets its own card.
           const settled = r.card.state !== 'pending' && this.chat.settlePowerCard(channel, r.card, r.text);
-          if (!settled) this.chat.addSystemMessage(channel, r.text, r.kind ?? 'info', r.card);
+          if (!settled) noteId = this.chat.addSystemMessage(channel, r.text, r.kind ?? 'info', r.card);
         } else if (r.text) {
-          this.chat.addSystemMessage(channel, r.text, r.kind ?? 'info');
+          noteId = this.chat.addSystemMessage(channel, r.text, r.kind ?? 'info');
         }
+        // A command that started a task (/plan): its notes go when that task's message is deleted.
+        if (r.action?.type === 'await_task') this.chat.linkNotesToTask(channel, [echoId, noteId].filter((id): id is string => !!id), r.action.taskId);
         this.apply(r);
       },
       error: err => {
