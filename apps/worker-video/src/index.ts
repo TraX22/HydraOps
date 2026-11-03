@@ -630,7 +630,8 @@ ${EXTERNAL_CONTENT_RULE}
     let renderAttempts = 0;
     const render = async (prompt: string): Promise<string> => {
       // The page the agent read may have shaped this request: hold it for the user.
-      if (taskSecurity.shouldHold("generate_video", { sensitive: true })) { progress.sink("held", "generate_video", { prompt }); return taskSecurity.hold("generate_video", { prompt }); }
+      const holdReason = taskSecurity.shouldHold("generate_video", { sensitive: true });
+      if (holdReason) { progress.sink("held", "generate_video", { prompt }); return taskSecurity.hold("generate_video", { prompt }, holdReason); }
       if (++renderAttempts > 1) {
         // Counted before any await, so parallel calls from the model cannot all be paid.
         return rendered.error
