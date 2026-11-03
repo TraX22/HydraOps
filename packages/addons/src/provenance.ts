@@ -171,21 +171,27 @@ export interface TaskSecurity {
   beforeCall(toolName: string, risk: ToolRisk, args: unknown): void;
   /** Call with a tool's result; marks the task and returns what the model should see. */
   afterCall<T>(toolName: string, risk: ToolRisk, args: unknown, result: T): T | string;
-  /** True when this call must not run now: tainted task, sensitive tool, ask mode. */
-  shouldHold(toolName: string, risk: ToolRisk): boolean;
+  /** Why this call must not run now, or null when it may: 'always' for a tool that waits
+   *  for approval on every call, 'outside' for a sensitive tool on a task that read outside
+   *  content (ask mode). */
+  shouldHold(toolName: string, risk: ToolRisk): HoldReason | null;
   /** Third-party text that reached the task by another road than a tool result (a recalled
    *  conversation that had read some): marks the task and returns the text wrapped as data. */
   external(toolName: string, ref: string | undefined, content: string): string;
   /** Where the outside content came from so far (empty while the task is clean). */
   origins(): TaintOrigin[];
-  /** Stores the call for approval and returns the text the model gets instead of a result. */
-  hold(toolName: string, args: unknown): Promise<string>;
+  /** Stores the call for approval and returns the text the model gets instead of a result.
+   *  The reason decides what the user is told: a call held because the tool always asks is
+   *  stored without origins, even on a task that had read outside content. */
+  hold(toolName: string, args: unknown, reason?: HoldReason): Promise<string>;
   events(): SecurityEvent[];
   /** For resultMeta: undefined while the task never touched external content. */
   /** sensitiveCallsBeforeTaint: made before any outside content arrived (also when issued in
    *  parallel with the read), so that content cannot have shaped them. */
   summary(): { tainted: true; origins: TaintOrigin[]; sensitiveCalls: number; sensitiveCallsBeforeTaint: number; held: number } | undefined;
 }
+
+export type HoldReason = 'always' | 'outside';
 
 const MAX_ORIGINS = 12;
 const MAX_EVENTS = 40;
@@ -264,22 +270,25 @@ export function createTaskSecurity(options: TaskSecurityOptions = {}): TaskSecur
       record({ type: 'sensitive_after_taint', toolName, detail: describeArgs(args) });
     },
     shouldHold(toolName, risk) {
-      if (risk.approval === 'always') return true;
-      if (!tainted || risk.sensitive !== true || mode === 'off') return false;
-      if (alwaysHold.has(toolName)) return true;
-      return mode === 'ask' && !neverHold.has(toolName);
+      if (risk.approval === 'always') return 'always';
+      if (!tainted || risk.sensitive !== true || mode === 'off') return null;
+      if (alwaysHold.has(toolName)) return 'outside';
+      return mode === 'ask' && !neverHold.has(toolName) ? 'outside' : null;
     },
     external(toolName, ref, content) {
       return this.afterCall(toolName, { readsExternal: true }, ref ? { query: ref } : {}, content) as string;
     },
     origins: () => [...origins],
-    async hold(toolName, args) {
+    async hold(toolName, args, reason = 'outside') {
       held++;
+      // The outside content is not why a tool that always asks was held: blaming it (to the
+      // agent, on the card, in Telegram) would be wrong, so such a call carries no origins.
+      const because = reason === 'always' ? [] : [...origins];
       let actionId: string | null = null;
-      try { actionId = (await options.onHold?.({ toolName, args, origins: [...origins] })) ?? null; }
+      try { actionId = (await options.onHold?.({ toolName, args, origins: because })) ?? null; }
       catch { actionId = null; }
-      record({ type: 'held', toolName, detail: (actionId ? `${actionId} ` : '') + describeArgs(args) });
-      return heldMessage(toolName, actionId, origins);
+      record({ type: 'held', toolName, detail: (actionId ? `${actionId} ` : '') + (reason === 'always' ? 'always asks; ' : '') + describeArgs(args) });
+      return heldMessage(toolName, actionId, because);
     },
     afterCall(toolName, risk, args, result) {
       if (mode === 'off' || !risk.readsExternal || isEmptyOrBlocked(result)) return result;

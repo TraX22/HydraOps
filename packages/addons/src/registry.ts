@@ -35,11 +35,12 @@ function instrumentTool(t: HydraTool, source: string, sink?: ToolUsageSink, sour
     ...t,
     execute: async (args: any) => {
       const risk = resolveToolRisk(t, source, args);
-      // A sensitive call on a task that read outside content is not run: it is stored
-      // for the user's approval and the model gets an explanation instead.
-      if (security?.shouldHold(t.name, risk)) {
+      // A sensitive call on a task that read outside content (or a tool that always asks)
+      // is not run: it is stored for the user's approval and the model gets an explanation.
+      const holdReason = security?.shouldHold(t.name, risk);
+      if (security && holdReason) {
         try { progress?.('held', t.name, args); } catch { /* progress never breaks a call */ }
-        const message = await security.hold(t.name, args);
+        const message = await security.hold(t.name, args, holdReason);
         try { sink?.(t.name, source, 'held'); } catch { /* tracking never breaks a call */ }
         return message;
       }
