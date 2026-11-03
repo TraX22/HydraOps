@@ -282,8 +282,11 @@ export const CONTINUATION_LIMIT = "continuation_limit";
  * row's prompt is the short line the chat shows. Idempotent: one continuation per task,
  * chains stop after CONTINUATION_MAX_DEPTH (the chat then gets a completed notice with the
  * outcome of the decided calls, never silence), and a task still waiting on a decision, or
- * that did not complete, gets none. Returns the new task id, or null when nothing was
- * created.
+ * that did not complete, gets none. Called from two places: when a decided call finishes
+ * (the task is usually complete by then) and when a task completes (the user may have
+ * decided its calls while it was still running; that first call found it incomplete and
+ * created nothing). The two can race, so the duplicate check is repeated inside the
+ * transaction. Returns the new task id, or null when nothing was created.
  */
 export async function createContinuationTask(db: any, opts: { taskId: string; producer: string; prompt?: string }): Promise<string | null> {
   const [original] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, opts.taskId)).limit(1);
@@ -318,7 +321,11 @@ export async function createContinuationTask(db: any, opts: { taskId: string; pr
     subject: { entity: "task", id: taskId },
     data: { taskId, prompt, userId: "system-admin", channel: original.channel, priority: "normal", date: occurredAt.toISOString(), continuationOf: opts.taskId },
   };
+  let created = false;
   await db.transaction((tx: any) => {
+    // Checked again here: the approval path and the completion path may both get this far.
+    const dup = tx.select({ id: schema.tasks.id }).from(schema.tasks).where(eq(schema.tasks.continuationOf, opts.taskId)).limit(1).all();
+    if (dup.length) return;
     tx.insert(schema.tasks).values({
       id: taskId, prompt, channel: original.channel, status: "pending", isRead: original.isRead ?? true,
       ...(origins.length ? { inheritedTaint: origins } : {}),
@@ -329,8 +336,9 @@ export async function createContinuationTask(db: any, opts: { taskId: string; pr
       subjectEntity: envelope.subject.entity, subjectId: envelope.subject.id, payload: envelope,
     }).run();
     tx.insert(schema.outbox).values({ eventId, status: "pending", nextAttemptAt: occurredAt }).run();
+    created = true;
   });
-  return taskId;
+  return created ? taskId : null;
 }
 
 /** Pending actions past their deadline become 'expired'; returns how many. */
