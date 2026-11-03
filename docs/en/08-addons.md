@@ -68,6 +68,8 @@ With a local model, set `LOCAL_LLM_VISION=1` in the `.env` if your server has th
 
 A local server that drives an application of yours (through `command`) is configured here too. HydraOps cannot know what each tool of an unknown server does, so it treats it as the worst case: it **reads third-party content and acts**. With that, as soon as the agent uses two tools of that server in one task, the second is held for your approval (see [Security](./13-security.md)), even if it is only reading. `toolRisk` says what each one does:
 
+`cwd` names the folder the program starts in, for servers that work on an installation or a project they find around them (ComfyUI's own tools look for the ComfyUI they are started inside): without it the program starts where HydraOps runs. Like the arguments, it may carry a `{{VAR}}` filled in from the entry's `env`; a folder that does not exist shows as a connection error with its path.
+
 ```json
 {
   "mcpServers": {

@@ -27,7 +27,7 @@ export interface ConnectionPreset {
   version: string;
   author: string;
   homepage?: string;
-  server: { command?: string; args?: string[]; env?: Record<string, string>; url?: string; toolTimeoutSeconds?: number };
+  server: { command?: string; args?: string[]; cwd?: string; env?: Record<string, string>; url?: string; toolTimeoutSeconds?: number };
   requires: { launcher: PresetLauncher; notes: string[]; setup: { run?: string; then?: string }[] };
   toolRisk: Record<string, McpToolClass>;
   /** The line an agent's tools.md needs to get every tool of this connection. */
@@ -90,6 +90,13 @@ export function parsePreset(raw: unknown): { preset: ConnectionPreset } | { erro
   } else {
     return { error: 'server needs a command or a url' };
   }
+  // The folder the program starts in (a ComfyUI install, a project), usually a {{VAR}} the
+  // user fills in after installing; only a local server has one.
+  if (srv.cwd !== undefined) {
+    if (!server.command) return { error: 'server.cwd needs a command' };
+    if (typeof srv.cwd !== 'string' || !srv.cwd.trim() || !SAFE_ARG_RE.test(srv.cwd)) return { error: 'server.cwd is not valid' };
+    server.cwd = srv.cwd.trim();
+  }
   if (srv.env !== undefined) {
     if (!srv.env || typeof srv.env !== 'object' || Array.isArray(srv.env)) return { error: 'server.env must be a map' };
     const env: Record<string, string> = {};
@@ -100,11 +107,11 @@ export function parsePreset(raw: unknown): { preset: ConnectionPreset } | { erro
     }
     if (Object.keys(env).length) server.env = env;
   }
-  // Every placeholder an argument carries must name a variable the preset declares, so the
-  // user sees in the env what the command line needs.
-  for (const arg of server.args ?? []) {
+  // Every placeholder an argument (or the working folder) carries must name a variable the
+  // preset declares, so the user sees in the env what the command line needs.
+  for (const arg of [...(server.args ?? []), ...(server.cwd ? [server.cwd] : [])]) {
     for (const m of arg.matchAll(PLACEHOLDER_RE)) {
-      if (!(server.env && m[1] in server.env)) return { error: `server.args uses {{${m[1]}}}, which server.env does not define` };
+      if (!(server.env && m[1] in server.env)) return { error: `server.args or server.cwd uses {{${m[1]}}}, which server.env does not define` };
     }
   }
 
@@ -179,11 +186,30 @@ export function expandServerArgs(args: unknown, env: unknown): string[] {
   return out;
 }
 
+/**
+ * The folder a local server starts in, its placeholders filled in from the env (a ComfyUI
+ * install, a project). Null when the entry names none or a placeholder is still blank: the
+ * server then starts where HydraOps runs, as it always did.
+ */
+export function expandServerCwd(cwd: unknown, env: unknown): string | null {
+  if (typeof cwd !== 'string' || !cwd.trim()) return null;
+  const vars = env && typeof env === 'object' && !Array.isArray(env) ? (env as Record<string, unknown>) : {};
+  let blank = false;
+  const value = cwd.replace(PLACEHOLDER_RE, (_m, name: string) => {
+    const v = vars[name];
+    if (typeof v === 'string' && v.trim()) return v.trim();
+    blank = true;
+    return '';
+  }).trim();
+  return blank || !value ? null : value;
+}
+
 /** What identifies an installed entry as "untouched since it was installed" (env and the switch are the user's). */
 export function presetEntryHash(entry: any): string {
   const risk = entry?.toolRisk && typeof entry.toolRisk === 'object' ? entry.toolRisk : {};
   const sorted = Object.keys(risk).sort().map((k) => [k, risk[k]]);
-  return createHash('sha256').update(JSON.stringify([entry?.command ?? null, entry?.args ?? null, entry?.url ?? null, sorted])).digest('hex');
+  // The working folder joins the hash only when there is one, so entries installed before it existed keep their hash.
+  return createHash('sha256').update(JSON.stringify([entry?.command ?? null, entry?.args ?? null, entry?.url ?? null, sorted, ...(entry?.cwd ? [entry.cwd] : [])])).digest('hex');
 }
 
 /**
@@ -196,7 +222,7 @@ export function presetServerEntry(preset: ConnectionPreset, previous?: any): Rec
   const prevEnv = previous?.env && typeof previous.env === 'object' ? previous.env : {};
   for (const k of Object.keys(env)) if (typeof prevEnv[k] === 'string' && prevEnv[k]) env[k] = prevEnv[k];
   const entry: Record<string, unknown> = {
-    ...(preset.server.command ? { command: preset.server.command, args: [...(preset.server.args ?? [])] } : { url: preset.server.url }),
+    ...(preset.server.command ? { command: preset.server.command, args: [...(preset.server.args ?? [])], ...(preset.server.cwd ? { cwd: preset.server.cwd } : {}) } : { url: preset.server.url }),
     ...(Object.keys(env).length ? { env } : {}),
     switch: previous?.switch === 'off' ? 'off' : 'on',
     toolRisk: { ...preset.toolRisk },

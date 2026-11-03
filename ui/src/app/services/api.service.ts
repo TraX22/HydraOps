@@ -283,7 +283,7 @@ export interface Worker {
 }
 
 export interface McpConfig {
-  mcpServers: Record<string, { switch: 'on' | 'off'; command?: string; args?: string[] }>;
+  mcpServers: Record<string, { switch: 'on' | 'off'; command?: string; args?: string[]; cwd?: string }>;
 }
 
 export interface ToolKeyRequirement {
@@ -495,7 +495,7 @@ export interface ConnectionPreview {
   preset: {
     name: string; title: string; description: string; version: string; author: string; homepage?: string;
     requires: { launcher: string; notes: string[]; setup: { run?: string; then?: string }[] };
-    server: { command?: string; args?: string[]; env?: Record<string, string>; url?: string; toolTimeoutSeconds?: number };
+    server: { command?: string; args?: string[]; cwd?: string; env?: Record<string, string>; url?: string; toolTimeoutSeconds?: number };
     toolRisk: Record<string, McpToolClass>;
     toolsMd: string;
     tips: string[];
