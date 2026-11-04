@@ -217,7 +217,8 @@
         "tooLong": "over this account's limit: X will refuse it",
         "images": "Attachments",
         "cost": "About {{usd}} USD, charged by X to your developer account",
-        "linkNote": "a post with a link costs more"
+        "linkNote": "a post with a link costs more",
+        "scheduled": "Scheduled for {{when}}: approve now and it is published then, exactly like this, without asking again. Until then you can remove it from the Calendar."
       },
       "calendar": {
         "add": "Schedule",
@@ -1262,6 +1263,10 @@
       "outside": "Written by an agent that had read outside content: it stays out of the other agents' agenda.",
       "attachments": "Reserved attachments",
       "kept": "copied on approval",
+      "post": "Post on X",
+      "postAsApproved": "The text and the files go out exactly as approved; the agent is not asked again.",
+      "postRunsAlone": "At its time the post is published without asking again.",
+      "result": "Outcome",
       "remove": "Remove",
       "removeSure": "Sure? Remove",
       "again": "Schedule again"

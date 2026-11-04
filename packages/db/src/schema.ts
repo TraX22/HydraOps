@@ -161,6 +161,12 @@ export const calendarEntries = sqliteTable(
     occurrencesLeft: integer("occurrences_left"),
     agentId: text("agent_id"), // action: who runs it
     prompt: text("prompt"), // action: the task's text
+    // action: instead of a prompt, one tool call approved as-is when the entry was made
+    // ({ toolName, args }, e.g. an x_post); when due it is run through the approved-call
+    // road without the model, so what the user saw is what goes out.
+    call: text("call", { mode: "json" }),
+    // What that call answered the last time it ran (the post's link, or the failure).
+    lastResult: text("last_result"),
     attachments: text("attachments", { mode: "json" }), // [{ name, path, mime, size }]
     status: text("status").notNull().default("scheduled"), // scheduled | done | missed | cancelled
     approvedAt: integer("approved_at", { mode: "timestamp" }),

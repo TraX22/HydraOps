@@ -217,7 +217,8 @@
         "tooLong": "supera il limite di questo account: X lo rifiuterà",
         "images": "Allegati",
         "cost": "Circa {{usd}} USD, addebitati da X sul tuo account sviluppatore",
-        "linkNote": "un post con un link costa di più"
+        "linkNote": "un post con un link costa di più",
+        "scheduled": "Programmato per {{when}}: approva ora e verrà pubblicato a quell'ora, così com'è, senza chiedere di nuovo. Fino ad allora puoi toglierlo dal Calendario."
       },
       "calendar": {
         "add": "Programmare",
@@ -1262,6 +1263,10 @@
       "outside": "Scritta da un agente che aveva letto contenuti esterni: non entra nell'agenda degli altri.",
       "attachments": "Allegati riservati",
       "kept": "copiato all'approvazione",
+      "post": "Post su X",
+      "postAsApproved": "Il testo e i file partono esattamente come approvati; all'agente non viene chiesto altro.",
+      "postRunsAlone": "All'ora stabilita il post parte senza chiedere di nuovo.",
+      "result": "Esito",
       "remove": "Rimuovi",
       "removeSure": "Sicuro? Rimuovi",
       "again": "Programma di nuovo"

@@ -2702,6 +2702,113 @@ async function calendarFields(body: any, current?: any): Promise<Record<string, 
   return out;
 }
 
+// ── A scheduled call ───────────────────────────────────────────────────────────────────
+// An action may carry one tool call instead of a prompt: the call the agent made with a
+// later time (x_post with publish_at), which the user approved as-is. When due, the call is
+// stored as an already-approved held action and the worker runs it through the same road
+// as any approval, with no model in between: what the user saw is what goes out. Only
+// x_post today; the list is the gate.
+const CALENDAR_CALL_TOOLS = new Set(["x_post"]);
+const CALENDAR_CALL_WATCH_MS = 25 * 60_000;
+const X_MEDIA_NAME_RE = /^[\w.\-() ]{1,200}$/;
+
+/** The call of a new entry, checked field by field; a string is the problem. */
+function calendarCallFields(raw: any): { toolName: string; args: Record<string, any> } | string {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return "call must be { toolName, args }";
+  const toolName = String(raw.toolName ?? "");
+  if (!CALENDAR_CALL_TOOLS.has(toolName)) return `a calendar entry cannot carry a ${toolName || "nameless"} call`;
+  const a = raw.args;
+  if (!a || typeof a !== "object" || Array.isArray(a)) return "call.args must be an object";
+  // x_post: the account and the parts exactly as the tool takes them; the media are file
+  // names of the uploads folder (the copies the entry keeps restore them when due).
+  const account = String(a.account ?? "").trim().replace(/^@/, "");
+  if (!/^[A-Za-z0-9_]{1,15}$/.test(account)) return "call.args.account is not an X handle";
+  const list = Array.isArray(a.parts) ? a.parts : [];
+  if (!list.length || list.length > 25) return "call.args.parts must hold 1 to 25 parts";
+  const parts: { text: string; media?: string[] }[] = [];
+  for (const [i, p] of list.entries()) {
+    const text = String(p?.text ?? "");
+    if (!text.trim() || text.length > 25_000) return `part ${i + 1} has no text, or too much`;
+    // A file name of the uploads folder, as the chat shows it (with or without its
+    // storage/uploads/ prefix); nothing path-like.
+    const media = Array.isArray(p?.media) ? p.media.map((m: unknown) => String(m ?? "").replace(/\\/g, "/").trim().replace(/^storage\/uploads\//, "")) : [];
+    if (media.length > 4 || media.some((m: string) => !X_MEDIA_NAME_RE.test(m) || m.includes("..") || !xMediaKind(m))) return `part ${i + 1}: up to 4 attachments, each a png, jpg, gif, webp or mp4 of the chat, by file name`;
+    parts.push(media.length ? { text, media } : { text });
+  }
+  return { toolName, args: { account, parts } };
+}
+
+/** The entry's call, as stored, or null when it carries none. */
+function calendarCallOf(e: any): { toolName: string; args: Record<string, any> } | null {
+  const c = typeof e?.call === "string" ? (() => { try { return JSON.parse(e.call); } catch { return null; } })() : e?.call;
+  return c && typeof c === "object" && typeof c.toolName === "string" && c.args && typeof c.args === "object" ? c : null;
+}
+
+/**
+ * Runs a due entry's call: the copies the entry keeps go back to the uploads folder when
+ * the originals are gone, then an already-approved held action is stored and announced to
+ * the workers like any approval. It hangs from the task that scheduled it, so the card
+ * with the outcome shows under that reply in the chat (and no second continuation is
+ * made: that task already had one). Returns the action's id.
+ */
+async function startCalendarCall(e: any, call: { toolName: string; args: Record<string, any> }): Promise<string> {
+  const agentId = String(e.agentId);
+  const atts: any[] = Array.isArray(e.attachments) ? e.attachments : [];
+  for (const a of atts) {
+    const name = path.basename(String(a?.name ?? ""));
+    if (!name || !X_MEDIA_NAME_RE.test(name)) continue;
+    const kept = path.resolve(calendarDir, e.id, name);
+    if (!kept.startsWith(path.resolve(calendarDir) + path.sep)) continue;
+    const target = path.join(uploadsDir, name);
+    if (!(await stat(target).catch(() => null))?.isFile() && (await stat(kept).catch(() => null))?.isFile()) {
+      await mkdir(uploadsDir, { recursive: true });
+      await copyFile(kept, target);
+    }
+  }
+  const [cfg] = await (db as any).select().from(agentConfigs).where(eq(agentConfigs.agentId, agentId)).limit(1);
+  const workerType = cfg?.workerType || "general";
+  const id = randomUUID();
+  const taskId = typeof e.createdByTask === "string" && e.createdByTask ? String(e.createdByTask) : randomUUID();
+  const now = new Date();
+  const eventId = randomUUID();
+  const ev = buildEnvelope({
+    id: eventId, type: "action.approved", version: 1, occurredAt: now.toISOString(), producer: env.SERVICE_NAME,
+    subject: { entity: "task", id: taskId },
+    data: { actionId: id, taskId, agentId, workerType, toolName: call.toolName },
+  });
+  await (db as any).transaction((tx: any) => {
+    tx.insert(pendingActions).values({
+      id, taskId, agentId, channel: agentId, toolName: call.toolName, args: call.args,
+      origins: Array.isArray(e.origins) ? e.origins : [], status: "approved",
+      createdAt: now, decidedAt: now, expiresAt: new Date(now.getTime() + CALENDAR_CALL_WATCH_MS),
+    }).run();
+    tx.insert(eventsTable).values({
+      id: eventId, type: ev.type, version: ev.version, occurredAt: now,
+      producer: ev.producer, subjectEntity: ev.subject.entity, subjectId: ev.subject.id, payload: ev,
+    }).run();
+    tx.insert(outboxTable).values({ eventId, status: "pending", nextAttemptAt: now }).run();
+  });
+  return id;
+}
+
+/** Waits for the worker's outcome of a scheduled call and writes it on the entry; the user hears on Telegram. */
+async function watchCalendarCall(entryId: string, title: string, actionId: string): Promise<void> {
+  const deadline = Date.now() + CALENDAR_CALL_WATCH_MS;
+  let outcome: { status: string; result: string } | null = null;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 3_000));
+    const [row] = await (db as any).select().from(pendingActions).where(eq(pendingActions.id, actionId)).limit(1);
+    if (!row) break;
+    if (row.status === "executed" || row.status === "failed") { outcome = { status: row.status, result: String(row.result ?? "") }; break; }
+  }
+  const es = userLocale().startsWith("es");
+  const text = outcome ? outcome.result.split("\n")[0].slice(0, 500) : (es ? "sin respuesta del worker (¿apagado?)" : "no answer from the worker (off?)");
+  try { await (db as any).update(calendarEntries).set({ lastResult: `${outcome?.status === "executed" ? "" : es ? "Falló: " : "Failed: "}${text}`, updatedAt: new Date() }).where(eq(calendarEntries.id, entryId)).run(); }
+  catch (err: any) { console.error(`[api] calendar: could not write the outcome of ${entryId}`, err?.message ?? err); }
+  console.log(`[api] calendar: "${title}" (${entryId.slice(0, 8)}) call ${outcome?.status ?? "unanswered"}: ${text}`);
+  pushTelegram(`📅 ${title}\n${outcome?.status === "executed" ? text : es ? `No se publicó: ${text}` : `Not published: ${text}`}`).catch(() => {});
+}
+
 api.get("/calendar/timezones", async (_req, res) => {
   res.json({ timezones: listTimeZones(), system: systemTimeZone() });
 });
@@ -2754,21 +2861,39 @@ api.post("/calendar", async (req, res) => {
     }
     const fields = await calendarFields({ repeat: "none", ...b, agentId: b.kind === "action" ? (b.agentId ?? (by !== "user" ? by : undefined)) : undefined });
     if (typeof fields === "string") return res.status(400).json({ error: fields });
+    let call: { toolName: string; args: Record<string, any> } | null = null;
+    let callOrigins: unknown[] | null = null;
     if (b.kind === "action") {
       if (!fields.agentId) return res.status(400).json({ error: "an action needs agentId: who runs it" });
-      if (!fields.prompt) return res.status(400).json({ error: "an action needs prompt: what the agent does when the time comes" });
+      if (b.call !== undefined && b.call !== null) {
+        if (by === "user") return res.status(400).json({ error: "a call is scheduled by an agent's tool, not from here" });
+        if (!fields.time) return res.status(400).json({ error: "a scheduled call needs a time" });
+        const c = calendarCallFields(b.call);
+        if (typeof c === "string") return res.status(400).json({ error: c });
+        // The same rule as a live publish: nothing is scheduled under the user's name unless
+        // it is the run of an x_post call they approved (with this time), and the call that
+        // is stored is that approved row's, not the request's. The field `by` decides nothing.
+        const approved = await claimApprovedXSchedule(by, c.args.account, c.args.parts, `${fields.date} ${fields.time}`);
+        if (!approved) {
+          console.warn(`[api] calendar: a scheduled post for ${by} matched no approved x_post call: refused`);
+          return res.status(403).json({ error: "not_approved", detail: "a post is scheduled only as the run of an x_post call the user approved with that publish_at" });
+        }
+        call = { toolName: approved.toolName, args: approved.args };
+        callOrigins = approved.origins;
+      } else if (!fields.prompt) return res.status(400).json({ error: "an action needs prompt: what the agent does when the time comes" });
     }
     const id = randomUUID();
     const now = new Date();
     const kept = b.kind === "action" && Array.isArray(b.attachments) && b.attachments.length ? await reserveCalendarAttachments(id, b.attachments.map(String), createdByTask ?? undefined) : { files: [] };
     // The outside content the writing task had read, shape-checked (see provenance.ts).
-    const origins = by !== "user" && Array.isArray(b.origins)
-      ? b.origins.filter((o: any) => o && typeof o.tool === "string").slice(0, 12).map((o: any) => ({ tool: String(o.tool).slice(0, 80), ...(typeof o.ref === "string" ? { ref: o.ref.slice(0, 200) } : {}) }))
+    const rawOrigins = callOrigins ?? b.origins;
+    const origins = by !== "user" && Array.isArray(rawOrigins)
+      ? rawOrigins.filter((o: any) => o && typeof o.tool === "string").slice(0, 12).map((o: any) => ({ tool: String(o.tool).slice(0, 80), ...(typeof o.ref === "string" ? { ref: o.ref.slice(0, 200) } : {}) }))
       : [];
     const row = {
       id, owner, kind: b.kind, title: fields.title, notes: fields.notes ?? null, at: fields.at, timezone: fields.timezone, date: fields.date, time: fields.time ?? null,
       repeat: fields.repeat ?? "none", repeatUntil: fields.repeatUntil ?? null, occurrencesLeft: fields.occurrencesLeft ?? null,
-      agentId: b.kind === "action" ? fields.agentId : null, prompt: b.kind === "action" ? fields.prompt : null, attachments: kept.files,
+      agentId: b.kind === "action" ? fields.agentId : null, prompt: b.kind === "action" && !call ? fields.prompt ?? null : null, call, attachments: kept.files,
       status: "scheduled", approvedAt: b.kind === "action" ? now : null, createdByTask, origins, createdAt: now, updatedAt: now,
     };
     await (db as any).insert(calendarEntries).values(row).run();
@@ -2790,7 +2915,9 @@ api.patch("/calendar/:id", async (req, res) => {
     const by = typeof b.by === "string" && OWNER_RE.test(b.by) ? b.by : "user";
     const fields = await calendarFields(b, row);
     if (typeof fields === "string") return res.status(400).json({ error: fields });
-    if (row.kind === "action" && fields.prompt === null) return res.status(400).json({ error: "an action needs its prompt" });
+    if (calendarCallOf(row)) {
+      if (b.prompt !== undefined || b.agentId !== undefined || b.call !== undefined) return res.status(400).json({ error: "a scheduled post keeps its text and its agent: remove it and schedule it again" });
+    } else if (row.kind === "action" && fields.prompt === null) return res.status(400).json({ error: "an action needs its prompt" });
     const now = new Date();
     const set: Record<string, any> = { ...fields, status: "scheduled", updatedAt: now };
     await (db as any).update(calendarEntries).set(set).where(eq(calendarEntries.id, row.id)).run();
@@ -2838,9 +2965,14 @@ async function tickCalendar(): Promise<void> {
         const when = formatWhen(at, e.timezone, e.time, userLocale());
         let outcome: "run" | "reminded" | "missed" | "passed" = "passed";
         let lastTaskId: string | null = null;
+        const call = e.kind === "action" ? calendarCallOf(e) : null;
+        let actionId: string | null = null;
         if (e.kind === "action") {
           if (late > CALENDAR_LIMITS.catchUpMs) outcome = "missed";
-          else {
+          else if (call) {
+            actionId = await startCalendarCall(e, call);
+            outcome = "run";
+          } else {
             // An action written from outside content starts its task tainted, as a delegated task would.
             lastTaskId = await insertTask({ prompt: calendarTaskPrompt(e), channel: e.agentId || e.owner, userId: "calendar", isRead: false, inheritedTaint: Array.isArray(e.origins) ? e.origins : [], calendarEntryId: e.id });
             outcome = "run";
@@ -2855,11 +2987,13 @@ async function tickCalendar(): Promise<void> {
         console.log(`[api] calendar: "${e.title}" (${e.id.slice(0, 8)}) ${outcome}${next ? `, next ${next.date}` : ""}`);
         const es = userLocale().startsWith("es");
         const hours = Math.round(CALENDAR_LIMITS.catchUpMs / 3_600_000);
-        const note = outcome === "run" ? `📅 ${e.title}\n${es ? `${e.agentId} ya está en eso (programada para ${when}).` : `${e.agentId} is on it (scheduled for ${when}).`}`
+        const note = outcome === "run" && call ? `📅 ${e.title}\n${es ? `Publicando ahora (programada para ${when}).` : `Publishing now (scheduled for ${when}).`}`
+          : outcome === "run" ? `📅 ${e.title}\n${es ? `${e.agentId} ya está en eso (programada para ${when}).` : `${e.agentId} is on it (scheduled for ${when}).`}`
           : outcome === "reminded" ? `📅 ${e.title}\n${when}${e.notes ? `\n${String(e.notes).slice(0, 500)}` : ""}`
           : outcome === "missed" ? (es ? `📅 Perdida: ${e.title}\nVencía ${when}, pero HydraOps estuvo apagado más de ${hours} horas. No se ejecutó.` : `📅 Missed: ${e.title}\nIt was due ${when}, but HydraOps was off for more than ${hours} hours. It did not run.`)
           : null;
         if (note) pushTelegram(note).catch(() => {});
+        if (actionId) void watchCalendarCall(e.id, e.title, actionId);
       } catch (err: any) {
         console.error(`[api] calendar: entry ${e.id} failed`, err?.message ?? err);
       }
@@ -3401,6 +3535,29 @@ function xPostShape(account: unknown, parts: unknown): string {
  * (its result is set to a marker; the worker overwrites it with the outcome right after).
  * Null when there is none: the request did not come from an approval.
  */
+/**
+ * The approved held x_post call (made with publish_at) this calendar entry is the run of,
+ * claimed so it serves once, like claimApprovedXPost. What is returned is the call as the
+ * user approved it (the row's account and parts, with their origins), never the request's.
+ */
+async function claimApprovedXSchedule(agentId: string, account: unknown, parts: unknown, publishAt: string): Promise<{ toolName: string; args: Record<string, any>; origins: unknown[] } | null> {
+  const want = xPostShape(account, parts);
+  const rows = await (db as any).select().from(pendingActions)
+    .where(and(eq(pendingActions.toolName, "x_post"), eq(pendingActions.agentId, agentId), eq(pendingActions.status, "approved"), isNull(pendingActions.result)))
+    .orderBy(desc(pendingActions.decidedAt)).limit(20);
+  for (const row of rows) {
+    const args = (typeof row.args === "string" ? JSON.parse(row.args) : row.args) ?? {};
+    if (String(args.publish_at ?? "") !== publishAt || xPostShape(args.account, args.parts) !== want) continue;
+    const r = await (db as any).update(pendingActions).set({ result: "scheduling…" })
+      .where(and(eq(pendingActions.id, row.id), eq(pendingActions.status, "approved"), isNull(pendingActions.result))).run();
+    if ((r?.changes ?? 0) !== 1) continue;
+    const call = calendarCallFields({ toolName: "x_post", args: { account: args.account, parts: args.parts } });
+    if (typeof call === "string") return null;
+    return { ...call, origins: Array.isArray(row.origins) ? row.origins : [] };
+  }
+  return null;
+}
+
 async function claimApprovedXPost(agentId: string, account: unknown, parts: unknown): Promise<string | null> {
   const want = xPostShape(account, parts);
   const rows = await (db as any).select().from(pendingActions)
@@ -3408,7 +3565,8 @@ async function claimApprovedXPost(agentId: string, account: unknown, parts: unkn
     .orderBy(desc(pendingActions.decidedAt)).limit(20);
   for (const row of rows) {
     const args = (typeof row.args === "string" ? JSON.parse(row.args) : row.args) ?? {};
-    if (xPostShape(args.account, args.parts) !== want) continue;
+    // A call made to publish later only scheduled; the live publish is its own approved action.
+    if (args.publish_at || xPostShape(args.account, args.parts) !== want) continue;
     const r = await (db as any).update(pendingActions).set({ result: "publishing on X…" })
       .where(and(eq(pendingActions.id, row.id), eq(pendingActions.status, "approved"), isNull(pendingActions.result))).run();
     if ((r?.changes ?? 0) === 1) return String(row.id);

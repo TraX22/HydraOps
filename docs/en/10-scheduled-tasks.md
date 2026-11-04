@@ -49,6 +49,8 @@ Next to the crons there is a **calendar**: entries by date and time that every a
 - A **note** is context: a meeting, a delivery, "no GPU until the 20th". Every task an agent runs starts with the agenda of today and the next 7 days in front of it, so it can answer "what do I have on Thursday?", avoid scheduling two things at once, or write with the day's context. A note with a time reminds you on Telegram when it comes.
 - An **action** is a task set for later: at its date and time, the agent it names gets the prompt as a new task in its chat, together with the files the action reserved. "Thomas, publish this thread on Friday at 10" is an action. If the task needs a tool that asks for approval (posting to X, downloading a model), it asks then, as any task does.
 
+A third shape of action is a **scheduled post**: when an agent calls `x_post` with `publish_at`, the card you approve shows the final text, the files and the account, plus the time. Approved, the post goes into the calendar as an action that carries that exact call; at its time it is published as approved, with no model in between and no second question, and the Calendar entry shows the outcome (the post's link, or why it failed). Until then you can remove it from the Calendar; its text and agent cannot be changed, only its time.
+
 Agents use four tools: `calendar_list` (the agenda between two dates, with each entry's id), `calendar_add`, `calendar_update` and `calendar_remove`. Adding a note is free. **Scheduling an action, changing an entry or removing one waits for your approval**, with a card like any held call; approved, the action runs at its time without asking again. An agent may change your own entries (with that approval) but never remove them.
 
 What the calendar guarantees:

@@ -217,7 +217,8 @@
         "tooLong": "passa o limite desta conta: o X vai recusar",
         "images": "Anexos",
         "cost": "Cerca de {{usd}} USD, cobrados pelo X na sua conta de desenvolvedor",
-        "linkNote": "uma publicação com link custa mais"
+        "linkNote": "uma publicação com link custa mais",
+        "scheduled": "Agendada para {{when}}: aprove agora e ela é publicada nessa hora, tal como está, sem perguntar de novo. Até lá você pode removê-la do Calendário."
       },
       "calendar": {
         "add": "Agendar",
@@ -1262,6 +1263,10 @@
       "outside": "Escrita por um agente que tinha lido conteúdo externo: não entra na agenda dos outros.",
       "attachments": "Anexos reservados",
       "kept": "copiado na aprovação",
+      "post": "Publicação no X",
+      "postAsApproved": "O texto e os arquivos saem exatamente como aprovados; nada é pedido de novo ao agente.",
+      "postRunsAlone": "Na hora marcada a publicação sai sem pedir de novo.",
+      "result": "Resultado",
       "remove": "Remover",
       "removeSure": "Certeza? Remover",
       "again": "Agendar de novo"
