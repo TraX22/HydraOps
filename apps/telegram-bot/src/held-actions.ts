@@ -72,15 +72,37 @@ function describePost(a: any): string {
     ].join("\n");
   });
   const usd = parts.reduce((t, p) => t + (/https?:\/\/|\b[a-z0-9-]+\.[a-z]{2,}\b/i.test(String(p?.text ?? "")) ? 0.2 : 0.015), 0);
+  // What goes with the first part: a reply, a quote, a poll, who may reply.
+  const extras = [
+    args.reply_to ? `A reply to post ${args.reply_to}.` : "",
+    args.quote ? `Quotes post ${args.quote}.` : "",
+    args.poll && Array.isArray(args.poll.options) ? `Poll: ${args.poll.options.map(String).join(" · ")} (runs ${(Number(args.poll.duration_minutes || 0) / 60).toFixed(1)} h).` : "",
+    args.reply_settings && args.reply_settings !== "everyone" ? `Only ${String(args.reply_settings)} may reply.` : "",
+  ].filter(Boolean).join(" ");
   return [
     `⏸ Publish on X — ${a.agentId} wants to post as @${String(args.account ?? "").replace(/^@/, "")}${parts.length > 1 ? ` (a thread of ${parts.length} parts)` : ""}`,
     ...lines,
+    extras,
     `About ${usd.toFixed(3)} USD, charged by X to your developer account. Expires in 24 h.`,
+  ].filter(Boolean).join("\n\n");
+}
+
+const X_ACT_WORDS: Record<string, string> = { like: "like post", unlike: "unlike post", repost: "repost", unrepost: "undo the repost of", bookmark: "bookmark post", unbookmark: "remove from bookmarks post", delete: "delete its own post", hide_reply: "hide reply", unhide_reply: "show again reply", follow: "follow", unfollow: "unfollow", block: "block", unblock: "unblock", mute: "mute", unmute: "unmute" };
+const X_ACT_USD: Record<string, number> = { like: 0.015, repost: 0.015, follow: 0.015, block: 0.015, mute: 0.015, unlike: 0.01, unrepost: 0.01, unfollow: 0.01, unblock: 0.01, bookmark: 0.005, unbookmark: 0.005, delete: 0.005, hide_reply: 0.005, unhide_reply: 0.005, unmute: 0.005 };
+/** An action on X (x_engage, x_users): what, to whom, as which account, and X's price. */
+function describeXAct(a: any): string {
+  const args = a.args ?? {};
+  const action = String(args.action ?? "");
+  const target = args.username ? `@${String(args.username).replace(/^@/, "")}` : String(args.id ?? "");
+  return [
+    `⏸ Act on X — ${a.agentId} wants to ${X_ACT_WORDS[action] ?? action} ${target} as @${String(args.account ?? "").replace(/^@/, "")}`,
+    `About ${(X_ACT_USD[action] ?? 0.015).toFixed(3)} USD, charged by X to your developer account. Expires in 24 h.`,
   ].join("\n\n");
 }
 
 function describe(a: any): string {
   if (a.toolName === "x_post") return describePost(a);
+  if (a.toolName === "x_engage" || a.toolName === "x_users") return describeXAct(a);
   const origins = (Array.isArray(a.origins) ? a.origins : []).map((o: any) => o?.ref ?? o?.tool).filter(Boolean).slice(0, 3);
   const args = a.args && typeof a.args === "object"
     ? Object.entries(a.args as Record<string, unknown>).slice(0, 6)

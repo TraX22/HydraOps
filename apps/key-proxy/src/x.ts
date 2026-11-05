@@ -379,8 +379,19 @@ export async function accessToken(id: string): Promise<string> {
 
 export interface XPostPart { text: string; media?: string[] }
 export interface XPostResult { username: string; posts: { id: string; url: string }[]; url: string }
-/** What the API knows about the account that the key-proxy does not: a Premium account may post longer videos. */
-export interface XPostOptions { premium?: boolean }
+/**
+ * What goes with the first part: a Premium account may post longer videos (the API knows,
+ * the key-proxy does not); the post may be a reply to a post, quote one, carry a poll, and
+ * say who may reply. The API has checked the shapes; the ids are checked again here.
+ */
+export interface XPostOptions {
+  premium?: boolean;
+  replyTo?: string;
+  quote?: string;
+  poll?: { options: string[]; durationMinutes: number };
+  replySettings?: "following" | "mentionedUsers" | "subscribers" | "verified";
+}
+const REPLY_SETTINGS = new Set(["following", "mentionedUsers", "subscribers", "verified"]);
 
 // What X takes per media kind (its media upload guide): images 5 MB, GIFs 15 MB, videos 20 min
 // and 8 GB, or 125 min and 16 GB on a Premium account. Duration is X's call: a video over the
@@ -502,14 +513,28 @@ export async function postThread(accountId: string, parts: XPostPart[], opts: XP
   const token = await accessToken(accountId);
   const account = (await load()).accounts.find((a) => a.id === accountId)!;
   if (!account.grants.includes("publish")) throw new XError("grant_missing", `@${account.username} was not connected for publishing.`, 403);
+  for (const id of [opts.replyTo, opts.quote]) if (id !== undefined && !ID_RE.test(String(id))) throw new XError("bad_id", `"${String(id).slice(0, 40)}" is not an X post id.`);
+  if (opts.poll) {
+    const o = Array.isArray(opts.poll.options) ? opts.poll.options.map((x) => String(x ?? "").trim()) : [];
+    if (o.length < 2 || o.length > 4 || o.some((x) => !x || x.length > 25)) throw new XError("bad_poll", "A poll has 2 to 4 options of up to 25 characters each.");
+    const d = Number(opts.poll.durationMinutes);
+    if (!Number.isInteger(d) || d < 5 || d > 10080) throw new XError("bad_poll", "A poll lasts 5 minutes to 7 days (10080 minutes).");
+    if (parts[0].media?.length) throw new XError("bad_poll", "A poll and attachments cannot go in the same part.");
+  }
+  if (opts.replySettings !== undefined && !REPLY_SETTINGS.has(opts.replySettings)) throw new XError("bad_reply_settings", "reply_settings is one of following, mentionedUsers, subscribers, verified.");
   const posts: { id: string; url: string }[] = [];
-  let previous: string | undefined;
-  for (const part of parts) {
+  let previous: string | undefined = opts.replyTo ? String(opts.replyTo) : undefined;
+  for (const [index, part] of parts.entries()) {
     const mediaIds: string[] = [];
     for (const file of part.media ?? []) mediaIds.push(await uploadMedia(token, file, opts.premium === true));
     const payload: any = { text: part.text };
     if (mediaIds.length) payload.media = { media_ids: mediaIds };
     if (previous) payload.reply = { in_reply_to_tweet_id: previous };
+    if (index === 0) {
+      if (opts.quote) payload.quote_tweet_id = String(opts.quote);
+      if (opts.poll) payload.poll = { options: opts.poll.options.map((x) => String(x).trim()), duration_minutes: Number(opts.poll.durationMinutes) };
+      if (opts.replySettings) payload.reply_settings = opts.replySettings;
+    }
     const { ok, status, body } = await fetchJson(`${apiBase()}/2/tweets`, {
       method: "POST",
       headers: { authorization: `Bearer ${token}`, "content-type": "application/json", accept: "application/json" },
@@ -578,8 +603,27 @@ export async function callOp(accountId: string, opName: unknown, params: unknown
     } else url.searchParams.set(key, s);
   }
   for (const [k, v] of Object.entries(op.fixed)) url.searchParams.set(k, v);
+  // A write's body: the table says which caller parameter becomes which field of X's JSON.
+  let payload: string | undefined;
+  if (op.body) {
+    const json: Record<string, unknown> = {};
+    for (const [param, field] of Object.entries(op.body)) {
+      const v = p[param];
+      if (param === "hidden") json[field] = v === true || v === "true";
+      else {
+        const id = String(v ?? "").trim();
+        if (!ID_RE.test(id)) throw new XError("bad_id", `"${id.slice(0, 40)}" is not an X id (digits only).`);
+        json[field] = id;
+      }
+    }
+    payload = JSON.stringify(json);
+  }
   const token = await accessToken(accountId);
-  const { ok, status, body } = await fetchJson(url.toString(), { method: op.method, headers: { authorization: `Bearer ${token}`, accept: "application/json" } }, 60_000);
+  const { ok, status, body } = await fetchJson(url.toString(), {
+    method: op.method,
+    headers: { authorization: `Bearer ${token}`, accept: "application/json", ...(payload ? { "content-type": "application/json" } : {}) },
+    body: payload,
+  }, 60_000);
   if (status === 401) {
     // The token was refused outright (revoked in X's settings, app permissions changed): a new sign-in is the only way back.
     const fresh = await load();
@@ -589,6 +633,7 @@ export async function callOp(accountId: string, opName: unknown, params: unknown
   if (status === 429) throw new XError("rate_limited", `X is rate limiting this (${op.name}) for the moment; try again in a few minutes.`, 429);
   if (!ok) throw new XError(errorCode(body) || `http_${status}`, errorMessage(body, `X refused the request (${status}).`), status);
   const est = estimateUsd(op, body);
+  if (op.kind === "write") console.log(`[key-proxy] x: ${op.name} as @${account.username}${p.id ? ` (${String(p.id).slice(0, 30)})` : ""}`);
   return { op: op.name, body, resources: est.resources, estimatedUsd: est.usd };
 }
 
@@ -655,7 +700,16 @@ export async function handleControl(req: import("node:http").IncomingMessage, re
     if (path === "/finish" && req.method === "POST") { const b = await readBody(req); sendJson(res, 200, { ok: true, account: await finishConnect(String(b.code ?? ""), String(b.state ?? "")) }); return true; }
     if (path === "/cancel" && req.method === "POST") { cancelConnect(); sendJson(res, 200, { ok: true }); return true; }
     if (path === "/disconnect" && req.method === "POST") { const b = await readBody(req); await disconnect(String(b.id ?? "")); sendJson(res, 200, { ok: true }); return true; }
-    if (path === "/post" && req.method === "POST") { const b = await readBody(req); sendJson(res, 200, await postThread(String(b.accountId ?? ""), Array.isArray(b.parts) ? b.parts : [], { premium: b.premium === true })); return true; }
+    if (path === "/post" && req.method === "POST") {
+      const b = await readBody(req);
+      const opts: XPostOptions = { premium: b.premium === true };
+      if (b.replyTo !== undefined) opts.replyTo = String(b.replyTo);
+      if (b.quote !== undefined) opts.quote = String(b.quote);
+      if (b.poll && typeof b.poll === "object") opts.poll = { options: Array.isArray(b.poll.options) ? b.poll.options : [], durationMinutes: Number(b.poll.durationMinutes) };
+      if (b.replySettings !== undefined) opts.replySettings = b.replySettings;
+      sendJson(res, 200, await postThread(String(b.accountId ?? ""), Array.isArray(b.parts) ? b.parts : [], opts));
+      return true;
+    }
     return false;
   } catch (e: any) {
     sendJson(res, e instanceof XError ? e.status : 500, { error: { code: e instanceof XError ? e.code : "x_failed", message: safeMessage(e, "The request to X failed."), ...(Array.isArray(e?.missing) ? { missing: e.missing } : {}) } });

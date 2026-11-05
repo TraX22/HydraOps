@@ -22,7 +22,7 @@ export function xLength(text: string): number {
   return text.replace(/https?:\/\/\S+/gi, "x".repeat(23)).length;
 }
 
-async function callApi(method: "GET" | "POST", p: string, body?: unknown, timeoutMs = 180_000): Promise<{ ok: boolean; status: number; data: any }> {
+export async function callApi(method: "GET" | "POST", p: string, body?: unknown, timeoutMs = 180_000): Promise<{ ok: boolean; status: number; data: any }> {
   const r = await fetch(`${apiUrl()}/api${p}`, {
     method,
     headers: body !== undefined ? { "content-type": "application/json" } : undefined,
@@ -34,10 +34,10 @@ async function callApi(method: "GET" | "POST", p: string, body?: unknown, timeou
 }
 
 /** This task's id, from the folder the worker bound (storage/results/<task>). */
-const taskIdOf = (ctx?: ToolContext): string | undefined => (ctx?.filesDir ? path.basename(ctx.filesDir) : undefined);
+export const taskIdOf = (ctx?: ToolContext): string | undefined => (ctx?.filesDir ? path.basename(ctx.filesDir) : undefined);
 
 const GRANT_WORDS: Record<string, string> = { read: "read", publish: "publish", engage: "like, repost, follow", messages: "direct messages" };
-const usd = (n: number) => `${n.toFixed(3)} USD`;
+export const usd = (n: number) => `${n.toFixed(3)} USD`;
 
 export const xAccountsTool: HydraTool = {
   name: "x_accounts",
@@ -82,14 +82,23 @@ export const xPostTool: HydraTool = {
   // Publishes under the user's name: every call waits for the user's approval.
   risk: { sensitive: true, approval: "always" },
   description:
-    "Publish a post or a thread on one of the user's X accounts. `account` is the handle (from x_accounts); `parts` the posts in order, each a reply to the one before. It is never run without the user's approval: they see the account, every part with its length, the images or video and the cost before deciding. Give the final text, not a draft; count the characters first (280 per part, unless the account is Premium and the user asked for a long post); put links in the last part. A video is uploaded and processed by X before the post goes out, which can take minutes. The answer carries the link to the published post. To publish LATER, give `publish_at`: the post then goes into the shared calendar once the user approves it, and is published at that time exactly as approved, without asking again (the user can remove it from the calendar before then).",
+    "Publish a post or a thread on one of the user's X accounts; also a reply (`reply_to`), a quote (`quote`), a poll (`poll`) and who may reply (`reply_settings`). `account` is the handle (from x_accounts); `parts` the posts in order, each a reply to the one before. It is never run without the user's approval: they see the account, every part with its length, the images or video and the cost before deciding. Give the final text, not a draft; count the characters first (280 per part, unless the account is Premium and the user asked for a long post); put links in the last part. A video is uploaded and processed by X before the post goes out, which can take minutes. The answer carries the link to the published post. To publish LATER, give `publish_at`: the post then goes into the shared calendar once the user approves it, and is published at that time exactly as approved, without asking again (the user can remove it from the calendar before then).",
   schema: z.object({
     account: z.string().min(1).describe("The handle of the account to publish on, without the @ (one of x_accounts)."),
     parts: z.array(partSchema).min(1).max(25).describe("The post, or the parts of the thread in order."),
+    reply_to: z.string().regex(/^\d{1,30}$/).optional().describe("To answer a post: its id (from x_read). The first part becomes a reply to it; X shows it in that thread. Do not repeat the @handle unless you want to mention them."),
+    quote: z.string().regex(/^\d{1,30}$/).optional().describe("To quote a post: its id. The first part shows that post under its text."),
+    poll: z.object({
+      options: z.array(z.string().min(1).max(25)).min(2).max(4).describe("2 to 4 choices, up to 25 characters each."),
+      duration_minutes: z.number().int().min(5).max(10080).describe("How long it runs: 5 minutes to 7 days (10080)."),
+    }).optional().describe("A poll on the first part (which then takes no attachments)."),
+    reply_settings: z.enum(["everyone", "following", "mentionedUsers", "subscribers", "verified"]).optional().describe("Who may reply; everyone by default."),
     publish_at: z.string().regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/).optional().describe("Only to publish later: 'YYYY-MM-DD HH:MM' (24 h) in `timezone`, up to a year ahead. Without it the post goes out as soon as the user approves."),
     timezone: z.string().max(64).optional().describe("With publish_at: IANA zone of that time, e.g. America/Argentina/Buenos_Aires; default: the user's calendar zone."),
   }),
-  execute: async ({ account, parts, publish_at, timezone }, ctx) => {
+  execute: async ({ account, parts, reply_to, quote, poll, reply_settings, publish_at, timezone }, ctx) => {
+    const extras = { reply_to, quote, poll, reply_settings: reply_settings === "everyone" ? undefined : reply_settings };
+    if (poll && (parts as { media?: string[] }[])[0]?.media?.length) return "Not published: a poll and attachments cannot go in the same part.";
     const agentId = String(ctx?.agentId ?? "").trim();
     if (!agentId) return "This task carries no agent identity, so nothing can be published.";
     // The 280 rule is X's for a non-Premium account; a Premium one takes long posts (up to 25,000).
@@ -111,7 +120,7 @@ export const xPostTool: HydraTool = {
       const text = (parts as { text: string }[]).map((p) => p.text).join("\n\n");
       const r = await callApi("POST", "/calendar", {
         by: agentId, kind: "action", title: `Post on X as @${String(account).replace(/^@/, "")}`, date, time, timezone, notes: text,
-        call: { toolName: "x_post", args: { account, parts } }, attachments: media, createdByTask: taskIdOf(ctx), origins: ctx?.taintOrigins?.() ?? [],
+        call: { toolName: "x_post", args: { account, parts, ...extras } }, attachments: media, createdByTask: taskIdOf(ctx), origins: ctx?.taintOrigins?.() ?? [],
       }, 30_000);
       if (!r.ok) return `Not scheduled: ${r.data?.error || `the calendar answered ${r.status}`}${r.data?.detail ? ` — ${r.data.detail}` : ""}`;
       const e = r.data?.entry ?? {};
@@ -119,7 +128,7 @@ export const xPostTool: HydraTool = {
     }
     const hasVideo = (parts as { media?: string[] }[]).some((p) => (p.media ?? []).some((m) => /\.mp4$/i.test(m)));
     try {
-      const { ok, status, data } = await callApi("POST", "/x/post", { agentId, account, parts, taskId: taskIdOf(ctx) }, hasVideo ? 20 * 60_000 : 180_000);
+      const { ok, status, data } = await callApi("POST", "/x/post", { agentId, account, parts, ...extras, taskId: taskIdOf(ctx) }, hasVideo ? 20 * 60_000 : 180_000);
       if (!ok) return `Not published${status === 403 || status === 404 || status === 409 || status === 400 || status === 402 ? "" : ` (X answered ${status})`}: ${data?.message || data?.error || "X refused the post."}`;
       // A part X created without naming its id has no link: said so, never shown as a broken address.
       const urls: string[] = Array.isArray(data.posts) ? data.posts.map((p: any, i: number) => (typeof p?.url === "string" && p.url ? p.url : `(part ${i + 1}: published, but X returned no link for it; it is under the previous part on X)`)) : [];
@@ -127,7 +136,7 @@ export const xPostTool: HydraTool = {
         `Published as @${data.username}: ${data.url || "(X returned no link; the post is on the account's page)"}`,
         urls.length > 1 ? `Thread of ${urls.length} parts: ${urls.join(" ")}` : "",
         typeof data.estimatedUsd === "number" ? `About ${data.estimatedUsd.toFixed(3)} USD charged by X to the user's developer account.` : "",
-        "Tell the user the link. Deleting a post is not a tool you have: if they want it gone, they do it on X.",
+        "Tell the user the link. To delete it later, x_engage with action delete (held for approval).",
       ].filter(Boolean).join("\n");
     } catch (e: any) {
       return `Not published: ${e?.message || e}`;
@@ -142,7 +151,7 @@ const when = (iso: unknown) => (typeof iso === "string" ? iso.replace("T", " ").
 const TEXT_MAX = 1200;
 
 /** One post as a line or two: id, author, date, how it did, the text (a long post whole, up to a limit). */
-function formatPost(p: any, users: Map<string, any>, me?: string): string {
+export function formatPost(p: any, users: Map<string, any>, me?: string): string {
   const u = users.get(String(p?.author_id));
   const who = u ? `@${u.username}${me && u.username?.toLowerCase() === me ? " (you)" : ""}` : `author ${p?.author_id ?? "?"}`;
   const m = p?.public_metrics ?? {};
@@ -158,23 +167,23 @@ function formatPost(p: any, users: Map<string, any>, me?: string): string {
   return [`[${p?.id}] ${who} · ${when(p?.created_at)} · ${stats}${refs ? ` · ${refs}` : ""}${media}`, `  ${text.length > TEXT_MAX ? text.slice(0, TEXT_MAX) + "…" : text}`.replace(/\n/g, "\n  "), ...extra.map((e) => `  ${e}`)].join("\n");
 }
 /** One user as a line: handle, name, id, numbers, the bio. */
-function formatUser(u: any): string {
+export function formatUser(u: any): string {
   const m = u?.public_metrics ?? {};
   const bits = [`id ${u?.id}`, `${num(m.followers_count)} followers`, `${num(m.following_count)} following`, `${num(m.tweet_count)} posts`, u?.verified ? `verified${u.verified_type ? ` (${u.verified_type})` : ""}` : "", u?.protected ? "protected account" : "", u?.location ? `in ${u.location}` : "", u?.created_at ? `since ${String(u.created_at).slice(0, 10)}` : ""].filter(Boolean).join(" · ");
   const bio = String(u?.description ?? "").replace(/\s+/g, " ").trim();
   return `@${u?.username} (${u?.name}) · ${bits}${bio ? `\n  ${bio}` : ""}${u?.url ? `\n  ${u.url}` : ""}`;
 }
-const usersOf = (body: any): Map<string, any> => new Map((Array.isArray(body?.includes?.users) ? body.includes.users : []).map((u: any) => [String(u.id), u]));
+export const usersOf = (body: any): Map<string, any> => new Map((Array.isArray(body?.includes?.users) ? body.includes.users : []).map((u: any) => [String(u.id), u]));
 
 /** The answer's tail: what the call cost and where the money stands, so the agent can plan the next one. */
-function costLine(r: any): string {
+export function costLine(r: any): string {
   const s = r?.spend ?? {};
   const cap = typeof s.cap === "number" ? `${usd(s.account)} of its ${usd(s.cap)} monthly cap` : `${usd(s.account ?? 0)} this month (no cap)`;
   return `Cost: about ${usd(Number(r?.estimatedUsd) || 0)} (${r?.resources ?? 0} resource(s) billed by X). This task: ${usd(s.task ?? 0)} of its ${usd(s.budget ?? 0)} read budget; @${r?.account?.username}: ${cap}.`;
 }
 
 /** One read through the API: the account check, the money, the call; a refusal comes back as text the agent can act on. */
-async function read(ctx: ToolContext | undefined, account: string, op: string, params: Record<string, unknown>): Promise<{ r?: any; text?: string }> {
+export async function read(ctx: ToolContext | undefined, account: string, op: string, params: Record<string, unknown>): Promise<{ r?: any; text?: string }> {
   const agentId = String(ctx?.agentId ?? "").trim();
   if (!agentId) return { text: "This task carries no agent identity, so no X account can be used." };
   const clean: Record<string, unknown> = {};
@@ -187,7 +196,7 @@ async function read(ctx: ToolContext | undefined, account: string, op: string, p
     return { text: `Not read: ${e?.message || e}` };
   }
 }
-const pageLine = (body: any) => (body?.meta?.next_token ? `More: pass page="${body.meta.next_token}" to continue (costs again).` : "");
+export const pageLine = (body: any) => (body?.meta?.next_token ? `More: pass page="${body.meta.next_token}" to continue (costs again).` : "");
 /** A date the agent gave (YYYY-MM-DD or ISO) as X wants it. */
 const isoDate = (v: unknown, end = false): string | undefined => {
   if (typeof v !== "string" || !v.trim()) return undefined;
