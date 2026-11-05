@@ -218,7 +218,17 @@
         "images": "Pièces jointes",
         "cost": "Environ {{usd}} USD, facturés par X sur votre compte développeur",
         "linkNote": "une publication avec un lien coûte plus cher",
-        "scheduled": "Programmée pour {{when}} : approuvez maintenant et elle sera publiée à cette heure, telle quelle, sans redemander. D'ici là vous pouvez la retirer du Calendrier."
+        "scheduled": "Programmée pour {{when}} : approuvez maintenant et elle sera publiée à cette heure, telle quelle, sans redemander. D'ici là vous pouvez la retirer du Calendrier.",
+        "replyTo": "Réponse à la publication {{id}}",
+        "quote": "Cite la publication {{id}}",
+        "poll": "Sondage : {{options}} · dure {{hours}} h",
+        "replySettings": "Peuvent répondre : {{who}}",
+        "replyWho": {
+          "following": "seulement les comptes suivis",
+          "mentionedUsers": "seulement les comptes mentionnés",
+          "subscribers": "seulement les abonnés",
+          "verified": "seulement les comptes vérifiés"
+        }
       },
       "calendar": {
         "add": "Programmer",
@@ -251,6 +261,23 @@
           "enter": "Puis appuie sur Entrée.",
           "why": "L'action s'exécute dans l'onglet lisible par les agents, avec vos sessions, après votre accord ; l'élément est d'abord mis en évidence. Les champs de mot de passe, de carte et de fichier ne sont jamais touchés."
         }
+      },
+      "xact": {
+        "like": "Aimer la publication {{target}}",
+        "unlike": "Retirer le j'aime de {{target}}",
+        "repost": "Republier {{target}}",
+        "unrepost": "Annuler la republication de {{target}}",
+        "bookmark": "Enregistrer la publication {{target}}",
+        "unbookmark": "Retirer {{target}} des signets",
+        "delete": "Supprimer la publication {{target}}",
+        "hide_reply": "Masquer la réponse {{target}}",
+        "unhide_reply": "Réafficher la réponse {{target}}",
+        "follow": "Suivre {{target}}",
+        "unfollow": "Ne plus suivre {{target}}",
+        "block": "Bloquer {{target}}",
+        "unblock": "Débloquer {{target}}",
+        "mute": "Masquer {{target}}",
+        "unmute": "Ne plus masquer {{target}}"
       }
     },
     "linkUnverified": "⚠ Non vérifié : l'agent n'a ni ouvert ni vu cette adresse dans cette conversation. Elle peut exister, mais elle vient de sa mémoire, pas d'une consultation.",

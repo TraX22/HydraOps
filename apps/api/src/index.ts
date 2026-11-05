@@ -45,7 +45,7 @@ import {
   blenderImportCode, parseBlenderImportResult, BLENDER_SERVERS, BLENDER_CODE_TOOL,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
-import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, HISTORY_DAYS, isHistoryLevel, calendarEntries, listCalendarEntries, zonedToUtc, advance as calendarAdvance, localParts, isTimeZone, listTimeZones, systemTimeZone, isCalendarDate, isCalendarTime, isCalendarRepeat, isCalendarKind, CALENDAR_LIMITS, formatWhen, toDate, userLocale } from "@hydraops/db";
+import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, taskChainAutoApproved, HISTORY_DAYS, isHistoryLevel, calendarEntries, listCalendarEntries, zonedToUtc, advance as calendarAdvance, localParts, isTimeZone, listTimeZones, systemTimeZone, isCalendarDate, isCalendarTime, isCalendarRepeat, isCalendarKind, CALENDAR_LIMITS, formatWhen, toDate, userLocale } from "@hydraops/db";
 import { buildEnvelope } from "@hydraops/events";
 import { eq, and, gte, lt, asc, desc, like, inArray, isNull, count } from "drizzle-orm";
 import os from "node:os";
@@ -2735,7 +2735,9 @@ function calendarCallFields(raw: any): { toolName: string; args: Record<string, 
     if (media.length > 4 || media.some((m: string) => !X_MEDIA_NAME_RE.test(m) || m.includes("..") || !xMediaKind(m))) return `part ${i + 1}: up to 4 attachments, each a png, jpg, gif, webp or mp4 of the chat, by file name`;
     parts.push(media.length ? { text, media } : { text });
   }
-  return { toolName, args: { account, parts } };
+  const extras = xPostExtras(a);
+  if (typeof extras === "string") return `call.args: ${extras}`;
+  return { toolName, args: { account, parts, ...extras } };
 }
 
 /** The entry's call, as stored, or null when it carries none. */
@@ -2873,7 +2875,7 @@ api.post("/calendar", async (req, res) => {
         // The same rule as a live publish: nothing is scheduled under the user's name unless
         // it is the run of an x_post call they approved (with this time), and the call that
         // is stored is that approved row's, not the request's. The field `by` decides nothing.
-        const approved = await claimApprovedXSchedule(by, c.args.account, c.args.parts, `${fields.date} ${fields.time}`);
+        const approved = await claimApprovedXSchedule(by, c.args, `${fields.date} ${fields.time}`);
         if (!approved) {
           console.warn(`[api] calendar: a scheduled post for ${by} matched no approved x_post call: refused`);
           return res.status(403).json({ error: "not_approved", detail: "a post is scheduled only as the run of an x_post call the user approved with that publish_at" });
@@ -3590,11 +3592,37 @@ const xMediaKind = (name: string): "image" | "gif" | "video" | null => {
 };
 
 /** The arguments of an x_post call, in one comparable form (the held copy and the live one). */
-function xPostShape(account: unknown, parts: unknown): string {
+/** What may go with the first part of a post, in one normalized form (or a string: the problem). */
+interface XPostExtras { reply_to?: string; quote?: string; poll?: { options: string[]; duration_minutes: number }; reply_settings?: string }
+const X_REPLY_SETTINGS = new Set(["following", "mentionedUsers", "subscribers", "verified"]);
+function xPostExtras(a: any): XPostExtras | string {
+  const out: XPostExtras = {};
+  for (const k of ["reply_to", "quote"] as const) {
+    if (a?.[k] === undefined || a?.[k] === null || a?.[k] === "") continue;
+    const id = String(a[k]).trim();
+    if (!/^\d{1,30}$/.test(id)) return `${k} is not an X post id`;
+    out[k] = id;
+  }
+  if (a?.poll !== undefined && a?.poll !== null) {
+    const options = Array.isArray(a.poll?.options) ? a.poll.options.map((o: unknown) => String(o ?? "").trim()) : [];
+    const d = Number(a.poll?.duration_minutes);
+    if (options.length < 2 || options.length > 4 || options.some((o: string) => !o || o.length > 25)) return "a poll has 2 to 4 options of up to 25 characters each";
+    if (!Number.isInteger(d) || d < 5 || d > 10080) return "a poll lasts 5 minutes to 7 days (duration_minutes 5 to 10080)";
+    out.poll = { options, duration_minutes: d };
+  }
+  if (a?.reply_settings !== undefined && a?.reply_settings !== null && a?.reply_settings !== "" && a?.reply_settings !== "everyone") {
+    if (!X_REPLY_SETTINGS.has(String(a.reply_settings))) return "reply_settings is one of everyone, following, mentionedUsers, subscribers, verified";
+    out.reply_settings = String(a.reply_settings);
+  }
+  return out;
+}
+function xPostShape(account: unknown, parts: unknown, extras?: XPostExtras | string): string {
   const list = Array.isArray(parts) ? parts : [];
+  const x = typeof extras === "object" && extras ? extras : {};
   return JSON.stringify({
     account: String(account ?? "").trim().replace(/^@/, "").toLowerCase(),
     parts: list.map((p: any) => ({ text: String(p?.text ?? ""), media: Array.isArray(p?.media) ? p.media.map(String) : [] })),
+    reply_to: x.reply_to ?? "", quote: x.quote ?? "", poll: x.poll ?? null, reply_settings: x.reply_settings ?? "",
   });
 }
 
@@ -3608,33 +3636,33 @@ function xPostShape(account: unknown, parts: unknown): string {
  * claimed so it serves once, like claimApprovedXPost. What is returned is the call as the
  * user approved it (the row's account and parts, with their origins), never the request's.
  */
-async function claimApprovedXSchedule(agentId: string, account: unknown, parts: unknown, publishAt: string): Promise<{ toolName: string; args: Record<string, any>; origins: unknown[] } | null> {
-  const want = xPostShape(account, parts);
+async function claimApprovedXSchedule(agentId: string, callArgs: Record<string, any>, publishAt: string): Promise<{ toolName: string; args: Record<string, any>; origins: unknown[] } | null> {
+  const want = xPostShape(callArgs.account, callArgs.parts, xPostExtras(callArgs));
   const rows = await (db as any).select().from(pendingActions)
     .where(and(eq(pendingActions.toolName, "x_post"), eq(pendingActions.agentId, agentId), eq(pendingActions.status, "approved"), isNull(pendingActions.result)))
     .orderBy(desc(pendingActions.decidedAt)).limit(20);
   for (const row of rows) {
     const args = (typeof row.args === "string" ? JSON.parse(row.args) : row.args) ?? {};
-    if (String(args.publish_at ?? "") !== publishAt || xPostShape(args.account, args.parts) !== want) continue;
+    if (String(args.publish_at ?? "") !== publishAt || xPostShape(args.account, args.parts, xPostExtras(args)) !== want) continue;
     const r = await (db as any).update(pendingActions).set({ result: "scheduling…" })
       .where(and(eq(pendingActions.id, row.id), eq(pendingActions.status, "approved"), isNull(pendingActions.result))).run();
     if ((r?.changes ?? 0) !== 1) continue;
-    const call = calendarCallFields({ toolName: "x_post", args: { account: args.account, parts: args.parts } });
+    const call = calendarCallFields({ toolName: "x_post", args: { account: args.account, parts: args.parts, reply_to: args.reply_to, quote: args.quote, poll: args.poll, reply_settings: args.reply_settings } });
     if (typeof call === "string") return null;
     return { ...call, origins: Array.isArray(row.origins) ? row.origins : [] };
   }
   return null;
 }
 
-async function claimApprovedXPost(agentId: string, account: unknown, parts: unknown): Promise<string | null> {
-  const want = xPostShape(account, parts);
+async function claimApprovedXPost(agentId: string, account: unknown, parts: unknown, extras: XPostExtras | string): Promise<string | null> {
+  const want = xPostShape(account, parts, extras);
   const rows = await (db as any).select().from(pendingActions)
     .where(and(eq(pendingActions.toolName, "x_post"), eq(pendingActions.agentId, agentId), eq(pendingActions.status, "approved"), isNull(pendingActions.result)))
     .orderBy(desc(pendingActions.decidedAt)).limit(20);
   for (const row of rows) {
     const args = (typeof row.args === "string" ? JSON.parse(row.args) : row.args) ?? {};
     // A call made to publish later only scheduled; the live publish is its own approved action.
-    if (args.publish_at || xPostShape(args.account, args.parts) !== want) continue;
+    if (args.publish_at || xPostShape(args.account, args.parts, xPostExtras(args)) !== want) continue;
     const r = await (db as any).update(pendingActions).set({ result: "publishing on X…" })
       .where(and(eq(pendingActions.id, row.id), eq(pendingActions.status, "approved"), isNull(pendingActions.result))).run();
     if ((r?.changes ?? 0) === 1) return String(row.id);
@@ -3667,14 +3695,14 @@ function xAccountForAgent(st: any, agentId: string, wanted: string): { account?:
   return { account, status: 200 };
 }
 /** The key-proxy's table of X reads (name, grant, price), asked for once and kept for a while. */
-let xOpsCache: { at: number; ops: { name: string; grant: string; usd: number; unit: "resource" | "request" }[] } | null = null;
-async function xOpPrice(name: string): Promise<{ usd: number; unit: "resource" | "request" } | null> {
+let xOpsCache: { at: number; ops: { name: string; kind: "read" | "write"; grant: string; usd: number; unit: "resource" | "request" }[] } | null = null;
+async function xOpPrice(name: string): Promise<{ usd: number; unit: "resource" | "request"; kind: "read" | "write" } | null> {
   if (!xOpsCache || Date.now() - xOpsCache.at > 10 * 60_000) {
     const out = await xProxy("GET", "/ops");
     xOpsCache = { at: Date.now(), ops: Array.isArray(out?.ops) ? out.ops : [] };
   }
   const op = xOpsCache.ops.find((o) => o.name === name);
-  return op ? { usd: op.usd, unit: op.unit } : null;
+  return op ? { usd: op.usd, unit: op.unit, kind: op.kind === "write" ? "write" : "read" } : null;
 }
 /** Whether one more charge fits under the account's monthly cap. */
 const xUnderCap = (account: any, spent: number, usd: number): boolean => !(typeof account.monthlyCapUsd === "number") || spent + usd <= account.monthlyCapUsd + 1e-9;
@@ -3696,7 +3724,7 @@ api.post("/x/read", async (req, res) => {
     if (!pick.account) return res.status(pick.status).json({ error: pick.error, message: pick.message });
     const account = pick.account;
     const price = await xOpPrice(op);
-    if (!price) return res.status(400).json({ error: "unknown_op", message: `"${op.slice(0, 40)}" is not a read HydraOps performs on X.` });
+    if (!price || price.kind !== "read") return res.status(400).json({ error: "unknown_op", message: `"${op.slice(0, 40)}" is not a read HydraOps performs on X.` });
     const spend = await readXSpend();
     const spent = xSpentThisMonth(spend, account.id);
     const taskSpent = xSpentByTask(spend, taskId);
@@ -3722,6 +3750,101 @@ api.post("/x/read", async (req, res) => {
   }
 });
 
+/**
+ * The approved held call (any tool) this request is the run of, claimed so it serves once:
+ * same agent, same tool, same arguments. Null when there is none.
+ */
+async function claimApprovedCall(toolName: string, agentId: string, args: unknown): Promise<{ id: string; args: Record<string, any> } | null> {
+  const want = stableJson(args);
+  const rows = await (db as any).select().from(pendingActions)
+    .where(and(eq(pendingActions.toolName, toolName), eq(pendingActions.agentId, agentId), eq(pendingActions.status, "approved"), isNull(pendingActions.result)))
+    .orderBy(desc(pendingActions.decidedAt)).limit(20);
+  for (const row of rows) {
+    const stored = (typeof row.args === "string" ? JSON.parse(row.args) : row.args) ?? {};
+    if (stableJson(stored) !== want) continue;
+    const r = await (db as any).update(pendingActions).set({ result: "running on X…" })
+      .where(and(eq(pendingActions.id, row.id), eq(pendingActions.status, "approved"), isNull(pendingActions.result))).run();
+    if ((r?.changes ?? 0) === 1) return { id: String(row.id), args: stored };
+  }
+  return null;
+}
+/** What each action of x_engage / x_users is in the key-proxy's table: the only operations the route can reach, by tool. */
+const X_ACT_OPS: Record<string, Record<string, { op: string; hidden?: boolean }>> = {
+  x_engage: { like: { op: "like" }, unlike: { op: "unlike" }, repost: { op: "repost" }, unrepost: { op: "unrepost" }, bookmark: { op: "bookmark" }, unbookmark: { op: "unbookmark" }, delete: { op: "delete_post" }, hide_reply: { op: "hide_reply", hidden: true }, unhide_reply: { op: "hide_reply", hidden: false } },
+  x_users: { follow: { op: "follow" }, unfollow: { op: "unfollow" }, block: { op: "block" }, unblock: { op: "unblock" }, mute: { op: "mute" }, unmute: { op: "unmute" } },
+};
+/** JSON with the keys sorted and empty values dropped, so two spellings of the same call compare equal. */
+function stableJson(v: unknown): string {
+  const norm = (x: any): any => {
+    if (Array.isArray(x)) return x.map(norm);
+    if (x && typeof x === "object") return Object.fromEntries(Object.keys(x).sort().filter((k) => x[k] !== undefined && x[k] !== null && x[k] !== "").map((k) => [k, norm(x[k])]));
+    return typeof x === "string" ? x.trim() : x;
+  };
+  return JSON.stringify(norm(v));
+}
+
+// A write from the table (x_engage, x_users): a like, a repost, a bookmark, a follow, a
+// block, a mute, their undoings, deleting an own post, hiding a reply. Held for the user
+// on the worker's side (approval "always"); here the run is accepted only as the execution
+// of an approved call with these very arguments, or of a later call of a tool the user
+// approved for the rest of the task. What runs is derived from the APPROVED arguments (the
+// stored row's, or the request's under a task-wide approval), never from anything else in
+// the request: the operation from the tool and the action, the target from the id, or from
+// a handle the API itself looks up. Charged per request against the account's cap.
+api.post("/x/act", async (req, res) => {
+  if (!sameSiteOnly(req, res)) return;
+  try {
+    const agentId = String(req.body?.agentId ?? "").trim().toLowerCase();
+    const taskId = typeof req.body?.taskId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(req.body.taskId) ? req.body.taskId : undefined;
+    const toolName = String(req.body?.toolName ?? "");
+    const askedArgs = req.body?.args && typeof req.body.args === "object" ? req.body.args : {};
+    if (!X_ACT_OPS[toolName]) return res.status(400).json({ error: "bad_tool", message: "Not a tool that acts on X." });
+    // The approval: this exact call, or the tool approved for the rest of the task's chain.
+    const claimed = await claimApprovedCall(toolName, agentId, askedArgs);
+    const taskWide = !claimed && taskId ? (await taskChainAutoApproved(db, taskId).catch(() => [] as string[])).includes(toolName) : false;
+    if (!claimed && !taskWide) {
+      console.warn(`[api] x: a ${toolName} call for ${agentId || "?"} matched no approved call: refused`);
+      return res.status(403).json({ error: "not_approved", message: "Nothing acts on X without the user's approval of that exact call, and there is no approved call matching this one." });
+    }
+    const args = claimed ? claimed.args : askedArgs;
+    const what = X_ACT_OPS[toolName][String(args.action ?? "")];
+    if (!what) return res.status(400).json({ error: "bad_action", message: `"${String(args.action ?? "").slice(0, 40)}" is not an action of ${toolName}.` });
+    const st = await xIntegrationStatus();
+    const pick = xAccountForAgent(st, agentId, String(args.account ?? "").trim().replace(/^@/, "").toLowerCase());
+    if (!pick.account) return res.status(pick.status).json({ error: pick.error, message: pick.message });
+    const account = pick.account;
+    const price = await xOpPrice(what.op);
+    if (!price || price.kind !== "write") return res.status(400).json({ error: "unknown_op", message: `"${what.op}" is not an action HydraOps performs on X.` });
+    // The target: a post id, a user id, or a handle the API looks up itself (a profile read X charges for).
+    let id = typeof args.id === "string" && /^\d{1,30}$/.test(args.id) ? args.id : "";
+    let lookupUsd = 0;
+    const spent0 = xSpentThisMonth(await readXSpend(), account.id);
+    if (!id && toolName === "x_users" && typeof args.username === "string" && /^[A-Za-z0-9_]{1,15}$/.test(args.username.replace(/^@/, ""))) {
+      const userPrice = await xOpPrice("user");
+      if (!xUnderCap(account, spent0, (userPrice?.usd ?? 0) + price.usd)) return res.status(402).json({ error: "cap_reached", message: `Not done: @${account.username} would pass its monthly X cap (${spent0.toFixed(3)} spent of ${account.monthlyCapUsd} USD by HydraOps' estimate). The user raises it in Tools → X.` });
+      const who = await xProxy("POST", "/call", { accountId: account.id, op: "user", params: { username: args.username.replace(/^@/, "") } }, 70_000);
+      lookupUsd = Number(who?.estimatedUsd) || 0;
+      await recordXSpend(account.id, lookupUsd, taskId);
+      id = typeof who?.body?.data?.id === "string" ? who.body.data.id : "";
+      if (!id) return res.status(404).json({ error: "no_such_user", message: `No user @${args.username.replace(/^@/, "")} on X.` });
+    }
+    if (!id) return res.status(400).json({ error: "bad_target", message: `${toolName} ${args.action} needs the ${toolName === "x_engage" ? "post's id" : "user's id or handle"}.` });
+    const params: Record<string, unknown> = what.hidden === undefined ? { id } : { id, hidden: what.hidden };
+    const spent = xSpentThisMonth(await readXSpend(), account.id);
+    if (!xUnderCap(account, spent, price.usd)) return res.status(402).json({ error: "cap_reached", message: `Not done: @${account.username} would pass its monthly X cap (${spent.toFixed(3)} spent of ${account.monthlyCapUsd} USD by HydraOps' estimate). The user raises it in Tools → X.` });
+    const out = await xProxy("POST", "/call", { accountId: account.id, op: what.op, params }, 70_000);
+    const usd = Number(out?.estimatedUsd) || 0;
+    await recordXSpend(account.id, usd, taskId);
+    const after = await readXSpend();
+    console.log(`[api] x: ${agentId} ${what.op} as @${account.username}${taskWide ? " (approved for the rest of the task)" : ""}: about ${usd.toFixed(3)} USD${lookupUsd ? ` (plus ${lookupUsd.toFixed(3)} to look up @${args.username})` : ""}`);
+    res.json({ ok: true, op: what.op, target: id, account: { id: account.id, username: account.username }, body: out?.body ?? {}, estimatedUsd: usd, lookupUsd, spend: { account: Number(xSpentThisMonth(after, account.id).toFixed(3)), cap: account.monthlyCapUsd ?? null } });
+  } catch (e: any) {
+    if (e?.code === "scopes_missing" || e?.code === "grant_missing") return res.status(403).json({ error: e.code, message: e.message });
+    console.error("[api] POST /x/act failed", e?.message ?? e);
+    xFailure(res, e);
+  }
+});
+
 api.post("/x/post", async (req, res) => {
   if (!sameSiteOnly(req, res)) return;
   try {
@@ -3735,7 +3858,9 @@ api.post("/x/post", async (req, res) => {
     // The parts, with the user's attachments resolved to files inside the uploads folder.
     const rawParts = Array.isArray(req.body?.parts) ? req.body.parts : [];
     // Last check before anything leaves: this is the run of a call the user approved.
-    const actionId = await claimApprovedXPost(agentId, req.body?.account, rawParts);
+    const extras = xPostExtras(req.body ?? {});
+    if (typeof extras === "string") return res.status(400).json({ error: "bad_post", message: extras });
+    const actionId = await claimApprovedXPost(agentId, req.body?.account, rawParts, extras);
     if (!actionId) {
       console.warn(`[api] x: a publish for ${agentId || "?"} as @${account.username} matched no approved call: refused`);
       return res.status(403).json({ error: "not_approved", message: "Nothing is published on X without the user's approval of that exact post, and there is no approved x_post call matching this one." });
@@ -3770,7 +3895,8 @@ api.post("/x/post", async (req, res) => {
     if (!xUnderCap(account, spent, cost)) return res.status(402).json({ error: "cap_reached", message: `Not published: @${account.username} would pass its monthly X cap (${spent.toFixed(3)} spent of ${account.monthlyCapUsd} USD by HydraOps' estimate; this post is about ${cost.toFixed(3)} USD). The user raises it in Tools → X.` });
     // A video is uploaded in chunks and then processed by X: minutes, not seconds.
     const hasVideo = parts.some((p) => p.media.some((m) => xMediaKind(m) === "video"));
-    const out = await xProxy("POST", "/post", { accountId: account.id, parts, premium: account.premium === true }, hasVideo ? 20 * 60_000 : 60_000);
+    if (extras.poll && parts[0].media.length) return res.status(400).json({ error: "bad_poll", message: "A poll and attachments cannot go in the same part." });
+    const out = await xProxy("POST", "/post", { accountId: account.id, parts, premium: account.premium === true, replyTo: extras.reply_to, quote: extras.quote, poll: extras.poll ? { options: extras.poll.options, durationMinutes: extras.poll.duration_minutes } : undefined, replySettings: extras.reply_settings }, hasVideo ? 20 * 60_000 : 60_000);
     await recordXSpend(account.id, cost, typeof req.body?.taskId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(req.body.taskId) ? req.body.taskId : undefined);
     console.log(`[api] x: ${agentId} published ${parts.length} part(s) as @${account.username} (about ${cost.toFixed(3)} USD)`);
     res.json({ ok: true, ...out, estimatedUsd: Number(cost.toFixed(3)) });

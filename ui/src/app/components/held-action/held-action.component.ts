@@ -53,8 +53,24 @@ import { IconComponent } from '../icon/icon.component';
               </div>
             </div>
           }
+          @if (post.replyTo) { <p class="post-extra">{{ 'chat.held.x.replyTo' | translate:{ id: post.replyTo } }}</p> }
+          @if (post.quote) { <p class="post-extra">{{ 'chat.held.x.quote' | translate:{ id: post.quote } }}</p> }
+          @if (post.poll) { <p class="post-extra">{{ 'chat.held.x.poll' | translate:{ options: post.poll.options, hours: post.poll.hours } }}</p> }
+          @if (post.replySettings) { <p class="post-extra">{{ 'chat.held.x.replySettings' | translate:{ who: ('chat.held.x.replyWho.' + post.replySettings | translate) } }}</p> }
           <p class="post-cost">{{ 'chat.held.x.cost' | translate:{ usd: post.usd } }}@if (post.hasLink) { · {{ 'chat.held.x.linkNote' | translate }} }</p>
           @if (post.scheduled) { <p class="post-when"><app-icon name="calendar" /> {{ 'chat.held.x.scheduled' | translate:{ when: post.scheduled } }}</p> }
+        </div>
+      } @else if (xAct; as x) {
+        <div class="post">
+          <div class="post-account">
+            <span class="post-label">{{ 'chat.held.x.account' | translate }}</span>
+            @if (xAccount()?.avatar) { <img class="post-avatar" [src]="xAccount()!.avatar" alt="" /> }
+            <span class="post-handle">&#64;{{ x.account }}</span>
+            @if (xAccount()) { <span class="post-name">{{ xAccount()!.name }}</span> }
+            @else if (xChecked()) { <span class="post-warn">{{ 'chat.held.x.unknownAccount' | translate }}</span> }
+          </div>
+          <p class="post-act">{{ ('chat.held.xact.' + x.action) | translate:{ target: x.target } }}</p>
+          <p class="post-cost">{{ 'chat.held.x.cost' | translate:{ usd: x.usd } }}</p>
         </div>
       } @else if (browserAct; as a) {
         <div class="browser-open">
@@ -166,6 +182,8 @@ import { IconComponent } from '../icon/icon.component';
     .post-images img { width: 96px; height: 96px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-color); }
     .post-images video { max-width: 100%; max-height: 240px; border-radius: 6px; border: 1px solid var(--border-color); background: #000; }
     .post-cost { margin: 0; color: var(--text-muted); font-size: 11.5px; }
+    .post-extra { margin: 0; color: var(--text-secondary); font-size: 12px; }
+    .post-act { margin: 4px 0 2px; color: var(--text-primary); font-size: 13.5px; }
     .post-when { margin: 0; display: flex; align-items: center; gap: 6px; color: var(--text-primary); font-size: 12.5px; }
     .post-when app-icon { font-size: 14px; color: var(--accent); }
   `],
@@ -182,11 +200,11 @@ export class HeldActionComponent implements OnInit {
   xChecked = signal(false);
 
   ngOnInit(): void {
-    const post = this.post;
-    if (!post) return;
+    const handle = this.post?.account ?? this.xAct?.account;
+    if (!handle) return;
     this.api.getXIntegration().subscribe({
       next: x => {
-        const a = x.accounts.find(acc => acc.username.toLowerCase() === post.account.toLowerCase());
+        const a = x.accounts.find(acc => acc.username.toLowerCase() === handle.toLowerCase());
         this.xAccount.set(a && a.agents.includes(this.action.agentId) && x.enabled ? a : null);
         this.xChecked.set(true);
       },
@@ -198,8 +216,19 @@ export class HeldActionComponent implements OnInit {
   get charLimit(): number { return this.xAccount()?.premium ? 25_000 : 280; }
   isVideo(name: string): boolean { return /\.mp4$/i.test(name); }
 
-  /** The x_post arguments, read as a post: account, parts with their weighted length and images, cost. */
-  get post(): { account: string; parts: { text: string; chars: number; media: string[] }[]; usd: string; hasLink: boolean; scheduled: string } | null {
+  /** An x_engage / x_users action, read as what it does to whom, as which account, and X's price for it. */
+  get xAct(): { account: string; action: string; target: string; usd: string } | null {
+    if (this.action.toolName !== 'x_engage' && this.action.toolName !== 'x_users') return null;
+    const a = (this.action.args ?? {}) as Record<string, unknown>;
+    const s = (k: string) => (typeof a[k] === 'string' ? (a[k] as string) : '');
+    const action = s('action');
+    const prices: Record<string, number> = { like: 0.015, repost: 0.015, follow: 0.015, block: 0.015, mute: 0.015, unlike: 0.01, unrepost: 0.01, unfollow: 0.01, unblock: 0.01, bookmark: 0.005, unbookmark: 0.005, delete: 0.005, hide_reply: 0.005, unhide_reply: 0.005, unmute: 0.005 };
+    const target = s('username') ? `@${s('username').replace(/^@/, '')}` : s('id');
+    return { account: s('account').replace(/^@/, ''), action: action || this.action.toolName, target, usd: (prices[action] ?? 0.015).toFixed(3) };
+  }
+
+  /** The x_post arguments, read as a post: account, parts with their weighted length and images, what goes with the first part, cost. */
+  get post(): { account: string; parts: { text: string; chars: number; media: string[] }[]; usd: string; hasLink: boolean; scheduled: string; replyTo: string; quote: string; poll: { options: string; hours: string } | null; replySettings: string } | null {
     if (this.action.toolName !== 'x_post') return null;
     const args = (this.action.args ?? {}) as Record<string, unknown>;
     const raw = Array.isArray(args['parts']) ? args['parts'] as Record<string, unknown>[] : [];
@@ -221,7 +250,13 @@ export class HeldActionComponent implements OnInit {
     // publish_at: the post is scheduled, not published now (see the Calendar).
     const at = typeof args['publish_at'] === 'string' ? (args['publish_at'] as string) : '';
     const scheduled = at ? `${at}${typeof args['timezone'] === 'string' && args['timezone'] ? ` (${args['timezone']})` : ''}` : '';
-    return { account: String(args['account'] ?? '').replace(/^@/, ''), parts, usd: usd.toFixed(3), hasLink, scheduled };
+    const s = (k: string) => (typeof args[k] === 'string' ? (args[k] as string) : '');
+    const pollArg = args['poll'] as { options?: unknown[]; duration_minutes?: number } | undefined;
+    const poll = pollArg && Array.isArray(pollArg.options)
+      ? { options: pollArg.options.map(String).join(' · '), hours: (Number(pollArg.duration_minutes || 0) / 60).toLocaleString(undefined, { maximumFractionDigits: 1 }) }
+      : null;
+    const replySettings = s('reply_settings') && s('reply_settings') !== 'everyone' ? s('reply_settings') : '';
+    return { account: String(args['account'] ?? '').replace(/^@/, ''), parts, usd: usd.toFixed(3), hasLink, scheduled, replyTo: s('reply_to'), quote: s('quote'), poll, replySettings };
   }
 
   /** A calendar_add / calendar_update / calendar_remove call, read as the entry it describes. */

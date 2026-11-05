@@ -218,7 +218,17 @@
         "images": "Allegati",
         "cost": "Circa {{usd}} USD, addebitati da X sul tuo account sviluppatore",
         "linkNote": "un post con un link costa di più",
-        "scheduled": "Programmato per {{when}}: approva ora e verrà pubblicato a quell'ora, così com'è, senza chiedere di nuovo. Fino ad allora puoi toglierlo dal Calendario."
+        "scheduled": "Programmato per {{when}}: approva ora e verrà pubblicato a quell'ora, così com'è, senza chiedere di nuovo. Fino ad allora puoi toglierlo dal Calendario.",
+        "replyTo": "Risposta al post {{id}}",
+        "quote": "Cita il post {{id}}",
+        "poll": "Sondaggio: {{options}} · dura {{hours}} h",
+        "replySettings": "Possono rispondere: {{who}}",
+        "replyWho": {
+          "following": "solo gli account seguiti",
+          "mentionedUsers": "solo gli account menzionati",
+          "subscribers": "solo gli abbonati",
+          "verified": "solo gli account verificati"
+        }
       },
       "calendar": {
         "add": "Programmare",
@@ -251,6 +261,23 @@
           "enter": "Poi preme Invio.",
           "why": "L'azione avviene nella scheda leggibile dagli agenti, con le tue sessioni, dopo la tua approvazione; prima l'elemento viene evidenziato. I campi password, carta e file non vengono mai toccati."
         }
+      },
+      "xact": {
+        "like": "Mettere mi piace al post {{target}}",
+        "unlike": "Togliere il mi piace al post {{target}}",
+        "repost": "Repostare {{target}}",
+        "unrepost": "Annullare il repost di {{target}}",
+        "bookmark": "Salvare il post {{target}}",
+        "unbookmark": "Togliere {{target}} dai salvati",
+        "delete": "Eliminare il proprio post {{target}}",
+        "hide_reply": "Nascondere la risposta {{target}}",
+        "unhide_reply": "Mostrare di nuovo la risposta {{target}}",
+        "follow": "Seguire {{target}}",
+        "unfollow": "Smettere di seguire {{target}}",
+        "block": "Bloccare {{target}}",
+        "unblock": "Sbloccare {{target}}",
+        "mute": "Silenziare {{target}}",
+        "unmute": "Riattivare {{target}}"
       }
     },
     "linkUnverified": "⚠ Non verificato: l'agente non ha aperto né visto questo indirizzo in questa conversazione. Può esistere, ma viene dalla sua memoria, non da una consultazione.",

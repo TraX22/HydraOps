@@ -218,7 +218,17 @@
         "images": "Attachments",
         "cost": "About {{usd}} USD, charged by X to your developer account",
         "linkNote": "a post with a link costs more",
-        "scheduled": "Scheduled for {{when}}: approve now and it is published then, exactly like this, without asking again. Until then you can remove it from the Calendar."
+        "scheduled": "Scheduled for {{when}}: approve now and it is published then, exactly like this, without asking again. Until then you can remove it from the Calendar.",
+        "replyTo": "Reply to post {{id}}",
+        "quote": "Quotes post {{id}}",
+        "poll": "Poll: {{options}} · runs {{hours}} h",
+        "replySettings": "May reply: {{who}}",
+        "replyWho": {
+          "following": "only accounts it follows",
+          "mentionedUsers": "only mentioned accounts",
+          "subscribers": "only subscribers",
+          "verified": "only verified accounts"
+        }
       },
       "calendar": {
         "add": "Schedule",
@@ -251,6 +261,23 @@
           "enter": "Then presses Enter.",
           "why": "The action runs on the tab the agents may read, with your sessions, after you approve; the element is highlighted first. Password, card and file fields are never touched."
         }
+      },
+      "xact": {
+        "like": "Like post {{target}}",
+        "unlike": "Unlike post {{target}}",
+        "repost": "Repost {{target}}",
+        "unrepost": "Undo the repost of {{target}}",
+        "bookmark": "Bookmark post {{target}}",
+        "unbookmark": "Remove post {{target}} from bookmarks",
+        "delete": "Delete own post {{target}}",
+        "hide_reply": "Hide reply {{target}}",
+        "unhide_reply": "Show reply {{target}} again",
+        "follow": "Follow {{target}}",
+        "unfollow": "Unfollow {{target}}",
+        "block": "Block {{target}}",
+        "unblock": "Unblock {{target}}",
+        "mute": "Mute {{target}}",
+        "unmute": "Unmute {{target}}"
       }
     },
     "linkUnverified": "⚠ Not verified: the agent did not open or see this address in this conversation. It may exist, but it came from its memory, not from a lookup.",

@@ -1,9 +1,10 @@
 /**
  * x-ops.ts — what HydraOps may do on X, as one closed table.
  *
- * Every call the tools make to X goes through `callOp` in x.ts, which only knows the
- * operations listed here: method, path, the permission group it needs, the scopes X must
- * have granted the account, and X's list price. Nothing outside this table reaches X, and
+ * Every call the tools make to X (except publishing, see postThread) goes through `callOp`
+ * in x.ts, which only knows the operations listed here: method, path, whether it reads or
+ * writes, the permission group it needs, the scopes X must have granted the account, and
+ * X's list price. Nothing outside this table reaches X, and
  * the same table tells the API what to charge against the account's cap and the task's
  * budget, and tells the card what a permission group allows.
  *
@@ -49,7 +50,9 @@ export function missingScopes(grants: XGrant[], scopes: string[]): string[] {
 
 export interface XOp {
   name: string;
-  method: "GET";
+  method: "GET" | "POST" | "PUT" | "DELETE";
+  /** A read changes nothing on X and is not held; a write is held for the user's approval. */
+  kind: "read" | "write";
   /** The path, with `:me` (the account's own id), `:id` (a post or user id) or `:username`. */
   path: string;
   /** The permission group the account must have been connected with. */
@@ -65,6 +68,8 @@ export interface XOp {
   results?: [number, number];
   /** Query parameters fixed here: which fields come back. */
   fixed: Record<string, string>;
+  /** For a write: the JSON body, as caller parameter → X's field name (ids checked, `hidden` a boolean). */
+  body?: Record<string, string>;
 }
 
 // The fields every post comes with: enough to show it, say who wrote it and how it did.
@@ -75,29 +80,52 @@ const PAGE = ["max_results", "pagination_token", "since_id", "until_id"];
 const SEARCH = ["query", "max_results", "next_token", "since_id", "until_id", "start_time", "end_time", "sort_order"];
 const COUNTS = ["query", "granularity", "start_time", "end_time", "since_id", "until_id", "next_token"];
 
+const USER_PAGE = ["max_results", "pagination_token"];
 const OPS: XOp[] = [
   // Users
-  { name: "user", method: "GET", path: "/2/users/by/username/:username", grant: "read", usd: 0.010, unit: "resource", query: [], fixed: USER_FIELDS },
-  { name: "user_by_id", method: "GET", path: "/2/users/:id", grant: "read", usd: 0.010, unit: "resource", query: [], fixed: USER_FIELDS },
+  { name: "user", method: "GET", kind: "read", path: "/2/users/by/username/:username", grant: "read", usd: 0.010, unit: "resource", query: [], fixed: USER_FIELDS },
+  { name: "user_by_id", method: "GET", kind: "read", path: "/2/users/:id", grant: "read", usd: 0.010, unit: "resource", query: [], fixed: USER_FIELDS },
   // The account's own reads (X's "owned reads" price)
-  { name: "my_posts", method: "GET", path: "/2/users/:me/tweets", grant: "read", usd: 0.001, unit: "resource", query: [...PAGE, "exclude"], results: [5, 100], fixed: POST_QUERY },
-  { name: "mentions", method: "GET", path: "/2/users/:me/mentions", grant: "read", usd: 0.001, unit: "resource", query: PAGE, results: [5, 100], fixed: POST_QUERY },
-  { name: "liked", method: "GET", path: "/2/users/:me/liked_tweets", grant: "engage", scopes: ["like.read"], usd: 0.001, unit: "resource", query: ["max_results", "pagination_token"], results: [5, 100], fixed: POST_QUERY },
-  { name: "bookmarks", method: "GET", path: "/2/users/:me/bookmarks", grant: "engage", scopes: ["bookmark.read"], usd: 0.001, unit: "resource", query: ["max_results", "pagination_token"], results: [1, 100], fixed: POST_QUERY },
+  { name: "my_posts", method: "GET", kind: "read", path: "/2/users/:me/tweets", grant: "read", usd: 0.001, unit: "resource", query: [...PAGE, "exclude"], results: [5, 100], fixed: POST_QUERY },
+  { name: "mentions", method: "GET", kind: "read", path: "/2/users/:me/mentions", grant: "read", usd: 0.001, unit: "resource", query: PAGE, results: [5, 100], fixed: POST_QUERY },
+  { name: "liked", method: "GET", kind: "read", path: "/2/users/:me/liked_tweets", grant: "engage", scopes: ["like.read"], usd: 0.001, unit: "resource", query: ["max_results", "pagination_token"], results: [5, 100], fixed: POST_QUERY },
+  { name: "bookmarks", method: "GET", kind: "read", path: "/2/users/:me/bookmarks", grant: "engage", scopes: ["bookmark.read"], usd: 0.001, unit: "resource", query: ["max_results", "pagination_token"], results: [1, 100], fixed: POST_QUERY },
   // The account's own post with the metrics only its author sees.
-  { name: "post_metrics", method: "GET", path: "/2/tweets/:id", grant: "read", usd: 0.001, unit: "resource", query: [], fixed: { ...POST_QUERY, "tweet.fields": `${POST_FIELDS},non_public_metrics,organic_metrics` } },
+  { name: "post_metrics", method: "GET", kind: "read", path: "/2/tweets/:id", grant: "read", usd: 0.001, unit: "resource", query: [], fixed: { ...POST_QUERY, "tweet.fields": `${POST_FIELDS},non_public_metrics,organic_metrics` } },
   // Other people's posts
-  { name: "home", method: "GET", path: "/2/users/:me/timelines/reverse_chronological", grant: "read", usd: 0.005, unit: "resource", query: [...PAGE, "exclude"], results: [1, 100], fixed: POST_QUERY },
-  { name: "user_posts", method: "GET", path: "/2/users/:id/tweets", grant: "read", usd: 0.005, unit: "resource", query: [...PAGE, "exclude"], results: [5, 100], fixed: POST_QUERY },
-  { name: "post", method: "GET", path: "/2/tweets/:id", grant: "read", usd: 0.005, unit: "resource", query: [], fixed: POST_QUERY },
-  { name: "quotes", method: "GET", path: "/2/tweets/:id/quote_tweets", grant: "read", usd: 0.005, unit: "resource", query: ["max_results", "pagination_token", "exclude"], results: [10, 100], fixed: POST_QUERY },
-  { name: "likers", method: "GET", path: "/2/tweets/:id/liking_users", grant: "read", usd: 0.001, unit: "resource", query: ["max_results", "pagination_token"], results: [1, 100], fixed: USER_FIELDS },
-  { name: "reposters", method: "GET", path: "/2/tweets/:id/retweeted_by", grant: "read", usd: 0.010, unit: "resource", query: ["max_results", "pagination_token"], results: [1, 100], fixed: USER_FIELDS },
+  { name: "home", method: "GET", kind: "read", path: "/2/users/:me/timelines/reverse_chronological", grant: "read", usd: 0.005, unit: "resource", query: [...PAGE, "exclude"], results: [1, 100], fixed: POST_QUERY },
+  { name: "user_posts", method: "GET", kind: "read", path: "/2/users/:id/tweets", grant: "read", usd: 0.005, unit: "resource", query: [...PAGE, "exclude"], results: [5, 100], fixed: POST_QUERY },
+  { name: "post", method: "GET", kind: "read", path: "/2/tweets/:id", grant: "read", usd: 0.005, unit: "resource", query: [], fixed: POST_QUERY },
+  { name: "quotes", method: "GET", kind: "read", path: "/2/tweets/:id/quote_tweets", grant: "read", usd: 0.005, unit: "resource", query: ["max_results", "pagination_token", "exclude"], results: [10, 100], fixed: POST_QUERY },
+  { name: "likers", method: "GET", kind: "read", path: "/2/tweets/:id/liking_users", grant: "read", usd: 0.001, unit: "resource", query: ["max_results", "pagination_token"], results: [1, 100], fixed: USER_FIELDS },
+  { name: "reposters", method: "GET", kind: "read", path: "/2/tweets/:id/retweeted_by", grant: "read", usd: 0.010, unit: "resource", query: ["max_results", "pagination_token"], results: [1, 100], fixed: USER_FIELDS },
   // Search
-  { name: "search_recent", method: "GET", path: "/2/tweets/search/recent", grant: "read", usd: 0.005, unit: "resource", query: SEARCH, results: [10, 100], fixed: POST_QUERY },
-  { name: "search_all", method: "GET", path: "/2/tweets/search/all", grant: "read", usd: 0.005, unit: "resource", query: SEARCH, results: [10, 100], fixed: POST_QUERY },
-  { name: "counts_recent", method: "GET", path: "/2/tweets/counts/recent", grant: "read", usd: 0.005, unit: "request", query: COUNTS, fixed: {} },
-  { name: "counts_all", method: "GET", path: "/2/tweets/counts/all", grant: "read", usd: 0.010, unit: "request", query: COUNTS, fixed: {} },
+  { name: "search_recent", method: "GET", kind: "read", path: "/2/tweets/search/recent", grant: "read", usd: 0.005, unit: "resource", query: SEARCH, results: [10, 100], fixed: POST_QUERY },
+  { name: "search_all", method: "GET", kind: "read", path: "/2/tweets/search/all", grant: "read", usd: 0.005, unit: "resource", query: SEARCH, results: [10, 100], fixed: POST_QUERY },
+  { name: "counts_recent", method: "GET", kind: "read", path: "/2/tweets/counts/recent", grant: "read", usd: 0.005, unit: "request", query: COUNTS, fixed: {} },
+  { name: "counts_all", method: "GET", kind: "read", path: "/2/tweets/counts/all", grant: "read", usd: 0.010, unit: "request", query: COUNTS, fixed: {} },
+  // Who follows whom, who is blocked or muted (x_users reads; "engage" because X's scopes for them live there)
+  { name: "followers", method: "GET", kind: "read", path: "/2/users/:me/followers", grant: "engage", scopes: ["follows.read"], usd: 0.001, unit: "resource", query: USER_PAGE, results: [1, 1000], fixed: USER_FIELDS },
+  { name: "following", method: "GET", kind: "read", path: "/2/users/:me/following", grant: "engage", scopes: ["follows.read"], usd: 0.001, unit: "resource", query: USER_PAGE, results: [1, 1000], fixed: USER_FIELDS },
+  { name: "user_followers", method: "GET", kind: "read", path: "/2/users/:id/followers", grant: "engage", scopes: ["follows.read"], usd: 0.010, unit: "resource", query: USER_PAGE, results: [1, 1000], fixed: USER_FIELDS },
+  { name: "user_following", method: "GET", kind: "read", path: "/2/users/:id/following", grant: "engage", scopes: ["follows.read"], usd: 0.010, unit: "resource", query: USER_PAGE, results: [1, 1000], fixed: USER_FIELDS },
+  { name: "blocked", method: "GET", kind: "read", path: "/2/users/:me/blocking", grant: "engage", scopes: ["block.read"], usd: 0.001, unit: "resource", query: USER_PAGE, results: [1, 1000], fixed: USER_FIELDS },
+  { name: "muted", method: "GET", kind: "read", path: "/2/users/:me/muting", grant: "engage", scopes: ["mute.read"], usd: 0.001, unit: "resource", query: USER_PAGE, results: [1, 1000], fixed: USER_FIELDS },
+  // Writes (x_engage, x_users): held for the user's approval, charged per request
+  { name: "like", method: "POST", kind: "write", path: "/2/users/:me/likes", grant: "engage", scopes: ["like.write"], usd: 0.015, unit: "request", query: [], fixed: {}, body: { id: "tweet_id" } },
+  { name: "unlike", method: "DELETE", kind: "write", path: "/2/users/:me/likes/:id", grant: "engage", scopes: ["like.write"], usd: 0.010, unit: "request", query: [], fixed: {} },
+  { name: "repost", method: "POST", kind: "write", path: "/2/users/:me/retweets", grant: "engage", scopes: ["tweet.write"], usd: 0.015, unit: "request", query: [], fixed: {}, body: { id: "tweet_id" } },
+  { name: "unrepost", method: "DELETE", kind: "write", path: "/2/users/:me/retweets/:id", grant: "engage", scopes: ["tweet.write"], usd: 0.010, unit: "request", query: [], fixed: {} },
+  { name: "bookmark", method: "POST", kind: "write", path: "/2/users/:me/bookmarks", grant: "engage", scopes: ["bookmark.write"], usd: 0.005, unit: "request", query: [], fixed: {}, body: { id: "tweet_id" } },
+  { name: "unbookmark", method: "DELETE", kind: "write", path: "/2/users/:me/bookmarks/:id", grant: "engage", scopes: ["bookmark.write"], usd: 0.005, unit: "request", query: [], fixed: {} },
+  { name: "delete_post", method: "DELETE", kind: "write", path: "/2/tweets/:id", grant: "publish", scopes: ["tweet.write"], usd: 0.005, unit: "request", query: [], fixed: {} },
+  { name: "hide_reply", method: "PUT", kind: "write", path: "/2/tweets/:id/hidden", grant: "engage", scopes: ["tweet.moderate.write"], usd: 0.005, unit: "request", query: [], fixed: {}, body: { hidden: "hidden" } },
+  { name: "follow", method: "POST", kind: "write", path: "/2/users/:me/following", grant: "engage", scopes: ["follows.write"], usd: 0.015, unit: "request", query: [], fixed: {}, body: { id: "target_user_id" } },
+  { name: "unfollow", method: "DELETE", kind: "write", path: "/2/users/:me/following/:id", grant: "engage", scopes: ["follows.write"], usd: 0.010, unit: "request", query: [], fixed: {} },
+  { name: "block", method: "POST", kind: "write", path: "/2/users/:me/blocking", grant: "engage", scopes: ["block.write"], usd: 0.015, unit: "request", query: [], fixed: {}, body: { id: "target_user_id" } },
+  { name: "unblock", method: "DELETE", kind: "write", path: "/2/users/:me/blocking/:id", grant: "engage", scopes: ["block.write"], usd: 0.010, unit: "request", query: [], fixed: {} },
+  { name: "mute", method: "POST", kind: "write", path: "/2/users/:me/muting", grant: "engage", scopes: ["mute.write"], usd: 0.015, unit: "request", query: [], fixed: {}, body: { id: "target_user_id" } },
+  { name: "unmute", method: "DELETE", kind: "write", path: "/2/users/:me/muting/:id", grant: "engage", scopes: ["mute.write"], usd: 0.005, unit: "request", query: [], fixed: {} },
 ];
 const BY_NAME = new Map(OPS.map((o) => [o.name, o]));
 
@@ -111,5 +139,5 @@ export function estimateUsd(op: XOp, body: any): { resources: number; usd: numbe
 }
 
 /** The table without its internals, for the API (what each operation is for and costs). */
-export const opsPublic = (): { name: string; grant: XGrant; scopes: string[]; usd: number; unit: XOp["unit"]; results?: [number, number] }[] =>
-  OPS.map((o) => ({ name: o.name, grant: o.grant, scopes: o.scopes ?? [], usd: o.usd, unit: o.unit, ...(o.results ? { results: o.results } : {}) }));
+export const opsPublic = (): { name: string; kind: XOp["kind"]; grant: XGrant; scopes: string[]; usd: number; unit: XOp["unit"]; results?: [number, number] }[] =>
+  OPS.map((o) => ({ name: o.name, kind: o.kind, grant: o.grant, scopes: o.scopes ?? [], usd: o.usd, unit: o.unit, ...(o.results ? { results: o.results } : {}) }));

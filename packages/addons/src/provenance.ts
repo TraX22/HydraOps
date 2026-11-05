@@ -27,6 +27,9 @@ export interface ToolRisk {
    *  outside content and whatever the security mode (create_skill: a new skill becomes
    *  instructions for other agents). */
   approval?: 'always';
+  /** With approval 'always': "approve for the rest of the task" covers the later calls of
+   *  this tool in the task (a like after a like); without it, each call asks (a post). */
+  taskApproval?: true;
   /** Why the tool is classified this way (shown in the security log). */
   basis?: 'declared' | 'annotations' | 'known-server' | 'configured' | 'unknown';
 }
@@ -270,7 +273,7 @@ export function createTaskSecurity(options: TaskSecurityOptions = {}): TaskSecur
       record({ type: 'sensitive_after_taint', toolName, detail: describeArgs(args) });
     },
     shouldHold(toolName, risk) {
-      if (risk.approval === 'always') return 'always';
+      if (risk.approval === 'always') return risk.taskApproval && neverHold.has(toolName) ? null : 'always';
       if (!tainted || risk.sensitive !== true || mode === 'off') return null;
       if (alwaysHold.has(toolName)) return 'outside';
       return mode === 'ask' && !neverHold.has(toolName) ? 'outside' : null;
