@@ -130,7 +130,7 @@ Se desactiva en **Configuración → Herramientas bajo demanda** (o con `TOOLS_O
 
 ## X: tus cuentas, publicadas con tu aprobación
 
-HydraOps se conecta a **tu propia app de desarrollador en X**, y a través de ella a todas las cuentas de X que quieras: la de un proyecto, la de una marca, una personal. Los agentes publican en ellas con la herramienta `x_post`, y cada publicación espera tu aprobación.
+HydraOps se conecta a **tu propia app de desarrollador en X**, y a través de ella a todas las cuentas de X que quieras: la de un proyecto, la de una marca, una personal. Los agentes las leen y buscan en X con las herramientas `x_read` y `x_search`, y publican en ellas con `x_post`. Cada publicación espera tu aprobación; cada lectura cuesta plata, dentro de un presupuesto que fijás vos.
 
 ### 1. Tu página de vuelta
 
@@ -159,7 +159,7 @@ La API de X es de pago por uso: no hay plan gratuito para desarrolladores nuevos
 
    ![Creación de la app en la consola de desarrolladores de X](../img/x-console-create-app.png)
 
-2. En **User authentication settings** de la app elegí **Lectura y escritura**, el tipo **Web App, Automated App or Bot**, poné tu **Callback URI** del paso 1 y una dirección de sitio web (sirve la de tu página), y **guardá los cambios**.
+2. En **User authentication settings** de la app elegí **Lectura y escritura** (o **Read and write and Direct message** si los agentes van a leer y mandar mensajes directos; se puede cambiar después, y entonces las cuentas se conectan de nuevo), el tipo **Web App, Automated App or Bot**, poné tu **Callback URI** del paso 1 y una dirección de sitio web (sirve la de tu página), y **guardá los cambios**.
 
    ![User authentication settings: tipo Web App y la Callback URI de una copia de la página en GitHub Pages](../img/x-console-auth-settings.png)
 
@@ -173,26 +173,41 @@ La Callback URI guardada en HydraOps tiene que ser exactamente la registrada en 
 
 ### 3. Conectá cada cuenta
 
-Tocá **Conectar una cuenta**: HydraOps muestra un enlace. Abrilo en un navegador **de esta computadora**, con la sesión de X de la cuenta que querés conectar (si el navegador tiene otra abierta, cambiá de cuenta en X antes), aceptá los cuatro permisos (leer tu perfil, publicar, subir imágenes, mantener la sesión), tocá **Continuar** en tu página de vuelta y volvé: la cuenta aparece en la lista en segundos, con sus tokens en el almacén de claves, renovados solos.
+Tocá **Conectar una cuenta** y marcá para qué la van a usar los agentes: **Leer** (siempre: perfil, publicaciones, menciones, búsquedas, métricas), **Publicar**, **Interactuar** (me gusta, repostear, guardar, seguir, silenciar, bloquear) y **Mensajes** (mensajes directos). HydraOps le pide a X solo los permisos de esos usos, así que la cuenta no puede usarse para otra cosa, diga lo que diga un modelo. Después tocá **Generar el enlace**: abrilo en un navegador **de esta computadora**, con la sesión de X de la cuenta que querés conectar (si el navegador tiene otra abierta, cambiá de cuenta en X antes), aceptá los permisos que pide HydraOps, tocá **Continuar** en tu página de vuelta y volvé: la cuenta aparece en la lista en segundos, con sus tokens en el almacén de claves, renovados solos.
 
 Cuando HydraOps corre en un servidor y tu navegador está en otra máquina, la vuelta no llega: tu página de vuelta muestra la dirección con un botón **Copiar**, y la tarjeta tiene un campo para pegarla. Mismo resultado.
 
-Una cuenta se puede conectar de nuevo cuando quieras (se reemplazan sus tokens), y **Desconectar** la olvida.
+La fila de cada cuenta muestra sus usos como etiquetas. Apagá uno ahí cuando quieras; para sumar uno, la cuenta se **vuelve a conectar** con ese permiso marcado (la fila lo ofrece), porque X concede permisos solo al iniciar sesión. **Mensajes** necesita la app en el nivel con Direct message (paso 2); si no, X concede el resto y la tarjeta dice qué quedó afuera. Una cuenta se puede conectar de nuevo cuando quieras (se reemplazan sus tokens), y **Desconectar** la olvida.
 
-### 4. Quién publica dónde
+### 4. Quién usa qué cuenta
 
-Cada cuenta conectada lista los agentes que pueden publicar en ella, y una cuenta nueva arranca con **nadie**: la herramienta de publicar rechaza, del lado del servidor, cualquier cuenta que el agente no tenga asignada acá, así que una publicación no puede caer en la marca equivocada por un error del modelo. Agregá agentes con el selector de la fila de la cuenta; el interruptor ON/OFF de arriba pausa todas las cuentas a la vez.
+Cada cuenta conectada lista los agentes que pueden usarla (leer como ella, publicar en ella), y una cuenta nueva arranca con **nadie**: las herramientas rechazan, del lado del servidor, cualquier cuenta que el agente no tenga asignada acá, así que una publicación no puede caer en la marca equivocada por un error del modelo. Agregá agentes con el selector de la fila de la cuenta; el interruptor ON/OFF de arriba pausa todas las cuentas a la vez.
 
 ### 5. Publicar
 
-Dale al agente las dos herramientas en la vista Agentes (su lista de herramientas, como cualquier otra) y la cuenta en Herramientas → X. Después pedile una publicación o un hilo como se lo pedirías a una persona: «anunciá la versión 0.2 en la cuenta de HydraOps, tres publicaciones, el enlace en la última». El agente tiene dos herramientas:
+Dale al agente las herramientas en la vista Agentes (su lista de herramientas, como cualquier otra; una sola línea `x` se las da todas) y la cuenta en Herramientas → X. Después pedile una publicación o un hilo como se lo pedirías a una persona: «anunciá la versión 0.2 en la cuenta de HydraOps, tres publicaciones, el enlace en la última». Para publicar el agente tiene:
 
-- `x_accounts` lista las cuentas que puede usar. Con una, la usa; con varias y un pedido que no dice cuál, te pregunta; sin ninguna, lo dice.
+- `x_accounts` lista las cuentas que puede usar, para qué se conectó cada una y cómo va su gasto. Con una, la usa; con varias y un pedido que no dice cuál, te pregunta; sin ninguna, lo dice.
 - `x_post` publica una publicación o un hilo (cada parte responde a la anterior) en una cuenta, con adjuntos por parte: hasta 4 imágenes, o un GIF, o un video (los archivos que soltaste en el chat, por nombre; un MP4 con video H.264 y audio AAC, como los que genera ComfyUI). Un video se sube por partes y X lo procesa antes de publicar, así que una publicación con video tarda minutos. Se retiene **siempre**, haya leído lo que haya leído la tarea: nada sale con tu nombre sin vos. Con `publish_at` (fecha y hora, con zona horaria) la publicación se programa: aprobada una vez, sale a esa hora tal cual se mostró, por el calendario (ver [Tareas programadas](./10-scheduled-tasks.md#el-calendario)).
 
 La tarjeta de aprobación muestra la cuenta con su avatar, cada parte tal como se va a publicar con su conteo de caracteres (280 caracteres ponderados, un enlace cuenta 23; 25.000 en una cuenta que marcaste como **X Premium** en la tarjeta), las imágenes o el video y el costo estimado; el aviso por Telegram, lo mismo. **Aprobar** publica y el agente contesta con el enlace; **Rechazar** la descarta y el agente se entera. Para publicar no existe «aprobar por el resto de la tarea»: cada publicación pregunta.
 
 El servidor publica solo la publicación exacta que aprobaste (mismo agente, cuenta y partes), una vez; y rechaza, antes de que nada llegue a X, una parte vacía o pasada del límite, una cuenta que el agente no tiene asignada, un adjunto que no es uno de tus archivos o pasa el tamaño de X (5 MB una imagen, 15 MB un GIF, 8 GB un video, 16 GB en una cuenta Premium), un video o GIF mezclado con otros adjuntos, y cualquier cosa con el interruptor en OFF. Borrar una publicación no es algo que los agentes puedan hacer: eso queda en X, con vos.
+
+### 6. Leer: menciones, publicaciones, perfiles y búsquedas
+
+Leer no cambia nada en X, así que no se retiene para aprobar; pero X lo cobra, así que el freno es la plata. Dos herramientas:
+
+- `x_read` lee como una cuenta: `mentions` (publicaciones que la mencionan; con `since_id`, solo las nuevas), `my_posts`, `home` (su línea de tiempo), `user` (un perfil), `user_posts`, `post`, `metrics` (una publicación propia con las impresiones y los clics que solo ve el autor), `thread` (las respuestas a una publicación, últimos 7 días), `quotes`, `likers`, `reposters`, `liked` y `bookmarks` (las dos últimas necesitan **Interactuar**). Devuelve 20 elementos por defecto; el agente pide más con `limit`, o sigue con `page`.
+- `x_search` busca en X: `recent` (últimos 7 días), `all` (el archivo completo, cuando tu plan de X lo permite) y `counts_recent` / `counts_all` (cuántas publicaciones coincidieron por día, hora o minuto, sin las publicaciones: la forma barata de medir). Toma la sintaxis de búsqueda de X (`from:`, `to:`, `#tag`, `"frase exacta"`, `-término`, `lang:es`, `is:reply`, `has:media`, `OR`…) y un rango de fechas.
+
+Cada respuesta termina con lo que costó la llamada y cómo va la plata. La estimación usa la lista de precios publicada de X: unos 0,001 USD por publicación o mención propia, 0,005 USD por publicación ajena, 0,010 USD por perfil, 0,005 USD por consulta de conteo; la cifra real está en el portal de X. Rigen dos límites, los dos en la tarjeta:
+
+- el **presupuesto de lectura por tarea** (0,50 USD si no lo cambiás): cuando una tarea lo gastó, las lecturas siguientes se rechazan y el agente se entera de que tiene que trabajar con lo que tiene, o pedirte más;
+- el **tope mensual por cuenta**, vacío por defecto: lo que la cuenta gastó este mes (lecturas y publicaciones) se ve con una barra, y al llegar al tope no sale nada más como esa cuenta hasta el mes que viene o hasta que lo subas.
+
+Lo que vuelve de X lo escribió otra gente, así que le llega al agente marcado como contenido externo, igual que una página web: una mención o una respuesta que le diga al agente que haga algo se te informa, no se obedece, y una acción sensible después de eso espera tu aprobación (ver [Seguridad](./13-security.md)).
+
 
 ## Hugging Face: modelos, datasets y Spaces
 

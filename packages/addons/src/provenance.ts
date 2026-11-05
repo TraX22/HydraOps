@@ -201,7 +201,7 @@ function describeArgs(args: unknown): string {
 }
 
 function originRef(args: any): string | undefined {
-  for (const key of ['url', 'videoUrl', 'video_url', 'link', 'query', 'q', 'path', 'repo']) {
+  for (const key of ['url', 'videoUrl', 'video_url', 'link', 'query', 'q', 'path', 'repo', 'username', 'action']) {
     const v = args?.[key];
     if (typeof v === 'string' && v.trim()) return redactSecrets(v.trim()).slice(0, 200);
   }

@@ -3344,22 +3344,29 @@ const X_CONFIG_KEY = "x_config";
 
 // premium: the user says the account is X Premium, which allows long posts and long videos; the
 // limits are X's, this flag only decides what the tools refuse beforehand and what the card shows.
-interface XConfig { enabled: boolean; accounts: Record<string, { agents: string[]; premium?: boolean }> }
+// monthlyCapUsd: the most this account may spend on X in a calendar month, by HydraOps' estimate;
+// taskReadBudgetUsd: the most one task may spend reading, whatever the account (reads need no
+// approval, so this is what keeps a curious agent from running up the bill).
+interface XConfig { enabled: boolean; taskReadBudgetUsd: number; accounts: Record<string, { agents: string[]; premium?: boolean; monthlyCapUsd?: number }> }
+const X_TASK_READ_BUDGET_USD = 0.5;
+const usdOrUndefined = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? Number(v.toFixed(2)) : undefined);
 async function readXConfig(): Promise<XConfig> {
   const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, X_CONFIG_KEY)).limit(1);
   // On by default: nothing can post until an account is connected AND given agents, so the
   // switch is a pause, not a gate. Anything odd in the saved value is logged and ignored.
-  const base: XConfig = { enabled: true, accounts: {} };
+  const base: XConfig = { enabled: true, taskReadBudgetUsd: X_TASK_READ_BUDGET_USD, accounts: {} };
   if (!rows[0]) return base;
   try {
     const saved = JSON.parse(rows[0].value);
     const accounts: XConfig["accounts"] = {};
     if (saved?.accounts && typeof saved.accounts === "object") {
       for (const [id, v] of Object.entries<any>(saved.accounts)) {
-        if (/^[0-9]{1,30}$/.test(id) && Array.isArray(v?.agents)) accounts[id] = { agents: v.agents.filter((a: unknown) => typeof a === "string"), ...(v.premium === true ? { premium: true } : {}) };
+        if (!/^[0-9]{1,30}$/.test(id) || !Array.isArray(v?.agents)) continue;
+        const cap = usdOrUndefined(v.monthlyCapUsd);
+        accounts[id] = { agents: v.agents.filter((a: unknown) => typeof a === "string"), ...(v.premium === true ? { premium: true } : {}), ...(cap !== undefined ? { monthlyCapUsd: cap } : {}) };
       }
     }
-    return { enabled: typeof saved?.enabled === "boolean" ? saved.enabled : true, accounts };
+    return { enabled: typeof saved?.enabled === "boolean" ? saved.enabled : true, taskReadBudgetUsd: usdOrUndefined(saved?.taskReadBudgetUsd) ?? X_TASK_READ_BUDGET_USD, accounts };
   } catch (e: any) {
     console.warn(`[api] x: the saved X settings could not be read (${e?.message ?? e}); using the defaults`);
     return base;
@@ -3372,6 +3379,47 @@ async function writeXConfig(cfg: XConfig): Promise<void> {
     .onConflictDoUpdate({ target: systemConfigs.key, set: { value, updatedAt: new Date() } })
     .run();
 }
+
+// ── What X has been charged, by HydraOps' estimate ──
+// X bills the developer account, one balance for every connected account; its portal has the
+// real figure. This ledger keeps the estimate of every call made from here (posts and reads),
+// per account and month for the caps, and per task for the read budget. Months older than
+// the previous one and tasks older than two days are dropped on write.
+const X_SPEND_KEY = "x_spend";
+interface XSpend { months: Record<string, Record<string, number>>; tasks: Record<string, { usd: number; at: number }> }
+const xMonth = (d = new Date()) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+async function readXSpend(): Promise<XSpend> {
+  const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, X_SPEND_KEY)).limit(1);
+  const base: XSpend = { months: {}, tasks: {} };
+  if (!rows[0]) return base;
+  try {
+    const saved = JSON.parse(rows[0].value);
+    const out: XSpend = { months: {}, tasks: {} };
+    for (const [m, accounts] of Object.entries<any>(saved?.months ?? {})) {
+      if (!/^\d{4}-\d{2}$/.test(m) || !accounts || typeof accounts !== "object") continue;
+      out.months[m] = {};
+      for (const [id, usd] of Object.entries<any>(accounts)) if (/^[0-9]{1,30}$/.test(id) && typeof usd === "number" && Number.isFinite(usd)) out.months[m][id] = usd;
+    }
+    for (const [t, v] of Object.entries<any>(saved?.tasks ?? {})) if (typeof v?.usd === "number" && typeof v?.at === "number") out.tasks[t] = { usd: v.usd, at: v.at };
+    return out;
+  } catch { return base; }
+}
+/** Adds one charge to the account's month and, when the call belongs to a task, to that task. */
+async function recordXSpend(accountId: string, usd: number, taskId?: string): Promise<void> {
+  if (!(usd > 0)) return;
+  const s = await readXSpend();
+  const m = xMonth();
+  (s.months[m] ??= {})[accountId] = Number((((s.months[m][accountId] ?? 0) + usd)).toFixed(4));
+  const now = Date.now();
+  if (taskId) s.tasks[taskId] = { usd: Number(((s.tasks[taskId]?.usd ?? 0) + usd).toFixed(4)), at: now };
+  const keep = new Set([m, xMonth(new Date(now - 32 * 86_400_000))]);
+  for (const k of Object.keys(s.months)) if (!keep.has(k)) delete s.months[k];
+  for (const [t, v] of Object.entries(s.tasks)) if (now - v.at > 2 * 86_400_000) delete s.tasks[t];
+  const value = JSON.stringify(s);
+  await (db as any).insert(systemConfigs).values({ key: X_SPEND_KEY, value, updatedAt: new Date() }).onConflictDoUpdate({ target: systemConfigs.key, set: { value, updatedAt: new Date() } }).run();
+}
+const xSpentThisMonth = (s: XSpend, accountId: string): number => s.months[xMonth()]?.[accountId] ?? 0;
+const xSpentByTask = (s: XSpend, taskId: string | undefined): number => (taskId ? s.tasks[taskId]?.usd ?? 0 : 0);
 
 /**
  * Loopback requests pay no token (see the auth middleware), so a page from another site open in
@@ -3415,18 +3463,21 @@ async function xProxy(method: "GET" | "POST", p: string, body?: unknown, timeout
     signal: AbortSignal.timeout(timeoutMs),
   });
   const out: any = await r.json().catch(() => ({}));
-  if (!r.ok) throw Object.assign(new Error(out?.error?.message || out?.error || `key-proxy answered ${r.status}`), { status: r.status, code: out?.error?.code });
+  if (!r.ok) throw Object.assign(new Error(out?.error?.message || out?.error || `key-proxy answered ${r.status}`), { status: r.status, code: out?.error?.code, ...(Array.isArray(out?.error?.missing) ? { missing: out.error.missing } : {}) });
   return out;
 }
 function xFailure(res: express.Response, e: any): void {
   res.status(e?.status && e.status !== 404 ? e.status : e?.status === 404 ? 404 : 503).json({ error: e?.code || "x_failed", message: e?.message || "The request to X failed." });
 }
 
-/** The status the card shows: the key-proxy's view of the accounts plus this side's settings. */
+/** The status the card shows: the key-proxy's view of the accounts plus this side's settings and the month's spend. */
 async function xIntegrationStatus(): Promise<any> {
-  const [st, cfg] = await Promise.all([xProxy("GET", "/status"), readXConfig()]);
-  const accounts = (st.accounts ?? []).map((a: any) => ({ ...a, agents: cfg.accounts[a.id]?.agents ?? [], premium: cfg.accounts[a.id]?.premium === true }));
-  return { ...st, enabled: cfg.enabled, accounts };
+  const [st, cfg, spend] = await Promise.all([xProxy("GET", "/status"), readXConfig(), readXSpend()]);
+  const accounts = (st.accounts ?? []).map((a: any) => {
+    const c = cfg.accounts[a.id];
+    return { ...a, agents: c?.agents ?? [], premium: c?.premium === true, monthlyCapUsd: c?.monthlyCapUsd ?? null, spentThisMonthUsd: Number(xSpentThisMonth(spend, a.id).toFixed(3)) };
+  });
+  return { ...st, enabled: cfg.enabled, taskReadBudgetUsd: cfg.taskReadBudgetUsd, month: xMonth(), accounts };
 }
 
 api.get("/system/integrations/x", async (_req, res) => {
@@ -3440,13 +3491,16 @@ api.post("/system/integrations/x", async (req, res) => {
     const cfg = await readXConfig();
     const b = req.body ?? {};
     if (typeof b.enabled === "boolean") cfg.enabled = b.enabled;
+    if ("taskReadBudgetUsd" in b) cfg.taskReadBudgetUsd = usdOrUndefined(b.taskReadBudgetUsd) ?? X_TASK_READ_BUDGET_USD;
     if (Array.isArray(b.accounts)) {
       for (const a of b.accounts) {
         if (!a || typeof a.id !== "string" || !/^[0-9]{1,30}$/.test(a.id)) continue;
         const prev = cfg.accounts[a.id] ?? { agents: [] };
         const agents: string[] = Array.isArray(a.agents) ? [...new Set<string>(a.agents.map((x: unknown) => String(x).trim().toLowerCase()).filter((x: string) => /^[a-z0-9_-]{1,64}$/.test(x)))] : prev.agents;
         const premium = typeof a.premium === "boolean" ? a.premium : prev.premium === true;
-        cfg.accounts[a.id] = { agents, ...(premium ? { premium: true } : {}) };
+        // null clears the cap; a number sets it; absent keeps it.
+        const cap = "monthlyCapUsd" in a ? (a.monthlyCapUsd === null ? undefined : usdOrUndefined(a.monthlyCapUsd) ?? prev.monthlyCapUsd) : prev.monthlyCapUsd;
+        cfg.accounts[a.id] = { agents, ...(premium ? { premium: true } : {}), ...(cap !== undefined ? { monthlyCapUsd: cap } : {}) };
       }
     }
     await writeXConfig(cfg);
@@ -3463,17 +3517,31 @@ api.post("/system/integrations/x/app", async (req, res) => {
   } catch (e: any) { xFailure(res, e); }
 });
 
-// Connecting one more account: the link the user opens in a browser, signed in to X as that account.
+// Connecting one more account, for the grants chosen: the link the user opens in a browser,
+// signed in to X as that account. The same road reconnects an account to add a grant.
 api.post("/system/integrations/x/connect", async (req, res) => {
   if (!sameSiteOnly(req, res)) return;
   try {
-    const out = await xProxy("POST", "/connect");
+    const out = await xProxy("POST", "/connect", { grants: Array.isArray(req.body?.grants) ? req.body.grants.map(String) : undefined });
     // The callback page forwards to 127.0.0.1:3000 on the browser's machine; in server mode the
     // user may have to paste the address X sent them to (POST .../finish), so the link also goes
     // to the console.
     if (out?.url) console.log(`[api] x: account sign-in requested; open this link in a browser, signed in to X as the account to connect:\n[api]   ${out.url}`);
     res.json(out);
   } catch (e: any) { xFailure(res, e); }
+});
+
+// What a connected account may be used for. Adding a grant its scopes do not cover is refused
+// with the scopes it lacks (409 scopes_missing); the card then offers to connect it again.
+api.post("/system/integrations/x/grants", async (req, res) => {
+  if (!sameSiteOnly(req, res)) return;
+  try {
+    await xProxy("POST", "/grants", { id: String(req.body?.id ?? ""), grants: Array.isArray(req.body?.grants) ? req.body.grants.map(String) : [] });
+    res.json(await xIntegrationStatus());
+  } catch (e: any) {
+    if (e?.code === "scopes_missing") return res.status(409).json({ error: "scopes_missing", message: e.message, missing: e.missing ?? [] });
+    xFailure(res, e);
+  }
 });
 
 for (const action of ["cancel", "disconnect"] as const) {
@@ -3574,15 +3642,84 @@ async function claimApprovedXPost(agentId: string, account: unknown, parts: unkn
   return null;
 }
 
-/** The accounts an agent may publish with, as the tools see them (no tokens, no secret). */
-async function xAccountsFor(agentId: string): Promise<{ enabled: boolean; accounts: { id: string; username: string; name: string; status: string; agents: string[]; premium: boolean }[] }> {
+/** The accounts an agent may use, as the tools see them (no tokens, no secret): what each is for, and where its spending stands. */
+async function xAccountsFor(agentId: string): Promise<{ enabled: boolean; taskReadBudgetUsd: number; accounts: { id: string; username: string; name: string; status: string; agents: string[]; premium: boolean; grants: string[]; monthlyCapUsd: number | null; spentThisMonthUsd: number }[] }> {
   const st = await xIntegrationStatus();
   const id = String(agentId || "").trim().toLowerCase();
-  return { enabled: st.enabled, accounts: (st.accounts as any[]).filter((a) => a.agents.includes(id)).map((a) => ({ id: a.id, username: a.username, name: a.name, status: a.status, agents: a.agents, premium: a.premium === true })) };
+  return {
+    enabled: st.enabled, taskReadBudgetUsd: st.taskReadBudgetUsd,
+    accounts: (st.accounts as any[]).filter((a) => a.agents.includes(id)).map((a) => ({ id: a.id, username: a.username, name: a.name, status: a.status, agents: a.agents, premium: a.premium === true, grants: Array.isArray(a.grants) ? a.grants : [], monthlyCapUsd: a.monthlyCapUsd ?? null, spentThisMonthUsd: a.spentThisMonthUsd ?? 0 })),
+  };
 }
 
 api.get("/x/accounts", async (req, res) => {
   try { res.json(await xAccountsFor(String(req.query.agentId ?? ""))); } catch (e: any) { xFailure(res, e); }
+});
+
+/** The account an agent names, or the refusal to send: the switch, the assignment, the session. */
+function xAccountForAgent(st: any, agentId: string, wanted: string): { account?: any; status: number; error?: string; message?: string } {
+  if (!st.enabled) return { status: 403, error: "x_disabled", message: "X is switched off in Tools → X." };
+  const account = (st.accounts as any[]).find((a) => a.username.toLowerCase() === wanted || a.id === wanted);
+  const allowed = (st.accounts as any[]).filter((a) => a.agents.includes(agentId)).map((a) => `@${a.username}`);
+  if (!account) return { status: 404, error: "no_such_account", message: `No connected X account is called "${wanted}". Accounts this agent may use: ${allowed.join(", ") || "none"}.` };
+  if (!account.agents.includes(agentId)) return { status: 403, error: "account_not_allowed", message: `The account @${account.username} is not enabled for ${agentId}. Accounts this agent may use: ${allowed.join(", ") || "none"}. The assignment is changed in Tools → X.` };
+  if (account.status !== "connected") return { status: 409, error: "x_reauth_required", message: `The connection of @${account.username} expired: connect it again in Tools → X.` };
+  return { account, status: 200 };
+}
+/** The key-proxy's table of X reads (name, grant, price), asked for once and kept for a while. */
+let xOpsCache: { at: number; ops: { name: string; grant: string; usd: number; unit: "resource" | "request" }[] } | null = null;
+async function xOpPrice(name: string): Promise<{ usd: number; unit: "resource" | "request" } | null> {
+  if (!xOpsCache || Date.now() - xOpsCache.at > 10 * 60_000) {
+    const out = await xProxy("GET", "/ops");
+    xOpsCache = { at: Date.now(), ops: Array.isArray(out?.ops) ? out.ops : [] };
+  }
+  const op = xOpsCache.ops.find((o) => o.name === name);
+  return op ? { usd: op.usd, unit: op.unit } : null;
+}
+/** Whether one more charge fits under the account's monthly cap. */
+const xUnderCap = (account: any, spent: number, usd: number): boolean => !(typeof account.monthlyCapUsd === "number") || spent + usd <= account.monthlyCapUsd + 1e-9;
+
+// A read, from the closed table the key-proxy holds (x_read and x_search). No approval: it
+// changes nothing on X. What keeps it in check is money: the account's monthly cap and the
+// task's read budget, both checked before the call with the most the call could cost
+// (max_results at the operation's price) and charged after it with what X returned.
+api.post("/x/read", async (req, res) => {
+  if (!sameSiteOnly(req, res)) return;
+  try {
+    const agentId = String(req.body?.agentId ?? "").trim().toLowerCase();
+    const wanted = String(req.body?.account ?? "").trim().replace(/^@/, "").toLowerCase();
+    const taskId = typeof req.body?.taskId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(req.body.taskId) ? req.body.taskId : undefined;
+    const op = String(req.body?.op ?? "");
+    const params = req.body?.params && typeof req.body.params === "object" ? req.body.params : {};
+    const st = await xIntegrationStatus();
+    const pick = xAccountForAgent(st, agentId, wanted);
+    if (!pick.account) return res.status(pick.status).json({ error: pick.error, message: pick.message });
+    const account = pick.account;
+    const price = await xOpPrice(op);
+    if (!price) return res.status(400).json({ error: "unknown_op", message: `"${op.slice(0, 40)}" is not a read HydraOps performs on X.` });
+    const spend = await readXSpend();
+    const spent = xSpentThisMonth(spend, account.id);
+    const taskSpent = xSpentByTask(spend, taskId);
+    const budget = st.taskReadBudgetUsd as number;
+    const most = Number((price.unit === "request" ? price.usd : price.usd * Math.min(100, Math.max(1, Number(params.max_results) || 20))).toFixed(4));
+    if (!xUnderCap(account, spent, 0)) return res.status(402).json({ error: "cap_reached", message: `@${account.username} has reached its monthly X cap (${spent.toFixed(3)} of ${account.monthlyCapUsd} USD by HydraOps' estimate). The user raises it in Tools → X.` });
+    if (taskId && taskSpent >= budget) return res.status(402).json({ error: "budget_reached", message: `This task has spent its X read budget (${taskSpent.toFixed(3)} of ${budget} USD). Work with what you have, or ask the user to raise the budget in Tools → X.` });
+    if (taskId && taskSpent + most > budget) return res.status(402).json({ error: "budget_too_small", message: `This call could cost up to ${most.toFixed(3)} USD and the task has ${(budget - taskSpent).toFixed(3)} USD of its ${budget} USD X read budget left: ask for fewer results (max_results), or ask the user to raise the budget in Tools → X.` });
+    if (!xUnderCap(account, spent, most)) return res.status(402).json({ error: "cap_too_close", message: `This call could cost up to ${most.toFixed(3)} USD and @${account.username} has ${(account.monthlyCapUsd - spent).toFixed(3)} USD left of its ${account.monthlyCapUsd} USD monthly cap: ask for fewer results, or the user raises the cap in Tools → X.` });
+    const out = await xProxy("POST", "/call", { accountId: account.id, op, params }, 70_000);
+    const usd = Number(out?.estimatedUsd) || 0;
+    await recordXSpend(account.id, usd, taskId);
+    const after = await readXSpend();
+    console.log(`[api] x: ${agentId} read ${op} as @${account.username}: ${out?.resources ?? 0} resource(s), about ${usd.toFixed(3)} USD`);
+    res.json({
+      ok: true, op, account: { id: account.id, username: account.username }, body: out?.body ?? {}, resources: out?.resources ?? 0, estimatedUsd: usd,
+      spend: { account: Number(xSpentThisMonth(after, account.id).toFixed(3)), cap: account.monthlyCapUsd ?? null, task: Number(xSpentByTask(after, taskId).toFixed(3)), budget },
+    });
+  } catch (e: any) {
+    if (e?.code === "scopes_missing" || e?.code === "grant_missing") return res.status(403).json({ error: e.code, message: e.message });
+    console.error("[api] POST /x/read failed", e?.message ?? e);
+    xFailure(res, e);
+  }
 });
 
 api.post("/x/post", async (req, res) => {
@@ -3591,12 +3728,10 @@ api.post("/x/post", async (req, res) => {
     const agentId = String(req.body?.agentId ?? "").trim().toLowerCase();
     const wanted = String(req.body?.account ?? "").trim().replace(/^@/, "").toLowerCase();
     const st = await xIntegrationStatus();
-    if (!st.enabled) return res.status(403).json({ error: "x_disabled", message: "Publishing on X is switched off in Tools → X." });
-    const account = (st.accounts as any[]).find((a) => a.username.toLowerCase() === wanted || a.id === wanted);
-    const allowed = (st.accounts as any[]).filter((a) => a.agents.includes(agentId)).map((a) => `@${a.username}`);
-    if (!account) return res.status(404).json({ error: "no_such_account", message: `No connected X account is called "${wanted}". Accounts this agent may use: ${allowed.join(", ") || "none"}.` });
-    if (!account.agents.includes(agentId)) return res.status(403).json({ error: "account_not_allowed", message: `The account @${account.username} is not enabled for ${agentId}. Accounts this agent may use: ${allowed.join(", ") || "none"}. The assignment is changed in Tools → X.` });
-    if (account.status !== "connected") return res.status(409).json({ error: "x_reauth_required", message: `The connection of @${account.username} expired: connect it again in Tools → X.` });
+    const pick = xAccountForAgent(st, agentId, wanted);
+    if (!pick.account) return res.status(pick.status).json({ error: pick.error, message: pick.message });
+    const account = pick.account;
+    if (!(Array.isArray(account.grants) && account.grants.includes("publish"))) return res.status(403).json({ error: "grant_missing", message: `@${account.username} was not connected for publishing. The user adds that in Tools → X.` });
     // The parts, with the user's attachments resolved to files inside the uploads folder.
     const rawParts = Array.isArray(req.body?.parts) ? req.body.parts : [];
     // Last check before anything leaves: this is the run of a call the user approved.
@@ -3629,10 +3764,14 @@ api.post("/x/post", async (req, res) => {
       if (media.length > 1 && media.some((m) => xMediaKind(m) !== "image")) return res.status(400).json({ error: "bad_media", message: `Part ${i + 1}: a video or a GIF goes alone in its part, with no other attachment.` });
       parts.push({ text, media });
     }
+    const cost = parts.reduce((n, p) => n + (/https?:\/\/|\b[a-z0-9-]+\.[a-z]{2,}\b/i.test(p.text) ? X_LINK_USD : X_POST_USD), 0);
+    // The month's cap counts posts too: the user approved the post, but the cap is theirs as well.
+    const spent = xSpentThisMonth(await readXSpend(), account.id);
+    if (!xUnderCap(account, spent, cost)) return res.status(402).json({ error: "cap_reached", message: `Not published: @${account.username} would pass its monthly X cap (${spent.toFixed(3)} spent of ${account.monthlyCapUsd} USD by HydraOps' estimate; this post is about ${cost.toFixed(3)} USD). The user raises it in Tools → X.` });
     // A video is uploaded in chunks and then processed by X: minutes, not seconds.
     const hasVideo = parts.some((p) => p.media.some((m) => xMediaKind(m) === "video"));
     const out = await xProxy("POST", "/post", { accountId: account.id, parts, premium: account.premium === true }, hasVideo ? 20 * 60_000 : 60_000);
-    const cost = parts.reduce((n, p) => n + (/https?:\/\/|\b[a-z0-9-]+\.[a-z]{2,}\b/i.test(p.text) ? X_LINK_USD : X_POST_USD), 0);
+    await recordXSpend(account.id, cost, typeof req.body?.taskId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(req.body.taskId) ? req.body.taskId : undefined);
     console.log(`[api] x: ${agentId} published ${parts.length} part(s) as @${account.username} (about ${cost.toFixed(3)} USD)`);
     res.json({ ok: true, ...out, estimatedUsd: Number(cost.toFixed(3)) });
   } catch (e: any) {

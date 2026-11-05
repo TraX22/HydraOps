@@ -1,15 +1,17 @@
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { ApiService, Agent, XAccount, XIntegration } from '../../../services/api.service';
+import { ApiService, Agent, XAccount, XGrant, XIntegration, X_GRANTS } from '../../../services/api.service';
 
 const POLL_MS = 3000;
 
 /**
  * Herramientas → X. One card: the user's X app (its client id and secret go to the key
- * store), the accounts connected to it, one sign-in per account, and which agents may
- * publish with each account. Publishing itself is a tool that always asks first; this
- * card only decides who may ask for which account.
+ * store), the accounts connected to it, one sign-in per account with the permissions chosen
+ * for it (read, publish, engage, messages), which agents may use each account, and the
+ * money: what each account has spent this month against its cap, and how much one task
+ * may spend reading. Publishing itself is a tool that always asks first; reads ask nobody
+ * but count against the budget.
  */
 @Component({
   selector: 'app-x-card',
@@ -35,10 +37,19 @@ export class XCardComponent implements OnInit, OnDestroy {
   redirectUri = signal('');
   readonly mask = '••••••••••••••••';
 
-  // Connecting one more account: the link, and the address the user pastes when the browser was elsewhere.
-  link = signal<{ url: string; expiresAt: string } | null>(null);
+  // Connecting one more account: the permissions picked first, then the link, and the address
+  // the user pastes when the browser was elsewhere.
+  readonly grants = X_GRANTS;
+  /** The picker is open: the user chooses what the account is for before the link exists. */
+  choosing = signal(false);
+  pick = signal<Record<XGrant, boolean>>({ read: true, publish: true, engage: false, messages: false });
+  /** When the sign-in is to add permissions to an account already connected. */
+  reconnecting = signal<XAccount | null>(null);
+  link = signal<{ url: string; expiresAt: string; grants?: XGrant[] } | null>(null);
   pasteUrl = signal('');
   copied = signal(false);
+  /** A grant the user switched on that the account's scopes do not cover: offer the sign-in that adds it. */
+  needsReconnect = signal<{ account: XAccount; grant: XGrant } | null>(null);
   private pollTimer: ReturnType<typeof setInterval> | null = null;
 
   /** Agents not yet allowed on a given account, for its "+ agent" picker. */
@@ -77,7 +88,7 @@ export class XCardComponent implements OnInit, OnDestroy {
       this.startPolling();
     } else {
       // The sign-in ended (an account came in, or it expired): the link is no longer valid.
-      if (this.link()) { this.link.set(null); this.pasteUrl.set(''); }
+      if (this.link()) { this.link.set(null); this.pasteUrl.set(''); this.reconnecting.set(null); }
       this.stopPolling();
       if (x.lastError) this.error.set(x.lastError);
     }
@@ -103,17 +114,47 @@ export class XCardComponent implements OnInit, OnDestroy {
 
   // ── Connecting accounts ──
 
+  /** Opens the permission picker for a new account (read and publish preselected). */
   connect(): void {
+    if (this.busy() || this.link()) return;
+    this.reconnecting.set(null);
+    this.pick.set({ read: true, publish: true, engage: false, messages: false });
+    this.choosing.set(true);
+    this.error.set('');
+  }
+
+  /** Opens the picker for an account already connected, with its grants plus the one wanted. */
+  reconnect(a: XAccount, extra?: XGrant): void {
+    if (this.busy() || this.link()) return;
+    const on = new Set<XGrant>([...a.grants, ...(extra ? [extra] : [])]);
+    this.pick.set({ read: true, publish: on.has('publish'), engage: on.has('engage'), messages: on.has('messages') });
+    this.reconnecting.set(a);
+    this.needsReconnect.set(null);
+    this.choosing.set(true);
+    this.error.set('');
+  }
+
+  togglePick(g: XGrant): void {
+    if (g === 'read') return;
+    this.pick.update(p => ({ ...p, [g]: !p[g] }));
+  }
+  pickedGrants(): XGrant[] { const p = this.pick(); return this.grants.filter(g => p[g]); }
+
+  /** The link, for the permissions picked. */
+  startConnect(): void {
     if (this.busy()) return;
     this.busy.set(true);
     this.error.set('');
-    this.api.connectXAccount().subscribe({
-      next: l => { this.busy.set(false); this.link.set(l); this.copied.set(false); this.startPolling(); },
+    this.api.connectXAccount(this.pickedGrants()).subscribe({
+      next: l => { this.busy.set(false); this.choosing.set(false); this.link.set(l); this.copied.set(false); this.startPolling(); },
       error: e => { this.busy.set(false); this.error.set(this.errorText(e)); },
     });
   }
 
   cancel(): void {
+    this.choosing.set(false);
+    this.reconnecting.set(null);
+    if (!this.link()) return;
     this.api.cancelXConnect().subscribe({ next: x => { this.link.set(null); this.pasteUrl.set(''); this.apply(x); }, error: () => {} });
   }
 
@@ -130,7 +171,7 @@ export class XCardComponent implements OnInit, OnDestroy {
     this.busy.set(true);
     this.error.set('');
     this.api.finishXConnect(url).subscribe({
-      next: x => { this.busy.set(false); this.link.set(null); this.pasteUrl.set(''); this.apply(x); this.flash(); },
+      next: x => { this.busy.set(false); this.link.set(null); this.pasteUrl.set(''); this.reconnecting.set(null); this.apply(x); this.flash(); },
       error: e => { this.busy.set(false); this.error.set(this.errorText(e)); },
     });
   }
@@ -162,6 +203,22 @@ export class XCardComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Switches one grant of a connected account; one its scopes lack asks for a new sign-in instead. */
+  toggleGrant(a: XAccount, g: XGrant): void {
+    if (g === 'read' || this.busy()) return;
+    const on = a.grants.includes(g);
+    const grants = on ? a.grants.filter(k => k !== g) : [...a.grants, g];
+    this.needsReconnect.set(null);
+    this.api.setXGrants(a.id, grants).subscribe({
+      next: n => { this.apply(n); this.flash(); },
+      error: e => {
+        if (String(e?.error?.error) === 'scopes_missing') this.needsReconnect.set({ account: a, grant: g });
+        else this.error.set(this.errorText(e));
+      },
+    });
+  }
+  hasGrant(a: XAccount, g: XGrant): boolean { return a.grants.includes(g); }
+
   addAgent(a: XAccount, event: Event): void {
     const select = event.target as HTMLSelectElement;
     const id = select.value;
@@ -179,6 +236,34 @@ export class XCardComponent implements OnInit, OnDestroy {
     const x = this.x();
     if (x) this.x.set({ ...x, accounts: x.accounts.map(k => k.id === a.id ? { ...k, premium } : k) });
     this.api.saveXIntegration({ accounts: [{ id: a.id, agents: a.agents, premium }] }).subscribe({ next: n => { this.apply(n); this.flash(); }, error: e => this.error.set(this.errorText(e)) });
+  }
+
+  // ── Money ──
+
+  /** The account's monthly cap, from its field: empty clears it. */
+  setCap(a: XAccount, event: Event): void {
+    const raw = (event.target as HTMLInputElement).value.trim().replace(',', '.');
+    const cap = raw === '' ? null : Number(raw);
+    if (cap !== null && !(Number.isFinite(cap) && cap >= 0)) return;
+    if (cap === (a.monthlyCapUsd ?? null)) return;
+    this.api.saveXIntegration({ accounts: [{ id: a.id, monthlyCapUsd: cap }] }).subscribe({ next: n => { this.apply(n); this.flash(); }, error: e => this.error.set(this.errorText(e)) });
+  }
+
+  /** The read budget of one task, from its field. */
+  setBudget(event: Event): void {
+    const raw = (event.target as HTMLInputElement).value.trim().replace(',', '.');
+    const v = Number(raw);
+    if (raw === '' || !(Number.isFinite(v) && v >= 0) || v === this.x()?.taskReadBudgetUsd) return;
+    this.api.saveXIntegration({ taskReadBudgetUsd: v }).subscribe({ next: n => { this.apply(n); this.flash(); }, error: e => this.error.set(this.errorText(e)) });
+  }
+
+  /** How far into its cap the account is, for the bar (0 to 1; 0 without a cap). */
+  capShare(a: XAccount): number {
+    return typeof a.monthlyCapUsd === 'number' && a.monthlyCapUsd > 0 ? Math.min(1, a.spentThisMonthUsd / a.monthlyCapUsd) : 0;
+  }
+  money(n: number | null | undefined): string {
+    const v = typeof n === 'number' ? n : 0;
+    try { return v.toLocaleString(this.translate.currentLang() || undefined, { minimumFractionDigits: 2, maximumFractionDigits: 3 }); } catch { return v.toFixed(2); }
   }
 
   private setAgents(a: XAccount, agents: string[]): void {
@@ -202,7 +287,7 @@ export class XCardComponent implements OnInit, OnDestroy {
 
   private errorText(e: any): string {
     const code = String(e?.error?.error ?? '');
-    const known = ['bad_client_id', 'no_secret', 'app_not_configured', 'bad_redirect_uri', 'no_redirect_uri', 'state_mismatch', 'no_code', 'scope_missing', 'bad_callback_url', 'no_such_account', 'x_reauth_required'];
+    const known = ['bad_client_id', 'no_secret', 'app_not_configured', 'bad_redirect_uri', 'no_redirect_uri', 'state_mismatch', 'no_code', 'scope_missing', 'bad_callback_url', 'no_such_account', 'x_reauth_required', 'scopes_missing'];
     if (known.includes(code)) return this.translate.instant('herramientas.x.errors.' + code);
     return String(e?.error?.message || e?.message || this.translate.instant('herramientas.x.errors.generic'));
   }

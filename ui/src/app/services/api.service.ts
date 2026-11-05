@@ -319,13 +319,27 @@ export interface XAccount {
   status: 'connected' | 'reauth';
   connectedAt: string;
   refreshedAt?: string;
-  /** The agents allowed to publish with this account (kept by the API). */
+  /** The agents allowed to use this account (kept by the API). */
   agents: string[];
   /** The user says the account is X Premium: long posts and long videos are allowed. */
   premium?: boolean;
+  /** What the account was connected for (never more than its scopes allow). */
+  grants: XGrant[];
+  /** The OAuth scopes X granted. */
+  scopes: string[];
+  /** The most this account may spend in a month by HydraOps' estimate (null: no cap), and what it has. */
+  monthlyCapUsd: number | null;
+  spentThisMonthUsd: number;
 }
+/** A permission group of an X account: what the user connected it for. */
+export type XGrant = 'read' | 'publish' | 'engage' | 'messages';
+export const X_GRANTS: XGrant[] = ['read', 'publish', 'engage', 'messages'];
 export interface XIntegration {
   enabled: boolean;
+  /** The most one task may spend reading X (no approval is asked for reads). */
+  taskReadBudgetUsd: number;
+  /** The month the spending figures are for (UTC, YYYY-MM). */
+  month: string;
   appConfigured: boolean;
   clientId?: string;
   /** The callback registered in the X app: the user's own copy of the forwarding page (empty until saved). */
@@ -1028,7 +1042,7 @@ export class ApiService {
   }
 
   /** The switch and the agents allowed per account. */
-  saveXIntegration(cfg: { enabled?: boolean; accounts?: { id: string; agents?: string[]; premium?: boolean }[] }): Observable<XIntegration> {
+  saveXIntegration(cfg: { enabled?: boolean; taskReadBudgetUsd?: number; accounts?: { id: string; agents?: string[]; premium?: boolean; monthlyCapUsd?: number | null }[] }): Observable<XIntegration> {
     return this.http.post<XIntegration>(`${this.base}/system/integrations/x`, cfg);
   }
 
@@ -1038,8 +1052,13 @@ export class ApiService {
   }
 
   /** Starts connecting one more account: the link to open in a browser signed in as that account. */
-  connectXAccount(): Observable<{ url: string; expiresAt: string }> {
-    return this.http.post<{ url: string; expiresAt: string }>(`${this.base}/system/integrations/x/connect`, {});
+  connectXAccount(grants: XGrant[]): Observable<{ url: string; expiresAt: string; grants: XGrant[] }> {
+    return this.http.post<{ url: string; expiresAt: string; grants: XGrant[] }>(`${this.base}/system/integrations/x/connect`, { grants });
+  }
+
+  /** What a connected account may be used for; 409 scopes_missing when a grant needs a new sign-in. */
+  setXGrants(id: string, grants: XGrant[]): Observable<XIntegration> {
+    return this.http.post<XIntegration>(`${this.base}/system/integrations/x/grants`, { id, grants });
   }
 
   /** The address X sent the browser to, pasted by hand (when the callback could not reach this computer). */
