@@ -44,14 +44,47 @@
     <!-- Accounts -->
     <div class="sec">
       <h3>{{ 'herramientas.x.accounts' | translate }} <span class="count">{{ x.accounts.length }}</span></h3>
-      <button class="btn-secondary" [disabled]="busy() || !x.appConfigured || !x.redirectUri || !!link()" (click)="connect()">+ {{ 'herramientas.x.connect' | translate }}</button>
+      <button class="btn-secondary" [disabled]="busy() || !x.appConfigured || !x.redirectUri || !!link() || choosing()" (click)="connect()">+ {{ 'herramientas.x.connect' | translate }}</button>
     </div>
 
+    <!-- Step one of a sign-in: what the account is for -->
+    @if (choosing()) {
+      <div class="connect-box">
+        <div class="connect-head">
+          <strong>{{ (reconnecting() ? 'herramientas.x.reconnectTitle' : 'herramientas.x.connectTitle') | translate:{ username: reconnecting()?.username } }}</strong>
+        </div>
+        <p class="tool-hint grants-hint">{{ 'herramientas.x.grantsHint' | translate }}</p>
+        <div class="grant-list">
+          @for (g of grants; track g) {
+            <label class="grant" [class.fixed]="g === 'read'">
+              <input type="checkbox" [checked]="pick()[g]" [disabled]="g === 'read'" (change)="togglePick(g)" />
+              <span class="grant-text">
+                <strong>{{ 'herramientas.x.grants.' + g | translate }}</strong>
+                <span class="tool-hint">{{ 'herramientas.x.grantsHelp.' + g | translate }}</span>
+              </span>
+            </label>
+          }
+        </div>
+        @if (pick().messages) { <p class="notice warn">{{ 'herramientas.x.messagesNote' | translate }}</p> }
+        <div class="connect-foot">
+          <span class="tool-hint">{{ 'herramientas.x.tokensHint' | translate }}</span>
+          <span class="foot-btns">
+            <button class="btn-secondary" type="button" (click)="cancel()">{{ 'common.cancel' | translate }}</button>
+            <button class="btn-primary" type="button" [disabled]="busy()" (click)="startConnect()">{{ 'herramientas.x.getLink' | translate }}</button>
+          </span>
+        </div>
+      </div>
+    }
+
+    <!-- Step two: the link, and the address pasted by hand -->
     @if (link(); as l) {
       <div class="connect-box">
         <div class="connect-head">
-          <strong>{{ 'herramientas.x.connectTitle' | translate }}</strong>
+          <strong>{{ (reconnecting() ? 'herramientas.x.reconnectTitle' : 'herramientas.x.connectTitle') | translate:{ username: reconnecting()?.username } }}</strong>
           <span class="chip warn">{{ (x.pending?.finishing ? 'herramientas.x.finishing' : 'herramientas.x.waiting') | translate }}</span>
+          @if (l.grants?.length) {
+            <span class="picked">@for (g of l.grants; track g) { <span class="chip grant-chip on">{{ 'herramientas.x.grants.' + g | translate }}</span> }</span>
+          }
         </div>
         <ol class="steps">
           <li>
@@ -92,12 +125,29 @@
               @if (a.status === 'reauth') { <span class="chip bad">{{ 'herramientas.x.reauth' | translate }}</span> }
               <span class="meta">{{ 'herramientas.x.connectedOn' | translate:{ date: dateOf(a) } }}</span>
             </div>
+            <!-- What the account is for: a chip per grant, on or off; one the scopes lack asks for a new sign-in -->
+            <div class="grants-row">
+              <span class="tool-hint">{{ 'herramientas.x.may' | translate }}</span>
+              @for (g of grants; track g) {
+                <button type="button" class="chip grant-chip" [class.on]="hasGrant(a, g)" [disabled]="g === 'read' || busy() || !!link()"
+                        [title]="'herramientas.x.grantsHelp.' + g | translate" (click)="toggleGrant(a, g)">{{ 'herramientas.x.grants.' + g | translate }}</button>
+              }
+              <button type="button" class="relink" [disabled]="busy() || !!link()" (click)="reconnect(a)">{{ 'herramientas.x.reconnect' | translate }}</button>
+            </div>
+            @if (needsReconnect(); as nr) {
+              @if (nr.account.id === a.id) {
+                <p class="notice warn inline">
+                  {{ 'herramientas.x.needsReconnect' | translate:{ grant: ('herramientas.x.grants.' + nr.grant | translate) } }}
+                  <button type="button" class="btn-primary small" (click)="reconnect(a, nr.grant)">{{ 'herramientas.x.reconnectWith' | translate }}</button>
+                </p>
+              }
+            }
             <label class="premium" [title]="'herramientas.x.premiumHint' | translate">
               <input type="checkbox" [checked]="a.premium === true" (change)="togglePremium(a)" />
               {{ 'herramientas.x.premium' | translate }}
             </label>
             <div class="agents">
-              <span class="tool-hint">{{ 'herramientas.x.canPost' | translate }}</span>
+              <span class="tool-hint">{{ 'herramientas.x.canUse' | translate }}</span>
               @for (id of a.agents; track id) {
                 <span class="chip agent">{{ agentName(id) }} <button type="button" class="chip-x" (click)="removeAgent(a, id)" [attr.aria-label]="'common.delete' | translate">×</button></span>
               }
@@ -109,12 +159,32 @@
                 </select>
               }
             </div>
+            <!-- The month's spending by HydraOps' estimate, against the cap the user sets here -->
+            <div class="spend">
+              <span class="tool-hint">{{ 'herramientas.x.spent' | translate:{ usd: money(a.spentThisMonthUsd) } }}</span>
+              <div class="bar" [class.full]="capShare(a) >= 1" [title]="'herramientas.x.capHint' | translate"><div class="fill" [style.width.%]="capShare(a) * 100"></div></div>
+              <label class="cap">
+                {{ 'herramientas.x.cap' | translate }}
+                <input type="text" inputmode="decimal" class="cap-input" [value]="a.monthlyCapUsd ?? ''" [placeholder]="'herramientas.x.noCap' | translate" (change)="setCap(a, $event)" (keyup.enter)="setCap(a, $event)" />
+                USD
+              </label>
+            </div>
           </div>
           <button class="btn-secondary danger" type="button" [disabled]="busy()" (click)="disconnect(a)">{{ 'herramientas.x.disconnect' | translate }}</button>
         </article>
       } @empty {
         <p class="empty-msg">{{ (x.appConfigured ? 'herramientas.x.noAccounts' : 'herramientas.x.noApp') | translate }}</p>
       }
+    </div>
+
+    <!-- Reads ask nobody: one task may spend this much on them -->
+    <div class="budget">
+      <label class="cap">
+        {{ 'herramientas.x.taskBudget' | translate }}
+        <input type="text" inputmode="decimal" class="cap-input" [value]="x.taskReadBudgetUsd" (change)="setBudget($event)" (keyup.enter)="setBudget($event)" />
+        USD
+      </label>
+      <span class="tool-hint">{{ 'herramientas.x.taskBudgetHint' | translate }}</span>
     </div>
 
     <p class="tool-hint">{{ 'herramientas.x.approvalHint' | translate }}</p>

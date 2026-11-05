@@ -14,14 +14,17 @@
  *   - storage: x.json next to keys.json (0600), one entry per account with its tokens;
  *   - refresh: access tokens last two hours and the refresh token rotates on every use.
  *
- * Nothing here posts yet: the tools that publish come later and will ask this module for
- * a valid token per account (see `accessToken`). X's hosts can be pointed at a stand-in
- * with X_AUTH_BASE / X_API_BASE (tests).
+ * What an account may be used for is chosen when it is connected (its grants: read,
+ * publish, engage, messages; see x-ops.ts), and X is asked for the scopes of those grants
+ * only. The tools then reach X through two doors here: `postThread` (publishing) and
+ * `callOp` (every read, from the closed table in x-ops.ts), both with the account's token.
+ * X's hosts can be pointed at a stand-in with X_AUTH_BASE / X_API_BASE (tests).
  */
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { open, readFile, realpath, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { KeystoreError, keyStoreDir, readStore, uploadsDir, writeStore } from "@hydraops/config";
+import { BASE_SCOPES, estimateUsd, grantsCoveredBy, isGrant, missingScopes, opNamed, opsPublic, scopesFor, type XGrant, type XOp } from "./x-ops.js";
 
 const authBase = () => (process.env.X_AUTH_BASE || "https://x.com").replace(/\/$/, "");
 const apiBase = () => (process.env.X_API_BASE || "https://api.x.com").replace(/\/$/, "");
@@ -40,7 +43,6 @@ function checkRedirectUri(raw: string): string {
   if (u.protocol !== "https:" || !u.hostname || u.hash || u.username || u.password) throw new XError("bad_redirect_uri", "The callback address must be a plain https address (X takes nothing else).");
   return v;
 }
-const SCOPES = "tweet.read tweet.write users.read media.write offline.access";
 const SIGNIN_TIMEOUT_MS = 10 * 60_000;
 const REFRESH_AHEAD_MS = 5 * 60_000;
 const FETCH_TIMEOUT_MS = 20_000;
@@ -52,7 +54,10 @@ export interface XAccount {
   username: string;
   name: string;
   avatar?: string;
+  /** The scopes X granted, as it named them. */
   scopes: string[];
+  /** What the user connected the account for; never more than the scopes allow. */
+  grants: XGrant[];
   status: "connected" | "reauth";
   accessToken?: string;
   expiresAt?: number;
@@ -69,7 +74,7 @@ interface Store {
   accounts: XAccount[];
 }
 /** What leaves this process: who is connected, never a token or the secret. */
-export interface XAccountStatus { id: string; username: string; name: string; avatar?: string; status: XAccount["status"]; connectedAt: string; refreshedAt?: string }
+export interface XAccountStatus { id: string; username: string; name: string; avatar?: string; status: XAccount["status"]; grants: XGrant[]; scopes: string[]; connectedAt: string; refreshedAt?: string }
 export interface XStatus {
   appConfigured: boolean;
   clientId?: string;
@@ -96,7 +101,12 @@ async function load(): Promise<Store> {
   if (cache) return cache;
   try {
     const raw = await readStore<Store>(STORE_FILE);
-    if (raw && raw.version === 1 && Array.isArray(raw.accounts)) cache = raw;
+    if (raw && raw.version === 1 && Array.isArray(raw.accounts)) {
+      // An account connected before grants existed asked for the publishing scopes: it keeps
+      // doing what its scopes allow.
+      for (const a of raw.accounts) if (!Array.isArray(a.grants)) a.grants = grantsCoveredBy(Array.isArray(a.scopes) ? a.scopes : []);
+      cache = raw;
+    }
   } catch (e) {
     if (e instanceof KeystoreError) throw e; // undecryptable is not "no store": never start over on top of it
     /* unreadable: start over */
@@ -176,7 +186,8 @@ async function whoAmI(accessToken: string): Promise<{ id: string; username: stri
 // ─── Connecting an account ──────────────────────────────────────────────────
 
 // `redirect`: the callback address sent with this sign-in; the code exchange must repeat it exactly.
-interface Pending { state: string; verifier: string; url: string; expiresAt: number; timer: NodeJS.Timeout; redirect: string }
+// `grants`: what the account is being connected for; X is asked for those scopes only.
+interface Pending { state: string; verifier: string; url: string; expiresAt: number; timer: NodeJS.Timeout; redirect: string; grants: XGrant[] }
 let pending: Pending | null = null;
 let finishing: Pending | null = null;
 let lastError: string | undefined;
@@ -185,18 +196,25 @@ export function cancelConnect(): void {
   if (pending) { clearTimeout(pending.timer); pending = null; }
 }
 
+/** A list of grants from outside: known names only, `read` always among them. */
+function cleanGrants(raw: unknown): XGrant[] {
+  const list = Array.isArray(raw) ? raw.filter(isGrant) : [];
+  return [...new Set<XGrant>(["read", ...list])];
+}
+
 /**
- * Starts the sign-in of one more account: returns the URL the user opens in a browser,
- * signed in to X as the account to connect. X sends the browser to the registered callback
- * with a code and the state; `finishConnect` takes them from there.
+ * Starts the sign-in of one more account, for the grants given: returns the URL the user
+ * opens in a browser, signed in to X as the account to connect. X sends the browser to the
+ * registered callback with a code and the state; `finishConnect` takes them from there.
  */
-export async function startConnect(): Promise<{ url: string; expiresAt: string }> {
+export async function startConnect(grants: unknown = ["read", "publish"]): Promise<{ url: string; expiresAt: string; grants: XGrant[] }> {
   const store = await load();
   if (!store.clientId || !store.clientSecret) throw new XError("app_not_configured", "Set the X app's client id and secret first.");
   const redirect = redirectUriOf(store);
   if (!redirect) throw new XError("no_redirect_uri", "Save the callback address first: the https address of your copy of the callback page.");
   cancelConnect();
   lastError = undefined;
+  const wanted = cleanGrants(grants);
   const state = randomBytes(32).toString("base64url");
   const verifier = randomBytes(32).toString("base64url");
   const url = new URL(`${authBase()}/i/oauth2/authorize`);
@@ -204,7 +222,7 @@ export async function startConnect(): Promise<{ url: string; expiresAt: string }
     response_type: "code",
     client_id: store.clientId,
     redirect_uri: redirect,
-    scope: SCOPES,
+    scope: scopesFor(wanted).join(" "),
     state,
     code_challenge: createHash("sha256").update(verifier).digest("base64url"),
     code_challenge_method: "S256",
@@ -212,9 +230,9 @@ export async function startConnect(): Promise<{ url: string; expiresAt: string }
   const expiresAt = Date.now() + SIGNIN_TIMEOUT_MS;
   const timer = setTimeout(() => { lastError = "The sign-in expired: nobody finished it in the browser within 10 minutes."; cancelConnect(); }, SIGNIN_TIMEOUT_MS);
   timer.unref?.();
-  pending = { state, verifier, url: url.toString(), expiresAt, timer, redirect };
-  console.log("[key-proxy] x: account sign-in started");
-  return { url: pending.url, expiresAt: new Date(expiresAt).toISOString() };
+  pending = { state, verifier, url: url.toString(), expiresAt, timer, redirect, grants: wanted };
+  console.log(`[key-proxy] x: account sign-in started (${wanted.join(", ")})`);
+  return { url: pending.url, expiresAt: new Date(expiresAt).toISOString(), grants: wanted };
 }
 
 /**
@@ -236,13 +254,18 @@ export async function finishConnect(code: string, state: string): Promise<XAccou
     const store = await load();
     const data = await tokenRequest(store, { grant_type: "authorization_code", code, redirect_uri: p.redirect, code_verifier: p.verifier });
     const scopes = typeof data.scope === "string" ? data.scope.split(/\s+/).filter(Boolean) : [];
-    for (const needed of ["tweet.write", "users.read", "offline.access"]) {
+    for (const needed of BASE_SCOPES) {
       if (!scopes.includes(needed)) throw new XError("scope_missing", `X did not grant "${needed}"; connect again and accept every permission.`);
     }
+    // X grants all or nothing, but never more than the app's permission level allows: a
+    // grant whose scopes did not come back is not kept (the card says which).
+    const covered = grantsCoveredBy(scopes);
+    const grants = p.grants.filter((g) => covered.includes(g));
     const who = await whoAmI(data.access_token);
     const account: XAccount = {
       ...who,
       scopes,
+      grants,
       status: "connected",
       accessToken: data.access_token,
       expiresAt: Date.now() + data.expires_in * 1000,
@@ -251,8 +274,9 @@ export async function finishConnect(code: string, state: string): Promise<XAccou
     };
     const others = (await load()).accounts.filter((a) => a.id !== who.id);
     await save({ ...(await load()), accounts: [...others, account].sort((a, b) => a.connectedAt.localeCompare(b.connectedAt)) });
-    lastError = undefined;
-    console.log(`[key-proxy] x: connected @${who.username}`);
+    const notGranted = p.grants.filter((g) => !grants.includes(g));
+    lastError = notGranted.length ? `@${who.username} is connected, but X did not grant: ${notGranted.join(", ")} (the app's permission level in X's developer portal does not allow it).` : undefined;
+    console.log(`[key-proxy] x: connected @${who.username} (${grants.join(", ")})`);
     return publicAccount(account);
   } catch (e: any) {
     lastError = safeMessage(e, "The account could not be connected; try again.");
@@ -261,6 +285,28 @@ export async function finishConnect(code: string, state: string): Promise<XAccou
   } finally {
     if (finishing === p) finishing = null;
   }
+}
+
+/**
+ * Changes what a connected account may be used for. Taking a grant away is this side's
+ * business; adding one the account's scopes do not cover needs a new sign-in, and the
+ * error names the scopes so the card can offer exactly that.
+ */
+export async function setGrants(id: string, grants: unknown): Promise<XAccountStatus> {
+  const store = await load();
+  const account = store.accounts.find((a) => a.id === id);
+  if (!account) throw new XError("no_such_account", "That account is not connected.", 404);
+  const wanted = cleanGrants(grants);
+  const missing = missingScopes(wanted, account.scopes);
+  if (missing.length) {
+    const e = new XError("scopes_missing", `@${account.username} was not connected with that permission; connect it again to add it.`, 409);
+    (e as any).missing = missing;
+    throw e;
+  }
+  const next: XAccount = { ...account, grants: wanted };
+  await save({ ...store, accounts: store.accounts.map((a) => (a.id === id ? next : a)) });
+  console.log(`[key-proxy] x: @${account.username} may now: ${wanted.join(", ")}`);
+  return publicAccount(next);
 }
 
 /** Forgets one account's tokens (revoking them at X, best effort). The app stays. */
@@ -455,6 +501,7 @@ export async function postThread(accountId: string, parts: XPostPart[], opts: XP
   }
   const token = await accessToken(accountId);
   const account = (await load()).accounts.find((a) => a.id === accountId)!;
+  if (!account.grants.includes("publish")) throw new XError("grant_missing", `@${account.username} was not connected for publishing.`, 403);
   const posts: { id: string; url: string }[] = [];
   let previous: string | undefined;
   for (const part of parts) {
@@ -489,9 +536,76 @@ export async function postThread(accountId: string, parts: XPostPart[], opts: XP
   return { username: account.username, posts, url: posts.find((p) => p.url)?.url ?? "" };
 }
 
+// ─── Reading (the closed table in x-ops.ts) ─────────────────────────────────
+
+export interface XCallResult {
+  op: string;
+  /** X's answer as it came: data, includes, meta, errors. */
+  body: any;
+  /** Resources X returned (what it charges per), and the estimated charge. */
+  resources: number;
+  estimatedUsd: number;
+}
+const ID_RE = /^\d{1,30}$/;
+const USERNAME_RE = /^[A-Za-z0-9_]{1,15}$/;
+const PARAM_MAX = 1024;
+
+/**
+ * One operation of the table, as one account. The path's placeholders and the query are
+ * filled from `params` under the table's rules (ids numeric, handles as X spells them, only
+ * the listed query parameters, max_results within X's range); the fields that come back
+ * are the table's, never the caller's. What X charges for the answer is estimated from it.
+ */
+export async function callOp(accountId: string, opName: unknown, params: unknown): Promise<XCallResult> {
+  const op = opNamed(opName);
+  if (!op) throw new XError("unknown_op", `"${String(opName).slice(0, 40)}" is not an X operation HydraOps performs.`);
+  const p: Record<string, unknown> = params && typeof params === "object" ? (params as any) : {};
+  const store = await load();
+  const account = store.accounts.find((a) => a.id === accountId);
+  if (!account) throw new XError("no_such_account", "That X account is not connected.", 404);
+  if (!account.grants.includes(op.grant)) throw new XError("grant_missing", `@${account.username} was not connected for "${op.grant}".`, 403);
+  const lacking = (op.scopes ?? []).filter((s) => !account.scopes.includes(s));
+  if (lacking.length) throw new XError("scopes_missing", `@${account.username} lacks the X permission for this (${lacking.join(", ")}); connect it again with "${op.grant}".`, 403);
+  const url = new URL(apiBase() + fillPath(op, account, p));
+  for (const key of op.query) {
+    const v = p[key];
+    if (v === undefined || v === null || v === "") continue;
+    const s = String(v).slice(0, PARAM_MAX);
+    if (key === "max_results" && op.results) {
+      const n = Math.round(Number(s));
+      if (!Number.isFinite(n)) continue;
+      url.searchParams.set(key, String(Math.min(op.results[1], Math.max(op.results[0], n))));
+    } else url.searchParams.set(key, s);
+  }
+  for (const [k, v] of Object.entries(op.fixed)) url.searchParams.set(k, v);
+  const token = await accessToken(accountId);
+  const { ok, status, body } = await fetchJson(url.toString(), { method: op.method, headers: { authorization: `Bearer ${token}`, accept: "application/json" } }, 60_000);
+  if (status === 401) {
+    // The token was refused outright (revoked in X's settings, app permissions changed): a new sign-in is the only way back.
+    const fresh = await load();
+    await save({ ...fresh, accounts: fresh.accounts.map((a) => (a.id === accountId ? { ...a, status: "reauth", accessToken: undefined, expiresAt: undefined, refreshToken: undefined } : a)) });
+    throw new XError("x_reauth_required", `X no longer accepts the connection of @${account.username}: connect it again in Tools → X.`, 401);
+  }
+  if (status === 429) throw new XError("rate_limited", `X is rate limiting this (${op.name}) for the moment; try again in a few minutes.`, 429);
+  if (!ok) throw new XError(errorCode(body) || `http_${status}`, errorMessage(body, `X refused the request (${status}).`), status);
+  const est = estimateUsd(op, body);
+  return { op: op.name, body, resources: est.resources, estimatedUsd: est.usd };
+}
+
+/** The path with its placeholders filled: `:me` is the account, `:id` and `:username` come from the caller, checked. */
+function fillPath(op: XOp, account: XAccount, p: Record<string, unknown>): string {
+  return op.path.replace(/:(me|id|username)/g, (_m, key: string) => {
+    if (key === "me") return account.id;
+    const v = String(p[key] ?? "").trim().replace(/^@/, "");
+    if (key === "id" && !ID_RE.test(v)) throw new XError("bad_id", `"${v.slice(0, 40)}" is not an X id (digits only).`);
+    if (key === "username" && !USERNAME_RE.test(v)) throw new XError("bad_username", `"${v.slice(0, 40)}" is not an X handle.`);
+    return encodeURIComponent(v);
+  });
+}
+
 // ─── Status and control ─────────────────────────────────────────────────────
 
-const publicAccount = (a: XAccount): XAccountStatus => ({ id: a.id, username: a.username, name: a.name, avatar: a.avatar, status: a.status, connectedAt: a.connectedAt, refreshedAt: a.refreshedAt });
+const publicAccount = (a: XAccount): XAccountStatus => ({ id: a.id, username: a.username, name: a.name, avatar: a.avatar, status: a.status, grants: [...a.grants], scopes: [...a.scopes], connectedAt: a.connectedAt, refreshedAt: a.refreshedAt });
 
 export async function status(): Promise<XStatus> {
   const s = await load();
@@ -533,15 +647,18 @@ export async function handleControl(req: import("node:http").IncomingMessage, re
   try {
     if (!fromApi(req)) { sendJson(res, 403, { error: { code: "not_from_api", message: "The X control endpoints take JSON requests from the API only." } }); return true; }
     if (path === "/status" && req.method === "GET") { sendJson(res, 200, await status()); return true; }
+    if (path === "/ops" && req.method === "GET") { sendJson(res, 200, { ops: opsPublic() }); return true; }
     if (path === "/app" && req.method === "POST") { const b = await readBody(req); await setApp(b.clientId, b.clientSecret, b.redirectUri); sendJson(res, 200, { ok: true }); return true; }
-    if (path === "/connect" && req.method === "POST") { sendJson(res, 200, await startConnect()); return true; }
+    if (path === "/connect" && req.method === "POST") { const b = await readBody(req); sendJson(res, 200, await startConnect(b.grants)); return true; }
+    if (path === "/grants" && req.method === "POST") { const b = await readBody(req); sendJson(res, 200, { ok: true, account: await setGrants(String(b.id ?? ""), b.grants) }); return true; }
+    if (path === "/call" && req.method === "POST") { const b = await readBody(req); sendJson(res, 200, await callOp(String(b.accountId ?? ""), b.op, b.params)); return true; }
     if (path === "/finish" && req.method === "POST") { const b = await readBody(req); sendJson(res, 200, { ok: true, account: await finishConnect(String(b.code ?? ""), String(b.state ?? "")) }); return true; }
     if (path === "/cancel" && req.method === "POST") { cancelConnect(); sendJson(res, 200, { ok: true }); return true; }
     if (path === "/disconnect" && req.method === "POST") { const b = await readBody(req); await disconnect(String(b.id ?? "")); sendJson(res, 200, { ok: true }); return true; }
     if (path === "/post" && req.method === "POST") { const b = await readBody(req); sendJson(res, 200, await postThread(String(b.accountId ?? ""), Array.isArray(b.parts) ? b.parts : [], { premium: b.premium === true })); return true; }
     return false;
   } catch (e: any) {
-    sendJson(res, e instanceof XError ? e.status : 500, { error: { code: e instanceof XError ? e.code : "x_failed", message: safeMessage(e, "The request to X failed.") } });
+    sendJson(res, e instanceof XError ? e.status : 500, { error: { code: e instanceof XError ? e.code : "x_failed", message: safeMessage(e, "The request to X failed."), ...(Array.isArray(e?.missing) ? { missing: e.missing } : {}) } });
     return true;
   }
 }

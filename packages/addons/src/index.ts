@@ -15,7 +15,7 @@ import { imageEditTool } from './native/image_edit/index.js';
 import { calendarTools } from './native/calendar/index.js';
 import { browserTools } from './native/browser/index.js';
 import { sendToTelegramTool } from './native/send_to_telegram/index.js';
-import { xAccountsTool, xPostTool } from './native/x/index.js';
+import { xAccountsTool, xPostTool, xReadTool, xSearchTool } from './native/x/index.js';
 import { delegateTaskTool } from './native/delegate_task/index.js';
 import { rememberTool } from './native/remember/index.js';
 import { recallTool } from './native/recall/index.js';
@@ -41,6 +41,8 @@ export async function createRegistry(): Promise<ToolRegistry> {
   registry.registerNative({ ...sendToTelegramTool, source: 'native' });
   registry.registerNative({ ...xAccountsTool, source: 'native' });
   registry.registerNative({ ...xPostTool, source: 'native' });
+  registry.registerNative({ ...xReadTool, source: 'native' });
+  registry.registerNative({ ...xSearchTool, source: 'native' });
   registry.registerNative({ ...delegateTaskTool, source: 'native' });
   registry.registerNative({ ...rememberTool, source: 'native' });
   registry.registerNative({ ...recallTool, source: 'native' });

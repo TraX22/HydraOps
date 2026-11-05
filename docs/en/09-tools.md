@@ -130,7 +130,7 @@ It can be turned off in **Settings → Tools on demand** (or with `TOOLS_ON_DEMA
 
 ## X: your accounts, posted to with your approval
 
-HydraOps connects to **your own X developer app**, and through it to as many of your X accounts as you like: a project's, a brand's, a personal one. The agents publish on them with the `x_post` tool, and every post waits for your approval.
+HydraOps connects to **your own X developer app**, and through it to as many of your X accounts as you like: a project's, a brand's, a personal one. The agents read them and search X with the `x_read` and `x_search` tools, and publish on them with `x_post`. Every post waits for your approval; every read costs money, within a budget you set.
 
 ### 1. Your callback page
 
@@ -159,7 +159,7 @@ X's API is pay-per-use: there is no free tier for new developers, you load credi
 
    ![Creating the app in X's developer console](../img/x-console-create-app.png)
 
-2. In the app's **User authentication settings** choose **Read and write**, the **Web App, Automated App or Bot** type, put your **Callback URI** from step 1 and a website address (your page's site works), and **save the changes**.
+2. In the app's **User authentication settings** choose **Read and write** (or **Read and write and Direct message** if the agents will read and send direct messages; it can be changed later, and the accounts are then connected again), the **Web App, Automated App or Bot** type, put your **Callback URI** from step 1 and a website address (your page's site works), and **save the changes**.
 
    ![User authentication settings: Web App type and the Callback URI of a GitHub Pages copy of the page](../img/x-console-auth-settings.png)
 
@@ -173,26 +173,41 @@ The Callback URI saved in HydraOps must be exactly the one registered in the app
 
 ### 3. Connect each account
 
-Press **Connect an account**: HydraOps shows a link. Open it in a browser **on this computer**, signed in to X as the account you want to connect (switch accounts in X first if another one is open), accept the four permissions (read your profile, post, upload images, keep the session), press **Continue** on your callback page and come back: the account appears in the list within seconds, with its tokens in the key store, refreshed on their own.
+Press **Connect an account** and tick what the agents will use it for: **Read** (always on: profile, posts, mentions, searches, metrics), **Publish**, **Engage** (like, repost, bookmark, follow, mute, block) and **Messages** (direct messages). HydraOps asks X for the permissions of those uses only, so the account can never be used for anything else, whatever a model says. Then press **Get the link**: open it in a browser **on this computer**, signed in to X as the account you want to connect (switch accounts in X first if another one is open), accept the permissions HydraOps asks for, press **Continue** on your callback page and come back: the account appears in the list within seconds, with its tokens in the key store, refreshed on their own.
 
 When HydraOps runs on a server and your browser is elsewhere, the callback cannot reach it: your callback page shows the address with a **Copy** button, and the card has a field to paste it in. Same result.
 
-An account can be connected again at any time (its tokens are replaced), and **Disconnect** forgets it.
+Each account's row shows its uses as chips. Switch one off there whenever you like; to add one, the account is **connected again** with that permission ticked (the row offers it), because X grants permissions only at sign-in. **Messages** needs the app at the Direct message level (step 2); otherwise X grants the rest and the card says what was left out. An account can be connected again at any time (its tokens are replaced), and **Disconnect** forgets it.
 
-### 4. Who may post where
+### 4. Who may use which account
 
-Each connected account lists the agents allowed to post on it, and a new account starts with **nobody**: the publishing tool refuses, on the server side, any account the agent was not given here, so a post cannot land on the wrong brand by a model's mistake. Add agents with the picker on the account's row; the ON/OFF switch at the top pauses every account at once.
+Each connected account lists the agents allowed to use it (to read as it, to post on it), and a new account starts with **nobody**: the tools refuse, on the server side, any account the agent was not given here, so a post cannot land on the wrong brand by a model's mistake. Add agents with the picker on the account's row; the ON/OFF switch at the top pauses every account at once.
 
 ### 5. Posting
 
-Give the agent the two tools in the Agents view (its tools list, like any other tool) and the account in Tools → X. Then ask it for a post or a thread as you would ask a person: "announce the 0.2 release on the HydraOps account, three posts, the link in the last one". The agent has two tools:
+Give the agent the tools in the Agents view (its tools list, like any other tool; one line `x` gives it all of them) and the account in Tools → X. Then ask it for a post or a thread as you would ask a person: "announce the 0.2 release on the HydraOps account, three posts, the link in the last one". For posting the agent has:
 
-- `x_accounts` lists the accounts it may use. With one, it uses it; with several and a request that does not say which, it asks you; with none, it says so.
+- `x_accounts` lists the accounts it may use, what each was connected for and where its spending stands. With one account, it uses it; with several and a request that does not say which, it asks you; with none, it says so.
 - `x_post` publishes one post or a thread (every part a reply to the one before) on one account, with attachments per part: up to 4 images, or one GIF, or one video (the files you dropped into the chat, by name; an MP4 with H.264 video and AAC audio, such as the ones ComfyUI makes). A video is uploaded in pieces and X processes it before the post goes out, so a post with a video takes minutes. It is held **every time**, whatever the task read: nothing goes out under your name without you. With `publish_at` (a date and time, with a time zone) the post is scheduled instead: approved once, it goes out at that time exactly as shown, through the calendar (see [Scheduled tasks](./10-scheduled-tasks.md#the-calendar)).
 
 The approval card shows the account with its avatar, every part as it will be published with its character count (280 weighted characters, a link counting as 23; 25,000 on an account you marked **X Premium** in the card), the images or the video, and the estimated cost; so does the Telegram notice. **Approve** publishes and the agent answers with the link; **Reject** drops it and the agent is told. There is no "approve for the rest of the task" for a post: each one asks.
 
 The server publishes only the exact post you approved (same agent, account and parts), once; and it refuses, before anything reaches X, a part that is empty or over the limit, an account the agent was not given, an attachment that is not one of your files or is over X's size (5 MB for an image, 15 MB for a GIF, 8 GB for a video, 16 GB on a Premium account), a video or GIF mixed with other attachments, and anything while the switch is OFF. Deleting a post is not something the agents can do: that stays on X, with you.
+
+### 6. Reading: mentions, posts, profiles and searches
+
+Reading changes nothing on X, so it is not held for approval; but X charges for it, so it is kept in check with money instead. Two tools:
+
+- `x_read` reads as one account: `mentions` (posts that mention it; with `since_id`, only the new ones), `my_posts`, `home` (its timeline), `user` (a profile), `user_posts`, `post`, `metrics` (one of its own posts with the impressions and clicks only the author sees), `thread` (the replies to a post, last 7 days), `quotes`, `likers`, `reposters`, `liked` and `bookmarks` (the last two need **Engage**). It returns 20 items by default; the agent asks for more with `limit`, or continues with `page`.
+- `x_search` searches X: `recent` (last 7 days), `all` (the full archive, when your X plan allows it) and `counts_recent` / `counts_all` (how many posts matched per day, hour or minute, without the posts: the cheap way to measure). It takes X's query syntax (`from:`, `to:`, `#tag`, `"exact phrase"`, `-term`, `lang:es`, `is:reply`, `has:media`, `OR`…) and a date range.
+
+Every answer ends with what the call cost and where the money stands. The estimate uses X's published price list: about 0.001 USD per own post or mention, 0.005 USD per other post, 0.010 USD per profile, 0.005 USD per count request; X's portal has the real figure. Two limits apply, both in the card:
+
+- the **read budget per task** (0.50 USD unless you change it): once a task has spent it, further reads are refused and the agent is told to work with what it has, or to ask you;
+- the **monthly cap per account**, empty by default: what the account has spent this month (reads and posts) is shown with a bar, and when the cap is reached nothing more goes out as that account until next month or until you raise it.
+
+What comes back from X was written by other people, so it reaches the agent marked as outside content, like a web page: a mention or a reply that tells the agent to do something is reported to you, not obeyed, and a sensitive action after it waits for your approval (see [Security](./13-security.md)).
+
 
 ## Hugging Face: models, datasets and Spaces
 
