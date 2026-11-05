@@ -3754,7 +3754,7 @@ api.post("/x/read", async (req, res) => {
  * The approved held call (any tool) this request is the run of, claimed so it serves once:
  * same agent, same tool, same arguments. Null when there is none.
  */
-async function claimApprovedCall(toolName: string, agentId: string, args: unknown): Promise<string | null> {
+async function claimApprovedCall(toolName: string, agentId: string, args: unknown): Promise<{ id: string; args: Record<string, any> } | null> {
   const want = stableJson(args);
   const rows = await (db as any).select().from(pendingActions)
     .where(and(eq(pendingActions.toolName, toolName), eq(pendingActions.agentId, agentId), eq(pendingActions.status, "approved"), isNull(pendingActions.result)))
@@ -3764,10 +3764,15 @@ async function claimApprovedCall(toolName: string, agentId: string, args: unknow
     if (stableJson(stored) !== want) continue;
     const r = await (db as any).update(pendingActions).set({ result: "running on X…" })
       .where(and(eq(pendingActions.id, row.id), eq(pendingActions.status, "approved"), isNull(pendingActions.result))).run();
-    if ((r?.changes ?? 0) === 1) return String(row.id);
+    if ((r?.changes ?? 0) === 1) return { id: String(row.id), args: stored };
   }
   return null;
 }
+/** What each action of x_engage / x_users is in the key-proxy's table: the only operations the route can reach, by tool. */
+const X_ACT_OPS: Record<string, Record<string, { op: string; hidden?: boolean }>> = {
+  x_engage: { like: { op: "like" }, unlike: { op: "unlike" }, repost: { op: "repost" }, unrepost: { op: "unrepost" }, bookmark: { op: "bookmark" }, unbookmark: { op: "unbookmark" }, delete: { op: "delete_post" }, hide_reply: { op: "hide_reply", hidden: true }, unhide_reply: { op: "hide_reply", hidden: false } },
+  x_users: { follow: { op: "follow" }, unfollow: { op: "unfollow" }, block: { op: "block" }, unblock: { op: "unblock" }, mute: { op: "mute" }, unmute: { op: "unmute" } },
+};
 /** JSON with the keys sorted and empty values dropped, so two spellings of the same call compare equal. */
 function stableJson(v: unknown): string {
   const norm = (x: any): any => {
@@ -3782,38 +3787,57 @@ function stableJson(v: unknown): string {
 // block, a mute, their undoings, deleting an own post, hiding a reply. Held for the user
 // on the worker's side (approval "always"); here the run is accepted only as the execution
 // of an approved call with these very arguments, or of a later call of a tool the user
-// approved for the rest of the task. Charged per request against the account's cap.
+// approved for the rest of the task. What runs is derived from the APPROVED arguments (the
+// stored row's, or the request's under a task-wide approval), never from anything else in
+// the request: the operation from the tool and the action, the target from the id, or from
+// a handle the API itself looks up. Charged per request against the account's cap.
 api.post("/x/act", async (req, res) => {
   if (!sameSiteOnly(req, res)) return;
   try {
     const agentId = String(req.body?.agentId ?? "").trim().toLowerCase();
-    const wanted = String(req.body?.account ?? "").trim().replace(/^@/, "").toLowerCase();
     const taskId = typeof req.body?.taskId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(req.body.taskId) ? req.body.taskId : undefined;
     const toolName = String(req.body?.toolName ?? "");
-    const op = String(req.body?.op ?? "");
-    const params = req.body?.params && typeof req.body.params === "object" ? req.body.params : {};
-    if (!["x_engage", "x_users"].includes(toolName)) return res.status(400).json({ error: "bad_tool", message: "Not a tool that acts on X." });
-    const st = await xIntegrationStatus();
-    const pick = xAccountForAgent(st, agentId, wanted);
-    if (!pick.account) return res.status(pick.status).json({ error: pick.error, message: pick.message });
-    const account = pick.account;
-    const price = await xOpPrice(op);
-    if (!price || price.kind !== "write") return res.status(400).json({ error: "unknown_op", message: `"${op.slice(0, 40)}" is not an action HydraOps performs on X.` });
+    const askedArgs = req.body?.args && typeof req.body.args === "object" ? req.body.args : {};
+    if (!X_ACT_OPS[toolName]) return res.status(400).json({ error: "bad_tool", message: "Not a tool that acts on X." });
     // The approval: this exact call, or the tool approved for the rest of the task's chain.
-    const actionId = await claimApprovedCall(toolName, agentId, req.body?.args ?? {});
-    const taskWide = !actionId && taskId ? (await taskChainAutoApproved(db, taskId).catch(() => [] as string[])).includes(toolName) : false;
-    if (!actionId && !taskWide) {
-      console.warn(`[api] x: a ${op} for ${agentId || "?"} as @${account.username} matched no approved call: refused`);
+    const claimed = await claimApprovedCall(toolName, agentId, askedArgs);
+    const taskWide = !claimed && taskId ? (await taskChainAutoApproved(db, taskId).catch(() => [] as string[])).includes(toolName) : false;
+    if (!claimed && !taskWide) {
+      console.warn(`[api] x: a ${toolName} call for ${agentId || "?"} matched no approved call: refused`);
       return res.status(403).json({ error: "not_approved", message: "Nothing acts on X without the user's approval of that exact call, and there is no approved call matching this one." });
     }
+    const args = claimed ? claimed.args : askedArgs;
+    const what = X_ACT_OPS[toolName][String(args.action ?? "")];
+    if (!what) return res.status(400).json({ error: "bad_action", message: `"${String(args.action ?? "").slice(0, 40)}" is not an action of ${toolName}.` });
+    const st = await xIntegrationStatus();
+    const pick = xAccountForAgent(st, agentId, String(args.account ?? "").trim().replace(/^@/, "").toLowerCase());
+    if (!pick.account) return res.status(pick.status).json({ error: pick.error, message: pick.message });
+    const account = pick.account;
+    const price = await xOpPrice(what.op);
+    if (!price || price.kind !== "write") return res.status(400).json({ error: "unknown_op", message: `"${what.op}" is not an action HydraOps performs on X.` });
+    // The target: a post id, a user id, or a handle the API looks up itself (a profile read X charges for).
+    let id = typeof args.id === "string" && /^\d{1,30}$/.test(args.id) ? args.id : "";
+    let lookupUsd = 0;
+    const spent0 = xSpentThisMonth(await readXSpend(), account.id);
+    if (!id && toolName === "x_users" && typeof args.username === "string" && /^[A-Za-z0-9_]{1,15}$/.test(args.username.replace(/^@/, ""))) {
+      const userPrice = await xOpPrice("user");
+      if (!xUnderCap(account, spent0, (userPrice?.usd ?? 0) + price.usd)) return res.status(402).json({ error: "cap_reached", message: `Not done: @${account.username} would pass its monthly X cap (${spent0.toFixed(3)} spent of ${account.monthlyCapUsd} USD by HydraOps' estimate). The user raises it in Tools → X.` });
+      const who = await xProxy("POST", "/call", { accountId: account.id, op: "user", params: { username: args.username.replace(/^@/, "") } }, 70_000);
+      lookupUsd = Number(who?.estimatedUsd) || 0;
+      await recordXSpend(account.id, lookupUsd, taskId);
+      id = typeof who?.body?.data?.id === "string" ? who.body.data.id : "";
+      if (!id) return res.status(404).json({ error: "no_such_user", message: `No user @${args.username.replace(/^@/, "")} on X.` });
+    }
+    if (!id) return res.status(400).json({ error: "bad_target", message: `${toolName} ${args.action} needs the ${toolName === "x_engage" ? "post's id" : "user's id or handle"}.` });
+    const params: Record<string, unknown> = what.hidden === undefined ? { id } : { id, hidden: what.hidden };
     const spent = xSpentThisMonth(await readXSpend(), account.id);
     if (!xUnderCap(account, spent, price.usd)) return res.status(402).json({ error: "cap_reached", message: `Not done: @${account.username} would pass its monthly X cap (${spent.toFixed(3)} spent of ${account.monthlyCapUsd} USD by HydraOps' estimate). The user raises it in Tools → X.` });
-    const out = await xProxy("POST", "/call", { accountId: account.id, op, params }, 70_000);
+    const out = await xProxy("POST", "/call", { accountId: account.id, op: what.op, params }, 70_000);
     const usd = Number(out?.estimatedUsd) || 0;
     await recordXSpend(account.id, usd, taskId);
     const after = await readXSpend();
-    console.log(`[api] x: ${agentId} ${op} as @${account.username}${taskWide ? " (approved for the rest of the task)" : ""}: about ${usd.toFixed(3)} USD`);
-    res.json({ ok: true, op, account: { id: account.id, username: account.username }, body: out?.body ?? {}, estimatedUsd: usd, spend: { account: Number(xSpentThisMonth(after, account.id).toFixed(3)), cap: account.monthlyCapUsd ?? null } });
+    console.log(`[api] x: ${agentId} ${what.op} as @${account.username}${taskWide ? " (approved for the rest of the task)" : ""}: about ${usd.toFixed(3)} USD${lookupUsd ? ` (plus ${lookupUsd.toFixed(3)} to look up @${args.username})` : ""}`);
+    res.json({ ok: true, op: what.op, target: id, account: { id: account.id, username: account.username }, body: out?.body ?? {}, estimatedUsd: usd, lookupUsd, spend: { account: Number(xSpentThisMonth(after, account.id).toFixed(3)), cap: account.monthlyCapUsd ?? null } });
   } catch (e: any) {
     if (e?.code === "scopes_missing" || e?.code === "grant_missing") return res.status(403).json({ error: e.code, message: e.message });
     console.error("[api] POST /x/act failed", e?.message ?? e);

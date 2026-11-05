@@ -13,12 +13,15 @@ import { callApi, costLine, formatUser, pageLine, read, taskIdOf, usd } from "./
 
 const WRITE_RISK = { sensitive: true, approval: "always" as const, taskApproval: true as const };
 
-/** One action through the API: the approval check is the API's; a refusal comes back as text the agent can act on. */
-async function act(ctx: ToolContext | undefined, toolName: string, args: Record<string, unknown>, account: string, op: string, params: Record<string, unknown>): Promise<{ r?: any; text?: string }> {
+/**
+ * One action through the API, which derives what to do from the arguments the user approved
+ * (never from anything the tool could add); a refusal comes back as text the agent can act on.
+ */
+async function act(ctx: ToolContext | undefined, toolName: string, args: Record<string, unknown>): Promise<{ r?: any; text?: string }> {
   const agentId = String(ctx?.agentId ?? "").trim();
   if (!agentId) return { text: "This task carries no agent identity, so no X account can be used." };
   try {
-    const { ok, status, data } = await callApi("POST", "/x/act", { agentId, toolName, args, account: String(account).trim().replace(/^@/, ""), op, params, taskId: taskIdOf(ctx) }, 90_000);
+    const { ok, status, data } = await callApi("POST", "/x/act", { agentId, toolName, args, taskId: taskIdOf(ctx) }, 90_000);
     if (!ok) return { text: `Not done${[400, 402, 403, 404, 409].includes(status) ? "" : ` (X answered ${status})`}: ${data?.message || data?.error || "X refused the request."}` };
     return { r: data };
   } catch (e: any) {
@@ -27,11 +30,10 @@ async function act(ctx: ToolContext | undefined, toolName: string, args: Record<
 }
 const spendLine = (r: any) => {
   const s = r?.spend ?? {};
-  return `Cost: about ${usd(Number(r?.estimatedUsd) || 0)}. @${r?.account?.username}: ${typeof s.cap === "number" ? `${usd(s.account)} of its ${usd(s.cap)} monthly cap` : `${usd(s.account ?? 0)} this month (no cap)`}.`;
+  return `Cost: about ${usd(Number(r?.estimatedUsd) || 0)}${r?.lookupUsd ? ` (plus ${usd(Number(r.lookupUsd))} to look the user up)` : ""}. @${r?.account?.username}: ${typeof s.cap === "number" ? `${usd(s.account)} of its ${usd(s.cap)} monthly cap` : `${usd(s.account ?? 0)} this month (no cap)`}.`;
 };
 
 const ENGAGE_ACTIONS = ["like", "unlike", "repost", "unrepost", "bookmark", "unbookmark", "delete", "hide_reply", "unhide_reply"] as const;
-const ENGAGE_OP: Record<string, string> = { like: "like", unlike: "unlike", repost: "repost", unrepost: "unrepost", bookmark: "bookmark", unbookmark: "unbookmark", delete: "delete_post", hide_reply: "hide_reply", unhide_reply: "hide_reply" };
 const ENGAGE_DONE: Record<string, string> = { like: "Liked", unlike: "Unliked", repost: "Reposted", unrepost: "Repost removed from", bookmark: "Bookmarked", unbookmark: "Bookmark removed from", delete: "Deleted", hide_reply: "Hidden", unhide_reply: "Shown again" };
 
 export const xEngageTool: HydraTool = {
@@ -46,9 +48,8 @@ export const xEngageTool: HydraTool = {
     id: z.string().regex(/^\d{1,30}$/).describe("The post's id."),
   }),
   execute: async (args, ctx) => {
-    const { account, action, id } = args as { account: string; action: typeof ENGAGE_ACTIONS[number]; id: string };
-    const params: Record<string, unknown> = action === "hide_reply" ? { id, hidden: true } : action === "unhide_reply" ? { id, hidden: false } : { id };
-    const { r, text } = await act(ctx, "x_engage", args, account, ENGAGE_OP[action], params);
+    const { action, id } = args as { account: string; action: typeof ENGAGE_ACTIONS[number]; id: string };
+    const { r, text } = await act(ctx, "x_engage", args);
     if (!r) return text;
     const d = r.body?.data ?? {};
     const undone = (action === "unlike" && d.liked === true) || (action === "unrepost" && d.retweeted === true) || (action === "unbookmark" && d.bookmarked === true);
@@ -81,7 +82,13 @@ export const xUsersTool: HydraTool = {
     const { account, action, username, id, limit, page } = args as { account: string; action: UserAction; username?: string; id?: string; limit?: number; page?: string };
     const needsUser = !["followers", "following", "blocked", "muted"].includes(action);
     if (needsUser && !username && !id) return `x_users ${action} needs the other user's \`username\` or \`id\`.`;
-    // The other user's id, looked up by handle when needed (a profile read X charges for).
+    // An action: the API looks a handle up itself, so what the user approved is what runs.
+    if (isUserWrite(action)) {
+      const { r, text } = await act(ctx, "x_users", args);
+      if (!r) return text;
+      return [`${USER_DONE[action]} ${username ? `@${username.replace(/^@/, "")}` : `user ${id}`} as @${r.account?.username}.`, spendLine(r)].join("\n");
+    }
+    // A read of another user's followers or following: the id behind a handle first (a profile read X charges for).
     let userId = id;
     let lookup = "";
     if (needsUser && !userId) {
@@ -90,11 +97,6 @@ export const xUsersTool: HydraTool = {
       if (!r.body?.data?.id) return [`No user @${username} on X.`, costLine(r)].join("\n");
       userId = String(r.body.data.id);
       lookup = ` (plus ${usd(Number(r.estimatedUsd) || 0)} to look up @${username})`;
-    }
-    if (isUserWrite(action)) {
-      const { r, text } = await act(ctx, "x_users", args, account, action, { id: userId });
-      if (!r) return text;
-      return [`${USER_DONE[action]} ${username ? `@${username}` : `user ${userId}`} as @${r.account?.username}.`, spendLine(r) + lookup].join("\n");
     }
     const { r, text } = await read(ctx, account, action, { id: userId, max_results: limit ?? 20, pagination_token: page });
     if (!r) return text;
