@@ -93,7 +93,14 @@ const X_ACT_USD: Record<string, number> = { like: 0.015, repost: 0.015, follow: 
 function describeXAct(a: any): string {
   const args = a.args ?? {};
   const action = String(args.action ?? "");
-  const target = args.username ? `@${String(args.username).replace(/^@/, "")}` : String(args.id ?? "");
+  const target = args.username ? `@${String(args.username).replace(/^@/, "")}` : args.conversation ? `conversation ${args.conversation}` : String(args.id ?? "");
+  if (a.toolName === "x_dm") {
+    return [
+      `⏸ Direct message on X — ${a.agentId} wants to send to ${target} as @${String(args.account ?? "").replace(/^@/, "")}`,
+      clip(String(args.text ?? ""), 1000),
+      "About 0.015 USD, charged by X to your developer account. Expires in 24 h.",
+    ].join("\n\n");
+  }
   return [
     `⏸ Act on X — ${a.agentId} wants to ${X_ACT_WORDS[action] ?? action} ${target} as @${String(args.account ?? "").replace(/^@/, "")}`,
     `About ${(X_ACT_USD[action] ?? 0.015).toFixed(3)} USD, charged by X to your developer account. Expires in 24 h.`,
@@ -102,7 +109,7 @@ function describeXAct(a: any): string {
 
 function describe(a: any): string {
   if (a.toolName === "x_post") return describePost(a);
-  if (a.toolName === "x_engage" || a.toolName === "x_users") return describeXAct(a);
+  if (a.toolName === "x_engage" || a.toolName === "x_users" || a.toolName === "x_dm") return describeXAct(a);
   const origins = (Array.isArray(a.origins) ? a.origins : []).map((o: any) => o?.ref ?? o?.tool).filter(Boolean).slice(0, 3);
   const args = a.args && typeof a.args === "object"
     ? Object.entries(a.args as Record<string, unknown>).slice(0, 6)
@@ -132,7 +139,7 @@ async function notifyNew(deps: HeldActionsDeps): Promise<void> {
       inline_keyboard: [
         [{ text: "✅ Approve", callback_data: `held:a:${a.id}` }, { text: "❌ Reject", callback_data: `held:r:${a.id}` }],
         // A post always asks, one by one: no task-wide approval for it.
-        ...(a.toolName === "x_post" ? [] : [[{ text: "✅✅ Approve for the rest of the task", callback_data: `held:t:${a.id}` }]]),
+        ...(a.toolName === "x_post" || a.toolName === "x_dm" ? [] : [[{ text: "✅✅ Approve for the rest of the task", callback_data: `held:t:${a.id}` }]]),
       ],
     };
     const text = describe(a);

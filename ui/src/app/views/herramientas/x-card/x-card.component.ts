@@ -242,7 +242,7 @@ export class XCardComponent implements OnInit, OnDestroy {
 
   /** The account being checked right now (its button is busy). */
   checking = signal<string | null>(null);
-  checked = signal<{ id: string; newTasks: number } | null>(null);
+  checked = signal<{ id: string; newTasks: number; newDms: number } | null>(null);
 
   toggleListen(a: XAccount): void {
     const mentions = !a.listen.mentions;
@@ -254,6 +254,17 @@ export class XCardComponent implements OnInit, OnDestroy {
     const agent = (event.target as HTMLSelectElement).value;
     if (!agent || agent === a.listen.agent) return;
     this.api.saveXIntegration({ accounts: [{ id: a.id, listen: { agent } }] }).subscribe({ next: n => { this.apply(n); this.flash(); }, error: e => this.error.set(this.errorText(e)) });
+  }
+  toggleDms(a: XAccount): void {
+    const dms = !a.listen.dms;
+    const agent = a.listen.agent || a.agents[0] || '';
+    if (dms && !agent) return;
+    this.api.saveXIntegration({ accounts: [{ id: a.id, listen: { dms, agent, dmIntervalMinutes: a.listen.dmIntervalMinutes } }] }).subscribe({ next: n => { this.apply(n); this.flash(); }, error: e => this.error.set(this.errorText(e)) });
+  }
+  setDmInterval(a: XAccount, event: Event): void {
+    const v = Math.round(Number((event.target as HTMLInputElement).value));
+    if (!Number.isFinite(v) || v <= 0 || v === a.listen.dmIntervalMinutes) return;
+    this.api.saveXIntegration({ accounts: [{ id: a.id, listen: { dmIntervalMinutes: v } }] }).subscribe({ next: n => { this.apply(n); this.flash(); }, error: e => this.error.set(this.errorText(e)) });
   }
   setListenInterval(a: XAccount, event: Event): void {
     const v = Math.round(Number((event.target as HTMLInputElement).value));

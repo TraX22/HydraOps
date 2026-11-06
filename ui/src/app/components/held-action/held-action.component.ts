@@ -70,6 +70,7 @@ import { IconComponent } from '../icon/icon.component';
             @else if (xChecked()) { <span class="post-warn">{{ 'chat.held.x.unknownAccount' | translate }}</span> }
           </div>
           <p class="post-act">{{ ('chat.held.xact.' + x.action) | translate:{ target: x.target } }}</p>
+          @if (x.text) { <div class="post-part"><div class="post-body"><pre class="post-text">{{ x.text }}</pre></div></div> }
           <p class="post-cost">{{ 'chat.held.x.cost' | translate:{ usd: x.usd } }}</p>
         </div>
       } @else if (browserAct; as a) {
@@ -109,7 +110,7 @@ import { IconComponent } from '../icon/icon.component';
           <button class="held-approve" [disabled]="busy()" (click)="decide('approve')">
             <app-icon name="check" /> {{ 'chat.held.approve' | translate }}
           </button>
-          @if (!post) {
+          @if (!post && action.toolName !== 'x_dm') {
             <button class="held-approve held-approve-task" [disabled]="busy()" (click)="decide('approveTask')" [title]="'chat.held.approveTaskHint' | translate">
               <app-icon name="check" /> {{ 'chat.held.approveTask' | translate }}
             </button>
@@ -217,14 +218,16 @@ export class HeldActionComponent implements OnInit {
   isVideo(name: string): boolean { return /\.mp4$/i.test(name); }
 
   /** An x_engage / x_users action, read as what it does to whom, as which account, and X's price for it. */
-  get xAct(): { account: string; action: string; target: string; usd: string } | null {
-    if (this.action.toolName !== 'x_engage' && this.action.toolName !== 'x_users') return null;
+  get xAct(): { account: string; action: string; target: string; usd: string; text: string } | null {
+    if (this.action.toolName !== 'x_engage' && this.action.toolName !== 'x_users' && this.action.toolName !== 'x_dm') return null;
     const a = (this.action.args ?? {}) as Record<string, unknown>;
     const s = (k: string) => (typeof a[k] === 'string' ? (a[k] as string) : '');
     const action = s('action');
     const prices: Record<string, number> = { like: 0.015, repost: 0.015, follow: 0.015, block: 0.015, mute: 0.015, unlike: 0.01, unrepost: 0.01, unfollow: 0.01, unblock: 0.01, bookmark: 0.005, unbookmark: 0.005, delete: 0.005, hide_reply: 0.005, unhide_reply: 0.005, unmute: 0.005 };
-    const target = s('username') ? `@${s('username').replace(/^@/, '')}` : s('id');
-    return { account: s('account').replace(/^@/, ''), action: action || this.action.toolName, target, usd: (prices[action] ?? 0.015).toFixed(3) };
+    const target = s('username') ? `@${s('username').replace(/^@/, '')}` : s('conversation') ? s('conversation') : s('id');
+    const text = this.action.toolName === 'x_dm' ? s('text') : '';
+    const dm = this.action.toolName === 'x_dm';
+    return { account: s('account').replace(/^@/, ''), action: dm ? (s('conversation') ? 'dm_conversation' : 'dm_user') : (action || this.action.toolName), target, usd: (dm ? 0.015 : prices[action] ?? 0.015).toFixed(3), text };
   }
 
   /** The x_post arguments, read as a post: account, parts with their weighted length and images, what goes with the first part, cost. */

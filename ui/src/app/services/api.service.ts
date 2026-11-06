@@ -331,8 +331,8 @@ export interface XAccount {
   monthlyCapUsd: number | null;
   spentThisMonthUsd: number;
   /** Mentions polled every `intervalMinutes`; each new one becomes a task for `agent`. */
-  listen: { mentions: boolean; agent: string; intervalMinutes: number };
-  listenState: { lastCheckAt: number | null; lastNew: number; total: number; lastError: string | null; sinceId: string | null };
+  listen: { mentions: boolean; dms: boolean; agent: string; intervalMinutes: number; dmIntervalMinutes: number };
+  listenState: { lastCheckAt: number | null; lastNew: number; total: number; lastError: string | null; sinceId: string | null; dmLastCheckAt: number | null; dmLastNew: number; dmTotal: number; dmLastError: string | null; dmSinceId: string | null };
 }
 /** A permission group of an X account: what the user connected it for. */
 export type XGrant = 'read' | 'publish' | 'engage' | 'messages';
@@ -1047,7 +1047,7 @@ export class ApiService {
   }
 
   /** The switch and the agents allowed per account. */
-  saveXIntegration(cfg: { enabled?: boolean; taskReadBudgetUsd?: number; accounts?: { id: string; agents?: string[]; premium?: boolean; monthlyCapUsd?: number | null; listen?: { mentions?: boolean; agent?: string; intervalMinutes?: number } }[] }): Observable<XIntegration> {
+  saveXIntegration(cfg: { enabled?: boolean; taskReadBudgetUsd?: number; accounts?: { id: string; agents?: string[]; premium?: boolean; monthlyCapUsd?: number | null; listen?: { mentions?: boolean; dms?: boolean; agent?: string; intervalMinutes?: number; dmIntervalMinutes?: number } }[] }): Observable<XIntegration> {
     return this.http.post<XIntegration>(`${this.base}/system/integrations/x`, cfg);
   }
 
@@ -1062,8 +1062,8 @@ export class ApiService {
   }
 
   /** Checks one account's mentions right now. */
-  checkXMentions(id: string): Observable<XIntegration & { checked?: { id: string; newTasks: number } }> {
-    return this.http.post<XIntegration & { checked?: { id: string; newTasks: number } }>(`${this.base}/system/integrations/x/listen/check`, { id });
+  checkXMentions(id: string): Observable<XIntegration & { checked?: { id: string; newTasks: number; newDms: number } }> {
+    return this.http.post<XIntegration & { checked?: { id: string; newTasks: number; newDms: number } }>(`${this.base}/system/integrations/x/listen/check`, { id });
   }
 
   /** What a connected account may be used for; 409 scopes_missing when a grant needs a new sign-in. */

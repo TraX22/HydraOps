@@ -226,6 +226,16 @@ An account can be watched: switch **Listen for mentions** on in its row, choose 
 Switching listening on starts from the newest mention: nothing older is replayed. A check that finds nothing costs nothing (X charges per mention returned, about 0.001 USD each), and the row shows when the last check ran, how many mentions it found and any error (an expired session, the monthly cap). **Check now** runs a check at once. A mention that arrives while HydraOps is off is picked up at the next check.
 
 
+### 9. Direct messages
+
+Direct messages need two things: your app in X's portal at the **Read and write and Direct message** level (step 2), and the account connected with **Messages** ticked (connect it again if it was not). Then the agent has `x_dm`:
+
+- reads, not held: `inbox` (the latest messages across conversations), `with` (the conversation with a user) and `conversation` (by its id). X charges about 0.010 USD per message returned, and what comes back is outside content;
+- `send`, held **every time** like a post (there is no "approve for the rest of the task" for a message): the card and the Telegram notice show the text and who it goes to, and the server sends only the exact message you approved, about 0.015 USD.
+
+An incoming message never gets an answer on its own. Switch **Notify direct messages** on in the account's row (it needs the Messages use and the listening agent) and each new message becomes a **notice**: the agent shows it in the chat, in one line, and Telegram sends it to you; the agent is told not to answer and not to call any tool. When you ask for a reply, the agent writes it and sends it with `x_dm`, and the sending waits for your approval. The check runs on its own interval (an hour by default, 5 minutes at the least) and, unlike mentions, every check costs one message read (about 0.010 USD) even when nothing is new, because X returns the newest message every time; the row says so. Switching it on starts from the newest message.
+
+
 ## Hugging Face: models, datasets and Spaces
 
 With the **huggingface** tools the agents work with the Hugging Face Hub the way the GitHub ones work with GitHub. Give an agent all of them with one line, `huggingface`, in its tools (**Agents → Tools**).

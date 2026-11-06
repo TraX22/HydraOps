@@ -187,6 +187,30 @@
                 </span>
               }
             </div>
+            <!-- Direct messages: polled on their own interval (each check costs one event read); a new one is a notice, nobody answers until asked -->
+            @if (a.agents.length) {
+              <div class="listen dms">
+                <label class="listen-toggle" [title]="'herramientas.x.listen.dmsHint' | translate">
+                  <input type="checkbox" [checked]="a.listen.dms" [disabled]="busy() || !hasGrant(a, 'messages')" (change)="toggleDms(a)" />
+                  {{ 'herramientas.x.listen.dms' | translate }}
+                </label>
+                @if (!hasGrant(a, 'messages')) { <span class="tool-hint">{{ 'herramientas.x.listen.dmsNeedGrant' | translate }}</span> }
+                @else if (a.listen.dms) {
+                  <label class="cap">
+                    {{ 'herramientas.x.listen.every' | translate }}
+                    <input type="text" inputmode="numeric" class="cap-input" [value]="a.listen.dmIntervalMinutes" [title]="'herramientas.x.listen.dmCostHint' | translate" (change)="setDmInterval(a, $event)" (keyup.enter)="setDmInterval(a, $event)" />
+                    {{ 'herramientas.x.listen.minutes' | translate }}
+                  </label>
+                  <span class="tool-hint listen-state" [class.bad]="!!a.listenState.dmLastError">
+                    @if (a.listenState.dmLastError) { {{ 'herramientas.x.listen.error' | translate:{ msg: a.listenState.dmLastError } }} }
+                    @else if (a.listenState.dmLastCheckAt) { {{ 'herramientas.x.listen.last' | translate:{ ago: ago(a.listenState.dmLastCheckAt), n: a.listenState.dmLastNew, total: a.listenState.dmTotal } }} }
+                    @else { {{ 'herramientas.x.listen.never' | translate }} }
+                    @if (checked()?.id === a.id) { · {{ 'herramientas.x.listen.checkedDms' | translate:{ n: checked()!.newDms } }} }
+                  </span>
+                  <span class="tool-hint">{{ 'herramientas.x.listen.dmCostHint' | translate }}</span>
+                }
+              </div>
+            }
             <!-- The month's spending by HydraOps' estimate, against the cap the user sets here -->
             <div class="spend">
               <span class="tool-hint">{{ 'herramientas.x.spent' | translate:{ usd: money(a.spentThisMonthUsd) } }}</span>

@@ -277,7 +277,9 @@
         "block": "Bloquer {{target}}",
         "unblock": "Débloquer {{target}}",
         "mute": "Masquer {{target}}",
-        "unmute": "Ne plus masquer {{target}}"
+        "unmute": "Ne plus masquer {{target}}",
+        "dm_user": "Envoyer un message privé à {{target}}",
+        "dm_conversation": "Envoyer un message privé dans la conversation {{target}}"
       }
     },
     "linkUnverified": "⚠ Non vérifié : l'agent n'a ni ouvert ni vu cette adresse dans cette conversation. Elle peut exister, mais elle vient de sa mémoire, pas d'une consultation.",
@@ -793,7 +795,12 @@
         "checked": "{{n}} nouvelles tâches",
         "needAgent": "Attribuez un agent au compte pour écouter les mentions.",
         "minHint": "Au moins {{min}} minutes",
-        "hint": "Chaque nouvelle mention devient une tâche pour cet agent, comme un message Telegram, et vous êtes prévenu sur Telegram. Le texte arrive comme contenu externe et ce que l'agent veut faire (répondre, aimer) attend votre accord. À l'activation on part de la dernière mention : rien d'ancien n'est rejoué. Une vérification sans nouveauté ne coûte rien ; chaque nouvelle mention environ 0,001 USD."
+        "hint": "Chaque nouvelle mention devient une tâche pour cet agent, comme un message Telegram, et vous êtes prévenu sur Telegram. Le texte arrive comme contenu externe et ce que l'agent veut faire (répondre, aimer) attend votre accord. À l'activation on part de la dernière mention : rien d'ancien n'est rejoué. Une vérification sans nouveauté ne coûte rien ; chaque nouvelle mention environ 0,001 USD.",
+        "dms": "Prévenir des messages privés",
+        "dmsNeedGrant": "Pour les messages, le compte doit être connecté avec « Messages ».",
+        "checkedDms": "{{n}} nouveaux messages",
+        "dmCostHint": "Chaque vérification coûte la lecture d'un message (0,010 USD) même sans nouveauté ; d'où l'intervalle d'une heure par défaut.",
+        "dmsHint": "Un nouveau message privé ne fait que vous prévenir : l'agent le montre dans le chat et Telegram vous l'envoie, et personne ne répond tant que vous ne le demandez pas. Quand vous demandez une réponse, l'envoi attend votre accord."
       }
     },
     "github": {

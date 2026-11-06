@@ -277,7 +277,9 @@
         "block": "Bloquear a {{target}}",
         "unblock": "Desbloquear a {{target}}",
         "mute": "Silenciar a {{target}}",
-        "unmute": "Dejar de silenciar a {{target}}"
+        "unmute": "Dejar de silenciar a {{target}}",
+        "dm_user": "Enviar un mensaje directo a {{target}}",
+        "dm_conversation": "Enviar un mensaje directo en la conversación {{target}}"
       }
     },
     "linkUnverified": "⚠ No verificado: el agente no abrió ni vio esta dirección en esta conversación. Puede existir, pero salió de su memoria, no de una consulta.",
@@ -793,7 +795,12 @@
         "checked": "{{n}} tareas nuevas",
         "needAgent": "Asigná un agente a la cuenta para escuchar menciones.",
         "minHint": "Mínimo {{min}} minutos",
-        "hint": "Cada mención nueva crea una tarea para ese agente, como un mensaje de Telegram, y te avisa por Telegram. El texto llega como contenido externo y lo que el agente quiera hacer (responder, dar me gusta) espera tu aprobación. Al activarlo se parte de la última mención: no se repasa lo anterior. Una revisión sin novedades no cuesta; cada mención nueva, unos 0,001 USD."
+        "hint": "Cada mención nueva crea una tarea para ese agente, como un mensaje de Telegram, y te avisa por Telegram. El texto llega como contenido externo y lo que el agente quiera hacer (responder, dar me gusta) espera tu aprobación. Al activarlo se parte de la última mención: no se repasa lo anterior. Una revisión sin novedades no cuesta; cada mención nueva, unos 0,001 USD.",
+        "dms": "Avisar mensajes directos",
+        "dmsNeedGrant": "Para los mensajes la cuenta tiene que estar conectada con «Mensajes».",
+        "checkedDms": "{{n}} mensajes nuevos",
+        "dmCostHint": "Cada revisión cuesta un mensaje leído (0,010 USD) aunque no haya nada nuevo; por eso el intervalo por defecto es de una hora.",
+        "dmsHint": "Un mensaje directo nuevo solo te avisa: el agente te lo muestra en el chat y Telegram te lo manda, y nadie responde hasta que vos lo pidas. Cuando pidas una respuesta, el envío espera tu aprobación."
       }
     },
     "github": {
