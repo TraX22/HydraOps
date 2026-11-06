@@ -26,15 +26,22 @@ export const BASE_SCOPES = ["tweet.read", "users.read", "offline.access"];
 export const GRANT_SCOPES: Record<XGrant, string[]> = {
   read: [],
   publish: ["tweet.write", "media.write"],
-  engage: ["like.read", "like.write", "bookmark.read", "bookmark.write", "follows.read", "follows.write", "block.read", "block.write", "mute.read", "mute.write", "tweet.moderate.write"],
+  engage: ["like.read", "like.write", "bookmark.read", "bookmark.write", "follows.read", "follows.write", "block.read", "block.write", "mute.read", "mute.write", "tweet.moderate.write", "list.write"],
   // X only grants these when the app itself has the "Direct message" permission level.
   messages: ["dm.read", "dm.write"],
 };
+/**
+ * Asked for at every sign-in with the base scopes, but not required: lists and Spaces are
+ * reads, so they belong to "read", yet an account connected before they existed must not
+ * lose its grants for lacking them. Such an account is told to connect again (missingScopes).
+ */
+export const OPTIONAL_SCOPES = ["list.read", "space.read"];
 
 /** The scopes to ask X for, for a set of grants (base ones always included). */
-export function scopesFor(grants: XGrant[]): string[] {
+export function scopesFor(grants: XGrant[], withOptional = false): string[] {
   const out = new Set(BASE_SCOPES);
   for (const g of grants) for (const s of GRANT_SCOPES[g] ?? []) out.add(s);
+  if (withOptional) for (const s of OPTIONAL_SCOPES) out.add(s);
   return [...out];
 }
 /** The grants a set of granted scopes fully covers. */
@@ -43,9 +50,9 @@ export function grantsCoveredBy(scopes: string[]): XGrant[] {
   return GRANTS.filter((g) => GRANT_SCOPES[g].every((s) => have.has(s)));
 }
 /** The scopes a set of grants needs that the account does not have. */
-export function missingScopes(grants: XGrant[], scopes: string[]): string[] {
+export function missingScopes(grants: XGrant[], scopes: string[], withOptional = false): string[] {
   const have = new Set(scopes);
-  return scopesFor(grants).filter((s) => !have.has(s));
+  return scopesFor(grants, withOptional).filter((s) => !have.has(s));
 }
 
 export interface XOp {
@@ -53,7 +60,7 @@ export interface XOp {
   method: "GET" | "POST" | "PUT" | "DELETE";
   /** A read changes nothing on X and is not held; a write is held for the user's approval. */
   kind: "read" | "write";
-  /** The path, with `:me` (the account's own id), `:id` (a post or user id), `:username` or `:conversation` (a DM conversation id). */
+  /** The path, with `:me` (the account's own id), `:id` (a post, user, list, Space or community id), `:username`, `:conversation` (a DM conversation id), `:list` (a list id) or `:user` (a second user id). */
   path: string;
   /** The permission group the account must have been connected with. */
   grant: XGrant;
@@ -68,7 +75,7 @@ export interface XOp {
   results?: [number, number];
   /** Query parameters fixed here: which fields come back. */
   fixed: Record<string, string>;
-  /** For a write: the JSON body, as caller parameter → X's field name (ids checked, `hidden` a boolean, `text` a string). */
+  /** For a write: the JSON body, as caller parameter → X's field name (ids checked; `hidden` and `private` booleans; `text`, `name` and `description` strings). */
   body?: Record<string, string>;
 }
 
@@ -81,6 +88,9 @@ const SEARCH = ["query", "max_results", "next_token", "since_id", "until_id", "s
 const COUNTS = ["query", "granularity", "start_time", "end_time", "since_id", "until_id", "next_token"];
 
 const USER_PAGE = ["max_results", "pagination_token"];
+const LIST_FIELDS = { "list.fields": "id,name,description,private,follower_count,member_count,owner_id,created_at", expansions: "owner_id", "user.fields": "username,name" };
+const SPACE_QUERY = { "space.fields": "id,title,state,created_at,started_at,scheduled_start,ended_at,host_ids,creator_id,participant_count,subscriber_count,lang,is_ticketed,topic_ids", expansions: "creator_id,host_ids", "user.fields": "username,name" };
+const COMMUNITY_FIELDS = { "community.fields": "id,name,description,access,join_policy,member_count,created_at" };
 // A message event: who sent it, in which conversation, when, the text, what it attaches or references.
 const DM_QUERY = { "dm_event.fields": "id,text,event_type,created_at,sender_id,dm_conversation_id,attachments,referenced_tweets,participant_ids", expansions: "sender_id,participant_ids", "user.fields": "username,name" };
 const OPS: XOp[] = [
@@ -135,6 +145,31 @@ const OPS: XOp[] = [
   { name: "dm_conversation", method: "GET", kind: "read", path: "/2/dm_conversations/:conversation/dm_events", grant: "messages", scopes: ["dm.read"], usd: 0.010, unit: "resource", query: ["max_results", "pagination_token", "event_types"], results: [1, 100], fixed: DM_QUERY },
   { name: "dm_send_user", method: "POST", kind: "write", path: "/2/dm_conversations/with/:id/messages", grant: "messages", scopes: ["dm.write"], usd: 0.015, unit: "request", query: [], fixed: {}, body: { text: "text" } },
   { name: "dm_send_conversation", method: "POST", kind: "write", path: "/2/dm_conversations/:conversation/messages", grant: "messages", scopes: ["dm.write"], usd: 0.015, unit: "request", query: [], fixed: {}, body: { text: "text" } },
+  // Lists (x_lists): the account's own ones at the owned-read price, any list's posts and members at theirs; managing one is held.
+  { name: "lists_owned", method: "GET", kind: "read", path: "/2/users/:me/owned_lists", grant: "read", scopes: ["list.read"], usd: 0.001, unit: "resource", query: USER_PAGE, results: [1, 100], fixed: LIST_FIELDS },
+  { name: "lists_followed", method: "GET", kind: "read", path: "/2/users/:me/followed_lists", grant: "read", scopes: ["list.read"], usd: 0.001, unit: "resource", query: USER_PAGE, results: [1, 100], fixed: LIST_FIELDS },
+  { name: "lists_memberships", method: "GET", kind: "read", path: "/2/users/:me/list_memberships", grant: "read", scopes: ["list.read"], usd: 0.001, unit: "resource", query: USER_PAGE, results: [1, 100], fixed: LIST_FIELDS },
+  { name: "lists_pinned", method: "GET", kind: "read", path: "/2/users/:me/pinned_lists", grant: "read", scopes: ["list.read"], usd: 0.001, unit: "resource", query: [], fixed: LIST_FIELDS },
+  { name: "list", method: "GET", kind: "read", path: "/2/lists/:id", grant: "read", scopes: ["list.read"], usd: 0.005, unit: "resource", query: [], fixed: LIST_FIELDS },
+  { name: "list_posts", method: "GET", kind: "read", path: "/2/lists/:id/tweets", grant: "read", scopes: ["list.read"], usd: 0.005, unit: "resource", query: USER_PAGE, results: [1, 100], fixed: POST_QUERY },
+  { name: "list_members", method: "GET", kind: "read", path: "/2/lists/:id/members", grant: "read", scopes: ["list.read"], usd: 0.010, unit: "resource", query: USER_PAGE, results: [1, 100], fixed: USER_FIELDS },
+  { name: "list_create", method: "POST", kind: "write", path: "/2/lists", grant: "engage", scopes: ["list.write"], usd: 0.010, unit: "request", query: [], fixed: {}, body: { name: "name", description: "description", private: "private" } },
+  { name: "list_update", method: "PUT", kind: "write", path: "/2/lists/:list", grant: "engage", scopes: ["list.write"], usd: 0.005, unit: "request", query: [], fixed: {}, body: { name: "name", description: "description", private: "private" } },
+  { name: "list_delete", method: "DELETE", kind: "write", path: "/2/lists/:list", grant: "engage", scopes: ["list.write"], usd: 0.005, unit: "request", query: [], fixed: {} },
+  { name: "list_add_member", method: "POST", kind: "write", path: "/2/lists/:list/members", grant: "engage", scopes: ["list.write"], usd: 0.005, unit: "request", query: [], fixed: {}, body: { user: "user_id" } },
+  { name: "list_remove_member", method: "DELETE", kind: "write", path: "/2/lists/:list/members/:user", grant: "engage", scopes: ["list.write"], usd: 0.005, unit: "request", query: [], fixed: {} },
+  { name: "list_follow", method: "POST", kind: "write", path: "/2/users/:me/followed_lists", grant: "engage", scopes: ["list.write"], usd: 0.005, unit: "request", query: [], fixed: {}, body: { list: "list_id" } },
+  { name: "list_unfollow", method: "DELETE", kind: "write", path: "/2/users/:me/followed_lists/:list", grant: "engage", scopes: ["list.write"], usd: 0.005, unit: "request", query: [], fixed: {} },
+  { name: "list_pin", method: "POST", kind: "write", path: "/2/users/:me/pinned_lists", grant: "engage", scopes: ["list.write"], usd: 0.005, unit: "request", query: [], fixed: {}, body: { list: "list_id" } },
+  { name: "list_unpin", method: "DELETE", kind: "write", path: "/2/users/:me/pinned_lists/:list", grant: "engage", scopes: ["list.write"], usd: 0.005, unit: "request", query: [], fixed: {} },
+  // Spaces, communities and trends (x_explore): reads only.
+  { name: "space", method: "GET", kind: "read", path: "/2/spaces/:id", grant: "read", scopes: ["space.read"], usd: 0.005, unit: "resource", query: [], fixed: SPACE_QUERY },
+  { name: "spaces_by", method: "GET", kind: "read", path: "/2/spaces/by/creator_ids", grant: "read", scopes: ["space.read"], usd: 0.005, unit: "resource", query: ["user_ids"], fixed: SPACE_QUERY },
+  { name: "spaces_search", method: "GET", kind: "read", path: "/2/spaces/search", grant: "read", scopes: ["space.read"], usd: 0.005, unit: "resource", query: ["query", "state", "max_results"], results: [1, 100], fixed: SPACE_QUERY },
+  { name: "community", method: "GET", kind: "read", path: "/2/communities/:id", grant: "read", usd: 0.005, unit: "resource", query: [], fixed: COMMUNITY_FIELDS },
+  { name: "communities_search", method: "GET", kind: "read", path: "/2/communities/search", grant: "read", usd: 0.005, unit: "resource", query: ["query", "max_results", "pagination_token"], results: [10, 100], fixed: COMMUNITY_FIELDS },
+  { name: "trends", method: "GET", kind: "read", path: "/2/trends/by/woeid/:id", grant: "read", usd: 0.010, unit: "request", query: ["max_trends"], fixed: {} },
+  { name: "trends_personalized", method: "GET", kind: "read", path: "/2/users/personalized_trends", grant: "read", usd: 0.010, unit: "request", query: [], fixed: {} },
 ];
 const BY_NAME = new Map(OPS.map((o) => [o.name, o]));
 

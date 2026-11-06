@@ -279,7 +279,16 @@
         "mute": "Masquer {{target}}",
         "unmute": "Ne plus masquer {{target}}",
         "dm_user": "Envoyer un message privé à {{target}}",
-        "dm_conversation": "Envoyer un message privé dans la conversation {{target}}"
+        "dm_conversation": "Envoyer un message privé dans la conversation {{target}}",
+        "list_create": "Créer la liste « {{target}} »",
+        "list_update": "Modifier la liste {{target}}",
+        "list_delete": "Supprimer la liste {{target}}",
+        "list_add_member": "Ajouter {{target}} à la liste",
+        "list_remove_member": "Retirer {{target}} de la liste",
+        "list_follow": "Suivre la liste {{target}}",
+        "list_unfollow": "Ne plus suivre la liste {{target}}",
+        "list_pin": "Épingler la liste {{target}}",
+        "list_unpin": "Désépingler la liste {{target}}"
       }
     },
     "linkUnverified": "⚠ Non vérifié : l'agent n'a ni ouvert ni vu cette adresse dans cette conversation. Elle peut exister, mais elle vient de sa mémoire, pas d'une consultation.",
@@ -801,7 +810,8 @@
         "checkedDms": "{{n}} nouveaux messages",
         "dmCostHint": "Chaque vérification coûte la lecture d'un message (0,010 USD) même sans nouveauté ; d'où l'intervalle d'une heure par défaut.",
         "dmsHint": "Un nouveau message privé ne fait que vous prévenir : l'agent le montre dans le chat et Telegram vous l'envoie, et personne ne répond tant que vous ne le demandez pas. Quand vous demandez une réponse, l'envoi attend votre accord."
-      }
+      },
+      "newScopes": "X a ajouté des permissions de lecture (listes, Spaces) que ce compte n'a pas encore : reconnectez-le pour que les agents puissent les utiliser ({{scopes}})."
     },
     "github": {
       "name": "GitHub",

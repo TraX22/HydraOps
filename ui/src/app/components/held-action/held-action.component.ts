@@ -219,15 +219,21 @@ export class HeldActionComponent implements OnInit {
 
   /** An x_engage / x_users action, read as what it does to whom, as which account, and X's price for it. */
   get xAct(): { account: string; action: string; target: string; usd: string; text: string } | null {
-    if (this.action.toolName !== 'x_engage' && this.action.toolName !== 'x_users' && this.action.toolName !== 'x_dm') return null;
+    if (!['x_engage', 'x_users', 'x_dm', 'x_lists'].includes(this.action.toolName)) return null;
     const a = (this.action.args ?? {}) as Record<string, unknown>;
     const s = (k: string) => (typeof a[k] === 'string' ? (a[k] as string) : '');
     const action = s('action');
-    const prices: Record<string, number> = { like: 0.015, repost: 0.015, follow: 0.015, block: 0.015, mute: 0.015, unlike: 0.01, unrepost: 0.01, unfollow: 0.01, unblock: 0.01, bookmark: 0.005, unbookmark: 0.005, delete: 0.005, hide_reply: 0.005, unhide_reply: 0.005, unmute: 0.005 };
+    const prices: Record<string, number> = { like: 0.015, repost: 0.015, follow: 0.015, block: 0.015, mute: 0.015, unlike: 0.01, unrepost: 0.01, unfollow: 0.01, unblock: 0.01, bookmark: 0.005, unbookmark: 0.005, delete: 0.005, hide_reply: 0.005, unhide_reply: 0.005, unmute: 0.005, create: 0.01, update: 0.005, add_member: 0.005, remove_member: 0.005, pin: 0.005, unpin: 0.005 };
     // The same order the API uses to pick the target: the conversation, then the id, then the handle.
     const target = s('conversation') ? s('conversation') : s('id') ? s('id') : s('username') ? `@${s('username').replace(/^@/, '')}` : '';
     const text = this.action.toolName === 'x_dm' ? s('text') : '';
     const dm = this.action.toolName === 'x_dm';
+    if (this.action.toolName === 'x_lists') {
+      // Lists: the list's name or id as the target, and the user for member changes.
+      const who = s('username') ? `@${s('username').replace(/^@/, '')}` : s('id');
+      const listTarget = action === 'create' ? s('name') : s('list');
+      return { account: s('account').replace(/^@/, ''), action: `list_${action}`, target: ['add_member', 'remove_member'].includes(action) ? `${who} · ${listTarget}` : listTarget, usd: (prices[action] ?? 0.005).toFixed(3), text: action === 'create' || action === 'update' ? [s('name') ? `${s('name')}` : '', s('description'), a['private'] === true ? '(private)' : ''].filter(Boolean).join(' · ') : '' };
+    }
     return { account: s('account').replace(/^@/, ''), action: dm ? (s('conversation') ? 'dm_conversation' : 'dm_user') : (action || this.action.toolName), target, usd: (dm ? 0.015 : prices[action] ?? 0.015).toFixed(3), text };
   }
 

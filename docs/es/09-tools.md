@@ -236,6 +236,16 @@ Los mensajes directos necesitan dos cosas: tu app en el portal de X en el nivel 
 Un mensaje entrante nunca se contesta solo. Activá **Avisar mensajes directos** en la fila de la cuenta (necesita el uso Mensajes y el agente que escucha) y cada mensaje nuevo se convierte en un **aviso**: el agente te lo muestra en el chat, en una línea, y Telegram te lo manda; el agente tiene dicho que no conteste ni llame a ninguna herramienta. Cuando le pidas una respuesta, la redacta y la manda con `x_dm`, y el envío espera tu aprobación. La revisión corre con su propio intervalo (una hora por defecto, 5 minutos como mínimo) y, a diferencia de las menciones, cada revisión cuesta un mensaje leído (unos 0,010 USD) aunque no haya nada nuevo, porque X devuelve siempre el mensaje más nuevo; la fila lo dice. Al activarlo se parte del último mensaje.
 
 
+### 10. Listas, Spaces, comunidades y tendencias
+
+Dos herramientas más, lecturas salvo que se diga otra cosa, cobradas como cualquier lectura y devolviendo contenido externo:
+
+- `x_lists`: las listas de la cuenta (`mine`, `followed`, `memberships`, `pinned`), una lista, sus publicaciones y sus miembros; y, retenidas para tu aprobación como cualquier acción (con «aprobar por el resto de la tarea»), `create`, `update`, `delete`, `add_member`, `remove_member`, `follow`, `unfollow`, `pin` y `unpin`. Gestionar listas necesita el uso **Interactuar**.
+- `x_explore`: un Space, los Spaces que un usuario conduce, una búsqueda de Spaces en vivo o programados; una comunidad y una búsqueda de comunidades; qué es tendencia en un lugar (el mundo, un país o una ciudad por nombre, o cualquier id de lugar de X) y las tendencias personalizadas de la cuenta.
+
+Leer listas y Spaces necesita dos permisos que X sumó después de que se conectaran las primeras cuentas (`list.read`, `space.read`). Una cuenta conectada antes muestra en su fila una línea que lo dice, con un botón para volver a conectarla; hasta entonces esas lecturas contestan que a la cuenta le falta el permiso, y nada más cambia.
+
+
 ## Hugging Face: modelos, datasets y Spaces
 
 Con las herramientas **huggingface** los agentes trabajan con el Hub de Hugging Face como las de GitHub trabajan con GitHub. Se le dan todas a un agente con una sola línea, `huggingface`, en sus herramientas (**Agentes → Herramientas**).

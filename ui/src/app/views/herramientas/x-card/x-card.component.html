@@ -134,6 +134,9 @@
               }
               <button type="button" class="relink" [disabled]="busy() || !!link()" (click)="reconnect(a)">{{ 'herramientas.x.reconnect' | translate }}</button>
             </div>
+            @if (a.missingScopes?.length && needsReconnect()?.account?.id !== a.id) {
+              <p class="tool-hint new-scopes">{{ 'herramientas.x.newScopes' | translate:{ scopes: a.missingScopes.join(', ') } }} <button type="button" class="relink" [disabled]="busy() || !!link()" (click)="reconnect(a)">{{ 'herramientas.x.reconnect' | translate }}</button></p>
+            }
             @if (needsReconnect(); as nr) {
               @if (nr.account.id === a.id) {
                 <p class="notice warn inline">

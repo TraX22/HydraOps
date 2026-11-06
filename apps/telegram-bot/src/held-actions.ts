@@ -87,14 +87,15 @@ function describePost(a: any): string {
   ].filter(Boolean).join("\n\n");
 }
 
-const X_ACT_WORDS: Record<string, string> = { like: "like post", unlike: "unlike post", repost: "repost", unrepost: "undo the repost of", bookmark: "bookmark post", unbookmark: "remove from bookmarks post", delete: "delete its own post", hide_reply: "hide reply", unhide_reply: "show again reply", follow: "follow", unfollow: "unfollow", block: "block", unblock: "unblock", mute: "mute", unmute: "unmute" };
-const X_ACT_USD: Record<string, number> = { like: 0.015, repost: 0.015, follow: 0.015, block: 0.015, mute: 0.015, unlike: 0.01, unrepost: 0.01, unfollow: 0.01, unblock: 0.01, bookmark: 0.005, unbookmark: 0.005, delete: 0.005, hide_reply: 0.005, unhide_reply: 0.005, unmute: 0.005 };
+const X_ACT_WORDS: Record<string, string> = { create: "create the list", update: "change the list", add_member: "add to a list", remove_member: "remove from a list", pin: "pin the list", unpin: "unpin the list", like: "like post", unlike: "unlike post", repost: "repost", unrepost: "undo the repost of", bookmark: "bookmark post", unbookmark: "remove from bookmarks post", delete: "delete its own post", hide_reply: "hide reply", unhide_reply: "show again reply", follow: "follow", unfollow: "unfollow", block: "block", unblock: "unblock", mute: "mute", unmute: "unmute" };
+const X_ACT_USD: Record<string, number> = { create: 0.01, update: 0.005, add_member: 0.005, remove_member: 0.005, pin: 0.005, unpin: 0.005, like: 0.015, repost: 0.015, follow: 0.015, block: 0.015, mute: 0.015, unlike: 0.01, unrepost: 0.01, unfollow: 0.01, unblock: 0.01, bookmark: 0.005, unbookmark: 0.005, delete: 0.005, hide_reply: 0.005, unhide_reply: 0.005, unmute: 0.005 };
 /** An action on X (x_engage, x_users): what, to whom, as which account, and X's price. */
 function describeXAct(a: any): string {
   const args = a.args ?? {};
   const action = String(args.action ?? "");
   // The same order the API uses to pick the target: the conversation, then the id, then the handle.
-  const target = args.conversation ? `conversation ${args.conversation}` : args.id ? String(args.id) : args.username ? `@${String(args.username).replace(/^@/, "")}` : "";
+  let target = args.conversation ? `conversation ${args.conversation}` : args.id ? String(args.id) : args.username ? `@${String(args.username).replace(/^@/, "")}` : "";
+  if (a.toolName === "x_lists") target = action === "create" ? `"${args.name ?? ""}"${args.private === true ? " (private)" : ""}` : ["add_member", "remove_member"].includes(action) ? `${target} ${action === "add_member" ? "to" : "from"} list ${args.list ?? "?"}` : `${args.list ?? "?"}${args.name ? ` ("${args.name}")` : ""}`;
   if (a.toolName === "x_dm") {
     return [
       `⏸ Direct message on X — ${a.agentId} wants to send to ${target} as @${String(args.account ?? "").replace(/^@/, "")}`,

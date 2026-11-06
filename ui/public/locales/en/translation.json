@@ -279,7 +279,16 @@
         "mute": "Mute {{target}}",
         "unmute": "Unmute {{target}}",
         "dm_user": "Send a direct message to {{target}}",
-        "dm_conversation": "Send a direct message in conversation {{target}}"
+        "dm_conversation": "Send a direct message in conversation {{target}}",
+        "list_create": "Create the list '{{target}}'",
+        "list_update": "Change list {{target}}",
+        "list_delete": "Delete list {{target}}",
+        "list_add_member": "Add {{target}} to the list",
+        "list_remove_member": "Remove {{target}} from the list",
+        "list_follow": "Follow list {{target}}",
+        "list_unfollow": "Unfollow list {{target}}",
+        "list_pin": "Pin list {{target}}",
+        "list_unpin": "Unpin list {{target}}"
       }
     },
     "linkUnverified": "⚠ Not verified: the agent did not open or see this address in this conversation. It may exist, but it came from its memory, not from a lookup.",
@@ -801,7 +810,8 @@
         "checkedDms": "{{n}} new messages",
         "dmCostHint": "Each check costs one message read (0.010 USD) even when nothing is new; hence the one-hour default interval.",
         "dmsHint": "A new direct message only notifies you: the agent shows it in the chat and Telegram sends it to you, and nobody answers until you ask. When you ask for a reply, sending it waits for your approval."
-      }
+      },
+      "newScopes": "X added read permissions (lists, Spaces) this account does not have yet: connect it again so the agents can use them ({{scopes}})."
     },
     "github": {
       "name": "GitHub",

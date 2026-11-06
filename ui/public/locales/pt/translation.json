@@ -279,7 +279,16 @@
         "mute": "Silenciar {{target}}",
         "unmute": "Dessilenciar {{target}}",
         "dm_user": "Enviar uma mensagem direta para {{target}}",
-        "dm_conversation": "Enviar uma mensagem direta na conversa {{target}}"
+        "dm_conversation": "Enviar uma mensagem direta na conversa {{target}}",
+        "list_create": "Criar a lista '{{target}}'",
+        "list_update": "Alterar a lista {{target}}",
+        "list_delete": "Apagar a lista {{target}}",
+        "list_add_member": "Adicionar {{target}} à lista",
+        "list_remove_member": "Remover {{target}} da lista",
+        "list_follow": "Seguir a lista {{target}}",
+        "list_unfollow": "Deixar de seguir a lista {{target}}",
+        "list_pin": "Fixar a lista {{target}}",
+        "list_unpin": "Desafixar a lista {{target}}"
       }
     },
     "linkUnverified": "⚠ Não verificado: o agente não abriu nem viu este endereço nesta conversa. Pode existir, mas veio da memória dele, não de uma consulta.",
@@ -801,7 +810,8 @@
         "checkedDms": "{{n}} mensagens novas",
         "dmCostHint": "Cada verificação custa uma mensagem lida (0,010 USD) mesmo sem novidade; por isso o intervalo padrão é de uma hora.",
         "dmsHint": "Uma mensagem direta nova só avisa você: o agente mostra no chat e o Telegram envia para você, e ninguém responde até você pedir. Quando pedir uma resposta, o envio espera sua aprovação."
-      }
+      },
+      "newScopes": "O X somou permissões de leitura (listas, Spaces) que esta conta ainda não tem: conecte-a de novo para que os agentes possam usá-las ({{scopes}})."
     },
     "github": {
       "name": "GitHub",

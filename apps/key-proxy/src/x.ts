@@ -74,7 +74,7 @@ interface Store {
   accounts: XAccount[];
 }
 /** What leaves this process: who is connected, never a token or the secret. */
-export interface XAccountStatus { id: string; username: string; name: string; avatar?: string; status: XAccount["status"]; grants: XGrant[]; scopes: string[]; connectedAt: string; refreshedAt?: string }
+export interface XAccountStatus { id: string; username: string; name: string; avatar?: string; status: XAccount["status"]; grants: XGrant[]; scopes: string[]; /** Scopes its grants (and the optional reads) would ask for today that X did not grant it: a new sign-in adds them. */ missingScopes: string[]; connectedAt: string; refreshedAt?: string }
 export interface XStatus {
   appConfigured: boolean;
   clientId?: string;
@@ -222,7 +222,7 @@ export async function startConnect(grants: unknown = ["read", "publish"]): Promi
     response_type: "code",
     client_id: store.clientId,
     redirect_uri: redirect,
-    scope: scopesFor(wanted).join(" "),
+    scope: scopesFor(wanted, true).join(" "),
     state,
     code_challenge: createHash("sha256").update(verifier).digest("base64url"),
     code_challenge_method: "S256",
@@ -612,11 +612,18 @@ export async function callOp(accountId: string, opName: unknown, params: unknown
     const json: Record<string, unknown> = {};
     for (const [param, field] of Object.entries(op.body)) {
       const v = p[param];
-      if (param === "hidden") json[field] = v === true || v === "true";
+      if (param === "hidden" || param === "private") { if (v !== undefined) json[field] = v === true || v === "true"; }
       else if (param === "text") {
         const text = String(v ?? "").trim();
         if (!text || text.length > DM_TEXT_MAX) throw new XError("bad_text", `A message has 1 to ${DM_TEXT_MAX} characters.`);
         json[field] = text;
+      } else if (param === "name" || param === "description") {
+        // A list's name (1 to 25 characters) is required to create it; the description (up to 100) is optional.
+        if (v === undefined || v === null) { if (param === "name" && op.method === "POST") throw new XError("bad_name", "A list needs a name of 1 to 25 characters."); continue; }
+        const str = String(v).trim();
+        const max = param === "name" ? 25 : 100;
+        if ((param === "name" && !str) || str.length > max) throw new XError(`bad_${param}`, `A list's ${param} has ${param === "name" ? "1 to 25" : "up to 100"} characters.`);
+        json[field] = str;
       } else {
         const id = String(v ?? "").trim();
         if (!ID_RE.test(id)) throw new XError("bad_id", `"${id.slice(0, 40)}" is not an X id (digits only).`);
@@ -646,10 +653,10 @@ export async function callOp(accountId: string, opName: unknown, params: unknown
 
 /** The path with its placeholders filled: `:me` is the account, `:id` and `:username` come from the caller, checked. */
 function fillPath(op: XOp, account: XAccount, p: Record<string, unknown>): string {
-  return op.path.replace(/:(me|id|username|conversation)/g, (_m, key: string) => {
+  return op.path.replace(/:(me|id|username|conversation|list|user)/g, (_m, key: string) => {
     if (key === "me") return account.id;
     const v = String(p[key] ?? "").trim().replace(/^@/, "");
-    if (key === "id" && !ID_RE.test(v)) throw new XError("bad_id", `"${v.slice(0, 40)}" is not an X id (digits only).`);
+    if ((key === "id" || key === "list" || key === "user") && !ID_RE.test(v)) throw new XError("bad_id", `"${v.slice(0, 40)}" is not an X id (digits only).`);
     if (key === "username" && !USERNAME_RE.test(v)) throw new XError("bad_username", `"${v.slice(0, 40)}" is not an X handle.`);
     if (key === "conversation" && !CONVERSATION_RE.test(v)) throw new XError("bad_conversation", `"${v.slice(0, 40)}" is not an X conversation id.`);
     return encodeURIComponent(v);
@@ -658,7 +665,7 @@ function fillPath(op: XOp, account: XAccount, p: Record<string, unknown>): strin
 
 // ─── Status and control ─────────────────────────────────────────────────────
 
-const publicAccount = (a: XAccount): XAccountStatus => ({ id: a.id, username: a.username, name: a.name, avatar: a.avatar, status: a.status, grants: [...a.grants], scopes: [...a.scopes], connectedAt: a.connectedAt, refreshedAt: a.refreshedAt });
+const publicAccount = (a: XAccount): XAccountStatus => ({ id: a.id, username: a.username, name: a.name, avatar: a.avatar, status: a.status, grants: [...a.grants], scopes: [...a.scopes], missingScopes: missingScopes(a.grants, a.scopes, true), connectedAt: a.connectedAt, refreshedAt: a.refreshedAt });
 
 export async function status(): Promise<XStatus> {
   const s = await load();

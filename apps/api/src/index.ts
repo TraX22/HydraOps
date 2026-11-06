@@ -4001,7 +4001,10 @@ const X_ACT_OPS: Record<string, Record<string, { op: string; hidden?: boolean }>
   x_users: { follow: { op: "follow" }, unfollow: { op: "unfollow" }, block: { op: "block" }, unblock: { op: "unblock" }, mute: { op: "mute" }, unmute: { op: "unmute" } },
   // A direct message: to a user (by id or handle, a 1:1 conversation) or into a conversation by its id.
   x_dm: { send: { op: "dm_send_user" } },
+  // Lists: create one; change, delete, follow, unfollow, pin or unpin one by its id; add or remove a user (by id or handle).
+  x_lists: { create: { op: "list_create" }, update: { op: "list_update" }, delete: { op: "list_delete" }, add_member: { op: "list_add_member" }, remove_member: { op: "list_remove_member" }, follow: { op: "list_follow" }, unfollow: { op: "list_unfollow" }, pin: { op: "list_pin" }, unpin: { op: "list_unpin" } },
 };
+const X_LIST_NEEDS_USER = new Set(["add_member", "remove_member"]);
 const X_CONVERSATION_RE = /^\d{1,30}(-\d{1,30})?$/;
 /** JSON with the keys sorted and empty values dropped, so two spellings of the same call compare equal. */
 function stableJson(v: unknown): string {
@@ -4053,13 +4056,18 @@ api.post("/x/act", async (req, res) => {
     const op = conversation ? "dm_send_conversation" : what.op;
     const text = toolName === "x_dm" ? String(args.text ?? "").trim() : "";
     if (toolName === "x_dm" && (!text || text.length > 10_000)) return res.status(400).json({ error: "bad_text", message: "A message has 1 to 10,000 characters." });
+    // A list action names the list (except creating one) and, for members, a user by id or handle.
+    const action = String(args.action ?? "");
+    const list = toolName === "x_lists" && typeof args.list === "string" && /^\d{1,30}$/.test(args.list.trim()) ? args.list.trim() : "";
+    if (toolName === "x_lists" && action !== "create" && !list) return res.status(400).json({ error: "bad_target", message: `x_lists ${action} needs the list's id.` });
+    const needsUser = toolName === "x_users" || toolName === "x_dm" || (toolName === "x_lists" && X_LIST_NEEDS_USER.has(action));
     const price = await xOpPrice(op);
     if (!price || price.kind !== "write") return res.status(400).json({ error: "unknown_op", message: `"${op}" is not an action HydraOps performs on X.` });
     // The target: a post id, a user id, or a handle the API looks up itself (a profile read X charges for).
     let id = typeof args.id === "string" && /^\d{1,30}$/.test(args.id) ? args.id : "";
     let lookupUsd = 0;
     const spent0 = xSpentThisMonth(await readXSpend(), account.id);
-    if (!id && !conversation && (toolName === "x_users" || toolName === "x_dm") && typeof args.username === "string" && /^[A-Za-z0-9_]{1,15}$/.test(args.username.replace(/^@/, ""))) {
+    if (!id && !conversation && needsUser && typeof args.username === "string" && /^[A-Za-z0-9_]{1,15}$/.test(args.username.replace(/^@/, ""))) {
       const userPrice = await xOpPrice("user");
       if (!xUnderCap(account, spent0, (userPrice?.usd ?? 0) + price.usd)) return res.status(402).json({ error: "cap_reached", message: `Not done: @${account.username} would pass its monthly X cap (${spent0.toFixed(3)} spent of ${account.monthlyCapUsd} USD by HydraOps' estimate). The user raises it in Tools → X.` });
       const who = await xProxy("POST", "/call", { accountId: account.id, op: "user", params: { username: args.username.replace(/^@/, "") } }, 70_000);
@@ -4068,8 +4076,13 @@ api.post("/x/act", async (req, res) => {
       id = typeof who?.body?.data?.id === "string" ? who.body.data.id : "";
       if (!id) return res.status(404).json({ error: "no_such_user", message: `No user @${args.username.replace(/^@/, "")} on X.` });
     }
-    if (!id && !conversation) return res.status(400).json({ error: "bad_target", message: `${toolName} ${args.action} needs the ${toolName === "x_engage" ? "post's id" : toolName === "x_dm" ? "user's id or handle, or the conversation's id" : "user's id or handle"}.` });
-    const params: Record<string, unknown> = toolName === "x_dm" ? (conversation ? { conversation, text } : { id, text }) : what.hidden === undefined ? { id } : { id, hidden: what.hidden };
+    const listOnly = toolName === "x_lists" && !X_LIST_NEEDS_USER.has(action);
+    if (!id && !conversation && !listOnly) return res.status(400).json({ error: "bad_target", message: `${toolName} ${args.action} needs the ${toolName === "x_engage" ? "post's id" : toolName === "x_dm" ? "user's id or handle, or the conversation's id" : "user's id or handle"}.` });
+    const params: Record<string, unknown> = toolName === "x_dm" ? (conversation ? { conversation, text } : { id, text })
+      : toolName === "x_lists" ? (action === "create" ? { name: args.name, description: args.description, private: args.private === true }
+        : action === "update" ? { list, name: args.name, description: args.description, private: typeof args.private === "boolean" ? args.private : undefined }
+        : X_LIST_NEEDS_USER.has(action) ? { list, user: id } : { list })
+      : what.hidden === undefined ? { id } : { id, hidden: what.hidden };
     const spent = xSpentThisMonth(await readXSpend(), account.id);
     if (!xUnderCap(account, spent, price.usd)) return res.status(402).json({ error: "cap_reached", message: `Not done: @${account.username} would pass its monthly X cap (${spent.toFixed(3)} spent of ${account.monthlyCapUsd} USD by HydraOps' estimate). The user raises it in Tools → X.` });
     const out = await xProxy("POST", "/call", { accountId: account.id, op, params }, 70_000);
@@ -4077,7 +4090,7 @@ api.post("/x/act", async (req, res) => {
     await recordXSpend(account.id, usd, taskId);
     const after = await readXSpend();
     console.log(`[api] x: ${agentId} ${op} as @${account.username}${taskWide ? " (approved for the rest of the task)" : ""}: about ${usd.toFixed(3)} USD${lookupUsd ? ` (plus ${lookupUsd.toFixed(3)} to look up @${args.username})` : ""}`);
-    res.json({ ok: true, op, target: conversation || id, account: { id: account.id, username: account.username }, body: out?.body ?? {}, estimatedUsd: usd, lookupUsd, spend: { account: Number(xSpentThisMonth(after, account.id).toFixed(3)), cap: account.monthlyCapUsd ?? null } });
+    res.json({ ok: true, op, target: conversation || list || id, account: { id: account.id, username: account.username }, body: out?.body ?? {}, estimatedUsd: usd, lookupUsd, spend: { account: Number(xSpentThisMonth(after, account.id).toFixed(3)), cap: account.monthlyCapUsd ?? null } });
   } catch (e: any) {
     if (e?.code === "scopes_missing" || e?.code === "grant_missing") return res.status(403).json({ error: e.code, message: e.message });
     console.error("[api] POST /x/act failed", e?.message ?? e);
