@@ -1,5 +1,5 @@
 /**
- * chatgpt.ts — "Sign in with ChatGPT": the user's ChatGPT plan (Plus/Pro) as a model source,
+ * chatgpt.ts — "Sign in with ChatGPT": the user's ChatGPT plan (any OpenAI enables for it: Free, Go, Plus, Pro…) as a model source,
  * instead of an OpenAI API key.
  *
  * OpenAI offers open-source apps an OAuth flow (PKCE, dynamic client registration, no

@@ -10,7 +10,7 @@ Las claves **no se guardan en el proyecto, ni en la base de datos, ni en ningún
 
 ## Usar la suscripción de ChatGPT
 
-Si tenés ChatGPT Plus o Pro, podés usar ese plan en vez de una clave de OpenAI. OpenAI ofrece a las aplicaciones de código abierto un inicio de sesión ("Sign in with ChatGPT", en vista previa) por el que el usuario autoriza que las consultas a los modelos se descuenten de su plan, con un tope semanal por aplicación que fija él mismo.
+Si tenés un plan de ChatGPT (Free, Go, Plus, Pro o cualquier otro que OpenAI habilite; los límites de uso dependen del plan), podés usarlo en vez de una clave de OpenAI. OpenAI ofrece a las aplicaciones de código abierto un inicio de sesión ("Sign in with ChatGPT", en vista previa) por el que el usuario autoriza que las consultas a los modelos se descuenten de su plan, con un tope semanal por aplicación que fija él mismo.
 
 En **Configuración → ChatGPT (suscripción)** tocá **Conectar con ChatGPT**: se abre el navegador de ese mismo equipo, iniciás sesión en OpenAI y aceptás el permiso. Al volver, la sección muestra la cuenta (con el correo enmascarado) y los modelos que tu plan habilita; en el selector de modelos aparecen agrupados como **ChatGPT (plan)**, separados de los de **APIkey · OpenAI** si además tenés una clave cargada. Cada agente elige uno u otro.
 

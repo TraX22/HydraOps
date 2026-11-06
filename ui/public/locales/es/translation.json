@@ -504,7 +504,7 @@
     "chatgpt": {
       "title": "ChatGPT (suscripción)",
       "preview": "vista previa de OpenAI",
-      "intro": "Usá tu plan Plus o Pro de ChatGPT en vez de una clave de OpenAI. HydraOps no ve tu contraseña ni tus conversaciones: solo recibe un permiso para consultar a los modelos, que se descuenta de tu plan.",
+      "intro": "Usá tu plan de ChatGPT (Free, Go, Plus, Pro y los demás que OpenAI habilite; los límites de uso los fija cada plan) en vez de una clave de OpenAI. HydraOps no ve tu contraseña ni tus conversaciones: solo recibe un permiso para consultar a los modelos, que se descuenta de tu plan.",
       "notConnected": "Sin conectar",
       "reauth": "La conexión venció: volvé a iniciar sesión.",
       "connect": "Conectar con ChatGPT",
