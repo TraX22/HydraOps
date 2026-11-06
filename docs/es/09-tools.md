@@ -226,6 +226,16 @@ Una cuenta se puede vigilar: activá **Escuchar menciones** en su fila, elegí c
 Al activar la escucha se parte de la última mención: no se repasa lo anterior. Una revisión sin novedades no cuesta nada (X cobra por mención devuelta, unos 0,001 USD cada una), y la fila muestra cuándo fue la última revisión, cuántas menciones encontró y cualquier error (una sesión vencida, el tope mensual). **Revisar ahora** hace una revisión al instante. Una mención que llega con HydraOps apagado se toma en la revisión siguiente.
 
 
+### 9. Mensajes directos
+
+Los mensajes directos necesitan dos cosas: tu app en el portal de X en el nivel **Read and write and Direct message** (paso 2), y la cuenta conectada con **Mensajes** marcado (volvé a conectarla si no lo estaba). Entonces el agente tiene `x_dm`:
+
+- lecturas, no retenidas: `inbox` (los últimos mensajes de todas las conversaciones), `with` (la conversación con un usuario) y `conversation` (por su id). X cobra unos 0,010 USD por mensaje devuelto, y lo que vuelve es contenido externo;
+- `send`, retenido **siempre** como una publicación (para un mensaje no existe «aprobar por el resto de la tarea»): la tarjeta y el aviso por Telegram muestran el texto y a quién va, y el servidor manda solo el mensaje exacto que aprobaste, unos 0,015 USD.
+
+Un mensaje entrante nunca se contesta solo. Activá **Avisar mensajes directos** en la fila de la cuenta (necesita el uso Mensajes y el agente que escucha) y cada mensaje nuevo se convierte en un **aviso**: el agente te lo muestra en el chat, en una línea, y Telegram te lo manda; el agente tiene dicho que no conteste ni llame a ninguna herramienta. Cuando le pidas una respuesta, la redacta y la manda con `x_dm`, y el envío espera tu aprobación. La revisión corre con su propio intervalo (una hora por defecto, 5 minutos como mínimo) y, a diferencia de las menciones, cada revisión cuesta un mensaje leído (unos 0,010 USD) aunque no haya nada nuevo, porque X devuelve siempre el mensaje más nuevo; la fila lo dice. Al activarlo se parte del último mensaje.
+
+
 ## Hugging Face: modelos, datasets y Spaces
 
 Con las herramientas **huggingface** los agentes trabajan con el Hub de Hugging Face como las de GitHub trabajan con GitHub. Se le dan todas a un agente con una sola línea, `huggingface`, en sus herramientas (**Agentes → Herramientas**).

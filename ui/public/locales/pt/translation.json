@@ -277,7 +277,9 @@
         "block": "Bloquear {{target}}",
         "unblock": "Desbloquear {{target}}",
         "mute": "Silenciar {{target}}",
-        "unmute": "Dessilenciar {{target}}"
+        "unmute": "Dessilenciar {{target}}",
+        "dm_user": "Enviar uma mensagem direta para {{target}}",
+        "dm_conversation": "Enviar uma mensagem direta na conversa {{target}}"
       }
     },
     "linkUnverified": "⚠ Não verificado: o agente não abriu nem viu este endereço nesta conversa. Pode existir, mas veio da memória dele, não de uma consulta.",
@@ -793,7 +795,12 @@
         "checked": "{{n}} tarefas novas",
         "needAgent": "Atribua um agente à conta para escutar menções.",
         "minHint": "No mínimo {{min}} minutos",
-        "hint": "Cada menção nova vira uma tarefa para esse agente, como uma mensagem do Telegram, e avisa você no Telegram. O texto chega como conteúdo externo e o que o agente quiser fazer (responder, curtir) espera sua aprovação. Ao ativar, parte-se da última menção: nada anterior é repetido. Uma verificação sem novidades não custa; cada menção nova, cerca de 0,001 USD."
+        "hint": "Cada menção nova vira uma tarefa para esse agente, como uma mensagem do Telegram, e avisa você no Telegram. O texto chega como conteúdo externo e o que o agente quiser fazer (responder, curtir) espera sua aprovação. Ao ativar, parte-se da última menção: nada anterior é repetido. Uma verificação sem novidades não custa; cada menção nova, cerca de 0,001 USD.",
+        "dms": "Avisar mensagens diretas",
+        "dmsNeedGrant": "Para mensagens a conta precisa estar conectada com 'Mensagens'.",
+        "checkedDms": "{{n}} mensagens novas",
+        "dmCostHint": "Cada verificação custa uma mensagem lida (0,010 USD) mesmo sem novidade; por isso o intervalo padrão é de uma hora.",
+        "dmsHint": "Uma mensagem direta nova só avisa você: o agente mostra no chat e o Telegram envia para você, e ninguém responde até você pedir. Quando pedir uma resposta, o envio espera sua aprovação."
       }
     },
     "github": {

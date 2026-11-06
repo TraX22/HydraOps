@@ -573,6 +573,9 @@ export interface XCallResult {
 }
 const ID_RE = /^\d{1,30}$/;
 const USERNAME_RE = /^[A-Za-z0-9_]{1,15}$/;
+// A DM conversation id: two user ids joined by a dash (a 1:1) or digits (a group).
+const CONVERSATION_RE = /^\d{1,30}(-\d{1,30})?$/;
+const DM_TEXT_MAX = 10_000;
 const PARAM_MAX = 1024;
 
 /**
@@ -610,7 +613,11 @@ export async function callOp(accountId: string, opName: unknown, params: unknown
     for (const [param, field] of Object.entries(op.body)) {
       const v = p[param];
       if (param === "hidden") json[field] = v === true || v === "true";
-      else {
+      else if (param === "text") {
+        const text = String(v ?? "").trim();
+        if (!text || text.length > DM_TEXT_MAX) throw new XError("bad_text", `A message has 1 to ${DM_TEXT_MAX} characters.`);
+        json[field] = text;
+      } else {
         const id = String(v ?? "").trim();
         if (!ID_RE.test(id)) throw new XError("bad_id", `"${id.slice(0, 40)}" is not an X id (digits only).`);
         json[field] = id;
@@ -633,17 +640,18 @@ export async function callOp(accountId: string, opName: unknown, params: unknown
   if (status === 429) throw new XError("rate_limited", `X is rate limiting this (${op.name}) for the moment; try again in a few minutes.`, 429);
   if (!ok) throw new XError(errorCode(body) || `http_${status}`, errorMessage(body, `X refused the request (${status}).`), status);
   const est = estimateUsd(op, body);
-  if (op.kind === "write") console.log(`[key-proxy] x: ${op.name} as @${account.username}${p.id ? ` (${String(p.id).slice(0, 30)})` : ""}`);
+  if (op.kind === "write") console.log(`[key-proxy] x: ${op.name} as @${account.username}${p.id ? ` (${String(p.id).slice(0, 30)})` : p.conversation ? ` (${String(p.conversation).slice(0, 40)})` : ""}`);
   return { op: op.name, body, resources: est.resources, estimatedUsd: est.usd };
 }
 
 /** The path with its placeholders filled: `:me` is the account, `:id` and `:username` come from the caller, checked. */
 function fillPath(op: XOp, account: XAccount, p: Record<string, unknown>): string {
-  return op.path.replace(/:(me|id|username)/g, (_m, key: string) => {
+  return op.path.replace(/:(me|id|username|conversation)/g, (_m, key: string) => {
     if (key === "me") return account.id;
     const v = String(p[key] ?? "").trim().replace(/^@/, "");
     if (key === "id" && !ID_RE.test(v)) throw new XError("bad_id", `"${v.slice(0, 40)}" is not an X id (digits only).`);
     if (key === "username" && !USERNAME_RE.test(v)) throw new XError("bad_username", `"${v.slice(0, 40)}" is not an X handle.`);
+    if (key === "conversation" && !CONVERSATION_RE.test(v)) throw new XError("bad_conversation", `"${v.slice(0, 40)}" is not an X conversation id.`);
     return encodeURIComponent(v);
   });
 }

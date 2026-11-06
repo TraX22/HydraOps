@@ -277,7 +277,9 @@
         "block": "Block {{target}}",
         "unblock": "Unblock {{target}}",
         "mute": "Mute {{target}}",
-        "unmute": "Unmute {{target}}"
+        "unmute": "Unmute {{target}}",
+        "dm_user": "Send a direct message to {{target}}",
+        "dm_conversation": "Send a direct message in conversation {{target}}"
       }
     },
     "linkUnverified": "⚠ Not verified: the agent did not open or see this address in this conversation. It may exist, but it came from its memory, not from a lookup.",
@@ -793,7 +795,12 @@
         "checked": "{{n}} new tasks",
         "needAgent": "Assign an agent to the account to listen for mentions.",
         "minHint": "At least {{min}} minutes",
-        "hint": "Each new mention becomes a task for that agent, like a Telegram message, and you are told on Telegram. The text arrives as outside content and whatever the agent wants to do (reply, like) waits for your approval. Switching it on starts from the newest mention: nothing older is replayed. A check with nothing new costs nothing; each new mention about 0.001 USD."
+        "hint": "Each new mention becomes a task for that agent, like a Telegram message, and you are told on Telegram. The text arrives as outside content and whatever the agent wants to do (reply, like) waits for your approval. Switching it on starts from the newest mention: nothing older is replayed. A check with nothing new costs nothing; each new mention about 0.001 USD.",
+        "dms": "Notify direct messages",
+        "dmsNeedGrant": "For messages the account has to be connected with 'Messages'.",
+        "checkedDms": "{{n}} new messages",
+        "dmCostHint": "Each check costs one message read (0.010 USD) even when nothing is new; hence the one-hour default interval.",
+        "dmsHint": "A new direct message only notifies you: the agent shows it in the chat and Telegram sends it to you, and nobody answers until you ask. When you ask for a reply, sending it waits for your approval."
       }
     },
     "github": {

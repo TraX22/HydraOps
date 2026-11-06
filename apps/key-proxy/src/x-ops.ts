@@ -53,7 +53,7 @@ export interface XOp {
   method: "GET" | "POST" | "PUT" | "DELETE";
   /** A read changes nothing on X and is not held; a write is held for the user's approval. */
   kind: "read" | "write";
-  /** The path, with `:me` (the account's own id), `:id` (a post or user id) or `:username`. */
+  /** The path, with `:me` (the account's own id), `:id` (a post or user id), `:username` or `:conversation` (a DM conversation id). */
   path: string;
   /** The permission group the account must have been connected with. */
   grant: XGrant;
@@ -68,7 +68,7 @@ export interface XOp {
   results?: [number, number];
   /** Query parameters fixed here: which fields come back. */
   fixed: Record<string, string>;
-  /** For a write: the JSON body, as caller parameter → X's field name (ids checked, `hidden` a boolean). */
+  /** For a write: the JSON body, as caller parameter → X's field name (ids checked, `hidden` a boolean, `text` a string). */
   body?: Record<string, string>;
 }
 
@@ -81,6 +81,8 @@ const SEARCH = ["query", "max_results", "next_token", "since_id", "until_id", "s
 const COUNTS = ["query", "granularity", "start_time", "end_time", "since_id", "until_id", "next_token"];
 
 const USER_PAGE = ["max_results", "pagination_token"];
+// A message event: who sent it, in which conversation, when, the text, what it attaches or references.
+const DM_QUERY = { "dm_event.fields": "id,text,event_type,created_at,sender_id,dm_conversation_id,attachments,referenced_tweets,participant_ids", expansions: "sender_id,participant_ids", "user.fields": "username,name" };
 const OPS: XOp[] = [
   // Users
   { name: "user", method: "GET", kind: "read", path: "/2/users/by/username/:username", grant: "read", usd: 0.010, unit: "resource", query: [], fixed: USER_FIELDS },
@@ -126,6 +128,13 @@ const OPS: XOp[] = [
   { name: "unblock", method: "DELETE", kind: "write", path: "/2/users/:me/blocking/:id", grant: "engage", scopes: ["block.write"], usd: 0.010, unit: "request", query: [], fixed: {} },
   { name: "mute", method: "POST", kind: "write", path: "/2/users/:me/muting", grant: "engage", scopes: ["mute.write"], usd: 0.015, unit: "request", query: [], fixed: {}, body: { id: "target_user_id" } },
   { name: "unmute", method: "DELETE", kind: "write", path: "/2/users/:me/muting/:id", grant: "engage", scopes: ["mute.write"], usd: 0.005, unit: "request", query: [], fixed: {} },
+  // Direct messages (x_dm): reads charged per event returned, a message sent per request.
+  // `:conversation` is X's conversation id (two user ids joined by a dash for a 1:1, digits for a group).
+  { name: "dm_events", method: "GET", kind: "read", path: "/2/dm_events", grant: "messages", scopes: ["dm.read"], usd: 0.010, unit: "resource", query: ["max_results", "pagination_token", "event_types"], results: [1, 100], fixed: DM_QUERY },
+  { name: "dm_with", method: "GET", kind: "read", path: "/2/dm_conversations/with/:id/dm_events", grant: "messages", scopes: ["dm.read"], usd: 0.010, unit: "resource", query: ["max_results", "pagination_token", "event_types"], results: [1, 100], fixed: DM_QUERY },
+  { name: "dm_conversation", method: "GET", kind: "read", path: "/2/dm_conversations/:conversation/dm_events", grant: "messages", scopes: ["dm.read"], usd: 0.010, unit: "resource", query: ["max_results", "pagination_token", "event_types"], results: [1, 100], fixed: DM_QUERY },
+  { name: "dm_send_user", method: "POST", kind: "write", path: "/2/dm_conversations/with/:id/messages", grant: "messages", scopes: ["dm.write"], usd: 0.015, unit: "request", query: [], fixed: {}, body: { text: "text" } },
+  { name: "dm_send_conversation", method: "POST", kind: "write", path: "/2/dm_conversations/:conversation/messages", grant: "messages", scopes: ["dm.write"], usd: 0.015, unit: "request", query: [], fixed: {}, body: { text: "text" } },
 ];
 const BY_NAME = new Map(OPS.map((o) => [o.name, o]));
 

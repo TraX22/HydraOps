@@ -277,7 +277,9 @@
         "block": "Bloccare {{target}}",
         "unblock": "Sbloccare {{target}}",
         "mute": "Silenziare {{target}}",
-        "unmute": "Riattivare {{target}}"
+        "unmute": "Riattivare {{target}}",
+        "dm_user": "Inviare un messaggio diretto a {{target}}",
+        "dm_conversation": "Inviare un messaggio diretto nella conversazione {{target}}"
       }
     },
     "linkUnverified": "⚠ Non verificato: l'agente non ha aperto né visto questo indirizzo in questa conversazione. Può esistere, ma viene dalla sua memoria, non da una consultazione.",
@@ -793,7 +795,12 @@
         "checked": "{{n}} nuove attività",
         "needAgent": "Assegna un agente all'account per ascoltare le menzioni.",
         "minHint": "Almeno {{min}} minuti",
-        "hint": "Ogni nuova menzione diventa un'attività per quell'agente, come un messaggio Telegram, e ti avvisa su Telegram. Il testo arriva come contenuto esterno e ciò che l'agente vuole fare (rispondere, mettere mi piace) attende la tua approvazione. All'attivazione si parte dall'ultima menzione: nulla di precedente viene ripreso. Un controllo senza novità non costa; ogni nuova menzione circa 0,001 USD."
+        "hint": "Ogni nuova menzione diventa un'attività per quell'agente, come un messaggio Telegram, e ti avvisa su Telegram. Il testo arriva come contenuto esterno e ciò che l'agente vuole fare (rispondere, mettere mi piace) attende la tua approvazione. All'attivazione si parte dall'ultima menzione: nulla di precedente viene ripreso. Un controllo senza novità non costa; ogni nuova menzione circa 0,001 USD.",
+        "dms": "Avvisare dei messaggi diretti",
+        "dmsNeedGrant": "Per i messaggi l'account deve essere collegato con «Messaggi».",
+        "checkedDms": "{{n}} nuovi messaggi",
+        "dmCostHint": "Ogni controllo costa la lettura di un messaggio (0,010 USD) anche senza novità; per questo l'intervallo predefinito è di un'ora.",
+        "dmsHint": "Un nuovo messaggio diretto ti avvisa soltanto: l'agente lo mostra nella chat e Telegram te lo invia, e nessuno risponde finché non lo chiedi. Quando chiedi una risposta, l'invio attende la tua approvazione."
       }
     },
     "github": {
