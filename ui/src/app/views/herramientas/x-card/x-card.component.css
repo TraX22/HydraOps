@@ -108,3 +108,11 @@
 .cap-input { width: 64px; padding: 3px 6px; font-size: 12px; font-family: ui-monospace, monospace; text-align: right; background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); }
 .budget { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-color); }
 .budget .tool-hint { margin: 0; flex: 1 1 260px; }
+
+/* Listening for mentions */
+.listen { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
+.listen-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); cursor: pointer; }
+.listen-toggle input { margin: 0; }
+.listen .tool-hint { margin: 0; }
+.listen-agent { border-style: solid; }
+.listen-state.bad { color: #ef4444; }

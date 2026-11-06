@@ -219,6 +219,13 @@ Two more tools act under the account's name, and each action waits for your appr
 The card and the Telegram notice say what the agent wants to do, to which post or user, as which account, and X's price for it (about 0.015 USD for a like, repost or follow; 0.005 to 0.010 to undo, bookmark or delete). The server runs only the exact call you approved (or a later call of a tool you approved for the rest of that task), once, and the account's monthly cap counts these too.
 
 
+### 8. Listening for mentions
+
+An account can be watched: switch **Listen for mentions** on in its row, choose which of its agents handles them and how often to check (15 minutes by default, 5 at the least). From then on every new mention of the account becomes a **task for that agent**, the way a message from Telegram does, and Telegram tells you who wrote and what. The agent reads the mention as outside content (the task starts marked, with the mention as its origin), looks at the thread if it helps, and decides: a reply through `x_post` with `reply_to`, a like, or nothing. Whatever it decides waits for your approval, as always; the card of a reply shows the post it answers, under the mention that started the task.
+
+Switching listening on starts from the newest mention: nothing older is replayed. A check that finds nothing costs nothing (X charges per mention returned, about 0.001 USD each), and the row shows when the last check ran, how many mentions it found and any error (an expired session, the monthly cap). **Check now** runs a check at once. A mention that arrives while HydraOps is off is picked up at the next check.
+
+
 ## Hugging Face: models, datasets and Spaces
 
 With the **huggingface** tools the agents work with the Hugging Face Hub the way the GitHub ones work with GitHub. Give an agent all of them with one line, `huggingface`, in its tools (**Agents → Tools**).

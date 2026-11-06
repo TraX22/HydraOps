@@ -779,7 +779,22 @@
       "cap": "monthly cap",
       "noCap": "no cap",
       "taskBudget": "Read budget per task",
-      "taskBudgetHint": "Reads (mentions, searches, profiles, metrics) ask for no approval but cost: a task stops reading when it reaches this figure and the agent is told. The spend is HydraOps' estimate from X's price list; the real figure is in the portal."
+      "taskBudgetHint": "Reads (mentions, searches, profiles, metrics) ask for no approval but cost: a task stops reading when it reaches this figure and the agent is told. The spend is HydraOps' estimate from X's price list; the real figure is in the portal.",
+      "listen": {
+        "mentions": "Listen for mentions",
+        "agent": "handled by",
+        "every": "every",
+        "minutes": "min",
+        "checkNow": "check now",
+        "checking": "checking…",
+        "never": "not checked yet",
+        "last": "last check {{ago}} ago · {{n}} new · {{total}} in all",
+        "error": "error: {{msg}}",
+        "checked": "{{n}} new tasks",
+        "needAgent": "Assign an agent to the account to listen for mentions.",
+        "minHint": "At least {{min}} minutes",
+        "hint": "Each new mention becomes a task for that agent, like a Telegram message, and you are told on Telegram. The text arrives as outside content and whatever the agent wants to do (reply, like) waits for your approval. Switching it on starts from the newest mention: nothing older is replayed. A check with nothing new costs nothing; each new mention about 0.001 USD."
+      }
     },
     "github": {
       "name": "GitHub",

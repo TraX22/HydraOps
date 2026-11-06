@@ -159,6 +159,34 @@
                 </select>
               }
             </div>
+            <!-- Listening: mentions polled on an interval, each new one a task for the chosen agent -->
+            <div class="listen">
+              <label class="listen-toggle" [title]="'herramientas.x.listen.hint' | translate">
+                <input type="checkbox" [checked]="a.listen.mentions" [disabled]="!a.agents.length || busy()" (change)="toggleListen(a)" />
+                {{ 'herramientas.x.listen.mentions' | translate }}
+              </label>
+              @if (!a.agents.length) { <span class="tool-hint">{{ 'herramientas.x.listen.needAgent' | translate }}</span> }
+              @else if (a.listen.mentions) {
+                <label class="cap">
+                  {{ 'herramientas.x.listen.agent' | translate }}
+                  <select class="add-agent listen-agent" [value]="a.listen.agent" (change)="setListenAgent(a, $event)">
+                    @for (id of a.agents; track id) { <option [value]="id" [selected]="id === a.listen.agent">{{ agentName(id) }}</option> }
+                  </select>
+                </label>
+                <label class="cap">
+                  {{ 'herramientas.x.listen.every' | translate }}
+                  <input type="text" inputmode="numeric" class="cap-input" [value]="a.listen.intervalMinutes" [title]="'herramientas.x.listen.minHint' | translate:{ min: x.listenMinMinutes }" (change)="setListenInterval(a, $event)" (keyup.enter)="setListenInterval(a, $event)" />
+                  {{ 'herramientas.x.listen.minutes' | translate }}
+                </label>
+                <button type="button" class="relink" [disabled]="!!checking()" (click)="checkNow(a)">{{ (checking() === a.id ? 'herramientas.x.listen.checking' : 'herramientas.x.listen.checkNow') | translate }}</button>
+                <span class="tool-hint listen-state" [class.bad]="!!a.listenState.lastError">
+                  @if (a.listenState.lastError) { {{ 'herramientas.x.listen.error' | translate:{ msg: a.listenState.lastError } }} }
+                  @else if (a.listenState.lastCheckAt) { {{ 'herramientas.x.listen.last' | translate:{ ago: ago(a.listenState.lastCheckAt), n: a.listenState.lastNew, total: a.listenState.total } }} }
+                  @else { {{ 'herramientas.x.listen.never' | translate }} }
+                  @if (checked()?.id === a.id) { · {{ 'herramientas.x.listen.checked' | translate:{ n: checked()!.newTasks } }} }
+                </span>
+              }
+            </div>
             <!-- The month's spending by HydraOps' estimate, against the cap the user sets here -->
             <div class="spend">
               <span class="tool-hint">{{ 'herramientas.x.spent' | translate:{ usd: money(a.spentThisMonthUsd) } }}</span>

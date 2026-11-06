@@ -779,7 +779,22 @@
       "cap": "tope mensual",
       "noCap": "sin tope",
       "taskBudget": "Presupuesto de lectura por tarea",
-      "taskBudgetHint": "Las lecturas (menciones, búsquedas, perfiles, métricas) no piden aprobación pero cuestan: una tarea deja de leer al llegar a esta cifra y el agente se entera. Lo gastado es un cálculo de HydraOps con la lista de precios de X; la cifra real está en el portal."
+      "taskBudgetHint": "Las lecturas (menciones, búsquedas, perfiles, métricas) no piden aprobación pero cuestan: una tarea deja de leer al llegar a esta cifra y el agente se entera. Lo gastado es un cálculo de HydraOps con la lista de precios de X; la cifra real está en el portal.",
+      "listen": {
+        "mentions": "Escuchar menciones",
+        "agent": "atiende",
+        "every": "cada",
+        "minutes": "min",
+        "checkNow": "revisar ahora",
+        "checking": "revisando…",
+        "never": "sin revisar todavía",
+        "last": "última revisión hace {{ago}} · {{n}} nuevas · {{total}} en total",
+        "error": "error: {{msg}}",
+        "checked": "{{n}} tareas nuevas",
+        "needAgent": "Asigná un agente a la cuenta para escuchar menciones.",
+        "minHint": "Mínimo {{min}} minutos",
+        "hint": "Cada mención nueva crea una tarea para ese agente, como un mensaje de Telegram, y te avisa por Telegram. El texto llega como contenido externo y lo que el agente quiera hacer (responder, dar me gusta) espera tu aprobación. Al activarlo se parte de la última mención: no se repasa lo anterior. Una revisión sin novedades no cuesta; cada mención nueva, unos 0,001 USD."
+      }
     },
     "github": {
       "name": "GitHub",

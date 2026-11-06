@@ -238,6 +238,46 @@ export class XCardComponent implements OnInit, OnDestroy {
     this.api.saveXIntegration({ accounts: [{ id: a.id, agents: a.agents, premium }] }).subscribe({ next: n => { this.apply(n); this.flash(); }, error: e => this.error.set(this.errorText(e)) });
   }
 
+  // ── Listening for mentions ──
+
+  /** The account being checked right now (its button is busy). */
+  checking = signal<string | null>(null);
+  checked = signal<{ id: string; newTasks: number } | null>(null);
+
+  toggleListen(a: XAccount): void {
+    const mentions = !a.listen.mentions;
+    const agent = a.listen.agent || a.agents[0] || '';
+    if (mentions && !agent) return;
+    this.api.saveXIntegration({ accounts: [{ id: a.id, listen: { mentions, agent, intervalMinutes: a.listen.intervalMinutes } }] }).subscribe({ next: n => { this.apply(n); this.flash(); }, error: e => this.error.set(this.errorText(e)) });
+  }
+  setListenAgent(a: XAccount, event: Event): void {
+    const agent = (event.target as HTMLSelectElement).value;
+    if (!agent || agent === a.listen.agent) return;
+    this.api.saveXIntegration({ accounts: [{ id: a.id, listen: { agent } }] }).subscribe({ next: n => { this.apply(n); this.flash(); }, error: e => this.error.set(this.errorText(e)) });
+  }
+  setListenInterval(a: XAccount, event: Event): void {
+    const v = Math.round(Number((event.target as HTMLInputElement).value));
+    if (!Number.isFinite(v) || v <= 0 || v === a.listen.intervalMinutes) return;
+    this.api.saveXIntegration({ accounts: [{ id: a.id, listen: { intervalMinutes: v } }] }).subscribe({ next: n => { this.apply(n); this.flash(); }, error: e => this.error.set(this.errorText(e)) });
+  }
+  checkNow(a: XAccount): void {
+    if (this.checking()) return;
+    this.checking.set(a.id);
+    this.checked.set(null);
+    this.api.checkXMentions(a.id).subscribe({
+      next: n => { this.checking.set(null); this.apply(n); if (n.checked) this.checked.set(n.checked); },
+      error: e => { this.checking.set(null); this.error.set(this.errorText(e)); },
+    });
+  }
+  /** "3 min", "2 h", "1 d": how long ago the last check was. */
+  ago(ts: number | null): string {
+    if (!ts) return '';
+    const m = Math.max(0, Math.round((Date.now() - ts) / 60_000));
+    if (m < 60) return `${m} min`;
+    if (m < 1440) return `${Math.round(m / 60)} h`;
+    return `${Math.round(m / 1440)} d`;
+  }
+
   // ── Money ──
 
   /** The account's monthly cap, from its field: empty clears it. */
