@@ -224,7 +224,8 @@ export class HeldActionComponent implements OnInit {
     const s = (k: string) => (typeof a[k] === 'string' ? (a[k] as string) : '');
     const action = s('action');
     const prices: Record<string, number> = { like: 0.015, repost: 0.015, follow: 0.015, block: 0.015, mute: 0.015, unlike: 0.01, unrepost: 0.01, unfollow: 0.01, unblock: 0.01, bookmark: 0.005, unbookmark: 0.005, delete: 0.005, hide_reply: 0.005, unhide_reply: 0.005, unmute: 0.005 };
-    const target = s('username') ? `@${s('username').replace(/^@/, '')}` : s('conversation') ? s('conversation') : s('id');
+    // The same order the API uses to pick the target: the conversation, then the id, then the handle.
+    const target = s('conversation') ? s('conversation') : s('id') ? s('id') : s('username') ? `@${s('username').replace(/^@/, '')}` : '';
     const text = this.action.toolName === 'x_dm' ? s('text') : '';
     const dm = this.action.toolName === 'x_dm';
     return { account: s('account').replace(/^@/, ''), action: dm ? (s('conversation') ? 'dm_conversation' : 'dm_user') : (action || this.action.toolName), target, usd: (dm ? 0.015 : prices[action] ?? 0.015).toFixed(3), text };

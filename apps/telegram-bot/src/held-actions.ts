@@ -93,7 +93,8 @@ const X_ACT_USD: Record<string, number> = { like: 0.015, repost: 0.015, follow: 
 function describeXAct(a: any): string {
   const args = a.args ?? {};
   const action = String(args.action ?? "");
-  const target = args.username ? `@${String(args.username).replace(/^@/, "")}` : args.conversation ? `conversation ${args.conversation}` : String(args.id ?? "");
+  // The same order the API uses to pick the target: the conversation, then the id, then the handle.
+  const target = args.conversation ? `conversation ${args.conversation}` : args.id ? String(args.id) : args.username ? `@${String(args.username).replace(/^@/, "")}` : "";
   if (a.toolName === "x_dm") {
     return [
       `⏸ Direct message on X — ${a.agentId} wants to send to ${target} as @${String(args.account ?? "").replace(/^@/, "")}`,

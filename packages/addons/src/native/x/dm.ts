@@ -39,7 +39,7 @@ export const xDmTool: HydraTool = {
     text: z.string().min(1).max(10_000).optional().describe("The message to send (send)."),
     limit: z.number().int().min(1).max(100).optional().describe("For reads: how many messages, 20 by default. More costs more."),
     page: z.string().max(200).optional().describe("The continuation token from a previous answer's 'More:' line."),
-  }),
+  }).refine((a) => a.action !== "send" || [a.conversation, a.id, a.username].filter((v) => typeof v === "string" && v.trim()).length === 1, { message: "send names exactly one of conversation, id or username" }),
   execute: async (args, ctx: ToolContext | undefined) => {
     const { account, action, username, id, conversation, text, limit, page } = args as { account: string; action: "inbox" | "with" | "conversation" | "send"; username?: string; id?: string; conversation?: string; text?: string; limit?: number; page?: string };
     const me = String(account).trim().replace(/^@/, "").toLowerCase();

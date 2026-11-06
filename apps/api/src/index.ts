@@ -4043,8 +4043,13 @@ api.post("/x/act", async (req, res) => {
     const pick = xAccountForAgent(st, agentId, String(args.account ?? "").trim().replace(/^@/, "").toLowerCase());
     if (!pick.account) return res.status(pick.status).json({ error: pick.error, message: pick.message });
     const account = pick.account;
-    // A message into an existing conversation names it instead of a user.
-    const conversation = toolName === "x_dm" && typeof args.conversation === "string" && X_CONVERSATION_RE.test(args.conversation.trim()) ? args.conversation.trim() : "";
+    // A message names exactly one target: a conversation, a user id or a handle; the card shows the same one the API uses.
+    if (toolName === "x_dm") {
+      const targets = [args.conversation, args.id, args.username].filter((v) => typeof v === "string" && v.trim());
+      if (targets.length !== 1) return res.status(400).json({ error: "bad_target", message: "A message names exactly one of conversation, id or username." });
+      if (typeof args.conversation === "string" && args.conversation.trim() && !X_CONVERSATION_RE.test(args.conversation.trim())) return res.status(400).json({ error: "bad_conversation", message: `"${String(args.conversation).slice(0, 40)}" is not an X conversation id.` });
+    }
+    const conversation = toolName === "x_dm" && typeof args.conversation === "string" && args.conversation.trim() ? args.conversation.trim() : "";
     const op = conversation ? "dm_send_conversation" : what.op;
     const text = toolName === "x_dm" ? String(args.text ?? "").trim() : "";
     if (toolName === "x_dm" && (!text || text.length > 10_000)) return res.status(400).json({ error: "bad_text", message: "A message has 1 to 10,000 characters." });
