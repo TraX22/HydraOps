@@ -504,7 +504,7 @@
     "chatgpt": {
       "title": "ChatGPT (abonnement)",
       "preview": "aperçu d'OpenAI",
-      "intro": "Utilisez votre forfait ChatGPT Plus ou Pro à la place d'une clé API OpenAI. HydraOps ne voit ni votre mot de passe ni vos conversations : il reçoit seulement une permission d'interroger les modèles, décomptée de votre forfait.",
+      "intro": "Utilisez votre forfait ChatGPT (Free, Go, Plus, Pro et tout autre qu'OpenAI active ; les limites d'usage dépendent du forfait) à la place d'une clé API OpenAI. HydraOps ne voit ni votre mot de passe ni vos conversations : il reçoit seulement une permission d'interroger les modèles, décomptée de votre forfait.",
       "notConnected": "Non connecté",
       "reauth": "La connexion a expiré : reconnectez-vous.",
       "connect": "Connecter ChatGPT",

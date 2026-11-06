@@ -10,7 +10,7 @@ Keys are **not stored in the project, nor in the database, nor in any `.env`**: 
 
 ## Using your ChatGPT subscription
 
-If you have ChatGPT Plus or Pro, you can use that plan instead of an OpenAI API key. OpenAI offers open-source applications a sign-in ("Sign in with ChatGPT", in preview) through which the user authorizes model requests to be charged to their plan, under a weekly per-app cap they set themselves.
+If you have a ChatGPT plan (Free, Go, Plus, Pro, or any other OpenAI enables for it; usage limits depend on the plan), you can use it instead of an OpenAI API key. OpenAI offers open-source applications a sign-in ("Sign in with ChatGPT", in preview) through which the user authorizes model requests to be charged to their plan, under a weekly per-app cap they set themselves.
 
 In **Settings → ChatGPT (subscription)** click **Connect with ChatGPT**: the browser on that same computer opens, you sign in to OpenAI and accept the permission. Back in HydraOps the section shows the account (email masked) and the models your plan serves; the model selector groups them as **ChatGPT (plan)**, apart from **APIkey · OpenAI** if you also have a key. Each agent picks one or the other.
 
