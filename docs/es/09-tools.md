@@ -219,6 +219,13 @@ Dos herramientas más actúan con el nombre de la cuenta, y cada acción espera 
 La tarjeta y el aviso por Telegram dicen qué quiere hacer el agente, sobre qué publicación o usuario, con qué cuenta, y el precio de X (unos 0,015 USD un me gusta, un reposteo o un seguir; 0,005 a 0,010 deshacer, guardar o borrar). El servidor ejecuta solo la llamada exacta que aprobaste (o una llamada posterior de una herramienta que aprobaste por el resto de esa tarea), una vez, y el tope mensual de la cuenta también las cuenta.
 
 
+### 8. Escuchar menciones
+
+Una cuenta se puede vigilar: activá **Escuchar menciones** en su fila, elegí cuál de sus agentes las atiende y cada cuánto revisar (15 minutos por defecto, 5 como mínimo). Desde ahí cada mención nueva de la cuenta se convierte en una **tarea para ese agente**, como un mensaje de Telegram, y Telegram te avisa quién escribió y qué. El agente lee la mención como contenido externo (la tarea arranca marcada, con la mención como origen), mira el hilo si ayuda y decide: una respuesta con `x_post` y `reply_to`, un me gusta, o nada. Lo que decida espera tu aprobación, como siempre; la tarjeta de una respuesta muestra la publicación que contesta, debajo de la mención que originó la tarea.
+
+Al activar la escucha se parte de la última mención: no se repasa lo anterior. Una revisión sin novedades no cuesta nada (X cobra por mención devuelta, unos 0,001 USD cada una), y la fila muestra cuándo fue la última revisión, cuántas menciones encontró y cualquier error (una sesión vencida, el tope mensual). **Revisar ahora** hace una revisión al instante. Una mención que llega con HydraOps apagado se toma en la revisión siguiente.
+
+
 ## Hugging Face: modelos, datasets y Spaces
 
 Con las herramientas **huggingface** los agentes trabajan con el Hub de Hugging Face como las de GitHub trabajan con GitHub. Se le dan todas a un agente con una sola línea, `huggingface`, en sus herramientas (**Agentes → Herramientas**).

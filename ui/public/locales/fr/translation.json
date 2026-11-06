@@ -779,7 +779,22 @@
       "cap": "plafond mensuel",
       "noCap": "sans plafond",
       "taskBudget": "Budget de lecture par tâche",
-      "taskBudgetHint": "Les lectures (mentions, recherches, profils, statistiques) ne demandent pas d'accord mais coûtent : une tâche cesse de lire en atteignant ce montant et l'agent en est informé. La dépense est une estimation de HydraOps d'après les tarifs de X ; le chiffre réel est dans le portail."
+      "taskBudgetHint": "Les lectures (mentions, recherches, profils, statistiques) ne demandent pas d'accord mais coûtent : une tâche cesse de lire en atteignant ce montant et l'agent en est informé. La dépense est une estimation de HydraOps d'après les tarifs de X ; le chiffre réel est dans le portail.",
+      "listen": {
+        "mentions": "Écouter les mentions",
+        "agent": "traitées par",
+        "every": "toutes les",
+        "minutes": "min",
+        "checkNow": "vérifier maintenant",
+        "checking": "vérification…",
+        "never": "pas encore vérifié",
+        "last": "dernière vérification il y a {{ago}} · {{n}} nouvelles · {{total}} en tout",
+        "error": "erreur : {{msg}}",
+        "checked": "{{n}} nouvelles tâches",
+        "needAgent": "Attribuez un agent au compte pour écouter les mentions.",
+        "minHint": "Au moins {{min}} minutes",
+        "hint": "Chaque nouvelle mention devient une tâche pour cet agent, comme un message Telegram, et vous êtes prévenu sur Telegram. Le texte arrive comme contenu externe et ce que l'agent veut faire (répondre, aimer) attend votre accord. À l'activation on part de la dernière mention : rien d'ancien n'est rejoué. Une vérification sans nouveauté ne coûte rien ; chaque nouvelle mention environ 0,001 USD."
+      }
     },
     "github": {
       "name": "GitHub",
