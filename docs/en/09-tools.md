@@ -236,6 +236,16 @@ Direct messages need two things: your app in X's portal at the **Read and write 
 An incoming message never gets an answer on its own. Switch **Notify direct messages** on in the account's row (it needs the Messages use and the listening agent) and each new message becomes a **notice**: the agent shows it in the chat, in one line, and Telegram sends it to you; the agent is told not to answer and not to call any tool. When you ask for a reply, the agent writes it and sends it with `x_dm`, and the sending waits for your approval. The check runs on its own interval (an hour by default, 5 minutes at the least) and, unlike mentions, every check costs one message read (about 0.010 USD) even when nothing is new, because X returns the newest message every time; the row says so. Switching it on starts from the newest message.
 
 
+### 10. Lists, Spaces, communities and trends
+
+Two more tools, both reads unless said otherwise, charged like every read and returning outside content:
+
+- `x_lists`: the account's own lists (`mine`, `followed`, `memberships`, `pinned`), one list, its posts and its members; and, held for your approval like any action (with "approve for the rest of the task"), `create`, `update`, `delete`, `add_member`, `remove_member`, `follow`, `unfollow`, `pin` and `unpin`. Managing lists needs the **Engage** use.
+- `x_explore`: a Space, the Spaces a user hosts, a search of live or scheduled Spaces; a community and a search of communities; what is trending in a place (the world, a country or a city by name, or any X place id) and the account's personalized trends.
+
+Reading lists and Spaces needs two permissions X added after the first accounts were connected (`list.read`, `space.read`). An account connected before shows a line in its row saying so, with a button to connect it again; until then those reads answer that the account lacks the permission, and nothing else changes.
+
+
 ## Hugging Face: models, datasets and Spaces
 
 With the **huggingface** tools the agents work with the Hugging Face Hub the way the GitHub ones work with GitHub. Give an agent all of them with one line, `huggingface`, in its tools (**Agents → Tools**).

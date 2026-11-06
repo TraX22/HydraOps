@@ -65,8 +65,8 @@ export function progressRef(toolName: string, args: unknown): string | undefined
     const v = str('query') ?? str('file') ?? (typeof a.model_id === 'number' ? `#${a.model_id}` : undefined) ?? (typeof a.version_id === 'number' ? `v${a.version_id}` : undefined);
     return v ? clipRef(v) : undefined;
   }
-  if (toolName === 'x_read' || toolName === 'x_search' || toolName === 'x_engage' || toolName === 'x_users' || toolName === 'x_dm') {
-    const what = [str('action'), str('query') ?? str('username') ?? str('id'), str('account') ? `as @${str('account')}` : undefined].filter(Boolean).join(' ');
+  if (toolName.startsWith('x_')) {
+    const what = [str('action'), str('query') ?? str('name') ?? str('username') ?? str('list') ?? str('place') ?? str('id'), str('account') ? `as @${str('account')}` : undefined].filter(Boolean).join(' ');
     return what ? clipRef(what) : undefined;
   }
   if (toolName.startsWith('huggingface')) {

@@ -279,7 +279,16 @@
         "mute": "Silenziare {{target}}",
         "unmute": "Riattivare {{target}}",
         "dm_user": "Inviare un messaggio diretto a {{target}}",
-        "dm_conversation": "Inviare un messaggio diretto nella conversazione {{target}}"
+        "dm_conversation": "Inviare un messaggio diretto nella conversazione {{target}}",
+        "list_create": "Creare la lista «{{target}}»",
+        "list_update": "Modificare la lista {{target}}",
+        "list_delete": "Eliminare la lista {{target}}",
+        "list_add_member": "Aggiungere {{target}} alla lista",
+        "list_remove_member": "Togliere {{target}} dalla lista",
+        "list_follow": "Seguire la lista {{target}}",
+        "list_unfollow": "Smettere di seguire la lista {{target}}",
+        "list_pin": "Fissare la lista {{target}}",
+        "list_unpin": "Sbloccare la lista {{target}}"
       }
     },
     "linkUnverified": "⚠ Non verificato: l'agente non ha aperto né visto questo indirizzo in questa conversazione. Può esistere, ma viene dalla sua memoria, non da una consultazione.",
@@ -801,7 +810,8 @@
         "checkedDms": "{{n}} nuovi messaggi",
         "dmCostHint": "Ogni controllo costa la lettura di un messaggio (0,010 USD) anche senza novità; per questo l'intervallo predefinito è di un'ora.",
         "dmsHint": "Un nuovo messaggio diretto ti avvisa soltanto: l'agente lo mostra nella chat e Telegram te lo invia, e nessuno risponde finché non lo chiedi. Quando chiedi una risposta, l'invio attende la tua approvazione."
-      }
+      },
+      "newScopes": "X ha aggiunto permessi di lettura (liste, Spaces) che questo account non ha ancora: ricollegalo perché gli agenti possano usarli ({{scopes}})."
     },
     "github": {
       "name": "GitHub",

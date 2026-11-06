@@ -325,8 +325,9 @@ export interface XAccount {
   premium?: boolean;
   /** What the account was connected for (never more than its scopes allow). */
   grants: XGrant[];
-  /** The OAuth scopes X granted. */
+  /** The OAuth scopes X granted, and the ones its uses would ask for today that it lacks (a new sign-in adds them). */
   scopes: string[];
+  missingScopes: string[];
   /** The most this account may spend in a month by HydraOps' estimate (null: no cap), and what it has. */
   monthlyCapUsd: number | null;
   spentThisMonthUsd: number;

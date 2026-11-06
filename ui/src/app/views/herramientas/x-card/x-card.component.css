@@ -116,3 +116,4 @@
 .listen .tool-hint { margin: 0; }
 .listen-agent { border-style: solid; }
 .listen-state.bad { color: #ef4444; }
+.new-scopes { margin: 0; color: #d97706; }
