@@ -1164,9 +1164,15 @@
       "not_git": "Questa installazione non è un clone git; su Windows l'app installata si aggiorna da sola.",
       "no_git": "git non è stato trovato su questa macchina.",
       "dirty": "Ci sono modifiche locali non salvate nel repository. Salvale o scartale prima di aggiornare.",
-      "no_release": "Impossibile determinare l'ultima versione (offline?).",
+      "no_release": "GitHub non ha detto qual è l'ultima versione (senza connessione?).",
       "up_to_date": "Hai già l'ultima versione.",
-      "backup_failed": "Non è stato possibile fare la copia della tua installazione, quindi non è stato aggiornato nulla."
+      "backup_failed": "Non è stato possibile fare la copia della tua installazione, quindi non è stato aggiornato nulla.",
+      "rate_limited": "GitHub ha rifiutato il controllo per il suo limite orario di richieste. Riprova tra qualche minuto."
+    },
+    "check": {
+      "offline": "GitHub non è raggiungibile (senza connessione?)",
+      "rate_limited": "GitHub ha rifiutato il controllo per il suo limite di richieste; si riprova tra qualche minuto",
+      "no_release": "GitHub non ha indicato nessuna versione pubblicata"
     }
   },
   "commands": {

@@ -26,6 +26,7 @@ import {
   keyStoreDir,
   readLocalLlmEnv, scenesDir, skillsDir, resultsDir, readStore, writeStore, keystoreStatus } from "@hydraops/config";
 import { createRequire } from "node:module";
+import { resolveLatestRelease, type LatestFailure } from "./latest-release.js";
 // Copies of the installation and their restore requests: one module shared with both
 // supervisors (tools/serve.mjs and the desktop's main.js), plain CommonJS so the packaged
 // build ships it next to the services (see tools/build-backend.mjs). The .cjs extension is
@@ -282,34 +283,33 @@ function cmpSemver(a: string, b: string): number {
 }
 
 // Última release de GitHub vs la instalada, para avisar en el modo navegador
-// (el escritorio ya usa electron-updater). Cacheado 6 h: la API de GitHub sin
-// token limita a 60 peticiones/hora por IP.
-let versionCache: { at: number; latest: string | null; url: string | null; tag: string | null } | null = null;
+// (el escritorio ya usa electron-updater). An answer is kept 6 h; a failure only two
+// minutes, so a refused or missed check does not leave the button dead for the afternoon.
+// The release is resolved by the redirect of GitHub's releases page first, which has no
+// hourly limit, and by the API second (see latest-release.ts).
+let versionCache: { at: number; latest: string | null; url: string | null; tag: string | null; error: LatestFailure | null } | null = null;
 const VERSION_TTL_MS = 6 * 60 * 60 * 1000;
+const VERSION_FAIL_TTL_MS = 2 * 60 * 1000;
+const versionCacheStale = (now: number) => !versionCache || now - versionCache.at > (versionCache.error ? VERSION_FAIL_TTL_MS : VERSION_TTL_MS);
+async function refreshVersionCache(now: number): Promise<void> {
+  const r = await resolveLatestRelease();
+  if (r.ok) versionCache = { at: now, latest: r.release.latest, url: r.release.url, tag: r.release.tag, error: null };
+  else {
+    // The network, GitHub's limit or no release yet: not an error of ours, but said as it is.
+    console.warn(`[api] version check: ${r.reason}${r.status ? ` (HTTP ${r.status})` : ""}`);
+    versionCache = { at: now, latest: null, url: null, tag: null, error: r.reason };
+  }
+}
 
 api.get("/version", async (req, res) => {
   const now = Date.now();
   // ?refresh=1: the user asked the sidebar to check again; GitHub is asked now.
-  if (!versionCache || now - versionCache.at > VERSION_TTL_MS || req.query.refresh === "1") {
-    try {
-      const r = await fetch("https://api.github.com/repos/TraX22/HydraOps/releases/latest", {
-        headers: { "User-Agent": "HydraOps", Accept: "application/vnd.github+json" },
-        signal: AbortSignal.timeout(5000),
-      });
-      const j = r.ok ? await r.json() as any : null;
-      const rawTag = j && typeof j.tag_name === "string" ? j.tag_name : null;
-      const latest = rawTag ? rawTag.replace(/^v/, "") : null;
-      versionCache = { at: now, latest, url: j?.html_url ?? null, tag: rawTag };
-    } catch {
-      // Sin red o sin releases todavía: no es un error, solo no hay dato.
-      versionCache = { at: now, latest: null, url: null, tag: null };
-    }
-  }
-  const latest = versionCache.latest;
+  if (versionCacheStale(now) || req.query.refresh === "1") await refreshVersionCache(now);
+  const latest = versionCache!.latest;
   const updateAvailable = Boolean(APP_VERSION && latest && cmpSemver(latest, APP_VERSION) > 0);
   // Where the user's data lives, shown in the System view: running from source it is
   // the clone itself (fromSource), which a "reinstall" by deleting the folder takes away.
-  res.json({ current: APP_VERSION, latest, updateAvailable, url: versionCache.url, checkedAt: versionCache.at, dataDir: dataRoot, fromSource: path.resolve(dataRoot) === path.resolve(appRoot) });
+  res.json({ current: APP_VERSION, latest, updateAvailable, url: versionCache!.url, checkedAt: versionCache!.at, checkError: versionCache!.error, dataDir: dataRoot, fromSource: path.resolve(dataRoot) === path.resolve(appRoot) });
 });
 
 // ── What's new ──────────────────────────────────────────────────────────────
@@ -390,19 +390,13 @@ api.post("/self-update", async (_req, res) => {
     if (status.out.trim() !== "") {
       return res.status(409).json({ error: "dirty", message: "Hay cambios locales sin guardar en el repositorio. Guárdalos o descártalos antes de actualizar." });
     }
-    // 3. Resolver la última tag de release (refresca el caché si hace falta).
-    if (!versionCache || !versionCache.tag) {
-      try {
-        const r = await fetch("https://api.github.com/repos/TraX22/HydraOps/releases/latest", { headers: { "User-Agent": "HydraOps", Accept: "application/vnd.github+json" }, signal: AbortSignal.timeout(5000) });
-        const j = r.ok ? await r.json() as any : null;
-        const rawTag = j && typeof j.tag_name === "string" ? j.tag_name : null;
-        versionCache = { at: Date.now(), latest: rawTag ? rawTag.replace(/^v/, "") : null, url: j?.html_url ?? null, tag: rawTag };
-      } catch { /* sin red: se maneja abajo */ }
-    }
+    // 3. The latest release tag (asked again now when the cache has none).
+    if (!versionCache || !versionCache.tag) await refreshVersionCache(Date.now());
     const tag = versionCache?.tag;
     const latest = versionCache?.latest;
     if (!tag || !latest) {
-      return res.status(400).json({ error: "no_release", message: "No se pudo determinar la última versión (¿sin conexión?)." });
+      if (versionCache?.error === "rate_limited") return res.status(503).json({ error: "rate_limited", message: "GitHub rechazó la consulta por su límite de peticiones por hora. Probá de nuevo en unos minutos." });
+      return res.status(400).json({ error: "no_release", message: versionCache?.error === "offline" ? "No se pudo consultar a GitHub cuál es la última versión (¿sin conexión?)." : "GitHub no nombró ninguna versión publicada." });
     }
     if (!(APP_VERSION && cmpSemver(latest, APP_VERSION) > 0)) {
       return res.status(400).json({ error: "up_to_date", message: "Ya estás en la última versión." });

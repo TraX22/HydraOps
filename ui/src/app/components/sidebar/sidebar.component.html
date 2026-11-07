@@ -151,9 +151,9 @@
       @if (u.kind === 'checking') {
         <div class="app-version">{{ 'update.checking' | translate }}</div>
       } @else if (u.kind === 'idle' && u.current) {
-        <button type="button" class="app-version as-link" (click)="updates.checkNow()"
-                [title]="(checkedAgo() !== null ? ('update.checkedAgo' | translate:{ min: checkedAgo() }) + ' · ' : '') + ('update.checkNow' | translate)">
-          @if (minimized()) { {{ u.current }} } @else { {{ 'common.version' | translate }} - {{ u.current }} }
+        <button type="button" class="app-version as-link" [class.check-warn]="!!checkError()" (click)="updates.checkNow()"
+                [title]="(checkError() ? (checkError()! | translate) + ' · ' : '') + (checkedAgo() !== null ? ('update.checkedAgo' | translate:{ min: checkedAgo() }) + ' · ' : '') + ('update.checkNow' | translate)">
+          @if (minimized()) { {{ u.current }} } @else { {{ 'common.version' | translate }} - {{ u.current }}@if (checkError()) { <span class="check-mark" aria-hidden="true">!</span> } }
         </button>
       } @else if (u.current) {
         <div class="app-version" [title]="('common.version' | translate) + ' ' + u.current">

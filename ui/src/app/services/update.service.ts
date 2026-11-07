@@ -12,7 +12,7 @@ import { ApiService, SelfUpdateStatus, VersionInfo } from './api.service';
  *   and restart the services, and shows the step in progress until the app reloads.
  */
 export type UpdateState =
-  | { kind: 'idle'; current: string | null; checkedAt?: number }
+  | { kind: 'idle'; current: string | null; checkedAt?: number; checkError?: string | null }
   | { kind: 'checking'; current: string | null }
   | { kind: 'available'; current: string | null; latest: string }
   | { kind: 'downloading'; current: string | null; latest: string; percent: number; transferred: number; total: number }
@@ -139,7 +139,7 @@ export class UpdateService {
         const st = this.state();
         if (st.kind === 'updating' || st.kind === 'done') return;
         if (v.updateAvailable && v.latest) this.state.set({ kind: 'available', current: v.current, latest: v.latest });
-        else this.state.set({ kind: 'idle', current: v.current, checkedAt: v.checkedAt ?? Date.now() });
+        else this.state.set({ kind: 'idle', current: v.current, checkedAt: v.checkedAt ?? Date.now(), checkError: v.checkError ?? null });
       },
       error: () => { if (this.state().kind === 'checking') this.state.set({ kind: 'idle', current: this.current() }); },
     });
