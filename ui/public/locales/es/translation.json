@@ -1164,9 +1164,15 @@
       "not_git": "Esta instalación no es un clon de git; en Windows la app instalada se actualiza sola.",
       "no_git": "No se encontró git en esta máquina.",
       "dirty": "Hay cambios locales sin guardar en el repositorio. Guardalos o descartalos antes de actualizar.",
-      "no_release": "No se pudo saber cuál es la última versión (¿sin conexión?).",
+      "no_release": "GitHub no dijo cuál es la última versión (¿sin conexión?).",
       "up_to_date": "Ya estás en la última versión.",
-      "backup_failed": "No se pudo hacer la copia previa de tu instalación, así que no se actualizó."
+      "backup_failed": "No se pudo hacer la copia previa de tu instalación, así que no se actualizó.",
+      "rate_limited": "GitHub rechazó la consulta por su límite de peticiones por hora. Probá de nuevo en unos minutos."
+    },
+    "check": {
+      "offline": "No se pudo consultar a GitHub (¿sin conexión?)",
+      "rate_limited": "GitHub rechazó la consulta por su límite de peticiones; se vuelve a intentar en unos minutos",
+      "no_release": "GitHub no nombró ninguna versión publicada"
     }
   },
   "commands": {

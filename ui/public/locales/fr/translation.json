@@ -1164,9 +1164,15 @@
       "not_git": "Cette installation n'est pas un clone git ; sous Windows l'application installée se met à jour seule.",
       "no_git": "git est introuvable sur cette machine.",
       "dirty": "Le dépôt contient des modifications locales non enregistrées. Enregistrez-les ou annulez-les avant de mettre à jour.",
-      "no_release": "Impossible de déterminer la dernière version (hors ligne ?).",
+      "no_release": "GitHub n'a pas dit quelle est la dernière version (pas de connexion ?).",
       "up_to_date": "Vous avez déjà la dernière version.",
-      "backup_failed": "La copie de votre installation n'a pas pu être faite, rien n'a donc été mis à jour."
+      "backup_failed": "La copie de votre installation n'a pas pu être faite, rien n'a donc été mis à jour.",
+      "rate_limited": "GitHub a refusé la vérification à cause de sa limite horaire de requêtes. Réessayez dans quelques minutes."
+    },
+    "check": {
+      "offline": "GitHub est injoignable (pas de connexion ?)",
+      "rate_limited": "GitHub a refusé la vérification à cause de sa limite de requêtes ; nouvel essai dans quelques minutes",
+      "no_release": "GitHub n'a nommé aucune version publiée"
     }
   },
   "commands": {

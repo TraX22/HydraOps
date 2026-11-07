@@ -662,6 +662,8 @@ export interface VersionInfo {
   url: string | null;
   /** When GitHub was last asked about the latest release (ms since epoch). */
   checkedAt?: number;
+  /** Why the last check brought no version: the network, GitHub's hourly limit, or no release. */
+  checkError?: 'offline' | 'rate_limited' | 'no_release' | null;
   /** Where the agents, chats and settings live. */
   dataDir?: string;
   /** Running from source: the data folder is the clone itself. */

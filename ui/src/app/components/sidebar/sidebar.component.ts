@@ -33,6 +33,12 @@ export class SidebarComponent implements OnInit {
   version = this.updates.version;
   upd = this.updates.state;
 
+  /** Why the last check brought no version (GitHub's limit, no network), for the version line. */
+  checkError = computed(() => {
+    const st = this.upd();
+    return st.kind === 'idle' && st.checkError ? 'update.check.' + st.checkError : null;
+  });
+
   /** Minutes since the last check, for the version line's tooltip. */
   checkedAgo = computed(() => {
     const st = this.upd();
@@ -89,6 +95,6 @@ export class SidebarComponent implements OnInit {
 
   /** The error line: the server's short message, or a translated code. */
   errorKey(message: string): string | null {
-    return ['timeout', 'update_failed', 'check_failed', 'not_git', 'no_git', 'dirty', 'no_release', 'up_to_date', 'backup_failed'].includes(message) ? 'update.errors.' + message : null;
+    return ['timeout', 'update_failed', 'check_failed', 'not_git', 'no_git', 'dirty', 'no_release', 'rate_limited', 'up_to_date', 'backup_failed'].includes(message) ? 'update.errors.' + message : null;
   }
 }

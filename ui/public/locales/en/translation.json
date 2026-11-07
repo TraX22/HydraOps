@@ -1164,9 +1164,15 @@
       "not_git": "This installation is not a git clone; on Windows the installed app updates itself.",
       "no_git": "git was not found on this machine.",
       "dirty": "There are unsaved local changes in the repository. Save or discard them before updating.",
-      "no_release": "The latest version could not be determined (offline?).",
+      "no_release": "GitHub did not say which version is the latest (no connection?).",
       "up_to_date": "You already have the latest version.",
-      "backup_failed": "The copy of your installation could not be made, so nothing was updated."
+      "backup_failed": "The copy of your installation could not be made, so nothing was updated.",
+      "rate_limited": "GitHub refused the check because of its hourly request limit. Try again in a few minutes."
+    },
+    "check": {
+      "offline": "GitHub could not be reached (no connection?)",
+      "rate_limited": "GitHub refused the check because of its request limit; it is tried again in a few minutes",
+      "no_release": "GitHub named no published version"
     }
   },
   "commands": {

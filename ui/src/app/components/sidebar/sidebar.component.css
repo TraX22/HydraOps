@@ -201,3 +201,7 @@ button.nav-item {
 .ring-track { fill: none; stroke: rgba(255, 255, 255, 0.3); stroke-width: 4; }
 .ring-fill { fill: none; stroke: var(--sidebar-update-bg, #ffffff); stroke-width: 4; stroke-linecap: round; transition: stroke-dasharray 0.3s ease; }
 .upd-mini-text { text-align: center; font-size: 10px; color: var(--text-sidebar-muted); }
+
+/* The version line when the last check brought no answer (GitHub's limit, no network): a mark, the reason in the tooltip. */
+.app-version.check-warn { color: #d97706; }
+.check-mark { display: inline-block; margin-left: 4px; font-weight: 700; }
