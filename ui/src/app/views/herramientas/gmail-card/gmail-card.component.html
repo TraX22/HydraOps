@@ -1,0 +1,124 @@
+@if (g(); as g) {
+  <div class="tool-card">
+    <div class="tool-head">
+      <div class="tool-title">
+        <app-icon name="mail" class="tool-icon gmail-icon" />
+        <div class="tool-title-text">
+          <span class="addon-name">{{ 'herramientas.gmail.name' | translate }}</span>
+          <span class="addon-type">{{ 'herramientas.gmail.description' | translate }}</span>
+        </div>
+      </div>
+      <button class="toggle-btn" [class.on]="g.enabled" (click)="toggleEnabled()">{{ g.enabled ? 'ON' : 'OFF' }}</button>
+    </div>
+
+    <!-- The user's Google OAuth client: id and secret, straight to the key store -->
+    <div class="tool-field">
+      <label class="tool-label">
+        {{ 'herramientas.gmail.app' | translate }}
+        <span class="addon-badge" [class.key-ok]="g.appConfigured">{{ (g.appConfigured ? 'herramientas.gmail.appSet' : 'herramientas.gmail.appMissing') | translate }}</span>
+      </label>
+      <div class="app-row">
+        <input type="text" class="key-input" autocomplete="off" spellcheck="false" [placeholder]="'herramientas.gmail.clientId' | translate"
+               [value]="clientId()" (input)="clientId.set($any($event.target).value)" />
+        <input type="password" class="key-input" autocomplete="off" [placeholder]="'herramientas.gmail.clientSecret' | translate"
+               [value]="clientSecret()" (input)="clientSecret.set($any($event.target).value)" (focus)="onSecretFocus()" (blur)="onSecretBlur()" (keyup.enter)="saveApp()" />
+        <button class="btn-primary key-save" [disabled]="busy() || !clientId().trim() || (!g.appConfigured && (!clientSecret().trim() || clientSecret() === mask))" (click)="saveApp()">{{ 'common.save' | translate }}</button>
+        @if (saved()) { <span class="saved-msg">✓ {{ 'common.saved' | translate }}</span> }
+      </div>
+      <p class="tool-hint">
+        {{ 'herramientas.gmail.appHint' | translate }}
+        <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer">console.cloud.google.com</a>
+        · <a routerLink="/docs" [queryParams]="{ page: 'tools' }">{{ 'herramientas.gmail.howTo' | translate }}</a>
+      </p>
+      <p class="tool-hint">{{ 'herramientas.gmail.callbackHint' | translate:{ uri: g.redirectUri } }}</p>
+      <p class="tool-hint">{{ 'herramientas.gmail.free' | translate }}</p>
+    </div>
+
+    <!-- Accounts -->
+    <div class="sec">
+      <h3>{{ 'herramientas.gmail.accounts' | translate }} <span class="count">{{ g.accounts.length }}</span></h3>
+      <button class="btn-secondary" [disabled]="busy() || !g.appConfigured || !!link()" (click)="connect()">+ {{ 'herramientas.gmail.connect' | translate }}</button>
+    </div>
+
+    <!-- The link, and the address pasted by hand when the browser was elsewhere -->
+    @if (link(); as l) {
+      <div class="connect-box">
+        <div class="connect-head">
+          <strong>{{ (reconnecting() ? 'herramientas.gmail.reconnectTitle' : 'herramientas.gmail.connectTitle') | translate:{ email: reconnecting()?.email } }}</strong>
+          <span class="chip warn">{{ (g.pending?.finishing ? 'herramientas.gmail.finishing' : 'herramientas.gmail.waiting') | translate }}</span>
+          @if (l.grants?.length) {
+            <span class="picked">@for (gr of l.grants; track gr) { <span class="chip grant-chip on">{{ 'herramientas.gmail.grants.' + gr | translate }}</span> }</span>
+          }
+        </div>
+        <ol class="steps">
+          <li>
+            {{ 'herramientas.gmail.step1' | translate }}
+            <div class="link-row">
+              <code class="link">{{ l.url }}</code>
+              <button class="btn-secondary" type="button" (click)="copyLink()">{{ (copied() ? 'herramientas.gmail.copied' : 'herramientas.gmail.copy') | translate }}</button>
+              <a class="btn-primary open" [href]="l.url" target="_blank" rel="noopener noreferrer">{{ 'herramientas.gmail.open' | translate }}</a>
+            </div>
+          </li>
+          <li>{{ 'herramientas.gmail.step2' | translate }}</li>
+          <li>{{ 'herramientas.gmail.step3' | translate }}</li>
+          <li>{{ 'herramientas.gmail.step4' | translate }}</li>
+        </ol>
+        <div class="paste">
+          <span class="tool-hint">{{ 'herramientas.gmail.pasteHint' | translate }}</span>
+          <div class="link-row">
+            <input type="url" class="key-input" autocomplete="off" spellcheck="false" [placeholder]="'herramientas.gmail.pastePlaceholder' | translate"
+                   [value]="pasteUrl()" (input)="pasteUrl.set($any($event.target).value)" (keyup.enter)="finishByHand()" />
+            <button class="btn-primary" type="button" [disabled]="busy() || !pasteUrl().trim()" (click)="finishByHand()">{{ 'herramientas.gmail.finish' | translate }}</button>
+          </div>
+        </div>
+        <div class="connect-foot">
+          <span class="tool-hint">{{ 'herramientas.gmail.tokensHint' | translate }}</span>
+          <button class="btn-secondary" type="button" (click)="cancel()">{{ 'common.cancel' | translate }}</button>
+        </div>
+      </div>
+    }
+
+    <div class="accounts">
+      @for (a of g.accounts; track a.id) {
+        <article class="account" [class.reauth]="a.status === 'reauth'">
+          @if (a.avatar) { <img class="avatar" [src]="a.avatar" alt="" referrerpolicy="no-referrer" /> } @else { <div class="avatar initial">{{ initial(a) }}</div> }
+          <div class="who">
+            <div class="names">
+              <strong>{{ a.name }}</strong>
+              <span class="handle">{{ a.email }}</span>
+              @if (a.status === 'reauth') { <span class="chip bad">{{ 'herramientas.gmail.reauth' | translate }}</span> }
+              <span class="meta">{{ 'herramientas.gmail.connectedOn' | translate:{ date: dateOf(a) } }}</span>
+            </div>
+            <!-- What the account is for: a chip per grant; connecting again renews the tokens -->
+            <div class="grants-row">
+              <span class="tool-hint">{{ 'herramientas.gmail.may' | translate }}</span>
+              @for (gr of grants; track gr) {
+                <span class="chip grant-chip" [class.on]="hasGrant(a, gr)" [title]="'herramientas.gmail.grantsHelp.' + gr | translate">{{ 'herramientas.gmail.grants.' + gr | translate }}</span>
+              }
+              <button type="button" class="relink" [disabled]="busy() || !!link()" (click)="connect(a)">{{ 'herramientas.gmail.reconnect' | translate }}</button>
+            </div>
+            <div class="agents">
+              <span class="tool-hint">{{ 'herramientas.gmail.canUse' | translate }}</span>
+              @for (id of a.agents; track id) {
+                <span class="chip agent">{{ agentName(id) }} <button type="button" class="chip-x" (click)="removeAgent(a, id)" [attr.aria-label]="'common.delete' | translate">×</button></span>
+              }
+              @if (!a.agents.length) { <span class="nobody">{{ 'herramientas.gmail.nobody' | translate }}</span> }
+              @if (pickable()(a).length) {
+                <select class="add-agent" (change)="addAgent(a, $event)" [attr.aria-label]="'herramientas.gmail.addAgent' | translate">
+                  <option value="">+ {{ 'herramientas.gmail.addAgent' | translate }}</option>
+                  @for (ag of pickable()(a); track ag.id) { <option [value]="ag.id">{{ ag.name }}</option> }
+                </select>
+              }
+            </div>
+          </div>
+          <button class="btn-secondary danger" type="button" [disabled]="busy()" (click)="disconnect(a)">{{ 'herramientas.gmail.disconnect' | translate }}</button>
+        </article>
+      } @empty {
+        <p class="empty-msg">{{ (g.appConfigured ? 'herramientas.gmail.noAccounts' : 'herramientas.gmail.noApp') | translate }}</p>
+      }
+    </div>
+
+    <p class="tool-hint">{{ 'herramientas.gmail.approvalHint' | translate }}</p>
+    @if (error()) { <p class="notice bad">{{ error() }}</p> }
+  </div>
+}

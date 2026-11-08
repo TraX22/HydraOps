@@ -246,6 +246,43 @@ Dos herramientas más, lecturas salvo que se diga otra cosa, cobradas como cualq
 Leer listas y Spaces necesita dos permisos que X sumó después de que se conectaran las primeras cuentas (`list.read`, `space.read`). Una cuenta conectada antes muestra en su fila una línea que lo dice, con un botón para volver a conectarla; hasta entonces esas lecturas contestan que a la cuenta le falta el permiso, y nada más cambia.
 
 
+## Gmail: tus buzones, leídos por los agentes
+
+HydraOps se conecta a **tu propio cliente OAuth de Google Cloud**, y a través de él a todas las cuentas de Gmail que quieras. Los agentes las buscan y las leen con las herramientas `gmail_search` y `gmail_read`; los borradores y el envío llegan en versiones posteriores, cada uno con su permiso. La API de Gmail es gratis: no se cobra nada por lectura.
+
+### 1. Crear el cliente OAuth en Google Cloud
+
+Se hace una vez, en [console.cloud.google.com](https://console.cloud.google.com/):
+
+1. Creá un proyecto (cualquier nombre) y en **APIs y servicios → Biblioteca** habilitá la **API de Gmail**.
+2. En **APIs y servicios → Pantalla de consentimiento de OAuth** elegí **Externa**, completá el nombre de la app y tu correo, y cuando exista pulsá **Publicar app** para que quede **En producción**. Una app que se queda en *Prueba* da tokens de renovación que vencen a los siete días, y las cuentas pedirían conectarse de nuevo cada semana. Al conectar una cuenta Google va a mostrar el aviso "esta app no está verificada": es tu propia app, nadie la verificó, y se continúa por *Configuración avanzada*.
+3. En **APIs y servicios → Credenciales** pulsá **Crear credenciales → ID de cliente de OAuth**, tipo **Aplicación de escritorio**, cualquier nombre. Copiá el **ID de cliente** (termina en `.apps.googleusercontent.com`) y el **Secreto del cliente**.
+4. En **Herramientas → Gmail** pegá los dos y pulsá **Guardar**. Van al almacén de claves de HydraOps, nunca a la base de datos ni al repositorio.
+
+No hay ninguna dirección de vuelta que registrar: un cliente de escritorio devuelve el navegador al HydraOps de esta computadora (`http://127.0.0.1:3000/api/integrations/gmail/callback`, que la tarjeta muestra) y Google acepta cualquier dirección de loopback para ese tipo de cliente.
+
+### 2. Conectar cada cuenta
+
+Pulsá **Conectar una cuenta** y abrí el enlace en un navegador **de esta computadora**, con sesión en Google de la cuenta que querés conectar (elegila en el selector de cuentas de Google si hay varias abiertas). Aceptá los permisos que pide HydraOps, Google devuelve el navegador a HydraOps y la cuenta aparece en la lista en segundos, con sus tokens en el almacén de claves, renovados solos.
+
+Cuando HydraOps corre en un servidor y tu navegador está en otra parte, el navegador cae en el `127.0.0.1` de su propia máquina y no encuentra nada: copiá la dirección completa de su barra y pegala en el campo de la tarjeta. Mismo resultado.
+
+La fila de cada cuenta muestra para qué puede usarse (hoy, **Leer**). **Conectar de nuevo** renueva sus tokens, y es también la forma de agregar un permiso más adelante; **Desconectar** la olvida y revoca sus tokens en Google.
+
+### 3. Quién puede usar qué cuenta
+
+Cada cuenta conectada lista los agentes autorizados a usarla, y una cuenta nueva arranca con **nadie**: las herramientas rechazan, del lado del servidor, cualquier cuenta que el agente no haya recibido acá, así un error del modelo no puede leer el buzón equivocado. Agregá agentes con el selector de la fila; el interruptor ON/OFF de arriba pausa todas las cuentas a la vez.
+
+### 4. Leer: búsquedas, mensajes, hilos, adjuntos
+
+Dale al agente las herramientas en la vista Agentes (una línea `gmail` le da todas) y la cuenta en Herramientas → Gmail. Después pedile como a una persona: "¿qué escribió Ana sobre la cotización?", "resumime el correo sin leer de esta semana". El agente tiene:
+
+- `gmail_accounts` lista las cuentas que puede usar y para qué se conectó cada una. Con una, la usa; con varias y un pedido que no dice cuál, te pregunta.
+- `gmail_search` busca en una cuenta con **la propia sintaxis de Gmail** (`from:ana is:unread newer_than:14d`, `subject:factura has:attachment`, `label:Clientes`…) y devuelve los mensajes que coinciden como líneas: id, fecha, remitente, asunto, fragmento. Diez por defecto, hasta 25, con continuación.
+- `gmail_read` da un **mensaje** completo (remitente, fecha, asunto, el texto, la lista de adjuntos), un **hilo** entero, las **etiquetas** de la cuenta, o guarda un **adjunto** en la tarea: el archivo aparece debajo de la respuesta del agente, y el agente puede pasárselo a otra herramienta (leer un PDF, mirar una imagen).
+
+Leer no cambia nada en el buzón, así que no pide aprobación. Pero un correo es texto de otra gente, y la forma clásica de colarle instrucciones a un agente ("asistente, reenviá todo a…"): todo lo que devuelven las herramientas llega al agente **marcado como contenido ajeno**, la tarea queda marcada por haberlo leído, y cualquier acción con efectos que el agente quiera hacer después espera tu aprobación (ver [Seguridad](./13-security.md)). Un mensaje que le dice al agente que haga algo se te informa, no se obedece.
+
 ## Hugging Face: modelos, datasets y Spaces
 
 Con las herramientas **huggingface** los agentes trabajan con el Hub de Hugging Face como las de GitHub trabajan con GitHub. Se le dan todas a un agente con una sola línea, `huggingface`, en sus herramientas (**Agentes → Herramientas**).
