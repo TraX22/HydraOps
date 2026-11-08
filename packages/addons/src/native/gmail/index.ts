@@ -273,7 +273,7 @@ export const gmailDraftTool: HydraTool = {
   // gmail_send: nothing leaves the account, so it asks for no approval (the user's decision).
   risk: {},
   description:
-    "Work with the drafts of one of the user's Gmail accounts: `create` a draft (a new message, a reply with `reply_to`, or a forward with `forward`), `update` one (`id` plus the fields to replace), `delete` one, `list` them, `get` one. A draft asks for no approval: it waits in Gmail's Drafts for the user, nothing is sent. Write the final text, as the user would send it; to send a draft, gmail_send with its id (which waits for the user's approval). The account must be connected for drafts (gmail_accounts says so).",
+    "Work with the drafts of one of the user's Gmail accounts: `create` a draft (a new message, a reply with `reply_to`, or a forward with `forward`), `update` one (`id` plus the fields to replace), `delete` one, `list` them, `get` one. A draft asks for no approval: it waits in Gmail's Drafts for the user, nothing is sent. Write the final text, as the user would send it; to send what a draft says, gmail_send with its fields (the user sees and approves the message first). The account must be connected for drafts (gmail_accounts says so).",
   schema: z.object({
     account: z.string().min(3).describe("The address of the account, as gmail_accounts lists it."),
     action: z.enum(["create", "update", "delete", "list", "get"]),
@@ -297,7 +297,7 @@ export const gmailDraftTool: HydraTool = {
       }
       if (action === "get") return [`Draft ${data.body?.id} in ${data.account?.email}:`, formatMessage(data.body?.message ?? {})].join("\n");
       if (action === "delete") return `Draft ${id} deleted from ${data.account?.email}.`;
-      return `${action === "create" ? "Draft saved" : "Draft changed"} in ${data.account?.email}: draft ${data.id}${data.threadId ? ` (thread ${data.threadId})` : ""} — ${describeResult(data)}. It waits in Gmail's Drafts; nothing was sent. To send it: gmail_send with draft "${data.id}" (the user approves first).`;
+      return `${action === "create" ? "Draft saved" : "Draft changed"} in ${data.account?.email}: draft ${data.id}${data.threadId ? ` (thread ${data.threadId})` : ""} — ${describeResult(data)}. It waits in Gmail's Drafts; nothing was sent. To send it, gmail_send with the same fields (the user sees and approves the message first); then gmail_draft delete ${data.id} if the draft should not stay.`;
     } catch (e: any) {
       return `Not done: ${e?.message || e}`;
     }
@@ -310,23 +310,21 @@ export const gmailSendTool: HydraTool = {
   // A message goes out under the user's name: every call waits for the user's approval, one by one.
   risk: { sensitive: true, approval: "always" },
   description:
-    "Send an e-mail from one of the user's Gmail accounts: a new message (`to`, `subject`, `text`), a reply (`reply_to` with the id of the message answered; `to` and `subject` come from it unless given), a forward (`forward` with the id; `text` goes above the forwarded message), with the user's files as `attachments`; or send an existing draft by its id (`draft`). It is never run without the user's approval: they see the account, the recipients, the subject and the text exactly as they will go out, and decide. Give the final text, not a sketch. The account must be connected for sending (gmail_accounts says so).",
+    "Send an e-mail from one of the user's Gmail accounts: a new message (`to`, `subject`, `text`), a reply (`reply_to` with the id of the message answered; `to` and `subject` come from it unless given), a forward (`forward` with the id; `text` goes above the forwarded message), with the user's files as `attachments`. It is never run without the user's approval: they see the account, the recipients, the subject and the text exactly as they will go out, and decide, so the message is always given in full here (to send what a draft says, pass its fields; gmail_draft get shows them). Give the final text, not a sketch. The account must be connected for sending (gmail_accounts says so).",
   schema: z.object({
     account: z.string().min(3).describe("The address of the account to send from, as gmail_accounts lists it."),
     ...messageFields,
-    draft: z.string().max(200).optional().describe("To send an existing draft: its id (from gmail_draft). Then no other field is needed."),
   }),
   execute: async (args, ctx) => {
     const agentId = String(ctx?.agentId ?? "").trim();
     if (!agentId) return "This task carries no agent identity, so nothing can be sent.";
     const a = args as Record<string, any>;
-    if (!a.draft && !a.text && !a.forward) return "Not sent: the message needs `text` (or a message to `forward`), or a `draft` to send.";
-    if (!a.draft && !a.reply_to && !(a.to?.length || a.cc?.length || a.bcc?.length)) return "Not sent: the message needs at least one recipient (`to`), or `reply_to` to answer someone.";
+    if (!a.text && !a.forward) return "Not sent: the message needs `text` (or a message to `forward`).";
+    if (!a.reply_to && !(a.to?.length || a.cc?.length || a.bcc?.length)) return "Not sent: the message needs at least one recipient (`to`), or `reply_to` to answer someone.";
     try {
       // The arguments go as they are: the API accepts this run only as the execution of the call the user approved, argument for argument.
       const { ok, status, data } = await callApi("POST", "/gmail/send", { agentId, taskId: taskIdOf(ctx), args: a }, 150_000);
       if (!ok) return `Not sent${[400, 403, 404, 409].includes(status) ? "" : ` (Gmail answered ${status})`}: ${data?.message || data?.error || "Gmail refused the request."}`;
-      if (a.draft) return `Sent from ${data.account?.email}: draft ${a.draft} went out as message ${data.id ?? "?"}${data.threadId ? ` (thread ${data.threadId})` : ""}. Tell the user it was sent.`;
       return `Sent from ${data.account?.email}: message ${data.messageId ?? data.id ?? "?"}${data.threadId ? ` (thread ${data.threadId})` : ""} — ${describeResult(data)}. Tell the user it was sent.`;
     } catch (e: any) {
       return `Not sent: ${e?.message || e}`;

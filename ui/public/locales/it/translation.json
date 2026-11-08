@@ -301,7 +301,6 @@
         "fromOriginal": "(dal messaggio originale)",
         "replyTo": "Risposta al messaggio {{id}}, nella sua conversazione",
         "forward": "Inoltra il messaggio {{id}}, con testo e allegati",
-        "draft": "Invia la bozza {{id}} così com'è in Gmail",
         "note": "Parte dal tuo account, a tuo nome, quando approvi. Nulla viene addebitato."
       }
     },

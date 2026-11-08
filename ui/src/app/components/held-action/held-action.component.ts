@@ -66,10 +66,7 @@ import { IconComponent } from '../icon/icon.component';
             <span class="post-label">{{ 'chat.held.gmail.account' | translate }}</span>
             <span class="post-handle">{{ g.account }}</span>
           </div>
-          @if (g.draft) {
-            <p class="post-act">{{ 'chat.held.gmail.draft' | translate:{ id: g.draft } }}</p>
-          } @else {
-            <div class="cal-row"><span class="cal-label">{{ 'chat.held.gmail.to' | translate }}</span>{{ g.to || ('chat.held.gmail.replySender' | translate) }}</div>
+          <div class="cal-row"><span class="cal-label">{{ 'chat.held.gmail.to' | translate }}</span>{{ g.to || ('chat.held.gmail.replySender' | translate) }}</div>
             @if (g.cc) { <div class="cal-row"><span class="cal-label">{{ 'chat.held.gmail.cc' | translate }}</span>{{ g.cc }}</div> }
             @if (g.bcc) { <div class="cal-row"><span class="cal-label">{{ 'chat.held.gmail.bcc' | translate }}</span>{{ g.bcc }}</div> }
             <div class="cal-row"><span class="cal-label">{{ 'chat.held.gmail.subject' | translate }}</span>{{ g.subject || ('chat.held.gmail.fromOriginal' | translate) }}</div>
@@ -77,7 +74,6 @@ import { IconComponent } from '../icon/icon.component';
             @if (g.forward) { <p class="post-extra">{{ 'chat.held.gmail.forward' | translate:{ id: g.forward } }}</p> }
             @if (g.text) { <div class="post-part"><div class="post-body"><pre class="post-text">{{ g.text }}</pre></div></div> }
             @if (g.attachments.length) { <div class="cal-row"><span class="cal-label">{{ 'chat.held.gmail.attachments' | translate }}</span>{{ g.attachments.join(', ') }}</div> }
-          }
           <p class="post-cost">{{ 'chat.held.gmail.note' | translate }}</p>
         </div>
       } @else if (xAct; as x) {
@@ -237,13 +233,13 @@ export class HeldActionComponent implements OnInit {
   get charLimit(): number { return this.xAccount()?.premium ? 25_000 : 280; }
   isVideo(name: string): boolean { return /\.mp4$/i.test(name); }
 
-  /** A gmail_send call, read as the e-mail it is: the account, who gets it, the subject, the text, the files; or the draft to send. */
-  get gmailSend(): { account: string; to: string; cc: string; bcc: string; subject: string; text: string; attachments: string[]; replyTo: string; forward: string; draft: string } | null {
+  /** A gmail_send call, read as the e-mail it is: the account, who gets it, the subject, the text, the files. */
+  get gmailSend(): { account: string; to: string; cc: string; bcc: string; subject: string; text: string; attachments: string[]; replyTo: string; forward: string } | null {
     if (this.action.toolName !== 'gmail_send') return null;
     const a = (this.action.args ?? {}) as Record<string, unknown>;
     const s = (k: string) => (typeof a[k] === 'string' ? (a[k] as string) : '');
     const list = (k: string) => (Array.isArray(a[k]) ? (a[k] as unknown[]).map(String).join(', ') : s(k));
-    return { account: s('account'), to: list('to'), cc: list('cc'), bcc: list('bcc'), subject: s('subject'), text: s('text'), attachments: Array.isArray(a['attachments']) ? (a['attachments'] as unknown[]).map(String) : [], replyTo: s('reply_to'), forward: s('forward'), draft: s('draft') };
+    return { account: s('account'), to: list('to'), cc: list('cc'), bcc: list('bcc'), subject: s('subject'), text: s('text'), attachments: Array.isArray(a['attachments']) ? (a['attachments'] as unknown[]).map(String) : [], replyTo: s('reply_to'), forward: s('forward') };
   }
 
   /** An x_engage / x_users action, read as what it does to whom, as which account, and X's price for it. */

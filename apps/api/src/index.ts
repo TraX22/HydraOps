@@ -4503,12 +4503,10 @@ api.post("/gmail/send", async (req, res) => {
       console.warn(`[api] gmail: a send for ${agentId || "?"} as ${account.email} matched no approved call: refused`);
       return res.status(403).json({ error: "not_approved", message: "Nothing is sent from Gmail without the user's approval of that exact message, and there is no approved gmail_send call matching this one." });
     }
-    const draft = typeof args.draft === "string" ? args.draft.trim() : "";
-    const out = draft
-      ? await gmailProxy("POST", "/call", { accountId: account.id, op: "draft_send", params: { draft } }, 120_000)
-      : await gmailProxy("POST", "/compose", { accountId: account.id, kind: "send", message: gmailMessageOf(args) }, 120_000);
-    console.log(`[api] gmail: ${agentId} sent as ${account.email}${draft ? ` (draft ${draft})` : ""}`);
-    res.json({ ok: true, account: { id: account.id, email: account.email }, ...(draft ? { id: out?.body?.id, threadId: out?.body?.threadId, draft } : out) });
+    // The message goes in full, built from the approved fields: what the card showed is what is sent.
+    const out = await gmailProxy("POST", "/compose", { accountId: account.id, kind: "send", message: gmailMessageOf(args) }, 120_000);
+    console.log(`[api] gmail: ${agentId} sent as ${account.email}`);
+    res.json({ ok: true, account: { id: account.id, email: account.email }, ...out });
   } catch (e: any) {
     if (["scopes_missing", "grant_missing", "not_found", "bad_id", "bad_address", "bad_subject", "bad_text", "bad_attachment", "no_recipient"].includes(e?.code)) return res.status(e.status ?? 400).json({ error: e.code, message: e.message });
     console.error("[api] POST /gmail/send failed", e?.message ?? e);

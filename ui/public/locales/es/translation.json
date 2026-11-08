@@ -301,7 +301,6 @@
         "fromOriginal": "(del mensaje original)",
         "replyTo": "Respuesta al mensaje {{id}}, en su hilo",
         "forward": "Reenvía el mensaje {{id}}, con su texto y adjuntos",
-        "draft": "Envía el borrador {{id}} tal como está en Gmail",
         "note": "Sale de tu cuenta, a tu nombre, cuando lo apruebes. No se cobra nada."
       }
     },

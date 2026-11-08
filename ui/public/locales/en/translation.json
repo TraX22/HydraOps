@@ -301,7 +301,6 @@
         "fromOriginal": "(from the original message)",
         "replyTo": "A reply to message {{id}}, in its thread",
         "forward": "Forwards message {{id}}, its text and attachments included",
-        "draft": "Sends draft {{id}} as it is in Gmail",
         "note": "Sent from your account, under your name, once you approve. Nothing is charged."
       }
     },

@@ -109,11 +109,10 @@ function describeXAct(a: any): string {
   ].join("\n\n");
 }
 
-/** An e-mail to send from Gmail: the account, who gets it, the subject, the text, the files; or the draft to send. */
+/** An e-mail to send from Gmail: the account, who gets it, the subject, the text, the files. */
 function describeGmailSend(a: any): string {
   const args = a.args ?? {};
   const list = (v: unknown) => (Array.isArray(v) ? v.map(String).join(", ") : typeof v === "string" ? v : "");
-  if (args.draft) return [`⏸ Send from Gmail — ${a.agentId} wants to send draft ${args.draft} as ${args.account ?? "?"}`, "Expires in 24 h."].join("\n\n");
   const head = [
     `To: ${list(args.to) || "(the sender of the message answered)"}`,
     list(args.cc) ? `Cc: ${list(args.cc)}` : "",

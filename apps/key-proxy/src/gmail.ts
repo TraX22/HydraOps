@@ -401,7 +401,7 @@ export async function callOp(accountId: string, opName: unknown, params: unknown
     } else url.searchParams.set(key, s);
   }
   for (const [k, v] of Object.entries(op.fixed ?? {})) url.searchParams.set(k, v);
-  // A write's body: a message built by `compose` (its raw form and thread), or a draft's id.
+  // A write's body: a message built by `compose` (its raw form and thread).
   let payload: string | undefined;
   if (op.body === "message") {
     const raw = String(p.raw ?? "");
@@ -409,10 +409,6 @@ export async function callOp(accountId: string, opName: unknown, params: unknown
     const message: Record<string, string> = { raw };
     if (typeof p.threadId === "string" && ID_RE.test(p.threadId)) message.threadId = p.threadId;
     payload = JSON.stringify(op.path.startsWith("/drafts") ? { message } : message);
-  } else if (op.body === "draftId") {
-    const id = String(p.draft ?? "").trim();
-    if (!ID_RE.test(id)) throw new GmailError("bad_id", `"${id.slice(0, 40)}" is not a Gmail draft id.`);
-    payload = JSON.stringify({ id });
   }
   const token = await accessToken(accountId);
   const { ok, status, body } = await fetchJson(url.toString(), {

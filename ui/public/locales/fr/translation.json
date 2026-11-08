@@ -301,7 +301,6 @@
         "fromOriginal": "(du message d'origine)",
         "replyTo": "Réponse au message {{id}}, dans son fil",
         "forward": "Transfère le message {{id}}, texte et pièces jointes compris",
-        "draft": "Envoie le brouillon {{id}} tel qu'il est dans Gmail",
         "note": "Part de votre compte, en votre nom, une fois approuvé. Rien n'est facturé."
       }
     },

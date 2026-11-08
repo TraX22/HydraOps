@@ -57,8 +57,8 @@ export interface GmailOp {
   fixed?: Record<string, string>;
   /** Bounds for maxResults. */
   results?: [number, number];
-  /** What the body carries: a message (RFC 822, built by gmail.ts from the caller's fields, never taken raw from outside) or a draft's id. */
-  body?: "message" | "draftId";
+  /** What the body carries: a message (RFC 822, built by gmail.ts from the caller's fields, never taken raw from outside). */
+  body?: "message";
 }
 
 export const OPS: readonly GmailOp[] = [
@@ -77,9 +77,9 @@ export const OPS: readonly GmailOp[] = [
   { name: "draft_create", method: "POST", kind: "write", path: "/drafts", grant: "compose", query: [], body: "message" },
   { name: "draft_update", method: "PUT", kind: "write", path: "/drafts/:id", grant: "compose", query: [], body: "message" },
   { name: "draft_delete", method: "DELETE", kind: "write", path: "/drafts/:id", grant: "compose", query: [] },
-  // Sending: always under the user's approval (the API accepts the run of an approved call only).
+  // Sending: always under the user's approval (the API accepts the run of an approved call only), and
+  // always as a full message, so what the user approved is what goes out: a draft is not sent by its id.
   { name: "send", method: "POST", kind: "write", path: "/messages/send", grant: "send", query: [], body: "message" },
-  { name: "draft_send", method: "POST", kind: "write", path: "/drafts/send", grant: "send", query: [], body: "draftId" },
 ];
 
 export const opNamed = (name: unknown): GmailOp | undefined => (typeof name === "string" ? OPS.find((o) => o.name === name) : undefined);
