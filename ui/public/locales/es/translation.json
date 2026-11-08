@@ -289,6 +289,19 @@
         "list_unfollow": "Dejar de seguir la lista {{target}}",
         "list_pin": "Fijar la lista {{target}}",
         "list_unpin": "Desfijar la lista {{target}}"
+      },
+      "gmail": {
+        "account": "Cuenta",
+        "to": "Para",
+        "cc": "Cc",
+        "bcc": "Cco",
+        "subject": "Asunto",
+        "attachments": "Adjuntos",
+        "replySender": "quien envió el mensaje respondido",
+        "fromOriginal": "(del mensaje original)",
+        "replyTo": "Respuesta al mensaje {{id}}, en su hilo",
+        "forward": "Reenvía el mensaje {{id}}, con su texto y adjuntos",
+        "note": "Sale de tu cuenta, a tu nombre, cuando lo apruebes. No se cobra nada."
       }
     },
     "linkUnverified": "⚠ No verificado: el agente no abrió ni vio esta dirección en esta conversación. Puede existir, pero salió de su memoria, no de una consulta.",
@@ -815,7 +828,7 @@
     },
     "gmail": {
       "name": "Gmail",
-      "description": "Tus buzones: los agentes los buscan y los leen; lo que leen es contenido ajeno",
+      "description": "Tus buzones: los agentes los leen, escriben borradores y, con tu aprobación, envían",
       "app": "Tu cliente OAuth de Google",
       "appSet": "Client ID y secreto guardados",
       "appMissing": "Sin cliente",
@@ -863,7 +876,7 @@
       "disconnectConfirm": "¿Desconectar {{email}}? Se borran sus tokens y ningún agente podrá leerla hasta que la conectes de nuevo.",
       "noAccounts": "Todavía no hay cuentas conectadas. Conectá la primera con el botón de arriba.",
       "noApp": "Guardá primero el Client ID y el secreto de tu cliente OAuth de Google.",
-      "approvalHint": "Leer un buzón no pide aprobación: nada cambia en él. Pero un correo es texto de otra gente, y la forma clásica de colarle instrucciones a un agente: lo que los agentes leen llega marcado como contenido ajeno, y cualquier acción con efectos que quieran hacer después de leer te espera a vos. Un agente solo puede usar las cuentas que le asignes acá.",
+      "approvalHint": "Leer un buzón no pide aprobación: nada cambia en él. Un borrador tampoco la pide: te espera en los Borradores de Gmail, nada sale de la cuenta. Enviar espera siempre tu aprobación en el chat (y en el móvil si tenés Telegram), con la cuenta, los destinatarios, el asunto y el texto a la vista. Un correo es texto de otra gente, y la forma clásica de colarle instrucciones a un agente: lo que los agentes leen llega marcado como contenido ajeno, y cualquier acción con efectos que quieran hacer después de leer te espera a vos. Un agente solo puede usar las cuentas que le asignes acá.",
       "errors": {
         "generic": "No se pudo llegar a Google. Probá de nuevo en un momento.",
         "bad_client_id": "Eso no parece un Client ID de OAuth de Google (termina en .apps.googleusercontent.com).",
@@ -878,7 +891,11 @@
         "no_such_account": "Esa cuenta no está conectada.",
         "gmail_reauth_required": "La sesión de esa cuenta venció: conectala de nuevo.",
         "scopes_missing": "Esa cuenta no se conectó con ese permiso: conectala de nuevo para agregarlo."
-      }
+      },
+      "grantsHint": "¿Para qué van a usar los agentes esta cuenta? Solo esos permisos se le piden a Google. Otro se puede agregar después conectando la cuenta de nuevo; uno se quita desde la fila de la cuenta, sin reconectar.",
+      "getLink": "Obtener el enlace",
+      "needsReconnect": "«{{grant}}» necesita un permiso que Google no le dio a esta cuenta.",
+      "reconnectWith": "Conectar de nuevo con ese permiso"
     },
     "github": {
       "name": "GitHub",

@@ -37,10 +37,38 @@
     <!-- Accounts -->
     <div class="sec">
       <h3>{{ 'herramientas.gmail.accounts' | translate }} <span class="count">{{ g.accounts.length }}</span></h3>
-      <button class="btn-secondary" [disabled]="busy() || !g.appConfigured || !!link()" (click)="connect()">+ {{ 'herramientas.gmail.connect' | translate }}</button>
+      <button class="btn-secondary" [disabled]="busy() || !g.appConfigured || !!link() || choosing()" (click)="connect()">+ {{ 'herramientas.gmail.connect' | translate }}</button>
     </div>
 
-    <!-- The link, and the address pasted by hand when the browser was elsewhere -->
+    <!-- Step one of a sign-in: what the account is for -->
+    @if (choosing()) {
+      <div class="connect-box">
+        <div class="connect-head">
+          <strong>{{ (reconnecting() ? 'herramientas.gmail.reconnectTitle' : 'herramientas.gmail.connectTitle') | translate:{ email: reconnecting()?.email } }}</strong>
+        </div>
+        <p class="tool-hint grants-hint">{{ 'herramientas.gmail.grantsHint' | translate }}</p>
+        <div class="grant-list">
+          @for (gr of grants; track gr) {
+            <label class="grant" [class.fixed]="gr === 'read'">
+              <input type="checkbox" [checked]="pick()[gr]" [disabled]="gr === 'read'" (change)="togglePick(gr)" />
+              <span class="grant-text">
+                <strong>{{ 'herramientas.gmail.grants.' + gr | translate }}</strong>
+                <span class="tool-hint">{{ 'herramientas.gmail.grantsHelp.' + gr | translate }}</span>
+              </span>
+            </label>
+          }
+        </div>
+        <div class="connect-foot">
+          <span class="tool-hint">{{ 'herramientas.gmail.tokensHint' | translate }}</span>
+          <span class="foot-btns">
+            <button class="btn-secondary" type="button" (click)="cancel()">{{ 'common.cancel' | translate }}</button>
+            <button class="btn-primary" type="button" [disabled]="busy()" (click)="startConnect()">{{ 'herramientas.gmail.getLink' | translate }}</button>
+          </span>
+        </div>
+      </div>
+    }
+
+    <!-- Step two: the link, and the address pasted by hand when the browser was elsewhere -->
     @if (link(); as l) {
       <div class="connect-box">
         <div class="connect-head">
@@ -89,14 +117,23 @@
               @if (a.status === 'reauth') { <span class="chip bad">{{ 'herramientas.gmail.reauth' | translate }}</span> }
               <span class="meta">{{ 'herramientas.gmail.connectedOn' | translate:{ date: dateOf(a) } }}</span>
             </div>
-            <!-- What the account is for: a chip per grant; connecting again renews the tokens -->
+            <!-- What the account is for: a chip per grant, on or off; one the scopes lack asks for a new sign-in -->
             <div class="grants-row">
               <span class="tool-hint">{{ 'herramientas.gmail.may' | translate }}</span>
               @for (gr of grants; track gr) {
-                <span class="chip grant-chip" [class.on]="hasGrant(a, gr)" [title]="'herramientas.gmail.grantsHelp.' + gr | translate">{{ 'herramientas.gmail.grants.' + gr | translate }}</span>
+                <button type="button" class="chip grant-chip" [class.on]="hasGrant(a, gr)" [disabled]="gr === 'read' || busy() || !!link()"
+                        [title]="'herramientas.gmail.grantsHelp.' + gr | translate" (click)="toggleGrant(a, gr)">{{ 'herramientas.gmail.grants.' + gr | translate }}</button>
               }
-              <button type="button" class="relink" [disabled]="busy() || !!link()" (click)="connect(a)">{{ 'herramientas.gmail.reconnect' | translate }}</button>
+              <button type="button" class="relink" [disabled]="busy() || !!link()" (click)="reconnect(a)">{{ 'herramientas.gmail.reconnect' | translate }}</button>
             </div>
+            @if (needsReconnect(); as nr) {
+              @if (nr.account.id === a.id) {
+                <p class="notice warn inline">
+                  {{ 'herramientas.gmail.needsReconnect' | translate:{ grant: ('herramientas.gmail.grants.' + nr.grant | translate) } }}
+                  <button type="button" class="btn-primary small" (click)="reconnect(a, nr.grant)">{{ 'herramientas.gmail.reconnectWith' | translate }}</button>
+                </p>
+              }
+            }
             <div class="agents">
               <span class="tool-hint">{{ 'herramientas.gmail.canUse' | translate }}</span>
               @for (id of a.agents; track id) {

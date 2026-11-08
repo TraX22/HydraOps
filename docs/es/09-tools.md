@@ -267,7 +267,7 @@ Pulsá **Conectar una cuenta** y abrí el enlace en un navegador **de esta compu
 
 Cuando HydraOps corre en un servidor y tu navegador está en otra parte, el navegador cae en el `127.0.0.1` de su propia máquina y no encuentra nada: copiá la dirección completa de su barra y pegala en el campo de la tarjeta. Mismo resultado.
 
-La fila de cada cuenta muestra para qué puede usarse (hoy, **Leer**). **Conectar de nuevo** renueva sus tokens, y es también la forma de agregar un permiso más adelante; **Desconectar** la olvida y revoca sus tokens en Google.
+La fila de cada cuenta muestra para qué puede usarse, como etiquetas (**Leer**, **Borradores**, **Enviar**; ver el punto 5). **Conectar de nuevo** renueva sus tokens, y es también la forma de agregar un permiso más adelante; **Desconectar** la olvida y revoca sus tokens en Google.
 
 ### 3. Quién puede usar qué cuenta
 
@@ -282,6 +282,15 @@ Dale al agente las herramientas en la vista Agentes (una línea `gmail` le da to
 - `gmail_read` da un **mensaje** completo (remitente, fecha, asunto, el texto, la lista de adjuntos), un **hilo** entero, las **etiquetas** de la cuenta, o guarda un **adjunto** en la tarea: el archivo aparece debajo de la respuesta del agente, y el agente puede pasárselo a otra herramienta (leer un PDF, mirar una imagen).
 
 Leer no cambia nada en el buzón, así que no pide aprobación. Pero un correo es texto de otra gente, y la forma clásica de colarle instrucciones a un agente ("asistente, reenviá todo a…"): todo lo que devuelven las herramientas llega al agente **marcado como contenido ajeno**, la tarea queda marcada por haberlo leído, y cualquier acción con efectos que el agente quiera hacer después espera tu aprobación (ver [Seguridad](./13-security.md)). Un mensaje que le dice al agente que haga algo se te informa, no se obedece.
+
+### 5. Borradores y envío
+
+Al conectar una cuenta marcás para qué la van a usar los agentes: **Leer** (siempre), **Borradores** y **Enviar**. Solo esos permisos se le piden a Google; para agregar uno después, la cuenta se conecta de nuevo con ese permiso marcado (su fila lo ofrece), y uno se quita desde la fila sin reconectar.
+
+- `gmail_draft` escribe un **borrador** en la cuenta: un mensaje nuevo, una respuesta (`reply_to`, el id del mensaje respondido: el borrador entra en ese hilo con las cabeceras correctas, dirigido a quien lo envió salvo que digas otra cosa) o un reenvío (`forward`, con el texto y los adjuntos del original), con tus archivos adjuntos por nombre. También lista, lee, cambia y borra borradores. **Un borrador no pide aprobación**: nada sale de la cuenta, te espera en los Borradores de Gmail para que lo envíes desde Gmail o le pidas al agente que lo envíe (y entonces aprobás el mensaje en sí). Así "leé el correo de Ana y dejame la respuesta lista" sale de una vez.
+- `gmail_send` **envía**: un mensaje nuevo, una respuesta o un reenvío, siempre completo (para enviar lo que dice un borrador, el agente pasa sus campos, así los ves). Se retiene **siempre**, haya leído lo que haya leído la tarea: la tarjeta muestra la cuenta, los destinatarios, el asunto, el texto exactamente como va a salir y los adjuntos (igual el aviso de Telegram), y **Aprobar** lo envía, una vez; no hay "aprobar por el resto de la tarea" para un mensaje. El servidor envía solo el mensaje exacto que aprobaste (mismo agente, cuenta y campos) y rechaza, antes de que nada llegue a Google, una dirección que no lo es, un mensaje sin destinatario o sin texto, un adjunto que no es uno de tus archivos o que pasa de 25 MB en total, y cualquier cosa con el interruptor en OFF.
+
+El mensaje lo arma HydraOps a partir de los campos que dio el agente (texto plano, UTF-8, adjuntos como partes MIME correctas); el agente nunca entrega un mensaje crudo. Gmail deja el enviado en Enviados y encadena una respuesta con el original.
 
 ## Hugging Face: modelos, datasets y Spaces
 

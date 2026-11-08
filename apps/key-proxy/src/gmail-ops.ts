@@ -46,7 +46,7 @@ export function missingScopes(grants: readonly GmailGrant[], scopes: readonly st
 
 export interface GmailOp {
   name: string;
-  method: "GET" | "POST" | "DELETE";
+  method: "GET" | "POST" | "PUT" | "DELETE";
   kind: "read" | "write";
   /** Under https://gmail.googleapis.com/gmail/v1/users/me; `:id` and `:attachment` come from the caller. */
   path: string;
@@ -57,6 +57,8 @@ export interface GmailOp {
   fixed?: Record<string, string>;
   /** Bounds for maxResults. */
   results?: [number, number];
+  /** What the body carries: a message (RFC 822, built by gmail.ts from the caller's fields, never taken raw from outside). */
+  body?: "message";
 }
 
 export const OPS: readonly GmailOp[] = [
@@ -69,6 +71,15 @@ export const OPS: readonly GmailOp[] = [
   { name: "thread", method: "GET", kind: "read", path: "/threads/:id", grant: "read", query: ["format", "metadataHeaders"] },
   { name: "attachment", method: "GET", kind: "read", path: "/messages/:id/attachments/:attachment", grant: "read", query: [] },
   { name: "history", method: "GET", kind: "read", path: "/history", grant: "read", query: ["startHistoryId", "maxResults", "pageToken", "labelId", "historyTypes"], results: [1, 500] },
+  // Drafts: nothing leaves the account; the draft waits in Gmail for the user. Reading them is a read.
+  { name: "drafts", method: "GET", kind: "read", path: "/drafts", grant: "read", query: ["q", "maxResults", "pageToken"], results: [1, 100] },
+  { name: "draft", method: "GET", kind: "read", path: "/drafts/:id", grant: "read", query: ["format"] },
+  { name: "draft_create", method: "POST", kind: "write", path: "/drafts", grant: "compose", query: [], body: "message" },
+  { name: "draft_update", method: "PUT", kind: "write", path: "/drafts/:id", grant: "compose", query: [], body: "message" },
+  { name: "draft_delete", method: "DELETE", kind: "write", path: "/drafts/:id", grant: "compose", query: [] },
+  // Sending: always under the user's approval (the API accepts the run of an approved call only), and
+  // always as a full message, so what the user approved is what goes out: a draft is not sent by its id.
+  { name: "send", method: "POST", kind: "write", path: "/messages/send", grant: "send", query: [], body: "message" },
 ];
 
 export const opNamed = (name: unknown): GmailOp | undefined => (typeof name === "string" ? OPS.find((o) => o.name === name) : undefined);

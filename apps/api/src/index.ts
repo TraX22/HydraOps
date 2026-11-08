@@ -4452,6 +4452,68 @@ api.post("/gmail/read", async (req, res) => {
   }
 });
 
+// The message fields a tool hands over, as the key-proxy's compose takes them (nothing else travels).
+function gmailMessageOf(a: any): Record<string, unknown> {
+  return { to: a?.to, cc: a?.cc, bcc: a?.bcc, subject: a?.subject, text: a?.text, replyTo: a?.reply_to, forward: a?.forward, attachments: a?.attachments };
+}
+// Drafts (gmail_draft): the user's decision is that a draft asks for no approval, since nothing
+// leaves the account: it waits in Gmail's Drafts for the user. Listing, reading, saving,
+// changing and deleting drafts, as an account connected for "compose".
+api.post("/gmail/compose", async (req, res) => {
+  if (!sameSiteOnly(req, res)) return;
+  try {
+    const agentId = String(req.body?.agentId ?? "").trim().toLowerCase();
+    const wanted = String(req.body?.account ?? "").trim().toLowerCase();
+    const action = String(req.body?.action ?? "");
+    const st = await gmailIntegrationStatus();
+    const pick = gmailAccountForAgent(st, agentId, wanted);
+    if (!pick.account) return res.status(pick.status).json({ error: pick.error, message: pick.message });
+    const account = pick.account;
+    const id = typeof req.body?.id === "string" ? req.body.id.trim() : "";
+    let out: any;
+    if (action === "list") out = await gmailProxy("POST", "/call", { accountId: account.id, op: "drafts", params: { q: req.body?.query, maxResults: req.body?.limit ?? 20, pageToken: req.body?.page } }, 70_000);
+    else if (action === "get") out = await gmailProxy("POST", "/call", { accountId: account.id, op: "draft", params: { id, format: "full" } }, 70_000);
+    else if (action === "delete") out = await gmailProxy("POST", "/call", { accountId: account.id, op: "draft_delete", params: { id } }, 70_000);
+    else if (action === "create" || action === "update") out = await gmailProxy("POST", "/compose", { accountId: account.id, kind: action === "create" ? "draft" : "draft_update", message: { ...gmailMessageOf(req.body), draftId: id } }, 120_000);
+    else return res.status(400).json({ error: "bad_action", message: `"${action.slice(0, 20)}" is not a draft action (create, update, delete, list, get).` });
+    console.log(`[api] gmail: ${agentId} draft ${action} as ${account.email}`);
+    res.json({ ok: true, action, account: { id: account.id, email: account.email }, ...(out?.body !== undefined ? { body: out.body } : out) });
+  } catch (e: any) {
+    if (["scopes_missing", "grant_missing", "not_found", "bad_id", "bad_address", "bad_subject", "bad_text", "bad_attachment", "no_recipient"].includes(e?.code)) return res.status(e.status ?? 400).json({ error: e.code, message: e.message });
+    console.error("[api] POST /gmail/compose failed", e?.message ?? e);
+    gmailFailure(res, e);
+  }
+});
+// Sending (gmail_send): held for the user on the worker's side (approval "always", no
+// task-wide approval). Here the run is accepted only as the execution of an approved call
+// with these very arguments: what is sent is what the user saw on the card, once.
+api.post("/gmail/send", async (req, res) => {
+  if (!sameSiteOnly(req, res)) return;
+  try {
+    const agentId = String(req.body?.agentId ?? "").trim().toLowerCase();
+    const args = req.body?.args && typeof req.body.args === "object" ? req.body.args : {};
+    const wanted = String(args.account ?? "").trim().toLowerCase();
+    const st = await gmailIntegrationStatus();
+    const pick = gmailAccountForAgent(st, agentId, wanted);
+    if (!pick.account) return res.status(pick.status).json({ error: pick.error, message: pick.message });
+    const account = pick.account;
+    if (!(Array.isArray(account.grants) && account.grants.includes("send"))) return res.status(403).json({ error: "grant_missing", message: `${account.email} was not connected for sending. The user adds that in Tools → Gmail.` });
+    const claim = await claimApprovedCall("gmail_send", agentId, args);
+    if (!claim) {
+      console.warn(`[api] gmail: a send for ${agentId || "?"} as ${account.email} matched no approved call: refused`);
+      return res.status(403).json({ error: "not_approved", message: "Nothing is sent from Gmail without the user's approval of that exact message, and there is no approved gmail_send call matching this one." });
+    }
+    // The message goes in full, built from the approved fields: what the card showed is what is sent.
+    const out = await gmailProxy("POST", "/compose", { accountId: account.id, kind: "send", message: gmailMessageOf(args) }, 120_000);
+    console.log(`[api] gmail: ${agentId} sent as ${account.email}`);
+    res.json({ ok: true, account: { id: account.id, email: account.email }, ...out });
+  } catch (e: any) {
+    if (["scopes_missing", "grant_missing", "not_found", "bad_id", "bad_address", "bad_subject", "bad_text", "bad_attachment", "no_recipient"].includes(e?.code)) return res.status(e.status ?? 400).json({ error: e.code, message: e.message });
+    console.error("[api] POST /gmail/send failed", e?.message ?? e);
+    gmailFailure(res, e);
+  }
+});
+
 // Push a plain-text message to every paired Telegram chat. Backs the
 // send_to_telegram tool so an agent can deliver content to the user's Telegram
 // ON DEMAND (distinct from the telegram-bot's automatic cron push). The bot

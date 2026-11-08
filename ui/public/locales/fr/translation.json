@@ -289,6 +289,19 @@
         "list_unfollow": "Ne plus suivre la liste {{target}}",
         "list_pin": "Épingler la liste {{target}}",
         "list_unpin": "Désépingler la liste {{target}}"
+      },
+      "gmail": {
+        "account": "Compte",
+        "to": "À",
+        "cc": "Cc",
+        "bcc": "Cci",
+        "subject": "Objet",
+        "attachments": "Pièces jointes",
+        "replySender": "l'expéditeur du message auquel on répond",
+        "fromOriginal": "(du message d'origine)",
+        "replyTo": "Réponse au message {{id}}, dans son fil",
+        "forward": "Transfère le message {{id}}, texte et pièces jointes compris",
+        "note": "Part de votre compte, en votre nom, une fois approuvé. Rien n'est facturé."
       }
     },
     "linkUnverified": "⚠ Non vérifié : l'agent n'a ni ouvert ni vu cette adresse dans cette conversation. Elle peut exister, mais elle vient de sa mémoire, pas d'une consultation.",
@@ -815,7 +828,7 @@
     },
     "gmail": {
       "name": "Gmail",
-      "description": "Vos boîtes mail : les agents y cherchent et les lisent ; ce qu'ils lisent est du contenu extérieur",
+      "description": "Vos boîtes mail : les agents les lisent, écrivent des brouillons et, avec votre accord, envoient",
       "app": "Votre client OAuth Google",
       "appSet": "Client ID et secret enregistrés",
       "appMissing": "Aucun client",
@@ -863,7 +876,7 @@
       "disconnectConfirm": "Déconnecter {{email}} ? Ses jetons sont supprimés et aucun agent ne pourra le lire tant que vous ne le reconnectez pas.",
       "noAccounts": "Aucun compte connecté pour l'instant. Connectez le premier avec le bouton ci-dessus.",
       "noApp": "Enregistrez d'abord le Client ID et le secret de votre client OAuth Google.",
-      "approvalHint": "Lire une boîte mail ne demande aucune approbation : rien n'y change. Mais un e-mail est l'écrit d'autrui, et le moyen classique de glisser des instructions à un agent : ce que les agents lisent arrive marqué comme contenu extérieur, et toute action à effets qu'ils voudraient faire ensuite vous attend. Un agent ne peut utiliser que les comptes que vous lui attribuez ici.",
+      "approvalHint": "Lire une boîte mail ne demande aucune approbation : rien n'y change. Un brouillon non plus : il attend dans les Brouillons de Gmail, rien ne sort du compte. Envoyer attend toujours votre approbation dans le chat (et sur votre téléphone si vous avez Telegram), avec le compte, les destinataires, l'objet et le texte sous les yeux. Un e-mail est l'écrit d'autrui, et le moyen classique de glisser des instructions à un agent : ce que les agents lisent arrive marqué comme contenu extérieur, et toute action à effets qu'ils voudraient faire ensuite vous attend. Un agent ne peut utiliser que les comptes que vous lui attribuez ici.",
       "errors": {
         "generic": "Google est injoignable. Réessayez dans un instant.",
         "bad_client_id": "Cela ne ressemble pas à un Client ID OAuth Google (il se termine par .apps.googleusercontent.com).",
@@ -878,7 +891,11 @@
         "no_such_account": "Ce compte n'est pas connecté.",
         "gmail_reauth_required": "La session de ce compte a expiré : reconnectez-le.",
         "scopes_missing": "Ce compte n'a pas été connecté avec cette autorisation : reconnectez-le pour l'ajouter."
-      }
+      },
+      "grantsHint": "À quoi les agents utiliseront-ils ce compte ? Seules ces autorisations sont demandées à Google. Une autre peut être ajoutée plus tard en reconnectant le compte ; une se retire depuis la ligne du compte, sans reconnecter.",
+      "getLink": "Obtenir le lien",
+      "needsReconnect": "« {{grant}} » demande une autorisation que Google n'a pas donnée à ce compte.",
+      "reconnectWith": "Reconnecter avec cette autorisation"
     },
     "github": {
       "name": "GitHub",

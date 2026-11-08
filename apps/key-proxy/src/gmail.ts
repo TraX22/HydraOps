@@ -23,9 +23,9 @@
  * Google's hosts can be pointed at a stand-in with GOOGLE_AUTH_BASE / GOOGLE_API_BASE (tests).
  */
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { unlink } from "node:fs/promises";
+import { readFile, realpath, stat, unlink } from "node:fs/promises";
 import path from "node:path";
-import { KeystoreError, keyStoreDir, readStore, writeStore } from "@hydraops/config";
+import { KeystoreError, keyStoreDir, readStore, uploadsDir, writeStore } from "@hydraops/config";
 import { grantsCoveredBy, isGrant, missingScopes, opNamed, opsPublic, scopesFor, type GmailGrant, type GmailOp } from "./gmail-ops.js";
 
 const authBase = () => (process.env.GOOGLE_AUTH_BASE || "https://accounts.google.com").replace(/\/$/, "");
@@ -401,10 +401,20 @@ export async function callOp(accountId: string, opName: unknown, params: unknown
     } else url.searchParams.set(key, s);
   }
   for (const [k, v] of Object.entries(op.fixed ?? {})) url.searchParams.set(k, v);
+  // A write's body: a message built by `compose` (its raw form and thread).
+  let payload: string | undefined;
+  if (op.body === "message") {
+    const raw = String(p.raw ?? "");
+    if (!/^[A-Za-z0-9_-]{10,}$/.test(raw)) throw new GmailError("bad_message", "The message to send or save is missing.");
+    const message: Record<string, string> = { raw };
+    if (typeof p.threadId === "string" && ID_RE.test(p.threadId)) message.threadId = p.threadId;
+    payload = JSON.stringify(op.path.startsWith("/drafts") ? { message } : message);
+  }
   const token = await accessToken(accountId);
   const { ok, status, body } = await fetchJson(url.toString(), {
     method: op.method,
-    headers: { authorization: `Bearer ${token}`, accept: "application/json" },
+    headers: { authorization: `Bearer ${token}`, accept: "application/json", ...(payload ? { "content-type": "application/json" } : {}) },
+    body: payload,
   }, 60_000);
   if (status === 401) {
     // The token was refused outright (access revoked at myaccount.google.com, the client deleted): a new sign-in is the only way back.
@@ -415,7 +425,172 @@ export async function callOp(accountId: string, opName: unknown, params: unknown
   if (status === 429) throw new GmailError("rate_limited", `Google is rate limiting this (${op.name}) for the moment; try again in a few minutes.`, 429);
   if (status === 404) throw new GmailError("not_found", `Gmail has no such ${op.name === "thread" ? "thread" : op.name === "attachment" ? "attachment" : "message"} in ${account.email}.`, 404);
   if (!ok) throw new GmailError(errorCode(body) || `http_${status}`, errorMessage(body, `Gmail refused the request (${status}).`), status);
+  if (op.kind === "write") console.log(`[key-proxy] gmail: ${op.name} as ${account.email}${p.id ? ` (${String(p.id).slice(0, 40)})` : ""}`);
   return { op: op.name, body };
+}
+
+// ─── Writing a message (drafts and sending) ─────────────────────────────────
+
+export interface ComposeMessage {
+  to?: unknown; cc?: unknown; bcc?: unknown;
+  subject?: unknown; text?: unknown;
+  /** The id of a message this one answers: its thread, subject and headers are taken from it; `to` defaults to its sender. */
+  replyTo?: unknown;
+  /** The id of a message this one forwards: its text and attachments are included. */
+  forward?: unknown;
+  /** File names from the user's attachments (storage/uploads), by base name. */
+  attachments?: unknown;
+  /** For draft_update: the draft replaced. */
+  draftId?: unknown;
+}
+export interface ComposeResult { kind: "draft" | "draft_update" | "send"; id: string; messageId?: string; threadId?: string; to: string[]; cc: string[]; bcc: string[]; subject: string; attachments: string[] }
+const TEXT_MAX = 100_000;
+const SUBJECT_MAX = 500;
+const RECIPIENTS_MAX = 50;
+const ATTACHMENTS_MAX = 20;
+const ATTACHMENTS_TOTAL_MAX = 25 * 1024 * 1024;
+const ADDRESS_RE = /^[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/;
+const CONTENT_TYPES: Record<string, string> = { ".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".txt": "text/plain", ".md": "text/markdown", ".csv": "text/csv", ".json": "application/json", ".zip": "application/zip", ".mp4": "video/mp4", ".mp3": "audio/mpeg", ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation", ".glb": "model/gltf-binary" };
+
+/** A header value as RFC 2047 wants it when it is not plain ASCII. */
+const encodeHeader = (v: string): string => (/^[\x20-\x7e]*$/.test(v) ? v : `=?UTF-8?B?${Buffer.from(v, "utf-8").toString("base64")}?=`);
+const b64lines = (buf: Buffer): string => buf.toString("base64").replace(/(.{76})/g, "$1\r\n");
+/** "Name <user@host>" or "user@host", checked and with the name encoded; anything else is refused. */
+function cleanAddress(raw: unknown): string {
+  const s = String(raw ?? "").trim().replace(/[\r\n]/g, "");
+  const m = s.match(/^(?:"?([^"<>]*?)"?\s*)?<([^<>\s]+)>$/);
+  const name = (m ? m[1] ?? "" : "").trim();
+  const addr = (m ? m[2] : s).trim();
+  if (!ADDRESS_RE.test(addr) || addr.length > 254) throw new GmailError("bad_address", `"${s.slice(0, 60)}" is not an e-mail address.`);
+  return name ? `${encodeHeader(name)} <${addr}>` : addr;
+}
+const addressList = (v: unknown): string[] => (Array.isArray(v) ? v : typeof v === "string" && v.trim() ? v.split(/[;,]/) : []).map(cleanAddress);
+/** The attachment's real path, inside the uploads folder, or an error. */
+async function attachmentPath(ref: unknown): Promise<string> {
+  const name = path.basename(String(ref ?? "").replace(/\\/g, "/").trim());
+  const real = await realpath(path.join(uploadsDir, name)).catch(() => "");
+  const root = await realpath(uploadsDir).catch(() => path.resolve(uploadsDir));
+  if (!name || !real || path.dirname(real) !== root || !(await stat(real)).isFile()) throw new GmailError("bad_attachment", `"${name || String(ref).slice(0, 40)}" is not one of the files attached in HydraOps.`);
+  return real;
+}
+interface Part { name: string; type: string; bytes: Buffer }
+/** An RFC 822 message, base64url, as Gmail's `raw` wants it. */
+function buildRaw(h: { from: string; to: string[]; cc: string[]; bcc: string[]; subject: string; inReplyTo?: string; references?: string }, text: string, files: Part[]): string {
+  const lines: string[] = [`From: ${h.from}`];
+  if (h.to.length) lines.push(`To: ${h.to.join(", ")}`);
+  if (h.cc.length) lines.push(`Cc: ${h.cc.join(", ")}`);
+  if (h.bcc.length) lines.push(`Bcc: ${h.bcc.join(", ")}`);
+  lines.push(`Subject: ${encodeHeader(h.subject)}`, `Date: ${new Date().toUTCString()}`, "MIME-Version: 1.0");
+  if (h.inReplyTo) lines.push(`In-Reply-To: ${h.inReplyTo}`);
+  if (h.references) lines.push(`References: ${h.references}`);
+  const textPart = ["Content-Type: text/plain; charset=\"UTF-8\"", "Content-Transfer-Encoding: base64", "", b64lines(Buffer.from(text, "utf-8"))].join("\r\n");
+  let body: string;
+  if (!files.length) body = textPart;
+  else {
+    const boundary = `hydraops_${randomBytes(12).toString("hex")}`;
+    lines.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
+    body = [
+      `--${boundary}`, textPart,
+      ...files.flatMap((f) => [`--${boundary}`, `Content-Type: ${f.type}; name="${f.name.replace(/"/g, "")}"`, `Content-Disposition: attachment; filename="${f.name.replace(/"/g, "")}"`, "Content-Transfer-Encoding: base64", "", b64lines(f.bytes)]),
+      `--${boundary}--`,
+    ].join("\r\n");
+  }
+  // Without attachments the text part's own headers follow the message headers; with them, a blank line ends the headers first.
+  return Buffer.from(files.length ? `${lines.join("\r\n")}\r\n\r\n${body}` : `${lines.join("\r\n")}\r\n${body}`, "utf-8").toString("base64url");
+}
+/** The headers of a message, by name (lower case), from a Gmail message. */
+const headersOf = (msg: any): Record<string, string> => Object.fromEntries((Array.isArray(msg?.payload?.headers) ? msg.payload.headers : []).map((h: any) => [String(h?.name ?? "").toLowerCase(), String(h?.value ?? "")]));
+/** The readable text of a Gmail message (plain text first, HTML stripped otherwise), for a forward. */
+function textOf(msg: any): string {
+  const texts: string[] = []; const htmls: string[] = [];
+  const walk = (part: any) => {
+    if (!part || typeof part !== "object") return;
+    if (Array.isArray(part.parts) && part.parts.length) { for (const q of part.parts) walk(q); return; }
+    const mime = String(part.mimeType ?? "").toLowerCase();
+    if (part.filename && part.body?.attachmentId) return;
+    const data = typeof part.body?.data === "string" ? Buffer.from(part.body.data, "base64url").toString("utf-8") : "";
+    if (mime === "text/plain" && data) texts.push(data); else if (mime === "text/html" && data) htmls.push(data);
+  };
+  walk(msg?.payload);
+  // Blocks and tags are removed until none is left (a tag split by another tag would otherwise survive one pass).
+  const strip = (s: string) => { let prev: string; let out = s; do { prev = out; out = out.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, ""); } while (out !== prev); out = out.replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|div|li|tr|h[1-6])\s*>/gi, "\n"); do { prev = out; out = out.replace(/<[^>]*>?/g, " "); } while (out !== prev); return out.replace(/&(amp|lt|gt|quot|nbsp|#39);/g, (m, e) => ({ amp: "&", lt: "<", gt: ">", quot: '"', nbsp: " ", "#39": "'" })[e as string] ?? m).replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim(); };
+  return (texts.length ? texts.join("\n") : htmls.map(strip).join("\n")).trim();
+}
+const attachmentsOf = (msg: any): { name: string; type: string; id: string; size: number }[] => {
+  const out: { name: string; type: string; id: string; size: number }[] = [];
+  const walk = (part: any) => { if (!part || typeof part !== "object") return; if (Array.isArray(part.parts)) for (const q of part.parts) walk(q); if (part.filename && part.body?.attachmentId) out.push({ name: String(part.filename), type: String(part.mimeType || "application/octet-stream"), id: String(part.body.attachmentId), size: Number(part.body.size) || 0 }); };
+  walk(msg?.payload);
+  return out;
+};
+
+/**
+ * A message written by an agent, saved as a draft (`draft`, `draft_update`) or sent (`send`),
+ * as one account. The fields are checked here (addresses, lengths, attachments inside the
+ * uploads folder), a reply takes its thread and headers from the message it answers, a forward
+ * brings the original's text and attachments, and the RFC 822 message is built here: nothing
+ * raw comes from outside. The API decides who may call what (sending only as the run of a
+ * call the user approved); the grants decide what the account allows.
+ */
+export async function compose(accountId: string, kind: "draft" | "draft_update" | "send", msg: ComposeMessage): Promise<ComposeResult> {
+  const store = await load();
+  const account = store.accounts.find((a) => a.id === accountId);
+  if (!account) throw new GmailError("no_such_account", "That Gmail account is not connected.", 404);
+  const opName = kind === "draft" ? "draft_create" : kind === "draft_update" ? "draft_update" : "send";
+  const op = opNamed(opName)!;
+  if (!account.grants.includes(op.grant)) throw new GmailError("grant_missing", `${account.email} was not connected for "${op.grant}".`, 403);
+  const draftId = kind === "draft_update" ? String(msg.draftId ?? "").trim() : "";
+  if (kind === "draft_update" && !ID_RE.test(draftId)) throw new GmailError("bad_id", "The draft to change needs its id.");
+  let to = addressList(msg.to), cc = addressList(msg.cc), bcc = addressList(msg.bcc);
+  let subject = String(msg.subject ?? "").replace(/[\r\n]+/g, " ").trim();
+  let text = String(msg.text ?? "").replace(/\r\n/g, "\n");
+  if (subject.length > SUBJECT_MAX) throw new GmailError("bad_subject", `The subject has up to ${SUBJECT_MAX} characters.`);
+  if (text.length > TEXT_MAX) throw new GmailError("bad_text", `The text has up to ${TEXT_MAX} characters.`);
+  const files: Part[] = [];
+  const refs: unknown[] = Array.isArray(msg.attachments) ? msg.attachments : [];
+  if (refs.length > ATTACHMENTS_MAX) throw new GmailError("bad_attachment", `Up to ${ATTACHMENTS_MAX} attachments.`);
+  for (const ref of refs) {
+    const full = await attachmentPath(ref);
+    files.push({ name: path.basename(full), type: CONTENT_TYPES[path.extname(full).toLowerCase()] ?? "application/octet-stream", bytes: await readFile(full) });
+  }
+  let inReplyTo: string | undefined, references: string | undefined, threadId: string | undefined;
+  const replyTo = String(msg.replyTo ?? "").trim();
+  if (replyTo) {
+    const { body: orig } = await callOp(accountId, "message", { id: replyTo, format: "metadata", metadataHeaders: ["Message-ID", "References", "Subject", "From", "Reply-To"] });
+    const h = headersOf(orig);
+    threadId = typeof orig?.threadId === "string" ? orig.threadId : undefined;
+    inReplyTo = h["message-id"] || undefined;
+    references = [h["references"], h["message-id"]].filter(Boolean).join(" ") || undefined;
+    if (!to.length) to = addressList(h["reply-to"] || h["from"]);
+    if (!subject) subject = /^re:/i.test(h["subject"] ?? "") ? h["subject"] : `Re: ${h["subject"] ?? ""}`.trim();
+  }
+  const forward = String(msg.forward ?? "").trim();
+  if (forward) {
+    const { body: orig } = await callOp(accountId, "message", { id: forward, format: "full" });
+    const h = headersOf(orig);
+    if (!subject) subject = /^fwd?:/i.test(h["subject"] ?? "") ? h["subject"] : `Fwd: ${h["subject"] ?? ""}`.trim();
+    const quoted = [`---------- Forwarded message ----------`, `From: ${h["from"] ?? ""}`, `Date: ${h["date"] ?? ""}`, `Subject: ${h["subject"] ?? ""}`, `To: ${h["to"] ?? ""}`, h["cc"] ? `Cc: ${h["cc"]}` : "", "", textOf(orig)].filter((l) => l !== undefined).join("\n");
+    text = text ? `${text}\n\n${quoted}` : quoted;
+    if (text.length > TEXT_MAX) text = text.slice(0, TEXT_MAX);
+    for (const a of attachmentsOf(orig)) {
+      if (files.length >= ATTACHMENTS_MAX) break;
+      const { body: att } = await callOp(accountId, "attachment", { id: forward, attachment: a.id });
+      if (typeof att?.data === "string") files.push({ name: a.name, type: a.type, bytes: Buffer.from(att.data, "base64url") });
+    }
+  }
+  if (to.length + cc.length + bcc.length > RECIPIENTS_MAX) throw new GmailError("bad_address", `Up to ${RECIPIENTS_MAX} recipients.`);
+  if (kind === "send" && !to.length && !cc.length && !bcc.length) throw new GmailError("no_recipient", "A message to send needs at least one recipient.");
+  if (kind === "send" && !text.trim() && !files.length) throw new GmailError("bad_text", "A message to send needs some text.");
+  const total = files.reduce((n, f) => n + f.bytes.length, 0);
+  if (total > ATTACHMENTS_TOTAL_MAX) throw new GmailError("bad_attachment", `The attachments weigh ${Math.round(total / 1024 / 1024)} MB together; Gmail takes up to ${ATTACHMENTS_TOTAL_MAX / 1024 / 1024} MB.`);
+  const raw = buildRaw({ from: `${encodeHeader(account.name || account.email)} <${account.email}>`, to, cc, bcc, subject, inReplyTo, references }, text, files);
+  const { body } = await callOp(accountId, opName, { id: draftId || undefined, raw, threadId });
+  const result: ComposeResult = {
+    kind, id: String(body?.id ?? ""), messageId: typeof body?.message?.id === "string" ? body.message.id : typeof body?.id === "string" && kind === "send" ? body.id : undefined,
+    threadId: typeof body?.message?.threadId === "string" ? body.message.threadId : typeof body?.threadId === "string" ? body.threadId : threadId,
+    to, cc, bcc, subject, attachments: files.map((f) => f.name),
+  };
+  console.log(`[key-proxy] gmail: ${kind === "send" ? "sent" : kind === "draft" ? "draft saved" : "draft changed"} as ${account.email}: to ${to.join(", ") || "(nobody)"}, "${subject.slice(0, 60)}"${files.length ? `, ${files.length} attachment(s)` : ""}`);
+  return result;
 }
 
 /** The path with its placeholders filled from the caller, checked. */
@@ -471,6 +646,13 @@ export async function handleControl(req: import("node:http").IncomingMessage, re
     if (path === "/connect" && req.method === "POST") { const b = await readBody(req); sendJson(res, 200, await startConnect(b.grants, String(b.redirectUri ?? ""))); return true; }
     if (path === "/grants" && req.method === "POST") { const b = await readBody(req); sendJson(res, 200, { ok: true, account: await setGrants(String(b.id ?? ""), b.grants) }); return true; }
     if (path === "/call" && req.method === "POST") { const b = await readBody(req); sendJson(res, 200, await callOp(String(b.accountId ?? ""), b.op, b.params)); return true; }
+    if (path === "/compose" && req.method === "POST") {
+      const b = await readBody(req);
+      const kind = b.kind === "draft" || b.kind === "draft_update" || b.kind === "send" ? b.kind : null;
+      if (!kind) throw new GmailError("bad_kind", "compose takes kind draft, draft_update or send.");
+      sendJson(res, 200, await compose(String(b.accountId ?? ""), kind, b.message && typeof b.message === "object" ? b.message : {}));
+      return true;
+    }
     if (path === "/finish" && req.method === "POST") { const b = await readBody(req); sendJson(res, 200, { ok: true, account: await finishConnect(String(b.code ?? ""), String(b.state ?? "")) }); return true; }
     if (path === "/cancel" && req.method === "POST") { cancelConnect(); sendJson(res, 200, { ok: true }); return true; }
     if (path === "/disconnect" && req.method === "POST") { const b = await readBody(req); await disconnect(String(b.id ?? "")); sendJson(res, 200, { ok: true }); return true; }
