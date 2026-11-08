@@ -42,7 +42,7 @@ import {
   isValidSkillName, isAllowedSkillPath, skillFilePath, SKILL_LIMITS, builtinSkillNames,
   renderPlanText, executionPrompt, type Plan, sweepVaults,
   parsePreset, presetServerEntry, presetMarkerOf, isPresetEntryModified, presetCommandLine, launcherInstallHint,
-  isValidPresetName, PRESET_LAUNCHERS, type ConnectionPreset,
+  isValidPresetName, PRESET_LAUNCHERS, expandServerCwd, type ConnectionPreset,
   blenderImportCode, parseBlenderImportResult, BLENDER_SERVERS, BLENDER_CODE_TOOL,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
@@ -4800,8 +4800,12 @@ api.get("/connections/catalog/:name", connectionsLimiter, async (req, res) => {
     // installed / update: this preset is here, same or older version · modified: and was edited.
     const conflict = !existing ? "none" : !marker || marker.name !== preset.name ? "manual"
       : isPresetEntryModified(existing) ? "modified" : marker.version === preset.version ? "installed" : "update";
+    // This preset is installed: the values of its variables as they stand, and the folder they resolve to.
+    const installed = existingKey && marker && marker.name === preset.name
+      ? { server: existingKey, env: installedEnvOf(existing), cwd: await resolvedCwdOf(existing) }
+      : null;
     res.json({
-      preset, readme, commandLine: presetCommandLine(preset), conflict,
+      preset, readme, commandLine: presetCommandLine(preset), conflict, installed,
       installedVersion: marker?.version ?? null,
       launcher: { name: preset.requires.launcher, found: await launcherFound(preset.requires.launcher), hint: launcherInstallHint(preset.requires.launcher) },
     });
@@ -4833,6 +4837,46 @@ api.post("/connections/catalog/:name/install", connectionsLimiter, async (req, r
   } catch (err: any) {
     console.error("[api] connection install failed:", err?.message ?? err);
     res.status(502).json({ error: "install_failed" });
+  }
+});
+
+/** The environment variables of an installed entry, string values only. */
+function installedEnvOf(entry: any): Record<string, string> {
+  const env = entry?.env && typeof entry.env === "object" && !Array.isArray(entry.env) ? entry.env : {};
+  return Object.fromEntries(Object.entries(env).filter(([, v]) => typeof v === "string")) as Record<string, string>;
+}
+/** The folder an entry starts in once its placeholders are filled, and whether it is on this computer. */
+async function resolvedCwdOf(entry: any): Promise<{ path: string | null; found: boolean | null }> {
+  const path = expandServerCwd(entry?.cwd, entry?.env ?? {});
+  return { path, found: path ? await stat(path).then((s) => s.isDirectory()).catch(() => false) : null };
+}
+const ENV_VALUE_MAX = 1000;
+// Tools → Connections → View → Save. The values of the variables a catalog connection
+// ships (a folder, an address, a port) are written into its entry, and nothing else: the
+// command, its arguments and the classification stay, so the entry is not "edited by
+// hand" and still updates from the catalog. The worker that runs the server sees the entry
+// change on its heartbeat and restarts it with the new values.
+api.put("/connections/:server/env", connectionsLimiter, async (req, res) => {
+  try {
+    const server = String(req.params.server);
+    const config = await readMcpConfig();
+    if (!Object.prototype.hasOwnProperty.call(config.mcpServers, server)) return res.status(404).json({ error: "not_found" });
+    const entry = config.mcpServers[server];
+    if (!presetMarkerOf(entry)) return res.status(403).json({ error: "manual" });
+    const current = installedEnvOf(entry);
+    const given = req.body?.env;
+    if (!given || typeof given !== "object" || Array.isArray(given)) return res.status(400).json({ error: "invalid_env" });
+    for (const [key, value] of Object.entries(given)) {
+      // Only the variables the connection ships can be set here; a new one is a JSON edit.
+      if (!Object.prototype.hasOwnProperty.call(current, key)) return res.status(400).json({ error: "unknown_variable", variable: key });
+      if (typeof value !== "string" || value.length > ENV_VALUE_MAX || /[\u0000-\u001f\u007f]/.test(value)) return res.status(400).json({ error: "invalid_value", variable: key });
+    }
+    for (const [key, value] of Object.entries(given as Record<string, string>)) entry.env[key] = value.trim();
+    await writeMcpConfig(config);
+    res.json({ success: true, env: installedEnvOf(entry), cwd: await resolvedCwdOf(entry) });
+  } catch (err: any) {
+    console.error("[api] PUT /connections/:server/env failed", err);
+    res.status(500).json({ error: "internal_error" });
   }
 });
 

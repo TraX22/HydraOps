@@ -1056,9 +1056,17 @@
         "both": "brings in third-party content and also acts: asks for permission if the task has already read outside content",
         "approve": "every call waits for your approval, whatever the task read and whatever the security mode (code run inside the application)"
       },
-      "envHint": "Its environment variables, with the values it ships. Change them in Add-ons → MCP servers after installing; updating keeps your values.",
+      "envHint": "Its environment variables, with the values it ships. Once installed, you fill them in right here, in this panel; updating keeps your values.",
       "envEmpty": "(empty: fill it in if you need it)",
-      "cwdHint": "Starts inside this folder (a name between double braces is one of the variables above; left empty, the program starts where HydraOps runs)."
+      "cwdHint": "Starts inside this folder (a name between double braces is one of the variables above; left empty, the program starts where HydraOps runs).",
+      "envHintInstalled": "Its environment variables. Change a value and press Save: the connection restarts with it within a minute.",
+      "envEmptyShort": "empty",
+      "envSaved": "Saved. The connection restarts with the new values within a minute.",
+      "envSaveError": "The values could not be saved.",
+      "cwdResolved": "Starts inside:",
+      "cwdFound": "folder found",
+      "cwdMissing": "folder not found on this computer",
+      "cwdUnset": "no folder set: the program starts where HydraOps runs"
     }
   },
   "addons": {

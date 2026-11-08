@@ -1056,9 +1056,17 @@
         "both": "apporte du contenu tiers et agit en plus : demande l'autorisation si la tâche a déjà lu du contenu extérieur",
         "approve": "chaque appel attend votre approbation, quoi que la tâche ait lu et quel que soit le mode de sécurité (du code exécuté dans l'application)"
       },
-      "envHint": "Ses variables d'environnement, avec les valeurs fournies. Modifiez-les dans Compléments → Serveurs MCP après l'installation ; la mise à jour conserve vos valeurs.",
+      "envHint": "Ses variables d'environnement, avec les valeurs fournies. Une fois installée, vous les remplissez ici même, dans ce panneau ; la mise à jour conserve vos valeurs.",
       "envEmpty": "(vide : remplissez-la si besoin)",
-      "cwdHint": "Démarre dans ce dossier (un nom entre doubles accolades est l'une des variables ci-dessus ; vide, le programme démarre là où HydraOps s'exécute)."
+      "cwdHint": "Démarre dans ce dossier (un nom entre doubles accolades est l'une des variables ci-dessus ; vide, le programme démarre là où HydraOps s'exécute).",
+      "envHintInstalled": "Ses variables d'environnement. Changez une valeur et appuyez sur Enregistrer : la connexion redémarre avec elle en moins d'une minute.",
+      "envEmptyShort": "vide",
+      "envSaved": "Enregistré. La connexion redémarre avec les nouvelles valeurs en moins d'une minute.",
+      "envSaveError": "Les valeurs n'ont pas pu être enregistrées.",
+      "cwdResolved": "Démarre dans :",
+      "cwdFound": "dossier trouvé",
+      "cwdMissing": "dossier introuvable sur cet ordinateur",
+      "cwdUnset": "aucun dossier : le programme démarre là où HydraOps s'exécute"
     }
   },
   "addons": {

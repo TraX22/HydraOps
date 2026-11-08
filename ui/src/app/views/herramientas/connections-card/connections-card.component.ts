@@ -185,8 +185,10 @@ export class ConnectionsCardComponent implements OnInit, OnDestroy {
 
   open(name: string, title: string, version: string): void {
     this.preview.set({ name, title, version, loading: true });
+    this.envDraft.set({});
+    this.envNotice.set(null);
     this.api.previewConnection(name).subscribe({
-      next: data => this.patchPreview({ loading: false, data, version: data.preset.version }),
+      next: data => { this.envDraft.set({ ...(data.installed?.env ?? {}) }); this.patchPreview({ loading: false, data, version: data.preset.version }); },
       error: () => this.patchPreview({ loading: false, error: this.translate.instant('herramientas.connections.catalogError') }),
     });
   }
@@ -212,6 +214,49 @@ export class ConnectionsCardComponent implements OnInit, OnDestroy {
   /** The environment variables the connection ships, with their values (an empty one is for the user to fill in). */
   envEntries(p: PreviewState): { key: string; value: string }[] {
     return Object.entries(p.data?.preset.server?.env ?? {}).map(([key, value]) => ({ key, value }));
+  }
+
+  // ── Variables of an installed connection, edited in the preview ──
+
+  /** The values as the user is typing them; starts as the installed values. */
+  envDraft = signal<Record<string, string>>({});
+  envNotice = signal<{ kind: 'ok' | 'bad'; text: string } | null>(null);
+
+  /** The installed connection's variables, in the preset's order, with the draft value of each. */
+  installedEnv(p: PreviewState): { key: string; value: string }[] {
+    const env = p.data?.installed?.env ?? {};
+    const draft = this.envDraft();
+    return Object.keys(env).map(key => ({ key, value: draft[key] ?? env[key] }));
+  }
+
+  setEnvDraft(key: string, value: string): void {
+    this.envDraft.update(d => ({ ...d, [key]: value }));
+    this.envNotice.set(null);
+  }
+
+  /** Something typed differs from what is saved. */
+  envDirty(p: PreviewState): boolean {
+    const env = p.data?.installed?.env ?? {};
+    const draft = this.envDraft();
+    return Object.keys(env).some(k => (draft[k] ?? env[k]).trim() !== env[k]);
+  }
+
+  saveEnv(p: PreviewState): void {
+    const installed = p.data?.installed;
+    if (!installed || this.busy()) return;
+    this.busy.set(installed.server);
+    this.envNotice.set(null);
+    this.api.setConnectionEnv(installed.server, this.envDraft()).subscribe({
+      next: r => {
+        this.busy.set(null);
+        this.envDraft.set({ ...r.env });
+        if (p.data) this.patchPreview({ data: { ...p.data, installed: { ...installed, env: r.env, cwd: r.cwd } } });
+        this.envNotice.set({ kind: 'ok', text: this.translate.instant('herramientas.connections.envSaved') });
+        // The worker restarts the server with the new values on its heartbeat: look again a few times.
+        for (const ms of [6000, 15000, 30000]) this.timers.push(setTimeout(() => this.reload(), ms));
+      },
+      error: () => { this.busy.set(null); this.envNotice.set({ kind: 'bad', text: this.translate.instant('herramientas.connections.envSaveError') }); },
+    });
   }
 
   /** What the preview's main button does, or null when there is nothing to do. */

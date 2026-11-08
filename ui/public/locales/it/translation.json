@@ -1056,9 +1056,17 @@
         "both": "porta contenuti di terzi e in più agisce: chiede il permesso se l'attività ha già letto qualcosa di esterno",
         "approve": "ogni chiamata attende la tua approvazione, qualunque cosa abbia letto l'attività e con qualsiasi modalità di sicurezza (codice eseguito dentro l'applicazione)"
       },
-      "envHint": "Le sue variabili d'ambiente, con i valori forniti. Modificale in Componenti → Server MCP dopo l'installazione; l'aggiornamento conserva i tuoi valori.",
+      "envHint": "Le sue variabili d'ambiente, con i valori forniti. Una volta installata, le compili qui, in questo pannello; l'aggiornamento conserva i tuoi valori.",
       "envEmpty": "(vuota: compilala se ti serve)",
-      "cwdHint": "Si avvia in questa cartella (un nome tra doppie graffe è una delle variabili sopra; vuota, il programma si avvia dove gira HydraOps)."
+      "cwdHint": "Si avvia in questa cartella (un nome tra doppie graffe è una delle variabili sopra; vuota, il programma si avvia dove gira HydraOps).",
+      "envHintInstalled": "Le sue variabili d'ambiente. Cambia un valore e premi Salva: la connessione si riavvia con esso entro un minuto.",
+      "envEmptyShort": "vuota",
+      "envSaved": "Salvato. La connessione si riavvia con i nuovi valori entro un minuto.",
+      "envSaveError": "Non è stato possibile salvare i valori.",
+      "cwdResolved": "Si avvia in:",
+      "cwdFound": "cartella trovata",
+      "cwdMissing": "cartella non trovata su questo computer",
+      "cwdUnset": "nessuna cartella: il programma si avvia dove gira HydraOps"
     }
   },
   "addons": {

@@ -1056,9 +1056,17 @@
         "both": "trae contenido de terceros y además actúa: pide permiso si la tarea ya leyó algo de afuera",
         "approve": "cada llamada espera tu aprobación, haya leído lo que haya leído la tarea y con cualquier modo de seguridad (código que corre dentro de la aplicación)"
       },
-      "envHint": "Sus variables de entorno, con los valores que trae. Cámbialas en Complementos → Servidores MCP después de instalar; al actualizar se conservan tus valores.",
+      "envHint": "Sus variables de entorno, con los valores que trae. Una vez instalada, las completás acá mismo, en este panel; al actualizar se conservan tus valores.",
       "envEmpty": "(vacía: completala si la necesitas)",
-      "cwdHint": "Arranca dentro de esta carpeta (un nombre entre llaves dobles es una de las variables de arriba; vacía, el programa arranca donde corre HydraOps)."
+      "cwdHint": "Arranca dentro de esta carpeta (un nombre entre llaves dobles es una de las variables de arriba; vacía, el programa arranca donde corre HydraOps).",
+      "envHintInstalled": "Sus variables de entorno. Cambiá un valor y pulsá Guardar: la conexión se reinicia con él en menos de un minuto.",
+      "envEmptyShort": "vacía",
+      "envSaved": "Guardado. La conexión se reinicia con los valores nuevos en menos de un minuto.",
+      "envSaveError": "No se pudieron guardar los valores.",
+      "cwdResolved": "Arranca dentro de:",
+      "cwdFound": "carpeta encontrada",
+      "cwdMissing": "carpeta no encontrada en este equipo",
+      "cwdUnset": "sin carpeta: el programa arranca donde corre HydraOps"
     }
   },
   "addons": {
