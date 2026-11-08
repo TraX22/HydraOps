@@ -30,6 +30,14 @@ From another device, the browser asks for the token once (login screen) and keep
 
 Connections from the server's own machine never need the token. If the token cannot be saved (the `.env` is read-only), the API refuses to open to the network and stays on `127.0.0.1`.
 
+**Reaching it by a name.** The API answers only to the names it is actually reached by: an IP address, `localhost` and the machine's own name work without any setting. If you reach HydraOps through a DNS name (a reverse proxy's domain, Tailscale's MagicDNS name), list it in the `.env`, several separated by commas:
+
+```bash
+HYDRA_PUBLIC_HOST=hydra.home, hydraops.example.net
+```
+
+Any other name gets a `421` and a line in the log saying which name was refused. This is what keeps a web page open in your browser from using the API through a domain of its own pointed at `127.0.0.1` (DNS rebinding); see [Security](./13-security.md).
+
 **The key store on a server.** API keys and tokens are kept encrypted; on a desktop the key that opens them lives in the system keyring, which a headless server does not have. Put a long passphrase in the service's `.env` before you enter any key:
 
 ```
