@@ -29,9 +29,13 @@ export function scopesFor(grants: readonly GmailGrant[]): string[] {
   for (const g of GRANTS) if (grants.includes(g)) for (const s of GRANT_SCOPES[g]) if (!out.includes(s)) out.push(s);
   return out;
 }
-/** The grants a set of granted scopes covers entirely (gmail.modify covers reading too). */
+/** Scopes that imply others: full mailbox access covers every grant; gmail.modify covers reading. */
+const FULL_ACCESS_SCOPE = "https://mail.google.com/";
+const MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify";
+/** The grants a set of granted scopes covers entirely. Each scope is compared whole, never as a substring. */
 export function grantsCoveredBy(scopes: readonly string[]): GmailGrant[] {
-  const has = (s: string) => scopes.includes(s) || (s.endsWith("gmail.readonly") && scopes.includes("https://www.googleapis.com/auth/gmail.modify")) || scopes.includes("https://mail.google.com/");
+  const granted = new Set(scopes);
+  const has = (s: string) => granted.has(s) || granted.has(FULL_ACCESS_SCOPE) || (s === GRANT_SCOPES.read[0] && granted.has(MODIFY_SCOPE));
   return GRANTS.filter((g) => GRANT_SCOPES[g].every(has));
 }
 /** The scopes the grants need that the account was not granted. */

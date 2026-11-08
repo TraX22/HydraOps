@@ -75,18 +75,34 @@ const when = (msg: any): string => {
   if (!d || Number.isNaN(d.getTime())) return raw || "";
   return d.toISOString().replace("T", " ").replace(/:\d\d\.\d+Z$/, " UTC");
 };
-/** HTML as plain text: scripts and styles dropped, block ends as line breaks, tags gone, entities decoded. */
+/** Every tag removed, again until none is left (a tag split by another tag would otherwise survive one pass). */
+function stripTags(s: string): string {
+  let prev: string;
+  do { prev = s; s = s.replace(/<[^>]*>?/g, " "); } while (s !== prev);
+  return s;
+}
+const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+/** Entities decoded in one pass, so a decoded "&amp;" is never decoded again. */
+const decodeEntities = (s: string): string => s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) => {
+  const lower = e.toLowerCase();
+  if (lower.startsWith("#x")) { const n = parseInt(lower.slice(2), 16); return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : m; }
+  if (lower.startsWith("#")) { const n = Number(lower.slice(1)); return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : m; }
+  return ENTITIES[lower] ?? m;
+});
+/**
+ * HTML as plain text for the model (never rendered anywhere): scripts and styles dropped,
+ * block ends as line breaks, links kept as "text (href)", every tag gone, entities decoded once.
+ */
 export function htmlToText(html: string): string {
-  return html
-    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, "")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/(p|div|li|tr|h[1-6]|blockquote|pre)>/gi, "\n")
-    .replace(/<li[^>]*>/gi, "- ")
-    .replace(/<a\s[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, href: string, text: string) => `${text.replace(/<[^>]+>/g, "").trim()} (${href})`)
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
-    .replace(/&#(\d+);/g, (_m, n: string) => String.fromCodePoint(Number(n)))
-    .replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  const text = stripTags(
+    html
+      .replace(/<(script|style)[\s\S]*?<\/\1\s*>/gi, "")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/(p|div|li|tr|h[1-6]|blockquote|pre)\s*>/gi, "\n")
+      .replace(/<li[^>]*>/gi, "- ")
+      .replace(/<a\s[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a\s*>/gi, (_m, href: string, inner: string) => `${stripTags(inner).trim()} (${href})`),
+  );
+  return decodeEntities(text).replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 export interface MailAttachment { name: string; type: string; size: number; id: string }
 /** The readable text of a message (plain text first, HTML as text otherwise) and its attachments. */
