@@ -289,6 +289,20 @@
         "list_unfollow": "Smettere di seguire la lista {{target}}",
         "list_pin": "Fissare la lista {{target}}",
         "list_unpin": "Sbloccare la lista {{target}}"
+      },
+      "gmail": {
+        "account": "Account",
+        "to": "A",
+        "cc": "Cc",
+        "bcc": "Ccn",
+        "subject": "Oggetto",
+        "attachments": "Allegati",
+        "replySender": "il mittente del messaggio a cui si risponde",
+        "fromOriginal": "(dal messaggio originale)",
+        "replyTo": "Risposta al messaggio {{id}}, nella sua conversazione",
+        "forward": "Inoltra il messaggio {{id}}, con testo e allegati",
+        "draft": "Invia la bozza {{id}} così com'è in Gmail",
+        "note": "Parte dal tuo account, a tuo nome, quando approvi. Nulla viene addebitato."
       }
     },
     "linkUnverified": "⚠ Non verificato: l'agente non ha aperto né visto questo indirizzo in questa conversazione. Può esistere, ma viene dalla sua memoria, non da una consultazione.",
@@ -815,7 +829,7 @@
     },
     "gmail": {
       "name": "Gmail",
-      "description": "Le tue caselle: gli agenti le cercano e le leggono; ciò che leggono è contenuto esterno",
+      "description": "Le tue caselle: gli agenti le leggono, scrivono bozze e, con la tua approvazione, inviano",
       "app": "Il tuo client OAuth di Google",
       "appSet": "Client ID e secret salvati",
       "appMissing": "Nessun client",
@@ -863,7 +877,7 @@
       "disconnectConfirm": "Scollegare {{email}}? I suoi token vengono eliminati e nessun agente potrà leggerlo finché non lo colleghi di nuovo.",
       "noAccounts": "Nessun account collegato. Collega il primo con il pulsante qui sopra.",
       "noApp": "Salva prima il Client ID e il secret del tuo client OAuth di Google.",
-      "approvalHint": "Leggere una casella non chiede approvazione: nulla cambia in essa. Ma un'email è testo di altri, e il modo classico per infilare istruzioni a un agente: ciò che gli agenti leggono arriva marcato come contenuto esterno, e qualsiasi azione con effetti che vogliano fare dopo aver letto aspetta te. Un agente può usare solo gli account che gli assegni qui.",
+      "approvalHint": "Leggere una casella non chiede approvazione: nulla cambia in essa. Nemmeno una bozza: aspetta nelle Bozze di Gmail, nulla esce dall'account. Inviare attende sempre la tua approvazione nella chat (e sul telefono se hai Telegram), con l'account, i destinatari, l'oggetto e il testo in vista. Un'email è testo di altri, e il modo classico per infilare istruzioni a un agente: ciò che gli agenti leggono arriva marcato come contenuto esterno, e qualsiasi azione con effetti che vogliano fare dopo aver letto aspetta te. Un agente può usare solo gli account che gli assegni qui.",
       "errors": {
         "generic": "Google non è raggiungibile. Riprova tra poco.",
         "bad_client_id": "Non sembra un Client ID OAuth di Google (termina con .apps.googleusercontent.com).",
@@ -878,7 +892,11 @@
         "no_such_account": "Quell'account non è collegato.",
         "gmail_reauth_required": "La sessione di quell'account è scaduta: collegalo di nuovo.",
         "scopes_missing": "Quell'account non è stato collegato con quell'autorizzazione: collegalo di nuovo per aggiungerla."
-      }
+      },
+      "grantsHint": "Per cosa useranno gli agenti questo account? Solo quelle autorizzazioni vengono chieste a Google. Un'altra si può aggiungere dopo collegando di nuovo l'account; una si toglie dalla riga dell'account, senza ricollegare.",
+      "getLink": "Ottieni il link",
+      "needsReconnect": "\"{{grant}}\" richiede un'autorizzazione che Google non ha dato a questo account.",
+      "reconnectWith": "Collega di nuovo con quell'autorizzazione"
     },
     "github": {
       "name": "GitHub",

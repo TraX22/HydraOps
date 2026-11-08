@@ -8,9 +8,10 @@ const POLL_MS = 3000;
 
 /**
  * Herramientas → Gmail. One card: the user's Google OAuth client (its id and secret go to the
- * key store), the Gmail accounts connected through it, one sign-in per account, and which
- * agents may use each account. Reading a mailbox asks nobody and costs nothing; what is read
- * reaches the agents as outside content.
+ * key store), the Gmail accounts connected through it, one sign-in per account with the
+ * permissions chosen for it (read, drafts, send), and which agents may use each account.
+ * Reading a mailbox asks nobody and costs nothing; a draft asks nobody either (nothing leaves
+ * the account); sending always waits for the user.
  */
 @Component({
   selector: 'app-gmail-card',
@@ -35,12 +36,19 @@ export class GmailCardComponent implements OnInit, OnDestroy {
   clientSecret = signal('');
   readonly mask = '••••••••••••••••';
 
+  // Connecting one more account: the permissions picked first, then the link, and the address
+  // the user pastes when the browser was elsewhere.
   readonly grants = GMAIL_GRANTS;
-  /** When the sign-in is to connect an account already connected again (new tokens, more permissions). */
+  /** The picker is open: the user chooses what the account is for before the link exists. */
+  choosing = signal(false);
+  pick = signal<Record<GmailGrant, boolean>>({ read: true, compose: true, send: false });
+  /** When the sign-in is to add permissions to an account already connected. */
   reconnecting = signal<GmailAccount | null>(null);
   link = signal<{ url: string; expiresAt: string; grants?: GmailGrant[] } | null>(null);
   pasteUrl = signal('');
   copied = signal(false);
+  /** A grant the user switched on that the account's scopes do not cover: offer the sign-in that adds it. */
+  needsReconnect = signal<{ account: GmailAccount; grant: GmailGrant } | null>(null);
   private pollTimer: ReturnType<typeof setInterval> | null = null;
 
   /** Agents not yet allowed on a given account, for its "+ agent" picker. */
@@ -104,20 +112,45 @@ export class GmailCardComponent implements OnInit, OnDestroy {
 
   // ── Connecting accounts ──
 
-  /** The link for a new account, with the permissions the card offers today. */
-  connect(account?: GmailAccount): void {
+  /** Opens the permission picker for a new account (read and drafts preselected). */
+  connect(): void {
     if (this.busy() || this.link()) return;
-    this.reconnecting.set(account ?? null);
+    this.reconnecting.set(null);
+    this.pick.set({ read: true, compose: true, send: false });
+    this.choosing.set(true);
+    this.error.set('');
+  }
+
+  /** Opens the picker for an account already connected, with its grants plus the one wanted. */
+  reconnect(a: GmailAccount, extra?: GmailGrant): void {
+    if (this.busy() || this.link()) return;
+    const on = new Set<GmailGrant>([...a.grants, ...(extra ? [extra] : [])]);
+    this.pick.set({ read: true, compose: on.has('compose'), send: on.has('send') });
+    this.reconnecting.set(a);
+    this.needsReconnect.set(null);
+    this.choosing.set(true);
+    this.error.set('');
+  }
+
+  togglePick(g: GmailGrant): void {
+    if (g === 'read') return;
+    this.pick.update(p => ({ ...p, [g]: !p[g] }));
+  }
+  pickedGrants(): GmailGrant[] { const p = this.pick(); return this.grants.filter(g => p[g]); }
+
+  /** The link, for the permissions picked. */
+  startConnect(): void {
+    if (this.busy()) return;
     this.busy.set(true);
     this.error.set('');
-    const grants = [...new Set<GmailGrant>([...this.grants, ...(account?.grants ?? [])])];
-    this.api.connectGmailAccount(grants).subscribe({
-      next: l => { this.busy.set(false); this.link.set(l); this.copied.set(false); this.startPolling(); },
-      error: e => { this.busy.set(false); this.reconnecting.set(null); this.error.set(this.errorText(e)); },
+    this.api.connectGmailAccount(this.pickedGrants()).subscribe({
+      next: l => { this.busy.set(false); this.choosing.set(false); this.link.set(l); this.copied.set(false); this.startPolling(); },
+      error: e => { this.busy.set(false); this.error.set(this.errorText(e)); },
     });
   }
 
   cancel(): void {
+    this.choosing.set(false);
     this.reconnecting.set(null);
     if (!this.link()) return;
     this.api.cancelGmailConnect().subscribe({ next: g => { this.link.set(null); this.pasteUrl.set(''); this.apply(g); }, error: () => {} });
@@ -168,6 +201,20 @@ export class GmailCardComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Switches one grant of a connected account; one its scopes lack asks for a new sign-in instead. */
+  toggleGrant(a: GmailAccount, g: GmailGrant): void {
+    if (g === 'read' || this.busy()) return;
+    const on = a.grants.includes(g);
+    const grants = on ? a.grants.filter(k => k !== g) : [...a.grants, g];
+    this.needsReconnect.set(null);
+    this.api.setGmailGrants(a.id, grants).subscribe({
+      next: n => { this.apply(n); this.flash(); },
+      error: e => {
+        if (String(e?.error?.error) === 'scopes_missing') this.needsReconnect.set({ account: a, grant: g });
+        else this.error.set(this.errorText(e));
+      },
+    });
+  }
   hasGrant(a: GmailAccount, g: GmailGrant): boolean { return a.grants.includes(g); }
 
   addAgent(a: GmailAccount, event: Event): void {

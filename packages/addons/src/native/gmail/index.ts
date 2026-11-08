@@ -250,3 +250,86 @@ export const gmailReadTool: HydraTool = {
     ].filter(Boolean).join("\n");
   },
 };
+
+// ─── Writing ────────────────────────────────────────────────────────────────
+
+const recipients = z.array(z.string().min(3).max(254)).max(50);
+const messageFields = {
+  to: recipients.optional().describe("Recipients, each 'Name <user@host>' or 'user@host'. For a reply, the sender of the message answered unless given."),
+  cc: recipients.optional(),
+  bcc: recipients.optional(),
+  subject: z.string().max(500).optional().describe("The subject. For a reply or a forward, taken from the original ('Re: …', 'Fwd: …') unless given."),
+  text: z.string().max(100_000).optional().describe("The message, plain text, exactly as it should read."),
+  reply_to: z.string().max(200).optional().describe("The id of the message this one answers (from gmail_search / gmail_read): it goes into that thread with the right headers."),
+  forward: z.string().max(200).optional().describe("The id of a message to forward: its text and attachments are included after `text`."),
+  attachments: z.array(z.string().max(200)).max(20).optional().describe("Files to attach, by the file name the conversation shows (the user's attachments or a file this task produced)."),
+};
+const describeResult = (r: any): string => [r.to?.length ? `to ${r.to.join(", ")}` : "", r.cc?.length ? `cc ${r.cc.join(", ")}` : "", r.bcc?.length ? `bcc ${r.bcc.join(", ")}` : "", `subject "${r.subject ?? ""}"`, r.attachments?.length ? `${r.attachments.length} attachment(s): ${r.attachments.join(", ")}` : ""].filter(Boolean).join(" · ");
+
+export const gmailDraftTool: HydraTool = {
+  name: "gmail_draft",
+  title: "Gmail drafts",
+  // A draft stays in the account's Drafts folder until the user sends it from Gmail or asks for
+  // gmail_send: nothing leaves the account, so it asks for no approval (the user's decision).
+  risk: {},
+  description:
+    "Work with the drafts of one of the user's Gmail accounts: `create` a draft (a new message, a reply with `reply_to`, or a forward with `forward`), `update` one (`id` plus the fields to replace), `delete` one, `list` them, `get` one. A draft asks for no approval: it waits in Gmail's Drafts for the user, nothing is sent. Write the final text, as the user would send it; to send a draft, gmail_send with its id (which waits for the user's approval). The account must be connected for drafts (gmail_accounts says so).",
+  schema: z.object({
+    account: z.string().min(3).describe("The address of the account, as gmail_accounts lists it."),
+    action: z.enum(["create", "update", "delete", "list", "get"]),
+    id: z.string().max(200).optional().describe("The draft id (update, delete, get)."),
+    ...messageFields,
+    limit: z.number().int().min(1).max(50).optional().describe("How many drafts to list, 20 by default."),
+    page: z.string().max(200).optional(),
+  }),
+  execute: async ({ account, action, id, to, cc, bcc, subject, text, reply_to, forward, attachments, limit, page }, ctx) => {
+    const agentId = String(ctx?.agentId ?? "").trim();
+    if (!agentId) return "This task carries no agent identity, so no Gmail account can be used.";
+    if (["update", "delete", "get"].includes(action) && !id) return `gmail_draft ${action} needs the draft \`id\`.`;
+    if (action === "create" && !text && !forward) return "gmail_draft create needs the `text` (or a message to `forward`).";
+    try {
+      const { ok, status, data } = await callApi("POST", "/gmail/compose", { agentId, account, action, id, to, cc, bcc, subject, text, reply_to, forward, attachments, limit, page, taskId: taskIdOf(ctx) }, 150_000);
+      if (!ok) return `Not done${[400, 403, 404, 409].includes(status) ? "" : ` (Gmail answered ${status})`}: ${data?.message || data?.error || "Gmail refused the request."}`;
+      if (action === "list") {
+        const drafts: any[] = Array.isArray(data.body?.drafts) ? data.body.drafts : [];
+        if (!drafts.length) return `No drafts in ${data.account?.email}.`;
+        return [`${drafts.length} draft(s) in ${data.account?.email}:`, ...drafts.map((d) => `- draft ${d.id} (message ${d.message?.id}${d.message?.threadId && d.message.threadId !== d.message.id ? `, thread ${d.message.threadId}` : ""})`), data.body?.nextPageToken ? `More: pass page="${data.body.nextPageToken}".` : "", "gmail_draft get gives one in full."].filter(Boolean).join("\n");
+      }
+      if (action === "get") return [`Draft ${data.body?.id} in ${data.account?.email}:`, formatMessage(data.body?.message ?? {})].join("\n");
+      if (action === "delete") return `Draft ${id} deleted from ${data.account?.email}.`;
+      return `${action === "create" ? "Draft saved" : "Draft changed"} in ${data.account?.email}: draft ${data.id}${data.threadId ? ` (thread ${data.threadId})` : ""} — ${describeResult(data)}. It waits in Gmail's Drafts; nothing was sent. To send it: gmail_send with draft "${data.id}" (the user approves first).`;
+    } catch (e: any) {
+      return `Not done: ${e?.message || e}`;
+    }
+  },
+};
+
+export const gmailSendTool: HydraTool = {
+  name: "gmail_send",
+  title: "Send from Gmail",
+  // A message goes out under the user's name: every call waits for the user's approval, one by one.
+  risk: { sensitive: true, approval: "always" },
+  description:
+    "Send an e-mail from one of the user's Gmail accounts: a new message (`to`, `subject`, `text`), a reply (`reply_to` with the id of the message answered; `to` and `subject` come from it unless given), a forward (`forward` with the id; `text` goes above the forwarded message), with the user's files as `attachments`; or send an existing draft by its id (`draft`). It is never run without the user's approval: they see the account, the recipients, the subject and the text exactly as they will go out, and decide. Give the final text, not a sketch. The account must be connected for sending (gmail_accounts says so).",
+  schema: z.object({
+    account: z.string().min(3).describe("The address of the account to send from, as gmail_accounts lists it."),
+    ...messageFields,
+    draft: z.string().max(200).optional().describe("To send an existing draft: its id (from gmail_draft). Then no other field is needed."),
+  }),
+  execute: async (args, ctx) => {
+    const agentId = String(ctx?.agentId ?? "").trim();
+    if (!agentId) return "This task carries no agent identity, so nothing can be sent.";
+    const a = args as Record<string, any>;
+    if (!a.draft && !a.text && !a.forward) return "Not sent: the message needs `text` (or a message to `forward`), or a `draft` to send.";
+    if (!a.draft && !a.reply_to && !(a.to?.length || a.cc?.length || a.bcc?.length)) return "Not sent: the message needs at least one recipient (`to`), or `reply_to` to answer someone.";
+    try {
+      // The arguments go as they are: the API accepts this run only as the execution of the call the user approved, argument for argument.
+      const { ok, status, data } = await callApi("POST", "/gmail/send", { agentId, taskId: taskIdOf(ctx), args: a }, 150_000);
+      if (!ok) return `Not sent${[400, 403, 404, 409].includes(status) ? "" : ` (Gmail answered ${status})`}: ${data?.message || data?.error || "Gmail refused the request."}`;
+      if (a.draft) return `Sent from ${data.account?.email}: draft ${a.draft} went out as message ${data.id ?? "?"}${data.threadId ? ` (thread ${data.threadId})` : ""}. Tell the user it was sent.`;
+      return `Sent from ${data.account?.email}: message ${data.messageId ?? data.id ?? "?"}${data.threadId ? ` (thread ${data.threadId})` : ""} — ${describeResult(data)}. Tell the user it was sent.`;
+    } catch (e: any) {
+      return `Not sent: ${e?.message || e}`;
+    }
+  },
+};

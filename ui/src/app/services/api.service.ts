@@ -375,8 +375,7 @@ export interface GmailAccount {
 }
 /** A permission group of a Gmail account: what the user connected it for. */
 export type GmailGrant = 'read' | 'compose' | 'send';
-/** The groups the card offers today (drafts and sending arrive with their tools). */
-export const GMAIL_GRANTS: GmailGrant[] = ['read'];
+export const GMAIL_GRANTS: GmailGrant[] = ['read', 'compose', 'send'];
 export interface GmailIntegration {
   enabled: boolean;
   appConfigured: boolean;

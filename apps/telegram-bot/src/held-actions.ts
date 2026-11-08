@@ -109,8 +109,26 @@ function describeXAct(a: any): string {
   ].join("\n\n");
 }
 
+/** An e-mail to send from Gmail: the account, who gets it, the subject, the text, the files; or the draft to send. */
+function describeGmailSend(a: any): string {
+  const args = a.args ?? {};
+  const list = (v: unknown) => (Array.isArray(v) ? v.map(String).join(", ") : typeof v === "string" ? v : "");
+  if (args.draft) return [`⏸ Send from Gmail — ${a.agentId} wants to send draft ${args.draft} as ${args.account ?? "?"}`, "Expires in 24 h."].join("\n\n");
+  const head = [
+    `To: ${list(args.to) || "(the sender of the message answered)"}`,
+    list(args.cc) ? `Cc: ${list(args.cc)}` : "",
+    list(args.bcc) ? `Bcc: ${list(args.bcc)}` : "",
+    `Subject: ${args.subject || "(from the original message)"}`,
+    args.reply_to ? `A reply to message ${args.reply_to}.` : "",
+    args.forward ? `Forwards message ${args.forward}.` : "",
+    Array.isArray(args.attachments) && args.attachments.length ? `Attachments: ${args.attachments.map(String).join(", ")}` : "",
+  ].filter(Boolean).join("\n");
+  return [`⏸ Send from Gmail — ${a.agentId} wants to send as ${args.account ?? "?"}`, head, clip(String(args.text ?? ""), 1500), "Expires in 24 h."].filter(Boolean).join("\n\n");
+}
+
 function describe(a: any): string {
   if (a.toolName === "x_post") return describePost(a);
+  if (a.toolName === "gmail_send") return describeGmailSend(a);
   if (a.toolName === "x_engage" || a.toolName === "x_users" || a.toolName === "x_dm") return describeXAct(a);
   const origins = (Array.isArray(a.origins) ? a.origins : []).map((o: any) => o?.ref ?? o?.tool).filter(Boolean).slice(0, 3);
   const args = a.args && typeof a.args === "object"
@@ -141,7 +159,7 @@ async function notifyNew(deps: HeldActionsDeps): Promise<void> {
       inline_keyboard: [
         [{ text: "✅ Approve", callback_data: `held:a:${a.id}` }, { text: "❌ Reject", callback_data: `held:r:${a.id}` }],
         // A post always asks, one by one: no task-wide approval for it.
-        ...(a.toolName === "x_post" || a.toolName === "x_dm" ? [] : [[{ text: "✅✅ Approve for the rest of the task", callback_data: `held:t:${a.id}` }]]),
+        ...(a.toolName === "x_post" || a.toolName === "x_dm" || a.toolName === "gmail_send" ? [] : [[{ text: "✅✅ Approve for the rest of the task", callback_data: `held:t:${a.id}` }]]),
       ],
     };
     const text = describe(a);

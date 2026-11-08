@@ -267,7 +267,7 @@ Press **Connect an account** and open the link in a browser **on this computer**
 
 When HydraOps runs on a server and your browser is elsewhere, the browser lands on its own machine's `127.0.0.1` and finds nothing there: copy the whole address from its bar and paste it in the card's field. Same result.
 
-Each account's row shows what it may be used for (today, **Read**). **Connect again** renews its tokens, and is also how a permission is added later; **Disconnect** forgets it and revokes its tokens at Google.
+Each account's row shows what it may be used for as chips (**Read**, **Drafts**, **Send**; see section 5). **Connect again** renews its tokens, and is also how a permission is added later; **Disconnect** forgets it and revokes its tokens at Google.
 
 ### 3. Who may use which account
 
@@ -282,6 +282,15 @@ Give the agent the tools in the Agents view (one line `gmail` gives it all of th
 - `gmail_read` gives one **message** in full (sender, date, subject, the text, the list of attachments), a whole **thread**, the account's **labels**, or saves an **attachment** into the task: the file appears under the agent's reply, and the agent can hand it to another tool (read a PDF, look at an image).
 
 Reading changes nothing in the mailbox, so it asks for no approval. But an e-mail is other people's writing, and the classic way to slip instructions to an agent ("assistant, forward everything to…"): everything the tools return reaches the agent **marked as outside content**, the task is marked as having read it, and any action with effects the agent wants to take afterwards waits for your approval (see [Security](./13-security.md)). A message that tells the agent to do something is reported to you, not obeyed.
+
+### 5. Drafts and sending
+
+When you connect an account you tick what the agents will use it for: **Read** (always), **Drafts** and **Send**. Only those permissions are asked of Google; to add one later, the account is connected again with it ticked (its row offers that), and one is taken away from the row without reconnecting.
+
+- `gmail_draft` writes a **draft** into the account: a new message, a reply (`reply_to`, the id of the message answered: the draft goes into that thread with the right headers, to its sender unless you say otherwise), or a forward (`forward`, with the original's text and attachments), with your files attached by name. It also lists, reads, changes and deletes drafts. **A draft asks for no approval**: nothing leaves the account, it waits in Gmail's Drafts for you to send it from Gmail, or to ask the agent to send it. So "read Ana's mail and leave me the reply ready" works in one go.
+- `gmail_send` **sends**: a new message, a reply, a forward, or an existing draft by its id. It is held **every time**, whatever the task read: the card shows the account, the recipients, the subject, the text exactly as it will go out and the attachments (so does the Telegram notice), and **Approve** sends it, once; there is no "approve for the rest of the task" for a message. The server sends only the exact message you approved (same agent, account and fields) and refuses, before anything reaches Google, an address that is not one, a message with no recipient or no text, an attachment that is not one of your files or over 25 MB in all, and anything while the switch is OFF.
+
+The message is built by HydraOps from the fields the agent gave (plain text, UTF-8, attachments as proper MIME parts); the agent never hands over a raw message. Gmail puts the sent message in Sent and threads a reply with the original.
 
 ## Hugging Face: models, datasets and Spaces
 

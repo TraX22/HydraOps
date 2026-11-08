@@ -289,6 +289,20 @@
         "list_unfollow": "Deixar de seguir a lista {{target}}",
         "list_pin": "Fixar a lista {{target}}",
         "list_unpin": "Desafixar a lista {{target}}"
+      },
+      "gmail": {
+        "account": "Conta",
+        "to": "Para",
+        "cc": "Cc",
+        "bcc": "Cco",
+        "subject": "Assunto",
+        "attachments": "Anexos",
+        "replySender": "quem enviou a mensagem respondida",
+        "fromOriginal": "(da mensagem original)",
+        "replyTo": "Resposta à mensagem {{id}}, na sua conversa",
+        "forward": "Encaminha a mensagem {{id}}, com texto e anexos",
+        "draft": "Envia o rascunho {{id}} como está no Gmail",
+        "note": "Sai da sua conta, em seu nome, quando você aprovar. Nada é cobrado."
       }
     },
     "linkUnverified": "⚠ Não verificado: o agente não abriu nem viu este endereço nesta conversa. Pode existir, mas veio da memória dele, não de uma consulta.",
@@ -815,7 +829,7 @@
     },
     "gmail": {
       "name": "Gmail",
-      "description": "Suas caixas de e-mail: os agentes pesquisam e leem; o que leem é conteúdo externo",
+      "description": "Suas caixas de e-mail: os agentes leem, escrevem rascunhos e, com sua aprovação, enviam",
       "app": "Seu cliente OAuth do Google",
       "appSet": "Client ID e segredo salvos",
       "appMissing": "Sem cliente",
@@ -863,7 +877,7 @@
       "disconnectConfirm": "Desconectar {{email}}? Seus tokens são apagados e nenhum agente poderá lê-la até você conectá-la de novo.",
       "noAccounts": "Nenhuma conta conectada ainda. Conecte a primeira com o botão acima.",
       "noApp": "Salve primeiro o Client ID e o segredo do seu cliente OAuth do Google.",
-      "approvalHint": "Ler uma caixa de e-mail não pede aprovação: nada muda nela. Mas um e-mail é texto de outras pessoas, e o jeito clássico de passar instruções a um agente: o que os agentes leem chega marcado como conteúdo externo, e qualquer ação com efeitos que queiram fazer depois de ler espera por você. Um agente só pode usar as contas que você atribuir aqui.",
+      "approvalHint": "Ler uma caixa de e-mail não pede aprovação: nada muda nela. Um rascunho também não: ele espera nos Rascunhos do Gmail, nada sai da conta. Enviar sempre aguarda sua aprovação no chat (e no celular se você tiver Telegram), com a conta, os destinatários, o assunto e o texto à vista. Um e-mail é texto de outras pessoas, e o jeito clássico de passar instruções a um agente: o que os agentes leem chega marcado como conteúdo externo, e qualquer ação com efeitos que queiram fazer depois de ler espera por você. Um agente só pode usar as contas que você atribuir aqui.",
       "errors": {
         "generic": "Não foi possível alcançar o Google. Tente de novo em instantes.",
         "bad_client_id": "Isso não parece um Client ID OAuth do Google (termina em .apps.googleusercontent.com).",
@@ -878,7 +892,11 @@
         "no_such_account": "Essa conta não está conectada.",
         "gmail_reauth_required": "A sessão dessa conta expirou: conecte-a de novo.",
         "scopes_missing": "Essa conta não foi conectada com essa permissão: conecte-a de novo para adicioná-la."
-      }
+      },
+      "grantsHint": "Para que os agentes vão usar esta conta? Só essas permissões são pedidas ao Google. Outra pode ser adicionada depois conectando a conta de novo; uma é retirada na linha da conta, sem reconectar.",
+      "getLink": "Obter o link",
+      "needsReconnect": "\"{{grant}}\" precisa de uma permissão que o Google não deu a esta conta.",
+      "reconnectWith": "Conectar de novo com essa permissão"
     },
     "github": {
       "name": "GitHub",
