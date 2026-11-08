@@ -17,6 +17,7 @@ import { Readable } from "node:stream";
 import { KeystoreError, keyStoreDir, keyStoreFile, readStore, securePrivateDir } from "@hydraops/config";
 import { handleControl as chatgptControl, isConnected as chatgptConnected, proxy as chatgptProxy } from "./chatgpt.js";
 import { handleControl as xControl, hasAccounts as xHasAccounts } from "./x.js";
+import { handleControl as gmailControl, hasAccounts as gmailHasAccounts } from "./gmail.js";
 
 const PORT = Number(process.env.KEY_PROXY_PORT || 9099);
 const KEYS_PATH = keyStoreFile;
@@ -103,7 +104,16 @@ const server = http.createServer(async (req, res) => {
       if (await chatgptConnected()) configured.push("chatgpt");
       // "x" is the user's X accounts (their own X app), not a key.
       if (await xHasAccounts()) configured.push("x");
+      // "gmail" is the user's Gmail accounts (their own Google OAuth client), not a key.
+      if (await gmailHasAccounts()) configured.push("gmail");
       return sendJson(res, 200, { ok: true, configured });
+    }
+
+    // The user's Gmail accounts: the OAuth client's credentials and each account's sign-in and tokens (gmail.ts).
+    const gmail = url.match(/^\/gmail(\/.*)?$/);
+    if (gmail) {
+      if (await gmailControl(req, res, (gmail[1] || "/").replace(/\?.*$/, ""))) return;
+      return sendJson(res, 404, { error: "Unknown gmail path" });
     }
 
     // The user's X accounts: the app's credentials and each account's sign-in and tokens (x.ts).

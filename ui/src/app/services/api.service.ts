@@ -357,6 +357,39 @@ export interface XIntegration {
   connected?: { username: string };
 }
 
+// ── Gmail (Herramientas → Gmail): the user's Gmail accounts, connected to their own Google OAuth client ──
+export interface GmailAccount {
+  /** Google's stable account id. */
+  id: string;
+  email: string;
+  name: string;
+  avatar?: string;
+  status: 'connected' | 'reauth';
+  connectedAt: string;
+  refreshedAt?: string;
+  /** The agents allowed to use this account (kept by the API). */
+  agents: string[];
+  /** What the account was connected for (never more than its scopes allow). */
+  grants: GmailGrant[];
+  scopes: string[];
+}
+/** A permission group of a Gmail account: what the user connected it for. */
+export type GmailGrant = 'read' | 'compose' | 'send';
+/** The groups the card offers today (drafts and sending arrive with their tools). */
+export const GMAIL_GRANTS: GmailGrant[] = ['read'];
+export interface GmailIntegration {
+  enabled: boolean;
+  appConfigured: boolean;
+  clientId?: string;
+  /** Where Google sends the browser back: this HydraOps' own loopback address (nothing to register). */
+  redirectUri: string;
+  accounts: GmailAccount[];
+  pending: { url: string; expiresAt: string; finishing?: boolean } | null;
+  lastError?: string;
+  /** Set by the manual finish: the account that just came in. */
+  connected?: { email: string };
+}
+
 // External integrations (Herramientas). Telegram is the first connector.
 export interface TelegramIntegration {
   enabled: boolean;
@@ -1086,6 +1119,34 @@ export class ApiService {
 
   cancelXConnect(): Observable<XIntegration> {
     return this.http.post<XIntegration>(`${this.base}/system/integrations/x/cancel`, {});
+  }
+
+  // ── Gmail ──
+  getGmailIntegration(): Observable<GmailIntegration> {
+    return this.http.get<GmailIntegration>(`${this.base}/system/integrations/gmail`);
+  }
+  saveGmailIntegration(cfg: { enabled?: boolean; accounts?: { id: string; agents?: string[] }[] }): Observable<GmailIntegration> {
+    return this.http.post<GmailIntegration>(`${this.base}/system/integrations/gmail`, cfg);
+  }
+  /** The OAuth client's id and secret go straight to the key store; an empty secret keeps the stored one. */
+  saveGmailApp(clientId: string, clientSecret: string): Observable<GmailIntegration> {
+    return this.http.post<GmailIntegration>(`${this.base}/system/integrations/gmail/app`, { clientId, clientSecret });
+  }
+  /** Starts the sign-in of one more account for the given grants: the link to open in a browser. */
+  connectGmailAccount(grants: GmailGrant[]): Observable<{ url: string; expiresAt: string; grants: GmailGrant[] }> {
+    return this.http.post<{ url: string; expiresAt: string; grants: GmailGrant[] }>(`${this.base}/system/integrations/gmail/connect`, { grants });
+  }
+  setGmailGrants(id: string, grants: GmailGrant[]): Observable<GmailIntegration> {
+    return this.http.post<GmailIntegration>(`${this.base}/system/integrations/gmail/grants`, { id, grants });
+  }
+  finishGmailConnect(url: string): Observable<GmailIntegration> {
+    return this.http.post<GmailIntegration>(`${this.base}/system/integrations/gmail/finish`, { url });
+  }
+  cancelGmailConnect(): Observable<GmailIntegration> {
+    return this.http.post<GmailIntegration>(`${this.base}/system/integrations/gmail/cancel`, {});
+  }
+  disconnectGmailAccount(id: string): Observable<GmailIntegration> {
+    return this.http.post<GmailIntegration>(`${this.base}/system/integrations/gmail/disconnect`, { id });
   }
 
   disconnectXAccount(id: string): Observable<XIntegration> {

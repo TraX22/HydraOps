@@ -69,6 +69,10 @@ export function progressRef(toolName: string, args: unknown): string | undefined
     const what = [str('action'), str('query') ?? str('name') ?? str('username') ?? str('list') ?? str('place') ?? str('id'), str('account') ? `as @${str('account')}` : undefined].filter(Boolean).join(' ');
     return what ? clipRef(what) : undefined;
   }
+  if (toolName.startsWith('gmail_')) {
+    const what = [str('action'), str('query') ?? str('id'), str('account') ? `as ${str('account')}` : undefined].filter(Boolean).join(' ');
+    return what ? clipRef(what) : undefined;
+  }
   if (toolName.startsWith('huggingface')) {
     const repo = str('repo') ?? str('dataset') ?? str('query') ?? str('name') ?? str('path');
     return repo ? clipRef(repo) : undefined;

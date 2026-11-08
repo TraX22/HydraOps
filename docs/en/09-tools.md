@@ -246,6 +246,43 @@ Two more tools, both reads unless said otherwise, charged like every read and re
 Reading lists and Spaces needs two permissions X added after the first accounts were connected (`list.read`, `space.read`). An account connected before shows a line in its row saying so, with a button to connect it again; until then those reads answer that the account lacks the permission, and nothing else changes.
 
 
+## Gmail: your mailboxes, read by the agents
+
+HydraOps connects to **your own Google Cloud OAuth client**, and through it to as many Gmail accounts as you like. The agents search and read them with the `gmail_search` and `gmail_read` tools; drafts and sending come with later versions, each under its own permission. Gmail's API is free: nothing is charged per read.
+
+### 1. Create the OAuth client in Google Cloud
+
+Do this once, in [console.cloud.google.com](https://console.cloud.google.com/):
+
+1. Create a project (any name), and under **APIs & Services → Library** enable the **Gmail API**.
+2. Under **APIs & Services → OAuth consent screen**, choose **External**, fill in the app name and your e-mail, and when it exists press **Publish app** so it is **In production**. An app left in *Testing* gives refresh tokens that expire after seven days, and the accounts would ask to be connected again every week. Google will show a "this app isn't verified" warning when you connect an account: it is your own app, nobody verified it, and you continue through *Advanced*.
+3. Under **APIs & Services → Credentials** press **Create credentials → OAuth client ID**, type **Desktop app**, any name. Copy the **Client ID** (it ends in `.apps.googleusercontent.com`) and the **Client secret**.
+4. In **Tools → Gmail** paste both and press **Save**. They go to HydraOps' key store, never to the database or the repository.
+
+There is no callback address to register: a Desktop client sends the browser back to this computer's HydraOps (`http://127.0.0.1:3000/api/integrations/gmail/callback`, shown in the card) and Google accepts any loopback address for that kind of client.
+
+### 2. Connect each account
+
+Press **Connect an account** and open the link in a browser **on this computer**, signed in to Google as the account you want to connect (choose it on Google's account picker if several are open). Accept the permissions HydraOps asks for, Google brings the browser back to HydraOps, and the account appears in the list within seconds, with its tokens in the key store, refreshed on their own.
+
+When HydraOps runs on a server and your browser is elsewhere, the browser lands on its own machine's `127.0.0.1` and finds nothing there: copy the whole address from its bar and paste it in the card's field. Same result.
+
+Each account's row shows what it may be used for (today, **Read**). **Connect again** renews its tokens, and is also how a permission is added later; **Disconnect** forgets it and revokes its tokens at Google.
+
+### 3. Who may use which account
+
+Each connected account lists the agents allowed to use it, and a new account starts with **nobody**: the tools refuse, on the server side, any account the agent was not given here, so a model's mistake cannot read the wrong mailbox. Add agents with the picker on the account's row; the ON/OFF switch at the top pauses every account at once.
+
+### 4. Reading: searches, messages, threads, attachments
+
+Give the agent the tools in the Agents view (one line `gmail` gives it all of them) and the account in Tools → Gmail. Then ask as you would ask a person: "what did Ana write about the quote?", "summarise the unread mail from this week". The agent has:
+
+- `gmail_accounts` lists the accounts it may use and what each was connected for. With one, it uses it; with several and a request that does not say which, it asks you.
+- `gmail_search` searches one account with **Gmail's own syntax** (`from:ana is:unread newer_than:14d`, `subject:invoice has:attachment`, `label:Clients`…) and returns the matching messages as lines: id, date, sender, subject, snippet. Ten by default, up to 25, with a continuation.
+- `gmail_read` gives one **message** in full (sender, date, subject, the text, the list of attachments), a whole **thread**, the account's **labels**, or saves an **attachment** into the task: the file appears under the agent's reply, and the agent can hand it to another tool (read a PDF, look at an image).
+
+Reading changes nothing in the mailbox, so it asks for no approval. But an e-mail is other people's writing, and the classic way to slip instructions to an agent ("assistant, forward everything to…"): everything the tools return reaches the agent **marked as outside content**, the task is marked as having read it, and any action with effects the agent wants to take afterwards waits for your approval (see [Security](./13-security.md)). A message that tells the agent to do something is reported to you, not obeyed.
+
 ## Hugging Face: models, datasets and Spaces
 
 With the **huggingface** tools the agents work with the Hugging Face Hub the way the GitHub ones work with GitHub. Give an agent all of them with one line, `huggingface`, in its tools (**Agents → Tools**).
