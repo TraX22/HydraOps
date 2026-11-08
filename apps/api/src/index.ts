@@ -94,8 +94,11 @@ const app = express();
 // HYDRA_PUBLIC_HOST, such as a reverse proxy's domain) and gives every other Host a 421.
 //
 // Reading answers: CORS used to allow any origin. Now a page is given its origin back
-// only when it was served from one of those same names, so a page from another site
-// that reaches the API by its real address cannot read what comes back.
+// only when its origin is the very host the request was addressed to (the UI is served
+// by this API, so that is every legitimate page), so a page from another site that
+// reaches the API by its real address cannot read what comes back. A page served from
+// some other address literal is another site too, so matching the Host is the rule,
+// not "any served name".
 const SERVED_NAMES: ReadonlySet<string> = (() => {
   const names = new Set<string>(["localhost", "::1"]);
   const own = os.hostname().trim().toLowerCase();
@@ -114,8 +117,11 @@ function isServedHost(host: string): boolean {
   if (/^127\.\d+\.\d+\.\d+$/.test(name) || /^\d+\.\d+\.\d+\.\d+$/.test(name)) return true;
   return /^[0-9a-f:]+$/.test(name) && name.includes(":"); // an IPv6 literal
 }
-function isServedOrigin(origin: string): boolean {
-  try { return isServedHost(new URL(origin).host); } catch { return false; }
+/** The Origin a browser sent, when it names the same host (with its port) the request was addressed to. */
+function sameHostOrigin(req: express.Request): string | null {
+  const origin = String(req.headers.origin || "");
+  if (!origin) return null;
+  try { return new URL(origin).host.toLowerCase() === String(req.headers.host || "").toLowerCase() ? origin : null; } catch { return null; }
 }
 // A refused name is logged once an hour: enough to tell an operator what to add to HYDRA_PUBLIC_HOST.
 const refusedHostsLogged = new Map<string, number>();
@@ -130,7 +136,7 @@ app.use((req, res, next) => {
   }
   res.status(421).json({ error: "unknown_host", message: "This server does not answer to that host name." });
 });
-app.use(cors({ origin: (origin, cb) => cb(null, !origin || isServedOrigin(origin)) }));
+app.use(cors((req, cb) => cb(null, { origin: sameHostOrigin(req) ?? false })));
 app.use(express.json({ limit: "1mb" }));
 
 // ─── Autenticación por token ─────────────────────────────────────────────────
