@@ -512,7 +512,8 @@ function textOf(msg: any): string {
     if (mime === "text/plain" && data) texts.push(data); else if (mime === "text/html" && data) htmls.push(data);
   };
   walk(msg?.payload);
-  const strip = (s: string) => { let prev: string; let out = s.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|div|li|tr|h[1-6])\s*>/gi, "\n"); do { prev = out; out = out.replace(/<[^>]*>?/g, " "); } while (out !== prev); return out.replace(/&(amp|lt|gt|quot|nbsp|#39);/g, (m, e) => ({ amp: "&", lt: "<", gt: ">", quot: '"', nbsp: " ", "#39": "'" })[e as string] ?? m).replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim(); };
+  // Blocks and tags are removed until none is left (a tag split by another tag would otherwise survive one pass).
+  const strip = (s: string) => { let prev: string; let out = s; do { prev = out; out = out.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, ""); } while (out !== prev); out = out.replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|div|li|tr|h[1-6])\s*>/gi, "\n"); do { prev = out; out = out.replace(/<[^>]*>?/g, " "); } while (out !== prev); return out.replace(/&(amp|lt|gt|quot|nbsp|#39);/g, (m, e) => ({ amp: "&", lt: "<", gt: ">", quot: '"', nbsp: " ", "#39": "'" })[e as string] ?? m).replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim(); };
   return (texts.length ? texts.join("\n") : htmls.map(strip).join("\n")).trim();
 }
 const attachmentsOf = (msg: any): { name: string; type: string; id: string; size: number }[] => {
