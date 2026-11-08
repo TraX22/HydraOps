@@ -1056,9 +1056,17 @@
         "both": "traz conteúdo de terceiros e também age: pede permissão se a tarefa já leu algo externo",
         "approve": "cada chamada espera a sua aprovação, tenha a tarefa lido o que for e em qualquer modo de segurança (código executado dentro do aplicativo)"
       },
-      "envHint": "Suas variáveis de ambiente, com os valores que traz. Altere-as em Complementos → Servidores MCP depois de instalar; a atualização mantém os seus valores.",
+      "envHint": "Suas variáveis de ambiente, com os valores que traz. Depois de instalada, você as preenche aqui mesmo, neste painel; a atualização mantém os seus valores.",
       "envEmpty": "(vazia: preencha se precisar)",
-      "cwdHint": "Inicia dentro desta pasta (um nome entre chaves duplas é uma das variáveis acima; vazia, o programa inicia onde o HydraOps roda)."
+      "cwdHint": "Inicia dentro desta pasta (um nome entre chaves duplas é uma das variáveis acima; vazia, o programa inicia onde o HydraOps roda).",
+      "envHintInstalled": "Suas variáveis de ambiente. Altere um valor e pressione Salvar: a conexão reinicia com ele em menos de um minuto.",
+      "envEmptyShort": "vazia",
+      "envSaved": "Salvo. A conexão reinicia com os novos valores em menos de um minuto.",
+      "envSaveError": "Não foi possível salvar os valores.",
+      "cwdResolved": "Inicia dentro de:",
+      "cwdFound": "pasta encontrada",
+      "cwdMissing": "pasta não encontrada neste computador",
+      "cwdUnset": "sem pasta: o programa inicia onde o HydraOps roda"
     }
   },
   "addons": {

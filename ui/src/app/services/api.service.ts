@@ -515,6 +515,9 @@ export interface CatalogConnection {
   toolCount: number;
 }
 
+/** The folder a connection starts in once its variables are filled in (null: none set), and whether it exists here. */
+export interface ResolvedCwd { path: string | null; found: boolean | null }
+
 export interface ConnectionPreview {
   preset: {
     name: string; title: string; description: string; version: string; author: string; homepage?: string;
@@ -527,6 +530,8 @@ export interface ConnectionPreview {
   readme: string;
   commandLine: string;
   conflict: 'none' | 'manual' | 'installed' | 'update' | 'modified';
+  /** When this connection is installed: its server name, the values of its variables, and the folder it starts in. */
+  installed: { server: string; env: Record<string, string>; cwd: ResolvedCwd } | null;
   installedVersion: string | null;
   launcher: { name: string; found: boolean | null; hint: { command?: string; url: string } | null };
 }
@@ -1143,6 +1148,11 @@ export class ApiService {
 
   removeConnection(server: string): Observable<{ success: boolean }> {
     return this.http.delete<{ success: boolean }>(`${this.base}/connections/${encodeURIComponent(server)}`);
+  }
+
+  /** Sets the values of the variables a catalog connection ships; the worker restarts it with them. */
+  setConnectionEnv(server: string, env: Record<string, string>): Observable<{ success: boolean; env: Record<string, string>; cwd: ResolvedCwd }> {
+    return this.http.put<{ success: boolean; env: Record<string, string>; cwd: ResolvedCwd }>(`${this.base}/connections/${encodeURIComponent(server)}/env`, { env });
   }
 
   /** Restarts a connection now, through the worker that runs it. */

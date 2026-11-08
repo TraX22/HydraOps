@@ -166,15 +166,45 @@
         <h4>{{ 'herramientas.connections.startsWith' | translate }}</h4>
         <pre>{{ d.commandLine }}</pre>
         <div class="req-row"><small>{{ 'herramientas.connections.pinnedHint' | translate }}</small></div>
-        @if (envEntries(p).length) {
-          <div class="req-row"><small>{{ 'herramientas.connections.envHint' | translate }}</small></div>
-          @for (v of envEntries(p); track v.key) {
-            <div class="req-row"><code>{{ v.key }}</code><small> = {{ v.value || ('herramientas.connections.envEmpty' | translate) }}</small></div>
+        @if (d.installed; as inst) {
+          <!-- Installed: the values are the user's to change right here -->
+          @if (installedEnv(p).length) {
+            <div class="req-row"><small>{{ 'herramientas.connections.envHintInstalled' | translate }}</small></div>
+            @for (v of installedEnv(p); track v.key) {
+              <label class="env-row">
+                <code>{{ v.key }}</code>
+                <input class="env-input" type="text" [value]="v.value" [attr.placeholder]="'herramientas.connections.envEmptyShort' | translate"
+                       [disabled]="!!busy()" (input)="setEnvDraft(v.key, $any($event.target).value)" (keydown.enter)="saveEnv(p)" />
+              </label>
+            }
+            <div class="env-actions">
+              @if (envNotice(); as n) { <small [class.bad]="n.kind === 'bad'" [class.ok]="n.kind === 'ok'">{{ n.text }}</small> }
+              <button class="ibtn primary" [disabled]="!!busy() || !envDirty(p)" (click)="saveEnv(p)">{{ 'common.save' | translate }}</button>
+            </div>
           }
-        }
-        @if (p.data?.preset?.server?.cwd; as cwd) {
-          <div class="req-row"><small>{{ 'herramientas.connections.cwdHint' | translate }}</small></div>
-          <div class="req-row"><code>{{ cwd }}</code></div>
+          @if (d.preset.server.cwd) {
+            <div class="req-row">
+              <small class="cwd-label">{{ 'herramientas.connections.cwdResolved' | translate }}</small>
+              @if (inst.cwd.path; as path) {
+                <span class="mark" [class.ok]="inst.cwd.found" [class.bad]="inst.cwd.found === false">{{ inst.cwd.found ? '✓' : '✗' }}</span>
+                <code>{{ path }}</code>
+                <small>{{ (inst.cwd.found ? 'herramientas.connections.cwdFound' : 'herramientas.connections.cwdMissing') | translate }}</small>
+              } @else {
+                <small>{{ 'herramientas.connections.cwdUnset' | translate }}</small>
+              }
+            </div>
+          }
+        } @else {
+          @if (envEntries(p).length) {
+            <div class="req-row"><small>{{ 'herramientas.connections.envHint' | translate }}</small></div>
+            @for (v of envEntries(p); track v.key) {
+              <div class="req-row"><code>{{ v.key }}</code><small> = {{ v.value || ('herramientas.connections.envEmpty' | translate) }}</small></div>
+            }
+          }
+          @if (d.preset.server.cwd; as cwd) {
+            <div class="req-row"><small>{{ 'herramientas.connections.cwdHint' | translate }}</small></div>
+            <div class="req-row"><code>{{ cwd }}</code></div>
+          }
         }
       </div>
 
