@@ -80,7 +80,57 @@ for (const level of ["log", "error"] as const) {
 const { db, pool, client: sqliteClient } = createDb(env.DATABASE_URL);
 
 const app = express();
-app.use(cors());
+
+// ─── The names this server answers to ────────────────────────────────────────
+//
+// Requests from this machine pay no token (below), so a web page open in the user's
+// browser must not be able to reach the API by a back door. Two doors are closed here:
+//
+// DNS rebinding: a page from evil.example makes the browser resolve evil.example to
+// 127.0.0.1 after it loaded, and its requests to "http://evil.example:3000" land on this
+// API from loopback. They arrive with "Host: evil.example", and that is what gives them
+// away: the API answers only to the names it is actually reached by (loopback, an
+// address literal, this machine's own name, and the names the operator lists in
+// HYDRA_PUBLIC_HOST, such as a reverse proxy's domain) and gives every other Host a 421.
+//
+// Reading answers: CORS used to allow any origin. Now a page is given its origin back
+// only when it was served from one of those same names, so a page from another site
+// that reaches the API by its real address cannot read what comes back.
+const SERVED_NAMES: ReadonlySet<string> = (() => {
+  const names = new Set<string>(["localhost", "::1"]);
+  const own = os.hostname().trim().toLowerCase();
+  if (own) { names.add(own); names.add(`${own}.local`); }
+  for (const n of String(process.env.HYDRA_PUBLIC_HOST || "").split(/[\s,]+/)) {
+    const name = n.trim().toLowerCase().replace(/^\[(.*)\](?::\d+)?$/, "$1").replace(/^([^:]+):\d+$/, "$1");
+    if (name) names.add(name);
+  }
+  return names;
+})();
+/** `host[:port]` as the client sent it: loopback, an address literal, this machine's name, or a listed name. */
+function isServedHost(host: string): boolean {
+  const name = String(host || "").trim().toLowerCase().replace(/^\[(.*)\](?::\d+)?$/, "$1").replace(/^([^:]+):\d+$/, "$1");
+  if (!name) return false;
+  if (SERVED_NAMES.has(name)) return true;
+  if (/^127\.\d+\.\d+\.\d+$/.test(name) || /^\d+\.\d+\.\d+\.\d+$/.test(name)) return true;
+  return /^[0-9a-f:]+$/.test(name) && name.includes(":"); // an IPv6 literal
+}
+function isServedOrigin(origin: string): boolean {
+  try { return isServedHost(new URL(origin).host); } catch { return false; }
+}
+// A refused name is logged once an hour: enough to tell an operator what to add to HYDRA_PUBLIC_HOST.
+const refusedHostsLogged = new Map<string, number>();
+app.use((req, res, next) => {
+  const host = String(req.headers.host || "");
+  if (isServedHost(host)) return next();
+  const key = host.toLowerCase().slice(0, 200) || "(none)";
+  const now = Date.now();
+  if ((refusedHostsLogged.get(key) ?? 0) < now - 3_600_000) {
+    refusedHostsLogged.set(key, now);
+    console.warn(`[api] refused a request for Host "${key}": not a name this server is reached by. If HydraOps is yours at that name (a reverse proxy, a DNS name), add it to HYDRA_PUBLIC_HOST in the .env.`);
+  }
+  res.status(421).json({ error: "unknown_host", message: "This server does not answer to that host name." });
+});
+app.use(cors({ origin: (origin, cb) => cb(null, !origin || isServedOrigin(origin)) }));
 app.use(express.json({ limit: "1mb" }));
 
 // ─── Autenticación por token ─────────────────────────────────────────────────
@@ -3451,9 +3501,8 @@ function sameSiteOnly(req: express.Request, res: express.Response): boolean {
   const deny = () => { res.status(403).json({ error: "cross_site", message: "This request did not come from HydraOps itself." }); return false; };
   const site = String(req.headers["sec-fetch-site"] || "").toLowerCase();
   if (site === "cross-site") return deny();
-  // The Host the browser asked for must be one this server is reached by: a loopback name, an
-  // address literal (a DNS name pointed at 127.0.0.1 by an attacker, "rebinding", is neither),
-  // or the public name the operator set. Then the Origin, when sent, must be that same host.
+  // The Host is one this server is reached by (every request passed that filter at the door);
+  // the Origin, when sent, must be that same host.
   const host = String(req.headers.host || "").toLowerCase();
   if (!isServedHost(host)) return deny();
   const origin = String(req.headers.origin || "");
@@ -3463,15 +3512,6 @@ function sameSiteOnly(req: express.Request, res: express.Response): boolean {
     if (!originHost || originHost !== host) return deny();
   }
   return true;
-}
-/** `host:port` as the browser sent it: loopback, an IP literal, or HYDRA_PUBLIC_HOST. */
-function isServedHost(host: string): boolean {
-  const name = host.replace(/:\d+$/, "").replace(/^\[(.*)\]$/, "$1");
-  if (!name) return false;
-  if (name === "localhost" || name === "::1" || /^127\.\d+\.\d+\.\d+$/.test(name)) return true;
-  if (/^\d+\.\d+\.\d+\.\d+$/.test(name) || /^[0-9a-f:]+$/i.test(name)) return true;
-  const pub = String(process.env.HYDRA_PUBLIC_HOST || "").trim().toLowerCase().replace(/:\d+$/, "");
-  return !!pub && name === pub;
 }
 
 async function xProxy(method: "GET" | "POST", p: string, body?: unknown, timeoutMs = 30_000): Promise<any> {

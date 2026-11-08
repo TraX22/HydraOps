@@ -63,6 +63,7 @@ To declare what an add-on of yours does, add `risk: { readsExternal: true }`, `r
 - Opening it is an explicit decision (`HYDRA_HOST`) and always comes with a token: with no `HYDRA_AUTH_TOKEN`, HydraOps generates a random one, saves it in the `.env` and shows it only on this computer. If it cannot save it, it stays on loopback.
 - Connections from the machine itself pay no token (a local process can already read your disk; asking it adds nothing). If you have a reverse proxy in front and want it always required: `HYDRA_AUTH_STRICT=1`.
 - The token travels in the clear over HTTP: local network yes, internet no. For remote access, HTTPS or a VPN in front — see [Server mode](./12-server-mode.md).
+- A web page open in your browser cannot use the API from the inside. The API answers only to the names it is reached by (loopback, an IP address, the machine's name and the names in `HYDRA_PUBLIC_HOST`): a page that points a domain of its own at `127.0.0.1` to ride the no-token rule (DNS rebinding) gets a `421`. And only pages served by HydraOps itself may read the API's answers (CORS); a page from another site that reaches the real address gets nothing back it can read.
 
 ## Reporting a security issue
 

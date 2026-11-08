@@ -28,6 +28,14 @@ Desde otro equipo, el navegador te pedirá el token una vez (pantalla de login) 
 
 ![La pantalla de login que ve otro equipo de la red](../img/es/login.png)
 
+**Llegar por un nombre.** La API responde solo a los nombres por los que de verdad se la alcanza: una dirección IP, `localhost` y el nombre de la propia máquina funcionan sin configurar nada. Si llegas a HydraOps por un nombre DNS (el dominio de un proxy inverso, el nombre MagicDNS de Tailscale), ponlo en el `.env`, varios separados por comas:
+
+```bash
+HYDRA_PUBLIC_HOST=hydra.casa, hydraops.ejemplo.net
+```
+
+A cualquier otro nombre le contesta `421` y deja una línea en el log diciendo qué nombre rechazó. Es lo que impide que una web abierta en tu navegador use la API a través de un dominio propio apuntado a `127.0.0.1` (DNS rebinding); ver [Seguridad](./13-security.md).
+
 Las conexiones desde la propia máquina del servidor nunca necesitan token. Si el token no se puede guardar (el `.env` es de solo lectura), la API se niega a abrirse a la red y se queda en `127.0.0.1`.
 
 **El almacén de claves en un servidor.** Las claves de API y los tokens se guardan cifrados; en un escritorio la clave que los abre vive en el llavero del sistema, que un servidor sin escritorio no tiene. Pon una frase larga en el `.env` del servicio antes de cargar ninguna clave:
