@@ -81,6 +81,12 @@ function stripTags(s: string): string {
   do { prev = s; s = s.replace(/<[^>]*>?/g, " "); } while (s !== prev);
   return s;
 }
+/** Script and style blocks removed whole, again until none is left. */
+function dropBlocks(s: string): string {
+  let prev: string;
+  do { prev = s; s = s.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, ""); } while (s !== prev);
+  return s;
+}
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
 /** Entities decoded in one pass, so a decoded "&amp;" is never decoded again. */
 const decodeEntities = (s: string): string => s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) => {
@@ -95,8 +101,7 @@ const decodeEntities = (s: string): string => s.replace(/&(#x[0-9a-f]+|#\d+|[a-z
  */
 export function htmlToText(html: string): string {
   const text = stripTags(
-    html
-      .replace(/<(script|style)[\s\S]*?<\/\1\s*>/gi, "")
+    dropBlocks(html)
       .replace(/<br\s*\/?>/gi, "\n")
       .replace(/<\/(p|div|li|tr|h[1-6]|blockquote|pre)\s*>/gi, "\n")
       .replace(/<li[^>]*>/gi, "- ")
