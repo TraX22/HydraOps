@@ -248,7 +248,7 @@ Leer listas y Spaces necesita dos permisos que X sumó después de que se conect
 
 ## Gmail: tus buzones, leídos por los agentes
 
-HydraOps se conecta a **tu propio cliente OAuth de Google Cloud**, y a través de él a todas las cuentas de Gmail que quieras. Los agentes las buscan y las leen con las herramientas `gmail_search` y `gmail_read`; los borradores y el envío llegan en versiones posteriores, cada uno con su permiso. La API de Gmail es gratis: no se cobra nada por lectura.
+HydraOps se conecta a **tu propio cliente OAuth de Google Cloud**, y a través de él a todas las cuentas de Gmail que quieras. Los agentes las buscan y las leen con las herramientas `gmail_search` y `gmail_read`, escriben borradores con `gmail_draft` y, con tu aprobación, envían con `gmail_send`, cada cosa con su permiso; una cuenta también puede pasarle sus correos nuevos a un agente. La API de Gmail es gratis: no se cobra nada por lectura.
 
 ### 1. Crear el cliente OAuth en Google Cloud
 
@@ -291,6 +291,19 @@ Al conectar una cuenta marcás para qué la van a usar los agentes: **Leer** (si
 - `gmail_send` **envía**: un mensaje nuevo, una respuesta o un reenvío, siempre completo (para enviar lo que dice un borrador, el agente pasa sus campos, así los ves). Se retiene **siempre**, haya leído lo que haya leído la tarea: la tarjeta muestra la cuenta, los destinatarios, el asunto, el texto exactamente como va a salir y los adjuntos (igual el aviso de Telegram), y **Aprobar** lo envía, una vez; no hay "aprobar por el resto de la tarea" para un mensaje. El servidor envía solo el mensaje exacto que aprobaste (mismo agente, cuenta y campos) y rechaza, antes de que nada llegue a Google, una dirección que no lo es, un mensaje sin destinatario o sin texto, un adjunto que no es uno de tus archivos o que pasa de 25 MB en total, y cualquier cosa con el interruptor en OFF.
 
 El mensaje lo arma HydraOps a partir de los campos que dio el agente (texto plano, UTF-8, adjuntos como partes MIME correctas); el agente nunca entrega un mensaje crudo. Gmail deja el enviado en Enviados y encadena una respuesta con el original.
+
+### 6. Correos nuevos
+
+Una cuenta se puede vigilar: activá **Avisar correos nuevos** en su fila y elegí cuál de sus agentes los atiende. Desde entonces cada mensaje nuevo que cumple el **filtro** de la cuenta se vuelve una **tarea para ese agente**, como un mensaje de Telegram, y Telegram te avisa quién escribió y sobre qué.
+
+- **El filtro** es una búsqueda de Gmail, la misma que escribirías en el buscador de Gmail. Empieza como `in:inbox is:unread`; acotalo a lo que merece la atención de un agente: `label:clientes`, `from:ana@ejemplo.com`, `in:inbox -category:promotions -category:social`. Los borradores, el spam, la papelera y lo que envió la propia cuenta nunca se toman por correo nuevo, diga lo que diga el filtro.
+- **Qué hace el agente**: *solo avisa* (quién escribió, qué pide, si necesita algo de vos) o *avisa y deja la respuesta en borrador* (cuando el mensaje merece respuesta; el borrador te espera en los Borradores de Gmail, y necesita el permiso **Borradores** de la cuenta). El agente nunca envía: enviar sigue siendo `gmail_send`, retenido hasta que apruebes ese mensaje exacto.
+- **Cada cuánto**: cada 10 minutos por defecto, 2 como mínimo. Revisar es gratis y una revisión sin novedades es una sola búsqueda que no devuelve nada.
+- **Hasta N por día** (50 por defecto): cada mensaje que se vuelve tarea cuesta lo que cueste el modelo del agente, y un buzón puede recibir cien boletines en una noche. Los que llegan después de alcanzar el límite se cuentan en la fila y no se le pasan al agente; Telegram te avisa una vez.
+
+El mensaje es texto de otras personas: su remitente, su asunto y sus primeras líneas le llegan al agente entre marcadores de contenido ajeno, la tarea empieza marcada con el mensaje como origen, y el agente lee el resto con `gmail_read`. Un mensaje que le dice al agente que haga algo se te informa, no se obedece, y cualquier cosa con efectos que quiera hacer después espera tu aprobación.
+
+Al activarlo, o al cambiar el filtro, se parte de ese momento: no se repasa el correo que ya estaba. Lo que llega mientras HydraOps está cerrado, o con el interruptor de Gmail en OFF, se le pasa al agente en la revisión siguiente. La fila muestra cuándo fue la última revisión, cuántos mensajes encontró, la cuenta del día y cualquier error (una sesión vencida, Google sin responder); **Revisar ahora** hace una revisión al momento.
 
 ## Hugging Face: modelos, datasets y Spaces
 

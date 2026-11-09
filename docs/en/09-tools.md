@@ -248,7 +248,7 @@ Reading lists and Spaces needs two permissions X added after the first accounts 
 
 ## Gmail: your mailboxes, read by the agents
 
-HydraOps connects to **your own Google Cloud OAuth client**, and through it to as many Gmail accounts as you like. The agents search and read them with the `gmail_search` and `gmail_read` tools; drafts and sending come with later versions, each under its own permission. Gmail's API is free: nothing is charged per read.
+HydraOps connects to **your own Google Cloud OAuth client**, and through it to as many Gmail accounts as you like. The agents search and read them with the `gmail_search` and `gmail_read` tools, write drafts with `gmail_draft` and, with your approval, send with `gmail_send`, each under its own permission; an account can also hand its new mail to an agent. Gmail's API is free: nothing is charged per read.
 
 ### 1. Create the OAuth client in Google Cloud
 
@@ -291,6 +291,19 @@ When you connect an account you tick what the agents will use it for: **Read** (
 - `gmail_send` **sends**: a new message, a reply or a forward, always given in full (to send what a draft says, the agent passes its fields, so you see them). It is held **every time**, whatever the task read: the card shows the account, the recipients, the subject, the text exactly as it will go out and the attachments (so does the Telegram notice), and **Approve** sends it, once; there is no "approve for the rest of the task" for a message. The server sends only the exact message you approved (same agent, account and fields) and refuses, before anything reaches Google, an address that is not one, a message with no recipient or no text, an attachment that is not one of your files or over 25 MB in all, and anything while the switch is OFF.
 
 The message is built by HydraOps from the fields the agent gave (plain text, UTF-8, attachments as proper MIME parts); the agent never hands over a raw message. Gmail puts the sent message in Sent and threads a reply with the original.
+
+### 6. New mail
+
+An account can be watched: switch **Hand over new mail** on in its row and choose which of its agents handles it. From then on every new message that matches the account's **filter** becomes a **task for that agent**, the way a message from Telegram does, and Telegram tells you who wrote and about what.
+
+- **The filter** is a Gmail search, the same you would type in Gmail's search box. It starts as `in:inbox is:unread`; narrow it to what deserves an agent's attention: `label:clients`, `from:ana@example.com`, `in:inbox -category:promotions -category:social`. Drafts, spam, the bin and what the account itself sent are never taken for new mail, whatever the filter says.
+- **What the agent does**: *only tells you* (who wrote, what they want, whether it needs something from you) or *tells you and leaves the answer as a draft* (when the message deserves an answer; the draft waits in Gmail's Drafts, and it needs the account's **Drafts** permission). The agent never sends: sending is still `gmail_send`, held for your approval of that exact message.
+- **How often**: every 10 minutes by default, 2 at the least. Checking is free and a check with nothing new is a single search that returns nothing.
+- **Up to N a day** (50 by default): every message that becomes a task costs what the agent's model costs, and a mailbox can receive a hundred newsletters overnight. Messages arriving after the limit is reached are counted in the row and not handed over; Telegram tells you once.
+
+The message is other people's writing: its sender, subject and first lines reach the agent between outside-content markers, the task starts marked with the message as its origin, and the agent reads the rest with `gmail_read`. A message that tells the agent to do something is reported to you, not obeyed, and anything with effects it wants to do afterwards waits for your approval.
+
+Switching it on, or changing the filter, starts from that moment: the mail already there is not replayed. Mail that arrives while HydraOps is closed, or while the Gmail switch is OFF, is handed over at the next check. The row shows when the last check ran, how many messages it found, today's count and any error (an expired session, Google not answering); **Check now** runs a check at once.
 
 ## Hugging Face: models, datasets and Spaces
 

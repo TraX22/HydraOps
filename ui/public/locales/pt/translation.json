@@ -890,12 +890,42 @@
         "bad_callback_url": "Esse endereço não traz código e estado do Google. Cole o endereço completo onde o navegador chegou.",
         "no_such_account": "Essa conta não está conectada.",
         "gmail_reauth_required": "A sessão dessa conta expirou: conecte-a de novo.",
-        "scopes_missing": "Essa conta não foi conectada com essa permissão: conecte-a de novo para adicioná-la."
+        "scopes_missing": "Essa conta não foi conectada com essa permissão: conecte-a de novo para adicioná-la.",
+        "not_listening": "O aviso de novos e-mails está desligado para essa conta, ou ela não tem agente.",
+        "gmail_disabled": "O Gmail está desligado: ligue-o acima para verificar."
       },
       "grantsHint": "Para que os agentes vão usar esta conta? Só essas permissões são pedidas ao Google. Outra pode ser adicionada depois conectando a conta de novo; uma é retirada na linha da conta, sem reconectar.",
       "getLink": "Obter o link",
       "needsReconnect": "\"{{grant}}\" precisa de uma permissão que o Google não deu a esta conta.",
-      "reconnectWith": "Conectar de novo com essa permissão"
+      "reconnectWith": "Conectar de novo com essa permissão",
+      "listen": {
+        "on": "Avisar de novos e-mails",
+        "agent": "atende",
+        "every": "a cada",
+        "minutes": "min",
+        "upTo": "até",
+        "perDay": "por dia",
+        "filter": "filtro",
+        "does": "o agente",
+        "modes": {
+          "notice": "só avisa",
+          "draft": "avisa e deixa a resposta em rascunho"
+        },
+        "checkNow": "verificar agora",
+        "checking": "verificando…",
+        "never": "ainda não verificado",
+        "last": "última verificação há {{ago}} · {{n}} novos · {{today}} hoje · {{total}} no total",
+        "error": "erro: {{msg}}",
+        "checked": "{{n}} tarefas novas",
+        "skipped": "{{n}} fora pelo limite de hoje",
+        "needAgent": "Atribua um agente à conta para atender os novos e-mails.",
+        "minHint": "Mínimo de {{min}} minutos",
+        "limitHint": "O máximo de e-mails que viram tarefa em um dia. Os que chegarem depois não são passados ao agente.",
+        "filterHint": "Uma busca do Gmail: só os novos e-mails que a atendem são passados ao agente. Exemplos: in:inbox is:unread · label:clientes · from:ana@exemplo.com · in:inbox -category:promotions",
+        "draftNeedsGrant": "Para deixar rascunhos a conta precisa da permissão «Rascunhos»; enquanto isso o agente só avisa.",
+        "hint": "Cada novo e-mail que atende ao filtro cria uma tarefa para esse agente, como uma mensagem do Telegram, e o Telegram avisa você. O que o e-mail diz chega como conteúdo externo: o agente conta quem escreveu e o que pede e, se você escolher, deixa a resposta como rascunho no Gmail. Nunca envia: isso continua esperando a sua aprovação. Ao ativar, parte-se desse momento, sem repassar o que veio antes. Verificar é grátis; cada e-mail que vira tarefa custa o que custa o modelo do agente, e para isso servem o filtro e o limite por dia.",
+        "note": "Cada e-mail que vira tarefa custa o que custa o modelo do agente: restrinja o filtro ao que merece. O agente nunca envia; isso espera a sua aprovação."
+      }
     },
     "github": {
       "name": "GitHub",

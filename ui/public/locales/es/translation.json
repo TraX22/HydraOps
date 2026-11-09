@@ -890,12 +890,42 @@
         "bad_callback_url": "Esa dirección no trae el código y el estado de Google. Pegá la dirección completa a la que llegó el navegador.",
         "no_such_account": "Esa cuenta no está conectada.",
         "gmail_reauth_required": "La sesión de esa cuenta venció: conectala de nuevo.",
-        "scopes_missing": "Esa cuenta no se conectó con ese permiso: conectala de nuevo para agregarlo."
+        "scopes_missing": "Esa cuenta no se conectó con ese permiso: conectala de nuevo para agregarlo.",
+        "not_listening": "El aviso de correos nuevos está apagado para esa cuenta, o no tiene agente.",
+        "gmail_disabled": "Gmail está apagado: encendelo arriba para revisar."
       },
       "grantsHint": "¿Para qué van a usar los agentes esta cuenta? Solo esos permisos se le piden a Google. Otro se puede agregar después conectando la cuenta de nuevo; uno se quita desde la fila de la cuenta, sin reconectar.",
       "getLink": "Obtener el enlace",
       "needsReconnect": "«{{grant}}» necesita un permiso que Google no le dio a esta cuenta.",
-      "reconnectWith": "Conectar de nuevo con ese permiso"
+      "reconnectWith": "Conectar de nuevo con ese permiso",
+      "listen": {
+        "on": "Avisar correos nuevos",
+        "agent": "atiende",
+        "every": "cada",
+        "minutes": "min",
+        "upTo": "hasta",
+        "perDay": "por día",
+        "filter": "filtro",
+        "does": "el agente",
+        "modes": {
+          "notice": "solo avisa",
+          "draft": "avisa y deja la respuesta en borrador"
+        },
+        "checkNow": "revisar ahora",
+        "checking": "revisando…",
+        "never": "sin revisar todavía",
+        "last": "última revisión hace {{ago}} · {{n}} nuevos · {{today}} hoy · {{total}} en total",
+        "error": "error: {{msg}}",
+        "checked": "{{n}} tareas nuevas",
+        "skipped": "{{n}} sin pasar por el límite de hoy",
+        "needAgent": "Asigná un agente a la cuenta para que atienda los correos nuevos.",
+        "minHint": "Mínimo {{min}} minutos",
+        "limitHint": "Lo máximo de correos que se vuelven tarea en un día. Los que lleguen después de alcanzarlo no se le pasan al agente.",
+        "filterHint": "Una búsqueda de Gmail: solo los correos nuevos que la cumplen se le pasan al agente. Ejemplos: in:inbox is:unread · label:clientes · from:ana@ejemplo.com · in:inbox -category:promotions",
+        "draftNeedsGrant": "Para dejar borradores la cuenta necesita el permiso «Borradores»; mientras tanto el agente solo avisa.",
+        "hint": "Cada correo nuevo que cumple el filtro crea una tarea para ese agente, como un mensaje de Telegram, y te avisa por Telegram. Lo que dice el correo llega como contenido ajeno: el agente te cuenta quién escribió y qué pide y, si lo elegís, deja la respuesta como borrador en Gmail. Nunca envía: eso sigue esperando tu aprobación. Al activarlo se parte de ese momento, sin repasar lo anterior. Revisar es gratis; cada correo que se vuelve tarea cuesta lo que cueste el modelo del agente, y para eso están el filtro y el límite por día.",
+        "note": "Cada correo que se vuelve tarea cuesta lo que cueste el modelo del agente: acotá el filtro a lo que lo merece. El agente nunca envía; eso espera tu aprobación."
+      }
     },
     "github": {
       "name": "GitHub",

@@ -147,6 +147,56 @@
                 </select>
               }
             </div>
+            <!-- Listening: new mail looked for on an interval, each new message a task for the chosen agent -->
+            <div class="listen">
+              <label class="listen-toggle" [title]="'herramientas.gmail.listen.hint' | translate">
+                <input type="checkbox" [checked]="a.listen.on" [disabled]="!a.agents.length || busy()" (change)="toggleListen(a)" />
+                {{ 'herramientas.gmail.listen.on' | translate }}
+              </label>
+              @if (!a.agents.length) { <span class="tool-hint">{{ 'herramientas.gmail.listen.needAgent' | translate }}</span> }
+              @else if (a.listen.on) {
+                <label class="cap">
+                  {{ 'herramientas.gmail.listen.agent' | translate }}
+                  <select class="add-agent listen-agent" [value]="a.listen.agent" (change)="setListenAgent(a, $event)">
+                    @for (id of a.agents; track id) { <option [value]="id" [selected]="id === a.listen.agent">{{ agentName(id) }}</option> }
+                  </select>
+                </label>
+                <label class="cap">
+                  {{ 'herramientas.gmail.listen.every' | translate }}
+                  <input type="text" inputmode="numeric" class="cap-input" [value]="a.listen.intervalMinutes" [title]="'herramientas.gmail.listen.minHint' | translate:{ min: g.listenMinMinutes }" (change)="setListenInterval(a, $event)" (keyup.enter)="setListenInterval(a, $event)" />
+                  {{ 'herramientas.gmail.listen.minutes' | translate }}
+                </label>
+                <label class="cap" [title]="'herramientas.gmail.listen.limitHint' | translate">
+                  {{ 'herramientas.gmail.listen.upTo' | translate }}
+                  <input type="text" inputmode="numeric" class="cap-input" [value]="a.listen.dailyLimit" (change)="setListenLimit(a, $event)" (keyup.enter)="setListenLimit(a, $event)" />
+                  {{ 'herramientas.gmail.listen.perDay' | translate }}
+                </label>
+                <button type="button" class="relink" [disabled]="!!checking()" (click)="checkNow(a)">{{ (checking() === a.id ? 'herramientas.gmail.listen.checking' : 'herramientas.gmail.listen.checkNow') | translate }}</button>
+              }
+            </div>
+            @if (a.listen.on && a.agents.length) {
+              <div class="listen">
+                <label class="cap filter" [title]="'herramientas.gmail.listen.filterHint' | translate">
+                  {{ 'herramientas.gmail.listen.filter' | translate }}
+                  <input type="text" class="cap-input filter-input" autocomplete="off" spellcheck="false" [value]="a.listen.query" [placeholder]="g.listenDefaultQuery" (change)="setListenQuery(a, $event)" (keyup.enter)="setListenQuery(a, $event)" />
+                </label>
+                <label class="cap">
+                  {{ 'herramientas.gmail.listen.does' | translate }}
+                  <select class="add-agent listen-agent" (change)="setListenMode(a, $event)">
+                    @for (m of listenModes; track m) { <option [value]="m" [selected]="m === a.listen.mode">{{ 'herramientas.gmail.listen.modes.' + m | translate }}</option> }
+                  </select>
+                </label>
+              </div>
+              @if (a.listen.mode === 'draft' && !hasGrant(a, 'compose')) { <p class="tool-hint listen-state bad">{{ 'herramientas.gmail.listen.draftNeedsGrant' | translate }}</p> }
+              <p class="tool-hint listen-state" [class.bad]="!!a.listenState.lastError">
+                @if (a.listenState.lastError) { {{ 'herramientas.gmail.listen.error' | translate:{ msg: a.listenState.lastError } }} }
+                @else if (a.listenState.lastCheckAt) { {{ 'herramientas.gmail.listen.last' | translate:{ ago: ago(a.listenState.lastCheckAt), n: a.listenState.lastNew, today: a.listenState.today, total: a.listenState.total } }} }
+                @else { {{ 'herramientas.gmail.listen.never' | translate }} }
+                @if (a.listenState.skippedToday) { · {{ 'herramientas.gmail.listen.skipped' | translate:{ n: a.listenState.skippedToday } }} }
+                @if (checked()?.id === a.id) { · {{ 'herramientas.gmail.listen.checked' | translate:{ n: checked()!.newTasks } }} }
+              </p>
+              <p class="tool-hint listen-note" [title]="'herramientas.gmail.listen.hint' | translate">{{ 'herramientas.gmail.listen.note' | translate }}</p>
+            }
           </div>
           <button class="btn-secondary danger" type="button" [disabled]="busy()" (click)="disconnect(a)">{{ 'herramientas.gmail.disconnect' | translate }}</button>
         </article>

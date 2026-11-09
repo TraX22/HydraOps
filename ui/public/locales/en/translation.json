@@ -890,12 +890,42 @@
         "bad_callback_url": "That address carries no code and state from Google. Paste the whole address the browser landed on.",
         "no_such_account": "That account is not connected.",
         "gmail_reauth_required": "That account's session expired: connect it again.",
-        "scopes_missing": "That account was not connected with that permission: connect it again to add it."
+        "scopes_missing": "That account was not connected with that permission: connect it again to add it.",
+        "not_listening": "Handing over new mail is off for that account, or it has no agent.",
+        "gmail_disabled": "Gmail is switched off: switch it on above to check."
       },
       "grantsHint": "What will the agents use this account for? Only those permissions are asked of Google. Another can be added later by connecting the account again; one is taken away from the account's row, without reconnecting.",
       "getLink": "Get the link",
       "needsReconnect": "\"{{grant}}\" needs a permission Google did not give this account.",
-      "reconnectWith": "Connect again with that permission"
+      "reconnectWith": "Connect again with that permission",
+      "listen": {
+        "on": "Hand over new mail",
+        "agent": "handled by",
+        "every": "every",
+        "minutes": "min",
+        "upTo": "up to",
+        "perDay": "a day",
+        "filter": "filter",
+        "does": "the agent",
+        "modes": {
+          "notice": "only tells you",
+          "draft": "tells you and leaves the answer as a draft"
+        },
+        "checkNow": "check now",
+        "checking": "checking…",
+        "never": "not checked yet",
+        "last": "last check {{ago}} ago · {{n}} new · {{today}} today · {{total}} in total",
+        "error": "error: {{msg}}",
+        "checked": "{{n}} new tasks",
+        "skipped": "{{n}} left out by today's limit",
+        "needAgent": "Give the account an agent to handle its new mail.",
+        "minHint": "At least {{min}} minutes",
+        "limitHint": "The most emails that become a task in one day. Those arriving after it is reached are not handed to the agent.",
+        "filterHint": "A Gmail search: only new mail matching it is handed to the agent. Examples: in:inbox is:unread · label:clients · from:ana@example.com · in:inbox -category:promotions",
+        "draftNeedsGrant": "Leaving drafts needs the account's “Drafts” permission; until then the agent only tells you.",
+        "hint": "Every new email matching the filter becomes a task for that agent, the way a Telegram message does, and Telegram tells you. What the email says arrives as outside content: the agent tells you who wrote and what they want and, if you choose so, leaves the answer as a draft in Gmail. It never sends: that still waits for your approval. Switching it on starts from that moment; nothing older is replayed. Checking is free; every email that becomes a task costs what the agent's model costs, which is what the filter and the daily limit are for.",
+        "note": "Every email that becomes a task costs what the agent's model costs: narrow the filter to what deserves it. The agent never sends; that waits for your approval."
+      }
     },
     "github": {
       "name": "GitHub",

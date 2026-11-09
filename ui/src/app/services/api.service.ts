@@ -372,7 +372,13 @@ export interface GmailAccount {
   /** What the account was connected for (never more than its scopes allow). */
   grants: GmailGrant[];
   scopes: string[];
+  /** New mail matching `query` looked for every `intervalMinutes`; each new message becomes a task for `agent`. */
+  listen: GmailListen;
+  listenState: { lastCheckAt: number | null; lastNew: number; total: number; lastError: string | null; today: number; skippedToday: number };
 }
+/** What the listening agent is asked to do with a new message: tell the user, or also leave an answer as a draft. */
+export type GmailListenMode = 'notice' | 'draft';
+export interface GmailListen { on: boolean; agent: string; intervalMinutes: number; query: string; mode: GmailListenMode; dailyLimit: number }
 /** A permission group of a Gmail account: what the user connected it for. */
 export type GmailGrant = 'read' | 'compose' | 'send';
 export const GMAIL_GRANTS: GmailGrant[] = ['read', 'compose', 'send'];
@@ -382,6 +388,9 @@ export interface GmailIntegration {
   clientId?: string;
   /** Where Google sends the browser back: this HydraOps' own loopback address (nothing to register). */
   redirectUri: string;
+  /** The shortest polling interval the server takes, in minutes, and the filter an account listens with until the user writes one. */
+  listenMinMinutes: number;
+  listenDefaultQuery: string;
   accounts: GmailAccount[];
   pending: { url: string; expiresAt: string; finishing?: boolean } | null;
   lastError?: string;
@@ -1121,10 +1130,14 @@ export class ApiService {
   }
 
   // ── Gmail ──
+  /** Looks for one account's new mail now; `checked` says how many messages became tasks. */
+  checkGmailMail(id: string): Observable<GmailIntegration & { checked?: { id: string; newTasks: number } }> {
+    return this.http.post<GmailIntegration & { checked?: { id: string; newTasks: number } }>(`${this.base}/system/integrations/gmail/listen/check`, { id });
+  }
   getGmailIntegration(): Observable<GmailIntegration> {
     return this.http.get<GmailIntegration>(`${this.base}/system/integrations/gmail`);
   }
-  saveGmailIntegration(cfg: { enabled?: boolean; accounts?: { id: string; agents?: string[] }[] }): Observable<GmailIntegration> {
+  saveGmailIntegration(cfg: { enabled?: boolean; accounts?: { id: string; agents?: string[]; listen?: Partial<GmailListen> | null }[] }): Observable<GmailIntegration> {
     return this.http.post<GmailIntegration>(`${this.base}/system/integrations/gmail`, cfg);
   }
   /** The OAuth client's id and secret go straight to the key store; an empty secret keeps the stored one. */
