@@ -2,14 +2,15 @@ import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular
 import { RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { IconComponent } from '../../../components/icon/icon.component';
-import { ApiService, Agent, GmailAccount, GmailGrant, GmailIntegration, GMAIL_GRANTS } from '../../../services/api.service';
+import { ApiService, Agent, GmailAccount, GmailGrant, GmailIntegration, GmailListen, GmailListenMode, GMAIL_GRANTS } from '../../../services/api.service';
 
 const POLL_MS = 3000;
 
 /**
  * Herramientas → Gmail. One card: the user's Google OAuth client (its id and secret go to the
  * key store), the Gmail accounts connected through it, one sign-in per account with the
- * permissions chosen for it (read, drafts, send), and which agents may use each account.
+ * permissions chosen for it (read, drafts, send), which agents may use each account, and whether
+ * its new mail is handed to one of them (the filter, how often, and what the agent does with it).
  * Reading a mailbox asks nobody and costs nothing; a draft asks nobody either (nothing leaves
  * the account); sending always waits for the user.
  */
@@ -235,6 +236,68 @@ export class GmailCardComponent implements OnInit, OnDestroy {
     this.api.saveGmailIntegration({ accounts: [{ id: a.id, agents }] }).subscribe({ next: n => { this.apply(n); this.flash(); }, error: e => this.error.set(this.errorText(e)) });
   }
 
+  // ── Listening for new mail ──
+
+  readonly listenModes: GmailListenMode[] = ['notice', 'draft'];
+  /** The account being checked right now (its button is busy), and what the last check found. */
+  checking = signal<string | null>(null);
+  checked = signal<{ id: string; newTasks: number } | null>(null);
+
+  private saveListen(a: GmailAccount, listen: Partial<GmailListen>): void {
+    this.checked.set(null);
+    this.error.set('');
+    this.api.saveGmailIntegration({ accounts: [{ id: a.id, listen }] }).subscribe({ next: n => { this.apply(n); this.flash(); }, error: e => this.error.set(this.errorText(e)) });
+  }
+  toggleListen(a: GmailAccount): void {
+    const on = !a.listen.on;
+    const agent = a.listen.agent || a.agents[0] || '';
+    if (on && !agent) return;
+    this.saveListen(a, { on, agent });
+  }
+  setListenAgent(a: GmailAccount, event: Event): void {
+    const agent = (event.target as HTMLSelectElement).value;
+    if (!agent || agent === a.listen.agent) return;
+    this.saveListen(a, { agent });
+  }
+  setListenInterval(a: GmailAccount, event: Event): void {
+    const v = Math.round(Number((event.target as HTMLInputElement).value));
+    if (!Number.isFinite(v) || v <= 0 || v === a.listen.intervalMinutes) return;
+    this.saveListen(a, { intervalMinutes: v });
+  }
+  setListenLimit(a: GmailAccount, event: Event): void {
+    const v = Math.round(Number((event.target as HTMLInputElement).value));
+    if (!Number.isFinite(v) || v < 1 || v === a.listen.dailyLimit) return;
+    this.saveListen(a, { dailyLimit: v });
+  }
+  /** The filter, a Gmail search; an empty field goes back to the default. */
+  setListenQuery(a: GmailAccount, event: Event): void {
+    const query = (event.target as HTMLInputElement).value.trim();
+    if (query === a.listen.query) return;
+    this.saveListen(a, { query });
+  }
+  setListenMode(a: GmailAccount, event: Event): void {
+    const mode = (event.target as HTMLSelectElement).value as GmailListenMode;
+    if (!this.listenModes.includes(mode) || mode === a.listen.mode) return;
+    this.saveListen(a, { mode });
+  }
+  checkNow(a: GmailAccount): void {
+    if (this.checking()) return;
+    this.checking.set(a.id);
+    this.checked.set(null);
+    this.api.checkGmailMail(a.id).subscribe({
+      next: n => { this.checking.set(null); this.apply(n); if (n.checked) this.checked.set(n.checked); },
+      error: e => { this.checking.set(null); this.error.set(this.errorText(e)); },
+    });
+  }
+  /** "3 min", "2 h", "1 d": how long ago the last check was. */
+  ago(ts: number | null): string {
+    if (!ts) return '';
+    const m = Math.max(0, Math.round((Date.now() - ts) / 60_000));
+    if (m < 60) return `${m} min`;
+    if (m < 1440) return `${Math.round(m / 60)} h`;
+    return `${Math.round(m / 1440)} d`;
+  }
+
   agentName(id: string): string {
     return this.agents().find(a => a.id === id)?.name ?? id;
   }
@@ -250,7 +313,7 @@ export class GmailCardComponent implements OnInit, OnDestroy {
 
   private errorText(e: any): string {
     const code = String(e?.error?.error ?? '');
-    const known = ['bad_client_id', 'no_secret', 'app_not_configured', 'bad_redirect_uri', 'state_mismatch', 'no_code', 'scope_missing', 'no_refresh_token', 'bad_callback_url', 'no_such_account', 'gmail_reauth_required', 'scopes_missing'];
+    const known = ['bad_client_id', 'no_secret', 'app_not_configured', 'bad_redirect_uri', 'state_mismatch', 'no_code', 'scope_missing', 'no_refresh_token', 'bad_callback_url', 'no_such_account', 'gmail_reauth_required', 'scopes_missing', 'not_listening', 'gmail_disabled', 'bad_filter'];
     if (known.includes(code)) return this.translate.instant('herramientas.gmail.errors.' + code);
     return String(e?.error?.message || e?.message || this.translate.instant('herramientas.gmail.errors.generic'));
   }

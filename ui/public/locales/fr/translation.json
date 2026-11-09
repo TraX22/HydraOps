@@ -890,12 +890,43 @@
         "bad_callback_url": "Cette adresse ne porte ni code ni état de Google. Collez l'adresse complète où le navigateur a atterri.",
         "no_such_account": "Ce compte n'est pas connecté.",
         "gmail_reauth_required": "La session de ce compte a expiré : reconnectez-le.",
-        "scopes_missing": "Ce compte n'a pas été connecté avec cette autorisation : reconnectez-le pour l'ajouter."
+        "scopes_missing": "Ce compte n'a pas été connecté avec cette autorisation : reconnectez-le pour l'ajouter.",
+        "not_listening": "Le signalement des nouveaux e-mails est désactivé pour ce compte, ou il n'a pas d'agent.",
+        "gmail_disabled": "Gmail est désactivé : activez-le ci-dessus pour vérifier.",
+        "bad_filter": "Le filtre contient une parenthèse, une accolade ou un guillemet non fermé."
       },
       "grantsHint": "À quoi les agents utiliseront-ils ce compte ? Seules ces autorisations sont demandées à Google. Une autre peut être ajoutée plus tard en reconnectant le compte ; une se retire depuis la ligne du compte, sans reconnecter.",
       "getLink": "Obtenir le lien",
       "needsReconnect": "« {{grant}} » demande une autorisation que Google n'a pas donnée à ce compte.",
-      "reconnectWith": "Reconnecter avec cette autorisation"
+      "reconnectWith": "Reconnecter avec cette autorisation",
+      "listen": {
+        "on": "Signaler les nouveaux e-mails",
+        "agent": "traité par",
+        "every": "toutes les",
+        "minutes": "min",
+        "upTo": "jusqu'à",
+        "perDay": "par jour",
+        "filter": "filtre",
+        "does": "l'agent",
+        "modes": {
+          "notice": "prévient seulement",
+          "draft": "prévient et laisse la réponse en brouillon"
+        },
+        "checkNow": "vérifier maintenant",
+        "checking": "vérification…",
+        "never": "pas encore vérifié",
+        "last": "dernière vérification il y a {{ago}} · {{n}} nouveaux · {{today}} aujourd'hui · {{total}} au total",
+        "error": "erreur : {{msg}}",
+        "checked": "{{n}} nouvelles tâches",
+        "skipped": "{{n}} écartés par la limite du jour",
+        "needAgent": "Attribuez un agent au compte pour qu'il traite les nouveaux e-mails.",
+        "minHint": "Minimum {{min}} minutes",
+        "limitHint": "Le maximum d'e-mails qui deviennent une tâche en une journée. Ceux qui arrivent ensuite ne sont pas transmis à l'agent.",
+        "filterHint": "Une recherche Gmail : seuls les nouveaux e-mails qui y répondent sont transmis à l'agent. Exemples : in:inbox is:unread · label:clients · from:ana@exemple.com · in:inbox -category:promotions",
+        "draftNeedsGrant": "Pour laisser des brouillons, le compte a besoin de l'autorisation « Brouillons » ; en attendant, l'agent prévient seulement.",
+        "hint": "Chaque nouvel e-mail qui répond au filtre crée une tâche pour cet agent, comme un message Telegram, et Telegram vous prévient. Ce que dit l'e-mail arrive comme contenu externe : l'agent vous dit qui a écrit et ce qu'il demande et, si vous le choisissez, laisse la réponse en brouillon dans Gmail. Il n'envoie jamais : cela attend toujours votre approbation. À l'activation, on part de ce moment, sans reprendre ce qui précède. Vérifier est gratuit ; chaque e-mail qui devient une tâche coûte ce que coûte le modèle de l'agent, d'où le filtre et la limite par jour.",
+        "note": "Chaque e-mail qui devient une tâche coûte ce que coûte le modèle de l'agent : limitez le filtre à ce qui le mérite. L'agent n'envoie jamais ; cela attend votre approbation."
+      }
     },
     "github": {
       "name": "GitHub",

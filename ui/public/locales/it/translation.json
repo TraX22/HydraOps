@@ -890,12 +890,43 @@
         "bad_callback_url": "Quell'indirizzo non porta codice e stato di Google. Incolla l'indirizzo completo a cui è arrivato il browser.",
         "no_such_account": "Quell'account non è collegato.",
         "gmail_reauth_required": "La sessione di quell'account è scaduta: collegalo di nuovo.",
-        "scopes_missing": "Quell'account non è stato collegato con quell'autorizzazione: collegalo di nuovo per aggiungerla."
+        "scopes_missing": "Quell'account non è stato collegato con quell'autorizzazione: collegalo di nuovo per aggiungerla.",
+        "not_listening": "L'avviso delle nuove email è spento per quell'account, o non ha un agente.",
+        "gmail_disabled": "Gmail è spento: accendilo qui sopra per controllare.",
+        "bad_filter": "Il filtro ha una parentesi, una graffa o una virgoletta non chiusa."
       },
       "grantsHint": "Per cosa useranno gli agenti questo account? Solo quelle autorizzazioni vengono chieste a Google. Un'altra si può aggiungere dopo collegando di nuovo l'account; una si toglie dalla riga dell'account, senza ricollegare.",
       "getLink": "Ottieni il link",
       "needsReconnect": "\"{{grant}}\" richiede un'autorizzazione che Google non ha dato a questo account.",
-      "reconnectWith": "Collega di nuovo con quell'autorizzazione"
+      "reconnectWith": "Collega di nuovo con quell'autorizzazione",
+      "listen": {
+        "on": "Avvisa delle nuove email",
+        "agent": "gestito da",
+        "every": "ogni",
+        "minutes": "min",
+        "upTo": "fino a",
+        "perDay": "al giorno",
+        "filter": "filtro",
+        "does": "l'agente",
+        "modes": {
+          "notice": "avvisa soltanto",
+          "draft": "avvisa e lascia la risposta in bozza"
+        },
+        "checkNow": "controlla ora",
+        "checking": "controllo…",
+        "never": "non ancora controllato",
+        "last": "ultimo controllo {{ago}} fa · {{n}} nuove · {{today}} oggi · {{total}} in totale",
+        "error": "errore: {{msg}}",
+        "checked": "{{n}} nuove attività",
+        "skipped": "{{n}} escluse dal limite di oggi",
+        "needAgent": "Assegna un agente all'account perché gestisca le nuove email.",
+        "minHint": "Minimo {{min}} minuti",
+        "limitHint": "Il massimo di email che diventano un'attività in un giorno. Quelle che arrivano dopo non vengono passate all'agente.",
+        "filterHint": "Una ricerca di Gmail: solo le nuove email che la soddisfano vengono passate all'agente. Esempi: in:inbox is:unread · label:clienti · from:ana@esempio.com · in:inbox -category:promotions",
+        "draftNeedsGrant": "Per lasciare bozze l'account ha bisogno del permesso «Bozze»; nel frattempo l'agente avvisa soltanto.",
+        "hint": "Ogni nuova email che soddisfa il filtro crea un'attività per quell'agente, come un messaggio di Telegram, e Telegram ti avvisa. Ciò che dice l'email arriva come contenuto esterno: l'agente ti dice chi ha scritto e che cosa chiede e, se lo scegli, lascia la risposta come bozza in Gmail. Non invia mai: quello aspetta sempre la tua approvazione. All'attivazione si parte da quel momento, senza ripassare ciò che c'era prima. Controllare è gratis; ogni email che diventa un'attività costa quanto costa il modello dell'agente, e a questo servono il filtro e il limite giornaliero.",
+        "note": "Ogni email che diventa un'attività costa quanto costa il modello dell'agente: restringi il filtro a ciò che lo merita. L'agente non invia mai; quello aspetta la tua approvazione."
+      }
     },
     "github": {
       "name": "GitHub",
