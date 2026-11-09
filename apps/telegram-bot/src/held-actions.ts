@@ -125,6 +125,36 @@ function describeGmailSend(a: any): string {
   return [`⏸ Send from Gmail — ${a.agentId} wants to send as ${args.account ?? "?"}`, head, clip(String(args.text ?? ""), 1500), "Expires in 24 h."].filter(Boolean).join("\n\n");
 }
 
+/**
+ * Messages to archive, mark as read or bin: the account, and the sender and subject of each
+ * one the stored call names, as the API reads them (the arguments only carry ids).
+ */
+async function describeGmailTidy(deps: HeldActionsDeps, a: any): Promise<string> {
+  const args = a.args ?? {};
+  const ids: string[] = Array.isArray(args.ids) ? args.ids.map(String) : [];
+  const words: Record<string, string> = { archive: "archive", read: "mark as read", trash: "move to the bin" };
+  const notes: Record<string, string> = {
+    archive: "They leave the inbox; they stay in All Mail and in searches.",
+    read: "They stop showing as unread.",
+    trash: "They go to the bin, which Gmail empties after 30 days.",
+  };
+  const unit = args.threads === true ? "conversation" : "message";
+  let lines: string[] = [];
+  try {
+    const res = await fetch(`${deps.apiUrl}/api/security/actions/${a.id}/preview`, { headers: deps.apiHeaders(), signal: AbortSignal.timeout(60_000) });
+    const p: any = res.ok ? await res.json() : null;
+    const items: any[] = Array.isArray(p?.items) ? p.items : [];
+    lines = items.slice(0, 20).map((m) => (m.missing ? `• (no longer there) ${m.id}` : `• ${clip(String(m.from || "?"), 60)} — ${clip(String(m.subject || "(no subject)"), 90)}`));
+    if (items.length > 20) lines.push(`… and ${items.length - 20} more (the app shows them all).`);
+  } catch { /* shown by id below */ }
+  if (!lines.length) lines = [`The messages could not be read to show them here; their ids: ${clip(ids.join(", "), 600)}`];
+  return [
+    `⏸ Gmail — ${a.agentId} wants to ${words[String(args.action)] ?? String(args.action)} ${ids.length} ${unit}${ids.length === 1 ? "" : "s"} in ${args.account ?? "?"}`,
+    lines.join("\n"),
+    `${notes[String(args.action)] ?? ""} Expires in 24 h.`.trim(),
+  ].join("\n\n");
+}
+
 function describe(a: any): string {
   if (a.toolName === "x_post") return describePost(a);
   if (a.toolName === "gmail_send") return describeGmailSend(a);
@@ -158,10 +188,10 @@ async function notifyNew(deps: HeldActionsDeps): Promise<void> {
       inline_keyboard: [
         [{ text: "✅ Approve", callback_data: `held:a:${a.id}` }, { text: "❌ Reject", callback_data: `held:r:${a.id}` }],
         // A post always asks, one by one: no task-wide approval for it.
-        ...(a.toolName === "x_post" || a.toolName === "x_dm" || a.toolName === "gmail_send" ? [] : [[{ text: "✅✅ Approve for the rest of the task", callback_data: `held:t:${a.id}` }]]),
+        ...(a.toolName === "x_post" || a.toolName === "x_dm" || a.toolName === "gmail_send" || (a.toolName === "gmail_tidy" && a.args?.action === "trash") ? [] : [[{ text: "✅✅ Approve for the rest of the task", callback_data: `held:t:${a.id}` }]]),
       ],
     };
-    const text = describe(a);
+    const text = a.toolName === "gmail_tidy" ? await describeGmailTidy(deps, a) : describe(a);
     for (const chatId of cfg.allowlist) {
       try {
         const sent = await deps.tg(token, "sendMessage", { chat_id: chatId, text, reply_markup, disable_web_page_preview: true });

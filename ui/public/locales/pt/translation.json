@@ -301,7 +301,25 @@
         "fromOriginal": "(da mensagem original)",
         "replyTo": "Resposta à mensagem {{id}}, na sua conversa",
         "forward": "Encaminha a mensagem {{id}}, com texto e anexos",
-        "note": "Sai da sua conta, em seu nome, quando você aprovar. Nada é cobrado."
+        "note": "Sai da sua conta, em seu nome, quando você aprovar. Nada é cobrado.",
+        "tidy": {
+          "archive": "Arquivar",
+          "read": "Marcar como lido",
+          "trash": "Mandar para a lixeira",
+          "messagesOne": "1 mensagem",
+          "messagesMany": "{{n}} mensagens",
+          "threadsOne": "1 conversa",
+          "threadsMany": "{{n}} conversas",
+          "loading": "lendo as mensagens…",
+          "failed": "Não foi possível ler as mensagens para mostrá-las. Estes são os seus identificadores:",
+          "missing": "(não existe mais)",
+          "noSubject": "(sem assunto)",
+          "note": {
+            "archive": "Saem da Caixa de entrada; continuam em Todos os e-mails e nas buscas. Nada é cobrado.",
+            "read": "Deixam de aparecer como não lidas. Nada é cobrado.",
+            "trash": "Vão para a lixeira, que o Gmail esvazia após 30 dias; até lá podem ser recuperadas. Aprova-se a cada vez."
+          }
+        }
       }
     },
     "linkUnverified": "⚠ Não verificado: o agente não abriu nem viu este endereço nesta conversa. Pode existir, mas veio da memória dele, não de uma consulta.",
@@ -861,12 +879,14 @@
       "grants": {
         "read": "Ler",
         "compose": "Rascunhos",
-        "send": "Enviar"
+        "send": "Enviar",
+        "organize": "Organizar"
       },
       "grantsHelp": {
         "read": "Pesquisar na caixa, ler mensagens e conversas, salvar anexos em uma tarefa. Sem aprovação; o que é lido chega aos agentes como conteúdo externo.",
         "compose": "Escrever rascunhos, também respostas em uma conversa. O rascunho espera por você no Gmail; nada sai da conta.",
-        "send": "Enviar, responder e encaminhar como esta conta. Cada mensagem aguarda sua aprovação."
+        "send": "Enviar, responder e encaminhar como esta conta. Cada mensagem aguarda sua aprovação.",
+        "organize": "Marcar com etiquetas, com estrela e criar etiquetas, sem aprovação. Arquivar, marcar como lido e mandar para a lixeira esperam a sua aprovação, com as mensagens à vista. O Google descreve esta permissão como «ler, redigir e enviar»: não oferece uma mais restrita para etiquetar; o HydraOps só faz o que você marcar aqui."
       },
       "reconnect": "conectar de novo",
       "canUse": "Podem usá-la:",
@@ -876,7 +896,7 @@
       "disconnectConfirm": "Desconectar {{email}}? Seus tokens são apagados e nenhum agente poderá lê-la até você conectá-la de novo.",
       "noAccounts": "Nenhuma conta conectada ainda. Conecte a primeira com o botão acima.",
       "noApp": "Salve primeiro o Client ID e o segredo do seu cliente OAuth do Google.",
-      "approvalHint": "Ler uma caixa de e-mail não pede aprovação: nada muda nela. Um rascunho também não: ele espera nos Rascunhos do Gmail, nada sai da conta. Enviar sempre aguarda sua aprovação no chat (e no celular se você tiver Telegram), com a conta, os destinatários, o assunto e o texto à vista. Um e-mail é texto de outras pessoas, e o jeito clássico de passar instruções a um agente: o que os agentes leem chega marcado como conteúdo externo, e qualquer ação com efeitos que queiram fazer depois de ler espera por você. Um agente só pode usar as contas que você atribuir aqui.",
+      "approvalHint": "Ler uma caixa de e-mail não pede aprovação: nada muda nela. Um rascunho também não: ele espera nos Rascunhos do Gmail, nada sai da conta. Enviar sempre aguarda sua aprovação no chat (e no celular se você tiver Telegram), com a conta, os destinatários, o assunto e o texto à vista. Um e-mail é texto de outras pessoas, e o jeito clássico de passar instruções a um agente: o que os agentes leem chega marcado como conteúdo externo, e qualquer ação com efeitos que queiram fazer depois de ler espera por você. Um agente só pode usar as contas que você atribuir aqui. Etiquetar e marcar com estrela também não pedem aprovação; arquivar, marcar como lido e a lixeira sim, com as mensagens à vista.",
       "errors": {
         "generic": "Não foi possível alcançar o Google. Tente de novo em instantes.",
         "bad_client_id": "Isso não parece um Client ID OAuth do Google (termina em .apps.googleusercontent.com).",

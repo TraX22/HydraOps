@@ -301,7 +301,25 @@
         "fromOriginal": "(dal messaggio originale)",
         "replyTo": "Risposta al messaggio {{id}}, nella sua conversazione",
         "forward": "Inoltra il messaggio {{id}}, con testo e allegati",
-        "note": "Parte dal tuo account, a tuo nome, quando approvi. Nulla viene addebitato."
+        "note": "Parte dal tuo account, a tuo nome, quando approvi. Nulla viene addebitato.",
+        "tidy": {
+          "archive": "Archiviare",
+          "read": "Segnare come letto",
+          "trash": "Spostare nel cestino",
+          "messagesOne": "1 messaggio",
+          "messagesMany": "{{n}} messaggi",
+          "threadsOne": "1 conversazione",
+          "threadsMany": "{{n}} conversazioni",
+          "loading": "lettura dei messaggi…",
+          "failed": "Non è stato possibile leggere i messaggi per mostrarli. Questi sono i loro identificativi:",
+          "missing": "(non c'è più)",
+          "noSubject": "(senza oggetto)",
+          "note": {
+            "archive": "Escono da Posta in arrivo; restano in Tutti i messaggi e nelle ricerche. Non si paga nulla.",
+            "read": "Non risultano più come non letti. Non si paga nulla.",
+            "trash": "Vanno nel cestino, che Gmail svuota dopo 30 giorni; fino ad allora si possono recuperare. Si approva ogni volta."
+          }
+        }
       }
     },
     "linkUnverified": "⚠ Non verificato: l'agente non ha aperto né visto questo indirizzo in questa conversazione. Può esistere, ma viene dalla sua memoria, non da una consultazione.",
@@ -861,12 +879,14 @@
       "grants": {
         "read": "Leggere",
         "compose": "Bozze",
-        "send": "Inviare"
+        "send": "Inviare",
+        "organize": "Organizzare"
       },
       "grantsHelp": {
         "read": "Cercare nella casella, leggere messaggi e conversazioni, salvare allegati in un'attività. Senza approvazione; ciò che viene letto arriva agli agenti come contenuto esterno.",
         "compose": "Scrivere bozze, anche risposte in una conversazione. La bozza ti aspetta in Gmail; nulla esce dall'account.",
-        "send": "Inviare, rispondere e inoltrare come questo account. Ogni messaggio attende la tua approvazione."
+        "send": "Inviare, rispondere e inoltrare come questo account. Ogni messaggio attende la tua approvazione.",
+        "organize": "Etichettare, aggiungere a Speciali e creare etichette, senza approvazione. Archiviare, segnare come letto e spostare nel cestino aspettano la tua approvazione, con i messaggi in vista. Google descrive questo permesso come «leggere, scrivere e inviare»: non ne offre uno più ristretto per etichettare; HydraOps fa solo ciò che spunti qui."
       },
       "reconnect": "collega di nuovo",
       "canUse": "Possono usarlo:",
@@ -876,7 +896,7 @@
       "disconnectConfirm": "Scollegare {{email}}? I suoi token vengono eliminati e nessun agente potrà leggerlo finché non lo colleghi di nuovo.",
       "noAccounts": "Nessun account collegato. Collega il primo con il pulsante qui sopra.",
       "noApp": "Salva prima il Client ID e il secret del tuo client OAuth di Google.",
-      "approvalHint": "Leggere una casella non chiede approvazione: nulla cambia in essa. Nemmeno una bozza: aspetta nelle Bozze di Gmail, nulla esce dall'account. Inviare attende sempre la tua approvazione nella chat (e sul telefono se hai Telegram), con l'account, i destinatari, l'oggetto e il testo in vista. Un'email è testo di altri, e il modo classico per infilare istruzioni a un agente: ciò che gli agenti leggono arriva marcato come contenuto esterno, e qualsiasi azione con effetti che vogliano fare dopo aver letto aspetta te. Un agente può usare solo gli account che gli assegni qui.",
+      "approvalHint": "Leggere una casella non chiede approvazione: nulla cambia in essa. Nemmeno una bozza: aspetta nelle Bozze di Gmail, nulla esce dall'account. Inviare attende sempre la tua approvazione nella chat (e sul telefono se hai Telegram), con l'account, i destinatari, l'oggetto e il testo in vista. Un'email è testo di altri, e il modo classico per infilare istruzioni a un agente: ciò che gli agenti leggono arriva marcato come contenuto esterno, e qualsiasi azione con effetti che vogliano fare dopo aver letto aspetta te. Un agente può usare solo gli account che gli assegni qui. Nemmeno etichettare e aggiungere a Speciali chiede approvazione; archiviare, segnare come letto e il cestino sì, con i messaggi in vista.",
       "errors": {
         "generic": "Google non è raggiungibile. Riprova tra poco.",
         "bad_client_id": "Non sembra un Client ID OAuth di Google (termina con .apps.googleusercontent.com).",

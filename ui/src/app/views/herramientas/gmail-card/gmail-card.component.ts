@@ -9,7 +9,7 @@ const POLL_MS = 3000;
 /**
  * Herramientas → Gmail. One card: the user's Google OAuth client (its id and secret go to the
  * key store), the Gmail accounts connected through it, one sign-in per account with the
- * permissions chosen for it (read, drafts, send), which agents may use each account, and whether
+ * permissions chosen for it (read, drafts, send, organize), which agents may use each account, and whether
  * its new mail is handed to one of them (the filter, how often, and what the agent does with it).
  * Reading a mailbox asks nobody and costs nothing; a draft asks nobody either (nothing leaves
  * the account); sending always waits for the user.
@@ -42,7 +42,7 @@ export class GmailCardComponent implements OnInit, OnDestroy {
   readonly grants = GMAIL_GRANTS;
   /** The picker is open: the user chooses what the account is for before the link exists. */
   choosing = signal(false);
-  pick = signal<Record<GmailGrant, boolean>>({ read: true, compose: true, send: false });
+  pick = signal<Record<GmailGrant, boolean>>({ read: true, compose: true, send: false, organize: false });
   /** When the sign-in is to add permissions to an account already connected. */
   reconnecting = signal<GmailAccount | null>(null);
   link = signal<{ url: string; expiresAt: string; grants?: GmailGrant[] } | null>(null);
@@ -117,7 +117,7 @@ export class GmailCardComponent implements OnInit, OnDestroy {
   connect(): void {
     if (this.busy() || this.link()) return;
     this.reconnecting.set(null);
-    this.pick.set({ read: true, compose: true, send: false });
+    this.pick.set({ read: true, compose: true, send: false, organize: false });
     this.choosing.set(true);
     this.error.set('');
   }
@@ -126,7 +126,7 @@ export class GmailCardComponent implements OnInit, OnDestroy {
   reconnect(a: GmailAccount, extra?: GmailGrant): void {
     if (this.busy() || this.link()) return;
     const on = new Set<GmailGrant>([...a.grants, ...(extra ? [extra] : [])]);
-    this.pick.set({ read: true, compose: on.has('compose'), send: on.has('send') });
+    this.pick.set({ read: true, compose: on.has('compose'), send: on.has('send'), organize: on.has('organize') });
     this.reconnecting.set(a);
     this.needsReconnect.set(null);
     this.choosing.set(true);

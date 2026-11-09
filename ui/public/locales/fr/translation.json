@@ -301,7 +301,25 @@
         "fromOriginal": "(du message d'origine)",
         "replyTo": "Réponse au message {{id}}, dans son fil",
         "forward": "Transfère le message {{id}}, texte et pièces jointes compris",
-        "note": "Part de votre compte, en votre nom, une fois approuvé. Rien n'est facturé."
+        "note": "Part de votre compte, en votre nom, une fois approuvé. Rien n'est facturé.",
+        "tidy": {
+          "archive": "Archiver",
+          "read": "Marquer comme lu",
+          "trash": "Mettre à la corbeille",
+          "messagesOne": "1 message",
+          "messagesMany": "{{n}} messages",
+          "threadsOne": "1 conversation",
+          "threadsMany": "{{n}} conversations",
+          "loading": "lecture des messages…",
+          "failed": "Les messages n'ont pas pu être lus pour les afficher. Voici leurs identifiants :",
+          "missing": "(n'existe plus)",
+          "noSubject": "(sans objet)",
+          "note": {
+            "archive": "Ils quittent la boîte de réception ; ils restent dans Tous les messages et dans les recherches. Rien n'est facturé.",
+            "read": "Ils ne figurent plus comme non lus. Rien n'est facturé.",
+            "trash": "Ils vont à la corbeille, que Gmail vide après 30 jours ; d'ici là ils sont récupérables. À approuver à chaque fois."
+          }
+        }
       }
     },
     "linkUnverified": "⚠ Non vérifié : l'agent n'a ni ouvert ni vu cette adresse dans cette conversation. Elle peut exister, mais elle vient de sa mémoire, pas d'une consultation.",
@@ -861,12 +879,14 @@
       "grants": {
         "read": "Lire",
         "compose": "Brouillons",
-        "send": "Envoyer"
+        "send": "Envoyer",
+        "organize": "Organiser"
       },
       "grantsHelp": {
         "read": "Chercher dans la boîte, lire messages et fils, enregistrer des pièces jointes dans une tâche. Sans approbation ; ce qui est lu parvient aux agents comme contenu extérieur.",
         "compose": "Écrire des brouillons, aussi des réponses dans un fil. Le brouillon vous attend dans Gmail ; rien ne sort du compte.",
-        "send": "Envoyer, répondre et transférer avec ce compte. Chaque message attend votre approbation."
+        "send": "Envoyer, répondre et transférer avec ce compte. Chaque message attend votre approbation.",
+        "organize": "Étiqueter, suivre et créer des libellés, sans approbation. Archiver, marquer comme lu et mettre à la corbeille attendent votre approbation, avec les messages sous les yeux. Google décrit cette autorisation comme « lire, rédiger et envoyer » : il n'en propose pas de plus étroite pour étiqueter ; HydraOps ne fait que ce que vous cochez ici."
       },
       "reconnect": "reconnecter",
       "canUse": "Peuvent l'utiliser :",
@@ -876,7 +896,7 @@
       "disconnectConfirm": "Déconnecter {{email}} ? Ses jetons sont supprimés et aucun agent ne pourra le lire tant que vous ne le reconnectez pas.",
       "noAccounts": "Aucun compte connecté pour l'instant. Connectez le premier avec le bouton ci-dessus.",
       "noApp": "Enregistrez d'abord le Client ID et le secret de votre client OAuth Google.",
-      "approvalHint": "Lire une boîte mail ne demande aucune approbation : rien n'y change. Un brouillon non plus : il attend dans les Brouillons de Gmail, rien ne sort du compte. Envoyer attend toujours votre approbation dans le chat (et sur votre téléphone si vous avez Telegram), avec le compte, les destinataires, l'objet et le texte sous les yeux. Un e-mail est l'écrit d'autrui, et le moyen classique de glisser des instructions à un agent : ce que les agents lisent arrive marqué comme contenu extérieur, et toute action à effets qu'ils voudraient faire ensuite vous attend. Un agent ne peut utiliser que les comptes que vous lui attribuez ici.",
+      "approvalHint": "Lire une boîte mail ne demande aucune approbation : rien n'y change. Un brouillon non plus : il attend dans les Brouillons de Gmail, rien ne sort du compte. Envoyer attend toujours votre approbation dans le chat (et sur votre téléphone si vous avez Telegram), avec le compte, les destinataires, l'objet et le texte sous les yeux. Un e-mail est l'écrit d'autrui, et le moyen classique de glisser des instructions à un agent : ce que les agents lisent arrive marqué comme contenu extérieur, et toute action à effets qu'ils voudraient faire ensuite vous attend. Un agent ne peut utiliser que les comptes que vous lui attribuez ici. Étiqueter et suivre ne demandent pas d'approbation non plus ; archiver, marquer comme lu et la corbeille si, avec les messages sous les yeux.",
       "errors": {
         "generic": "Google est injoignable. Réessayez dans un instant.",
         "bad_client_id": "Cela ne ressemble pas à un Client ID OAuth Google (il se termine par .apps.googleusercontent.com).",
