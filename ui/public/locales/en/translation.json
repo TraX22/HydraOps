@@ -892,7 +892,8 @@
         "gmail_reauth_required": "That account's session expired: connect it again.",
         "scopes_missing": "That account was not connected with that permission: connect it again to add it.",
         "not_listening": "Handing over new mail is off for that account, or it has no agent.",
-        "gmail_disabled": "Gmail is switched off: switch it on above to check."
+        "gmail_disabled": "Gmail is switched off: switch it on above to check.",
+        "bad_filter": "The filter has a parenthesis, a brace or a quote that is not closed."
       },
       "grantsHint": "What will the agents use this account for? Only those permissions are asked of Google. Another can be added later by connecting the account again; one is taken away from the account's row, without reconnecting.",
       "getLink": "Get the link",

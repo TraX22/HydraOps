@@ -892,7 +892,8 @@
         "gmail_reauth_required": "La sessione di quell'account è scaduta: collegalo di nuovo.",
         "scopes_missing": "Quell'account non è stato collegato con quell'autorizzazione: collegalo di nuovo per aggiungerla.",
         "not_listening": "L'avviso delle nuove email è spento per quell'account, o non ha un agente.",
-        "gmail_disabled": "Gmail è spento: accendilo qui sopra per controllare."
+        "gmail_disabled": "Gmail è spento: accendilo qui sopra per controllare.",
+        "bad_filter": "Il filtro ha una parentesi, una graffa o una virgoletta non chiusa."
       },
       "grantsHint": "Per cosa useranno gli agenti questo account? Solo quelle autorizzazioni vengono chieste a Google. Un'altra si può aggiungere dopo collegando di nuovo l'account; una si toglie dalla riga dell'account, senza ricollegare.",
       "getLink": "Ottieni il link",

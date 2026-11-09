@@ -245,6 +245,7 @@ export class GmailCardComponent implements OnInit, OnDestroy {
 
   private saveListen(a: GmailAccount, listen: Partial<GmailListen>): void {
     this.checked.set(null);
+    this.error.set('');
     this.api.saveGmailIntegration({ accounts: [{ id: a.id, listen }] }).subscribe({ next: n => { this.apply(n); this.flash(); }, error: e => this.error.set(this.errorText(e)) });
   }
   toggleListen(a: GmailAccount): void {
@@ -312,7 +313,7 @@ export class GmailCardComponent implements OnInit, OnDestroy {
 
   private errorText(e: any): string {
     const code = String(e?.error?.error ?? '');
-    const known = ['bad_client_id', 'no_secret', 'app_not_configured', 'bad_redirect_uri', 'state_mismatch', 'no_code', 'scope_missing', 'no_refresh_token', 'bad_callback_url', 'no_such_account', 'gmail_reauth_required', 'scopes_missing', 'not_listening', 'gmail_disabled'];
+    const known = ['bad_client_id', 'no_secret', 'app_not_configured', 'bad_redirect_uri', 'state_mismatch', 'no_code', 'scope_missing', 'no_refresh_token', 'bad_callback_url', 'no_such_account', 'gmail_reauth_required', 'scopes_missing', 'not_listening', 'gmail_disabled', 'bad_filter'];
     if (known.includes(code)) return this.translate.instant('herramientas.gmail.errors.' + code);
     return String(e?.error?.message || e?.message || this.translate.instant('herramientas.gmail.errors.generic'));
   }

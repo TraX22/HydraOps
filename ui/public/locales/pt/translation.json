@@ -892,7 +892,8 @@
         "gmail_reauth_required": "A sessão dessa conta expirou: conecte-a de novo.",
         "scopes_missing": "Essa conta não foi conectada com essa permissão: conecte-a de novo para adicioná-la.",
         "not_listening": "O aviso de novos e-mails está desligado para essa conta, ou ela não tem agente.",
-        "gmail_disabled": "O Gmail está desligado: ligue-o acima para verificar."
+        "gmail_disabled": "O Gmail está desligado: ligue-o acima para verificar.",
+        "bad_filter": "O filtro tem um parêntese, uma chave ou uma aspa sem fechar."
       },
       "grantsHint": "Para que os agentes vão usar esta conta? Só essas permissões são pedidas ao Google. Outra pode ser adicionada depois conectando a conta de novo; uma é retirada na linha da conta, sem reconectar.",
       "getLink": "Obter o link",

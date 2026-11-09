@@ -892,7 +892,8 @@
         "gmail_reauth_required": "La sesión de esa cuenta venció: conectala de nuevo.",
         "scopes_missing": "Esa cuenta no se conectó con ese permiso: conectala de nuevo para agregarlo.",
         "not_listening": "El aviso de correos nuevos está apagado para esa cuenta, o no tiene agente.",
-        "gmail_disabled": "Gmail está apagado: encendelo arriba para revisar."
+        "gmail_disabled": "Gmail está apagado: encendelo arriba para revisar.",
+        "bad_filter": "El filtro tiene un paréntesis, una llave o una comilla sin cerrar."
       },
       "grantsHint": "¿Para qué van a usar los agentes esta cuenta? Solo esos permisos se le piden a Google. Otro se puede agregar después conectando la cuenta de nuevo; uno se quita desde la fila de la cuenta, sin reconectar.",
       "getLink": "Obtener el enlace",

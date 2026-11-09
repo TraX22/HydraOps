@@ -4259,6 +4259,18 @@ const GMAIL_LISTEN_DEFAULT_MINUTES = 10;
 const GMAIL_LISTEN_DEFAULT_QUERY = "in:inbox is:unread";
 const GMAIL_LISTEN_DEFAULT_DAILY = 50;
 const GMAIL_LISTEN_QUERY_MAX = 300;
+/** A filter whose parentheses, braces or quotes do not pair up would not stay inside its group in the search. */
+function gmailFilterBalanced(q: string): boolean {
+  let round = 0, curly = 0, quotes = 0;
+  for (const c of q) {
+    if (c === '"') quotes++;
+    else if (c === "(") round++;
+    else if (c === "{") curly++;
+    else if (c === ")" && --round < 0) return false;
+    else if (c === "}" && --curly < 0) return false;
+  }
+  return round === 0 && curly === 0 && quotes % 2 === 0;
+}
 const gmailListenDefaults = (): GmailListen => ({ on: false, agent: "", intervalMinutes: GMAIL_LISTEN_DEFAULT_MINUTES, query: GMAIL_LISTEN_DEFAULT_QUERY, mode: "notice", dailyLimit: GMAIL_LISTEN_DEFAULT_DAILY });
 function gmailListenOf(v: any, agents: string[], prev?: GmailListen): GmailListen | undefined {
   if (v === null) return undefined;
@@ -4457,8 +4469,10 @@ async function checkGmailMail(account: any, reason: "tick" | "manual" | "start")
     if (account.status !== "connected") throw new Error(`${account.email} needs connecting again in Tools → Gmail`);
     const call = async (op: string, params: Record<string, unknown>) => (await gmailProxy("POST", "/call", { accountId: account.id, op, params }, 70_000))?.body ?? {};
     const since = state.since ?? now;
+    const after = Math.floor(since / 1000) - GMAIL_LISTEN_MARGIN_S;
+    const floor = after * 1000;
     // The user's filter as a group, so an OR inside it cannot swallow the date.
-    const q = `(${listen.query}) after:${Math.floor(since / 1000) - GMAIL_LISTEN_MARGIN_S}`;
+    const q = `(${listen.query}) after:${after}`;
     const listed: string[] = [];
     let page: string | undefined;
     for (let i = 0; i < GMAIL_LISTEN_PAGES; i++) {
@@ -4490,8 +4504,11 @@ async function checkGmailMail(account: any, reason: "tick" | "manual" | "start")
       }
       // Never ahead of this computer's clock: an imported message may carry any date.
       const at = Number(m?.internalDate);
-      if (Number.isFinite(at) && at > 0) done.newest = Math.max(done.newest, Math.min(at, now));
       done.handled.push(id);
+      // The date is checked here too, not left to the search alone: whatever a filter makes of
+      // the query, a message from before the stretch being looked at is not new mail.
+      if (Number.isFinite(at) && at > 0 && at < floor) continue;
+      if (Number.isFinite(at) && at > 0) done.newest = Math.max(done.newest, Math.min(at, now));
       const labels: string[] = Array.isArray(m?.labelIds) ? m.labelIds.map(String) : [];
       // The account's own writing and what Gmail set aside are not incoming mail, whatever the filter says.
       if (labels.some((l) => l === "DRAFT" || l === "SPAM" || l === "TRASH" || l === "CHAT") || (labels.includes("SENT") && !labels.includes("INBOX"))) continue;
@@ -4571,6 +4588,9 @@ api.post("/system/integrations/gmail", async (req, res) => {
     if (typeof b.enabled === "boolean") cfg.enabled = b.enabled;
     const started: string[] = [];
     const refiltered: string[] = [];
+    if (Array.isArray(b.accounts) && b.accounts.some((a: any) => typeof a?.listen?.query === "string" && !gmailFilterBalanced(a.listen.query))) {
+      return res.status(400).json({ error: "bad_filter", message: "The filter has a parenthesis, a brace or a quote that is not closed." });
+    }
     if (Array.isArray(b.accounts)) {
       for (const a of b.accounts) {
         if (!a || typeof a.id !== "string" || !/^[0-9]{1,30}$/.test(a.id)) continue;

@@ -892,7 +892,8 @@
         "gmail_reauth_required": "La session de ce compte a expiré : reconnectez-le.",
         "scopes_missing": "Ce compte n'a pas été connecté avec cette autorisation : reconnectez-le pour l'ajouter.",
         "not_listening": "Le signalement des nouveaux e-mails est désactivé pour ce compte, ou il n'a pas d'agent.",
-        "gmail_disabled": "Gmail est désactivé : activez-le ci-dessus pour vérifier."
+        "gmail_disabled": "Gmail est désactivé : activez-le ci-dessus pour vérifier.",
+        "bad_filter": "Le filtre contient une parenthèse, une accolade ou un guillemet non fermé."
       },
       "grantsHint": "À quoi les agents utiliseront-ils ce compte ? Seules ces autorisations sont demandées à Google. Une autre peut être ajoutée plus tard en reconnectant le compte ; une se retire depuis la ligne du compte, sans reconnecter.",
       "getLink": "Obtenir le lien",
