@@ -371,6 +371,9 @@ export interface GmailCallResult {
 }
 const ID_RE = /^[A-Za-z0-9_-]{1,200}$/;
 const PARAM_MAX = 2048;
+const LABEL_ID_RE = /^[A-Za-z0-9_-]{1,100}$/;
+const LABELS_MAX = 20;
+const LABEL_NAME_MAX = 200;
 
 /**
  * One operation of the table, as one account. The path's placeholders and the query are
@@ -409,6 +412,21 @@ export async function callOp(accountId: string, opName: unknown, params: unknown
     const message: Record<string, string> = { raw };
     if (typeof p.threadId === "string" && ID_RE.test(p.threadId)) message.threadId = p.threadId;
     payload = JSON.stringify(op.path.startsWith("/drafts") ? { message } : message);
+  } else if (op.body === "labels") {
+    // Label ids as Gmail spells them (INBOX, UNREAD, Label_12), a handful each way, none on both sides.
+    const ids = (v: unknown): string[] => [...new Set((Array.isArray(v) ? v : []).map((x) => String(x).trim()))];
+    const add = ids(p.addLabelIds), remove = ids(p.removeLabelIds);
+    if (!add.length && !remove.length) throw new GmailError("bad_labels", "Nothing to change: no label to add or to remove.");
+    if (add.length > LABELS_MAX || remove.length > LABELS_MAX) throw new GmailError("bad_labels", `At most ${LABELS_MAX} labels are added or removed at once.`);
+    const odd = [...add, ...remove].find((x) => !LABEL_ID_RE.test(x));
+    if (odd !== undefined) throw new GmailError("bad_labels", `"${odd.slice(0, 40)}" is not a Gmail label id.`);
+    if (add.some((x) => remove.includes(x))) throw new GmailError("bad_labels", "A label cannot be added and removed in the same change.");
+    payload = JSON.stringify({ addLabelIds: add, removeLabelIds: remove });
+  } else if (op.body === "label") {
+    // A new label: its name as one line (a "/" nests it under another), shown in the list like any label.
+    const name = String(p.name ?? "").replace(/[\u0000-\u001f\u007f\s]+/g, " ").trim();
+    if (!name || name.length > LABEL_NAME_MAX) throw new GmailError("bad_label_name", `A label's name has 1 to ${LABEL_NAME_MAX} characters.`);
+    payload = JSON.stringify({ name, labelListVisibility: "labelShow", messageListVisibility: "show" });
   }
   const token = await accessToken(accountId);
   const { ok, status, body } = await fetchJson(url.toString(), {
@@ -423,7 +441,8 @@ export async function callOp(accountId: string, opName: unknown, params: unknown
     throw new GmailError("gmail_reauth_required", `Google no longer accepts the connection of ${account.email}: connect it again in Tools → Gmail.`, 401);
   }
   if (status === 429) throw new GmailError("rate_limited", `Google is rate limiting this (${op.name}) for the moment; try again in a few minutes.`, 429);
-  if (status === 404) throw new GmailError("not_found", `Gmail has no such ${op.name === "thread" ? "thread" : op.name === "attachment" ? "attachment" : "message"} in ${account.email}.`, 404);
+  if (status === 404) throw new GmailError("not_found", `Gmail has no such ${op.name.startsWith("thread") ? "thread" : op.name === "attachment" ? "attachment" : "message"} in ${account.email}.`, 404);
+  if (status === 409 && op.name === "label_create") throw new GmailError("label_exists", "A label with that name already exists.", 409);
   if (!ok) throw new GmailError(errorCode(body) || `http_${status}`, errorMessage(body, `Gmail refused the request (${status}).`), status);
   if (op.kind === "write") console.log(`[key-proxy] gmail: ${op.name} as ${account.email}${p.id ? ` (${String(p.id).slice(0, 40)})` : ""}`);
   return { op: op.name, body };
