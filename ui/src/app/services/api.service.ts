@@ -380,8 +380,15 @@ export interface GmailAccount {
 export type GmailListenMode = 'notice' | 'draft';
 export interface GmailListen { on: boolean; agent: string; intervalMinutes: number; query: string; mode: GmailListenMode; dailyLimit: number }
 /** A permission group of a Gmail account: what the user connected it for. */
-export type GmailGrant = 'read' | 'compose' | 'send';
-export const GMAIL_GRANTS: GmailGrant[] = ['read', 'compose', 'send'];
+export type GmailGrant = 'read' | 'compose' | 'send' | 'organize';
+export const GMAIL_GRANTS: GmailGrant[] = ['read', 'compose', 'send', 'organize'];
+/** What a held gmail_tidy call would touch: the messages (or threads) it names, as the server read them from the stored call. */
+export interface HeldPreview {
+  kind: 'gmail_messages' | null;
+  account?: string;
+  threads?: boolean;
+  items?: { id: string; from: string; subject: string; at: number | null; count?: number; missing?: boolean }[];
+}
 export interface GmailIntegration {
   enabled: boolean;
   appConfigured: boolean;
@@ -919,6 +926,11 @@ export class ApiService {
 
   cancelTask(id: string): Observable<{ success: boolean }> {
     return this.http.post<{ success: boolean }>(`${this.base}/tasks/${id}/cancel`, {});
+  }
+
+  /** What a held call would touch, for the calls whose arguments are ids (the messages of a gmail_tidy). */
+  getHeldPreview(id: string): Observable<HeldPreview> {
+    return this.http.get<HeldPreview>(`${this.base}/security/actions/${id}/preview`);
   }
 
   approveHeldAction(id: string, scope: 'call' | 'task' = 'call'): Observable<{ action: HeldAction }> {

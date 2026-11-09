@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, OnInit, Output, inject, signal } from '@angular/core';
-import { TranslatePipe } from '@ngx-translate/core';
-import { ApiService, HeldAction, XAccount } from '../../services/api.service';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { ApiService, HeldAction, HeldPreview, XAccount } from '../../services/api.service';
 import { IconComponent } from '../icon/icon.component';
 
 // A sensitive tool call an agent wanted to make on a task that had read outside
@@ -76,6 +76,31 @@ import { IconComponent } from '../icon/icon.component';
             @if (g.attachments.length) { <div class="cal-row"><span class="cal-label">{{ 'chat.held.gmail.attachments' | translate }}</span>{{ g.attachments.join(', ') }}</div> }
           <p class="post-cost">{{ 'chat.held.gmail.note' | translate }}</p>
         </div>
+      } @else if (gmailTidy; as t) {
+        <div class="post">
+          <div class="post-account">
+            <span class="post-label">{{ 'chat.held.gmail.account' | translate }}</span>
+            <span class="post-handle">{{ t.account }}</span>
+          </div>
+          <p class="post-act">{{ ('chat.held.gmail.tidy.' + t.action) | translate }}: {{ ('chat.held.gmail.tidy.' + (t.threads ? 'threads' : 'messages') + (t.ids.length === 1 ? 'One' : 'Many')) | translate:{ n: t.ids.length } }}</p>
+          @if (tidyItems(); as items) {
+            <ul class="mail-list">
+              @for (m of items; track m.id) {
+                <li [class.missing]="m.missing">
+                  <span class="mail-from" [title]="m.from">{{ m.missing ? ('chat.held.gmail.tidy.missing' | translate) : (m.from || '—') }}</span>
+                  <span class="mail-subject" [title]="m.subject">{{ m.missing ? m.id : (m.subject || ('chat.held.gmail.tidy.noSubject' | translate)) }}@if (m.count && m.count > 1) { <span class="mail-count">({{ m.count }})</span> }</span>
+                  <span class="mail-when">{{ dayOf(m.at) }}</span>
+                </li>
+              }
+            </ul>
+          } @else if (tidyFailed()) {
+            <p class="post-warn">{{ 'chat.held.gmail.tidy.failed' | translate }}</p>
+            <p class="post-extra mail-ids">{{ t.ids.join(', ') }}</p>
+          } @else if (action.status === 'pending') {
+            <p class="post-extra">{{ 'chat.held.gmail.tidy.loading' | translate }}</p>
+          }
+          <p class="post-cost">{{ ('chat.held.gmail.tidy.note.' + t.action) | translate }}</p>
+        </div>
       } @else if (xAct; as x) {
         <div class="post">
           <div class="post-account">
@@ -126,7 +151,7 @@ import { IconComponent } from '../icon/icon.component';
           <button class="held-approve" [disabled]="busy()" (click)="decide('approve')">
             <app-icon name="check" /> {{ 'chat.held.approve' | translate }}
           </button>
-          @if (!post && action.toolName !== 'x_dm' && action.toolName !== 'gmail_send') {
+          @if (!post && action.toolName !== 'x_dm' && action.toolName !== 'gmail_send' && gmailTidy?.action !== 'trash') {
             <button class="held-approve held-approve-task" [disabled]="busy()" (click)="decide('approveTask')" [title]="'chat.held.approveTaskHint' | translate">
               <app-icon name="check" /> {{ 'chat.held.approveTask' | translate }}
             </button>
@@ -203,6 +228,15 @@ import { IconComponent } from '../icon/icon.component';
     .post-act { margin: 4px 0 2px; color: var(--text-primary); font-size: 13.5px; }
     .post-when { margin: 0; display: flex; align-items: center; gap: 6px; color: var(--text-primary); font-size: 12.5px; }
     .post-when app-icon { font-size: 14px; color: var(--accent); }
+    .mail-list { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-hover, rgba(127,127,127,.06)); }
+    .mail-list li { display: grid; grid-template-columns: minmax(0, 34%) minmax(0, 1fr) max-content; gap: 10px; align-items: baseline; padding: 5px 10px; border-top: 1px solid var(--border-color); }
+    .mail-list li:first-child { border-top: 0; }
+    .mail-from { font-weight: 600; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mail-subject { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mail-count { color: var(--text-muted); margin-left: 4px; }
+    .mail-when { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+    .mail-list li.missing .mail-from, .mail-list li.missing .mail-subject { color: var(--text-muted); font-weight: 400; }
+    .mail-ids { font-family: ui-monospace, monospace; font-size: 11px; word-break: break-all; }
   `],
 })
 export class HeldActionComponent implements OnInit {
@@ -210,13 +244,24 @@ export class HeldActionComponent implements OnInit {
   @Output() decided = new EventEmitter<HeldAction>();
 
   api = inject(ApiService);
+  private translate = inject(TranslateService);
   busy = signal(false);
+  /** For gmail_tidy: the messages the stored call names, as the server read them; null until they arrive. */
+  tidyItems = signal<NonNullable<HeldPreview['items']> | null>(null);
+  tidyFailed = signal(false);
   error = signal('');
   /** For x_post: the connected account the handle names, once Tools → X answered. */
   xAccount = signal<XAccount | null>(null);
   xChecked = signal(false);
 
   ngOnInit(): void {
+    // What the call would touch is only worth reading while it can still be decided.
+    if (this.gmailTidy && this.action.status === 'pending') {
+      this.api.getHeldPreview(this.action.id).subscribe({
+        next: p => { if (p.kind === 'gmail_messages' && p.items?.length) this.tidyItems.set(p.items); else this.tidyFailed.set(true); },
+        error: () => this.tidyFailed.set(true),
+      });
+    }
     const handle = this.post?.account ?? this.xAct?.account;
     if (!handle) return;
     this.api.getXIntegration().subscribe({
@@ -240,6 +285,19 @@ export class HeldActionComponent implements OnInit {
     const s = (k: string) => (typeof a[k] === 'string' ? (a[k] as string) : '');
     const list = (k: string) => (Array.isArray(a[k]) ? (a[k] as unknown[]).map(String).join(', ') : s(k));
     return { account: s('account'), to: list('to'), cc: list('cc'), bcc: list('bcc'), subject: s('subject'), text: s('text'), attachments: Array.isArray(a['attachments']) ? (a['attachments'] as unknown[]).map(String) : [], replyTo: s('reply_to'), forward: s('forward') };
+  }
+
+  /** A gmail_tidy call: what it takes out of view (archive, read, the bin), in which account, and the ids it names. */
+  get gmailTidy(): { account: string; action: string; ids: string[]; threads: boolean } | null {
+    if (this.action.toolName !== 'gmail_tidy') return null;
+    const a = (this.action.args ?? {}) as Record<string, unknown>;
+    const action = typeof a['action'] === 'string' && ['archive', 'read', 'trash'].includes(a['action'] as string) ? (a['action'] as string) : 'archive';
+    return { account: typeof a['account'] === 'string' ? (a['account'] as string) : '', action, ids: Array.isArray(a['ids']) ? (a['ids'] as unknown[]).map(String) : [], threads: a['threads'] === true };
+  }
+  /** The day a message arrived, short, in the user's language. */
+  dayOf(at: number | null): string {
+    if (!at) return '';
+    try { return new Date(at).toLocaleDateString(this.translate.currentLang() || undefined, { day: 'numeric', month: 'short' }); } catch { return ''; }
   }
 
   /** An x_engage / x_users action, read as what it does to whom, as which account, and X's price for it. */

@@ -3,8 +3,11 @@
  *
  * A Gmail account is connected for permission groups ("grants"), each a set of Google
  * scopes: read (search, messages, threads, labels, attachments), compose (drafts), send
- * (send, reply, forward). Later: organize (labels, archive, read state). Google is asked for
- * the scopes of the chosen grants only, and never grants more than the user accepted.
+ * (send, reply, forward), organize (labels, archive, read state, the bin). Google is asked
+ * for the scopes of the chosen grants only, and never grants more than the user accepted.
+ * Organizing has no narrow scope of its own: Google's gmail.modify is the only one that lets
+ * a label be put on a message, and Google words it broadly. What HydraOps does with it is
+ * what this table says and nothing else.
  *
  * Every operation the tools may run on Gmail is a row here: its method, the path under
  * users/me, the grant it needs, and which query parameters the caller may set. The Gmail
@@ -12,7 +15,7 @@
  * Google's and far above what a few agents do.
  */
 
-export const GRANTS = ["read", "compose", "send"] as const;
+export const GRANTS = ["read", "compose", "send", "organize"] as const;
 export type GmailGrant = (typeof GRANTS)[number];
 export const isGrant = (v: unknown): v is GmailGrant => typeof v === "string" && (GRANTS as readonly string[]).includes(v);
 
@@ -22,6 +25,7 @@ export const GRANT_SCOPES: Record<GmailGrant, string[]> = {
   read: ["https://www.googleapis.com/auth/gmail.readonly"],
   compose: ["https://www.googleapis.com/auth/gmail.compose"],
   send: ["https://www.googleapis.com/auth/gmail.send"],
+  organize: ["https://www.googleapis.com/auth/gmail.modify"],
 };
 /** The scopes to ask Google for: the base and those of the grants, in a stable order. */
 export function scopesFor(grants: readonly GmailGrant[]): string[] {
@@ -57,8 +61,12 @@ export interface GmailOp {
   fixed?: Record<string, string>;
   /** Bounds for maxResults. */
   results?: [number, number];
-  /** What the body carries: a message (RFC 822, built by gmail.ts from the caller's fields, never taken raw from outside). */
-  body?: "message";
+  /**
+   * What the body carries: a message (RFC 822, built by gmail.ts from the caller's fields, never
+   * taken raw from outside); the labels to add to and remove from a message or a thread; or a
+   * new label's name.
+   */
+  body?: "message" | "labels" | "label";
 }
 
 export const OPS: readonly GmailOp[] = [
@@ -80,6 +88,16 @@ export const OPS: readonly GmailOp[] = [
   // Sending: always under the user's approval (the API accepts the run of an approved call only), and
   // always as a full message, so what the user approved is what goes out: a draft is not sent by its id.
   { name: "send", method: "POST", kind: "write", path: "/messages/send", grant: "send", query: [], body: "message" },
+  // Organizing: labels on and off a message or a whole thread (archiving is taking INBOX off,
+  // reading is taking UNREAD off), the bin and back (Gmail empties it after 30 days; nothing
+  // here deletes for good), and a new label.
+  { name: "message_modify", method: "POST", kind: "write", path: "/messages/:id/modify", grant: "organize", query: [], body: "labels" },
+  { name: "thread_modify", method: "POST", kind: "write", path: "/threads/:id/modify", grant: "organize", query: [], body: "labels" },
+  { name: "message_trash", method: "POST", kind: "write", path: "/messages/:id/trash", grant: "organize", query: [] },
+  { name: "message_untrash", method: "POST", kind: "write", path: "/messages/:id/untrash", grant: "organize", query: [] },
+  { name: "thread_trash", method: "POST", kind: "write", path: "/threads/:id/trash", grant: "organize", query: [] },
+  { name: "thread_untrash", method: "POST", kind: "write", path: "/threads/:id/untrash", grant: "organize", query: [] },
+  { name: "label_create", method: "POST", kind: "write", path: "/labels", grant: "organize", query: [], body: "label" },
 ];
 
 export const opNamed = (name: unknown): GmailOp | undefined => (typeof name === "string" ? OPS.find((o) => o.name === name) : undefined);

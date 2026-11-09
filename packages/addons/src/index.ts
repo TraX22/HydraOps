@@ -19,7 +19,7 @@ import { xAccountsTool, xPostTool, xReadTool, xSearchTool } from './native/x/ind
 import { xEngageTool, xUsersTool } from './native/x/act.js';
 import { xDmTool } from './native/x/dm.js';
 import { xListsTool, xExploreTool } from './native/x/lists.js';
-import { gmailAccountsTool, gmailSearchTool, gmailReadTool, gmailDraftTool, gmailSendTool } from './native/gmail/index.js';
+import { gmailAccountsTool, gmailSearchTool, gmailReadTool, gmailDraftTool, gmailSendTool, gmailOrganizeTool, gmailTidyTool } from './native/gmail/index.js';
 import { delegateTaskTool } from './native/delegate_task/index.js';
 import { rememberTool } from './native/remember/index.js';
 import { recallTool } from './native/recall/index.js';
@@ -57,6 +57,8 @@ export async function createRegistry(): Promise<ToolRegistry> {
   registry.registerNative({ ...gmailReadTool, source: 'native' });
   registry.registerNative({ ...gmailDraftTool, source: 'native' });
   registry.registerNative({ ...gmailSendTool, source: 'native' });
+  registry.registerNative({ ...gmailOrganizeTool, source: 'native' });
+  registry.registerNative({ ...gmailTidyTool, source: 'native' });
   registry.registerNative({ ...delegateTaskTool, source: 'native' });
   registry.registerNative({ ...rememberTool, source: 'native' });
   registry.registerNative({ ...recallTool, source: 'native' });

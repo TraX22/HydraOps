@@ -4812,6 +4812,107 @@ api.post("/gmail/send", async (req, res) => {
   }
 });
 
+// ── Organizing (gmail_organize, gmail_tidy) ──
+// What each action is, as labels put on or taken off a message or a thread, the bin, or a
+// new label: the only changes the route can make, by tool. gmail_organize adds marks or
+// brings messages back into view and asks nobody. gmail_tidy takes them out of view
+// (archive, read, bin): held on the worker's side every call, and run here only as the
+// execution of an approved call with these very arguments, or (archive and read only) of a
+// later call under the user's approval for the rest of the task. The bin is never covered
+// by that approval.
+type GmailOrganizeStep = { add?: string[]; remove?: string[]; bin?: "trash" | "untrash"; label?: "add" | "remove"; create?: true };
+const GMAIL_ORGANIZE_ACTIONS: Record<string, Record<string, GmailOrganizeStep>> = {
+  gmail_organize: {
+    label: { label: "add" }, unlabel: { label: "remove" }, star: { add: ["STARRED"] }, unstar: { remove: ["STARRED"] },
+    important: { add: ["IMPORTANT"] }, not_important: { remove: ["IMPORTANT"] }, unread: { add: ["UNREAD"] }, unarchive: { add: ["INBOX"] },
+    untrash: { bin: "untrash" }, create_label: { create: true },
+  },
+  gmail_tidy: { archive: { remove: ["INBOX"] }, read: { remove: ["UNREAD"] }, trash: { bin: "trash" } },
+};
+const GMAIL_ORGANIZE_MAX = 50;
+/** The message or thread ids a call names, each once; null when they are not ids or are too many. */
+function gmailIdsOf(args: any): string[] | null {
+  const raw: unknown[] = Array.isArray(args?.ids) ? args.ids : [];
+  const ids = [...new Set(raw.map((x) => String(x ?? "").trim()))];
+  return ids.length >= 1 && ids.length <= GMAIL_ORGANIZE_MAX && ids.every((id) => GMAIL_ID_RE.test(id)) ? ids : null;
+}
+/** One of the user's own labels by name or id; system labels are not for the agent to put on or take off by name. */
+async function gmailUserLabel(accountId: string, wanted: string): Promise<{ label?: { id: string; name: string }; names: string[] }> {
+  const out = await gmailProxy("POST", "/call", { accountId, op: "labels", params: {} }, 70_000);
+  const user = (Array.isArray(out?.body?.labels) ? out.body.labels : []).filter((l: any) => l?.type === "user" && typeof l.id === "string" && typeof l.name === "string");
+  const w = wanted.trim().toLowerCase();
+  const hit = user.find((l: any) => l.id === wanted.trim()) ?? user.find((l: any) => l.name.toLowerCase() === w);
+  return { label: hit ? { id: hit.id, name: hit.name } : undefined, names: user.map((l: any) => l.name) };
+}
+api.post("/gmail/organize", async (req, res) => {
+  if (!sameSiteOnly(req, res)) return;
+  try {
+    const agentId = String(req.body?.agentId ?? "").trim().toLowerCase();
+    const taskId = typeof req.body?.taskId === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(req.body.taskId) ? req.body.taskId : undefined;
+    const toolName = String(req.body?.toolName ?? "");
+    const askedArgs = req.body?.args && typeof req.body.args === "object" ? req.body.args : {};
+    const table = GMAIL_ORGANIZE_ACTIONS[toolName];
+    if (!table) return res.status(400).json({ error: "bad_tool", message: "Not a tool that organizes Gmail." });
+    // What runs comes from the approved arguments (the stored call's, or this request's under a task-wide approval).
+    let args = askedArgs;
+    let taskWide = false;
+    if (toolName === "gmail_tidy") {
+      const claimed = await claimApprovedCall(toolName, agentId, askedArgs);
+      taskWide = !claimed && !!taskId && String(askedArgs.action ?? "") !== "trash" ? (await taskChainAutoApproved(db, taskId).catch(() => [] as string[])).includes(toolName) : false;
+      if (!claimed && !taskWide) {
+        console.warn(`[api] gmail: a ${toolName} call for ${agentId || "?"} matched no approved call: refused`);
+        return res.status(403).json({ error: "not_approved", message: "Nothing is archived, marked as read or binned without the user's approval of that exact call, and there is no approved call matching this one." });
+      }
+      if (claimed) args = claimed.args;
+    }
+    const action = String(args.action ?? "");
+    const step = table[action];
+    if (!step) return res.status(400).json({ error: "bad_action", message: `"${action.slice(0, 40)}" is not an action of ${toolName}.` });
+    const st = await gmailIntegrationStatus();
+    const pick = gmailAccountForAgent(st, agentId, String(args.account ?? "").trim().toLowerCase());
+    if (!pick.account) return res.status(pick.status).json({ error: pick.error, message: pick.message });
+    const account = pick.account;
+    if (!(Array.isArray(account.grants) && account.grants.includes("organize"))) return res.status(403).json({ error: "grant_missing", message: `${account.email} was not connected for organizing. The user adds that in Tools → Gmail.` });
+    const who = { id: account.id, email: account.email };
+    if (step.create) {
+      const out = await gmailProxy("POST", "/call", { accountId: account.id, op: "label_create", params: { name: args.label } }, 70_000);
+      console.log(`[api] gmail: ${agentId} created a label in ${account.email}`);
+      return res.json({ ok: true, action, account: who, created: { id: String(out?.body?.id ?? ""), name: String(out?.body?.name ?? args.label ?? "") } });
+    }
+    const ids = gmailIdsOf(args);
+    if (!ids) return res.status(400).json({ error: "bad_ids", message: `Give 1 to ${GMAIL_ORGANIZE_MAX} message or thread ids in \`ids\`.` });
+    const threads = args.threads === true;
+    let add = step.add ?? [], remove = step.remove ?? [];
+    let label: { id: string; name: string } | undefined;
+    if (step.label) {
+      const found = await gmailUserLabel(account.id, String(args.label ?? ""));
+      if (!found.label) return res.status(404).json({ error: "no_such_label", message: `${account.email} has no label "${String(args.label ?? "").slice(0, 80)}". Its labels: ${found.names.slice(0, 60).join(", ") || "none yet"}. gmail_organize with action create_label makes a new one.` });
+      label = found.label;
+      if (step.label === "add") add = [label.id]; else remove = [label.id];
+    }
+    const op = `${threads ? "thread" : "message"}_${step.bin ?? "modify"}`;
+    const done: string[] = [];
+    const failed: { id: string; error: string }[] = [];
+    for (const id of ids) {
+      try {
+        await gmailProxy("POST", "/call", { accountId: account.id, op, params: step.bin ? { id } : { id, addLabelIds: add, removeLabelIds: remove } }, 70_000);
+        done.push(id);
+      } catch (e: any) {
+        // The account itself is the problem: nothing else will work either.
+        if (["scopes_missing", "grant_missing", "gmail_reauth_required", "no_such_account"].includes(e?.code)) throw e;
+        failed.push({ id, error: e?.code === "not_found" ? "no such message" : String(e?.message ?? e).slice(0, 120) });
+        if (e?.code === "rate_limited") { for (const rest of ids.slice(ids.indexOf(id) + 1)) failed.push({ id: rest, error: "not tried: Google is rate limiting" }); break; }
+      }
+    }
+    console.log(`[api] gmail: ${agentId} ${action} ${done.length}/${ids.length} ${threads ? "thread" : "message"}(s) as ${account.email}${taskWide ? " (approved for the rest of the task)" : ""}`);
+    res.json({ ok: true, action, threads, account: who, done, failed, ...(label ? { label } : {}) });
+  } catch (e: any) {
+    if (["scopes_missing", "grant_missing", "bad_id", "bad_labels", "bad_label_name", "label_exists"].includes(e?.code)) return res.status(e.status ?? 400).json({ error: e.code, message: e.message });
+    console.error("[api] POST /gmail/organize failed", e?.message ?? e);
+    gmailFailure(res, e);
+  }
+});
+
 // Push a plain-text message to every paired Telegram chat. Backs the
 // send_to_telegram tool so an agent can deliver content to the user's Telegram
 // ON DEMAND (distinct from the telegram-bot's automatic cron push). The bot
@@ -6350,6 +6451,48 @@ api.get("/security/actions", securityLimiter, async (req, res) => {
   }
 });
 
+// What a held gmail_tidy call would touch, for its card and its Telegram notice: the sender,
+// subject and date of each message it names. Read from the STORED call, never from the
+// request, so the card shows what approving will run; kept a few minutes, since ids do not
+// change meaning.
+const gmailHeldPreviews = new Map<string, { at: number; body: any }>();
+api.get("/security/actions/:id/preview", securityLimiter, async (req, res) => {
+  try {
+    const id = String(req.params.id ?? "");
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: "invalid_id" });
+    const [row] = await (db as any).select().from(pendingActions).where(eq(pendingActions.id, id)).limit(1);
+    if (!row) return res.status(404).json({ error: "not_found" });
+    if (row.toolName !== "gmail_tidy") return res.json({ kind: null });
+    const cached = gmailHeldPreviews.get(id);
+    if (cached && Date.now() - cached.at < 10 * 60_000) return res.json(cached.body);
+    const args = row.args && typeof row.args === "object" ? row.args : {};
+    const st = await gmailIntegrationStatus();
+    const pick = gmailAccountForAgent(st, String(row.agentId ?? "").toLowerCase(), String(args.account ?? "").trim().toLowerCase());
+    if (!pick.account) return res.status(pick.status).json({ error: pick.error, message: pick.message });
+    const ids = gmailIdsOf(args);
+    if (!ids) return res.json({ kind: "gmail_messages", account: pick.account.email, threads: args.threads === true, items: [] });
+    const threads = args.threads === true;
+    const headers = ["From", "Subject", "Date"];
+    const one = async (mid: string) => {
+      try {
+        const out = await gmailProxy("POST", "/call", { accountId: pick.account.id, op: threads ? "thread" : "message", params: { id: mid, format: "metadata", metadataHeaders: headers } }, 70_000);
+        const msgs: any[] = threads ? (Array.isArray(out?.body?.messages) ? out.body.messages : []) : [out?.body];
+        const first = msgs[0] ?? {};
+        const at = Number(msgs[msgs.length - 1]?.internalDate);
+        return { id: mid, from: gmailHeader(first, "From").slice(0, 200), subject: gmailHeader(first, "Subject").slice(0, 300), at: Number.isFinite(at) && at > 0 ? at : null, ...(threads ? { count: msgs.length } : {}) };
+      } catch (e: any) {
+        return { id: mid, missing: true, from: "", subject: "", at: null };
+      }
+    };
+    const items: any[] = [];
+    for (let i = 0; i < ids.length; i += 10) items.push(...(await Promise.all(ids.slice(i, i + 10).map(one))));
+    const body = { kind: "gmail_messages", account: pick.account.email, threads, items };
+    gmailHeldPreviews.set(id, { at: Date.now(), body });
+    if (gmailHeldPreviews.size > 200) for (const [k, v] of gmailHeldPreviews) if (Date.now() - v.at > 10 * 60_000) gmailHeldPreviews.delete(k);
+    res.json(body);
+  } catch (e: any) { gmailFailure(res, e); }
+});
+
 // scope "task": this call runs and the same tool no longer asks in the task's continuations
 // (the worker reads it through taskChainAutoApproved); tools that always ask keep asking.
 async function decidePendingAction(id: string, decision: "approved" | "rejected", scope: "call" | "task" = "call"): Promise<{ status: number; body: any }> {
@@ -6357,6 +6500,9 @@ async function decidePendingAction(id: string, decision: "approved" | "rejected"
   const [row] = await (db as any).select().from(pendingActions).where(eq(pendingActions.id, id)).limit(1);
   if (!row) return { status: 404, body: { error: "not_found" } };
   if (row.status !== "pending") return { status: 409, body: { error: "already_decided", action: publicPendingAction(row) } };
+  // Moving mail to the bin is approved call by call: an approval "for the rest of the task"
+  // of one would otherwise cover the archiving that comes after it.
+  if (scope === "task" && row.toolName === "gmail_tidy" && String(row.args?.action ?? "") === "trash") scope = "call";
   const expiresAt = row.expiresAt instanceof Date ? row.expiresAt : new Date(row.expiresAt);
   if (expiresAt.getTime() < Date.now()) {
     await (db as any).update(pendingActions).set({ status: "expired", decidedAt: new Date() }).where(eq(pendingActions.id, id)).run();

@@ -301,7 +301,25 @@
         "fromOriginal": "(del mensaje original)",
         "replyTo": "Respuesta al mensaje {{id}}, en su hilo",
         "forward": "Reenvía el mensaje {{id}}, con su texto y adjuntos",
-        "note": "Sale de tu cuenta, a tu nombre, cuando lo apruebes. No se cobra nada."
+        "note": "Sale de tu cuenta, a tu nombre, cuando lo apruebes. No se cobra nada.",
+        "tidy": {
+          "archive": "Archivar",
+          "read": "Marcar como leído",
+          "trash": "Mandar a la papelera",
+          "messagesOne": "1 mensaje",
+          "messagesMany": "{{n}} mensajes",
+          "threadsOne": "1 conversación",
+          "threadsMany": "{{n}} conversaciones",
+          "loading": "leyendo los mensajes…",
+          "failed": "No se pudieron leer los mensajes para mostrarlos. Estos son sus identificadores:",
+          "missing": "(ya no está)",
+          "noSubject": "(sin asunto)",
+          "note": {
+            "archive": "Salen de Recibidos; siguen en Todos y en las búsquedas. No se cobra nada.",
+            "read": "Dejan de figurar como no leídos. No se cobra nada.",
+            "trash": "Van a la papelera, que Gmail vacía a los 30 días; hasta entonces se pueden recuperar. Se aprueba cada vez."
+          }
+        }
       }
     },
     "linkUnverified": "⚠ No verificado: el agente no abrió ni vio esta dirección en esta conversación. Puede existir, pero salió de su memoria, no de una consulta.",
@@ -861,12 +879,14 @@
       "grants": {
         "read": "Leer",
         "compose": "Borradores",
-        "send": "Enviar"
+        "send": "Enviar",
+        "organize": "Organizar"
       },
       "grantsHelp": {
         "read": "Buscar en el buzón, leer mensajes e hilos, guardar adjuntos en una tarea. Sin aprobación; lo leído llega a los agentes como contenido ajeno.",
         "compose": "Escribir borradores, también respuestas en un hilo. El borrador te espera en Gmail; nada sale de la cuenta.",
-        "send": "Enviar, responder y reenviar como esta cuenta. Cada mensaje espera tu aprobación."
+        "send": "Enviar, responder y reenviar como esta cuenta. Cada mensaje espera tu aprobación.",
+        "organize": "Etiquetar, destacar y crear etiquetas, sin aprobación. Archivar, marcar como leído y mandar a la papelera esperan tu aprobación, con los mensajes a la vista. Google describe este permiso como «leer, redactar y enviar»: no ofrece uno más acotado para etiquetar; HydraOps solo hace lo que marques acá."
       },
       "reconnect": "conectar de nuevo",
       "canUse": "Pueden usarla:",
@@ -876,7 +896,7 @@
       "disconnectConfirm": "¿Desconectar {{email}}? Se borran sus tokens y ningún agente podrá leerla hasta que la conectes de nuevo.",
       "noAccounts": "Todavía no hay cuentas conectadas. Conectá la primera con el botón de arriba.",
       "noApp": "Guardá primero el Client ID y el secreto de tu cliente OAuth de Google.",
-      "approvalHint": "Leer un buzón no pide aprobación: nada cambia en él. Un borrador tampoco la pide: te espera en los Borradores de Gmail, nada sale de la cuenta. Enviar espera siempre tu aprobación en el chat (y en el móvil si tenés Telegram), con la cuenta, los destinatarios, el asunto y el texto a la vista. Un correo es texto de otra gente, y la forma clásica de colarle instrucciones a un agente: lo que los agentes leen llega marcado como contenido ajeno, y cualquier acción con efectos que quieran hacer después de leer te espera a vos. Un agente solo puede usar las cuentas que le asignes acá.",
+      "approvalHint": "Leer un buzón no pide aprobación: nada cambia en él. Un borrador tampoco la pide: te espera en los Borradores de Gmail, nada sale de la cuenta. Enviar espera siempre tu aprobación en el chat (y en el móvil si tenés Telegram), con la cuenta, los destinatarios, el asunto y el texto a la vista. Un correo es texto de otra gente, y la forma clásica de colarle instrucciones a un agente: lo que los agentes leen llega marcado como contenido ajeno, y cualquier acción con efectos que quieran hacer después de leer te espera a vos. Un agente solo puede usar las cuentas que le asignes acá. Etiquetar y destacar tampoco pide aprobación; archivar, marcar leído y la papelera sí, con los mensajes a la vista.",
       "errors": {
         "generic": "No se pudo llegar a Google. Probá de nuevo en un momento.",
         "bad_client_id": "Eso no parece un Client ID de OAuth de Google (termina en .apps.googleusercontent.com).",

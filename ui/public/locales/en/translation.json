@@ -301,7 +301,25 @@
         "fromOriginal": "(from the original message)",
         "replyTo": "A reply to message {{id}}, in its thread",
         "forward": "Forwards message {{id}}, its text and attachments included",
-        "note": "Sent from your account, under your name, once you approve. Nothing is charged."
+        "note": "Sent from your account, under your name, once you approve. Nothing is charged.",
+        "tidy": {
+          "archive": "Archive",
+          "read": "Mark as read",
+          "trash": "Move to the bin",
+          "messagesOne": "1 message",
+          "messagesMany": "{{n}} messages",
+          "threadsOne": "1 conversation",
+          "threadsMany": "{{n}} conversations",
+          "loading": "reading the messages…",
+          "failed": "The messages could not be read to show them. These are their ids:",
+          "missing": "(no longer there)",
+          "noSubject": "(no subject)",
+          "note": {
+            "archive": "They leave the inbox; they stay in All Mail and in searches. Nothing is charged.",
+            "read": "They stop showing as unread. Nothing is charged.",
+            "trash": "They go to the bin, which Gmail empties after 30 days; until then they can be recovered. Approved each time."
+          }
+        }
       }
     },
     "linkUnverified": "⚠ Not verified: the agent did not open or see this address in this conversation. It may exist, but it came from its memory, not from a lookup.",
@@ -861,12 +879,14 @@
       "grants": {
         "read": "Read",
         "compose": "Drafts",
-        "send": "Send"
+        "send": "Send",
+        "organize": "Organize"
       },
       "grantsHelp": {
         "read": "Search the mailbox, read messages and threads, save attachments into a task. No approval; what is read reaches the agents as outside content.",
         "compose": "Write drafts, also replies in a thread. The draft waits in Gmail for you; nothing leaves the account.",
-        "send": "Send, reply and forward as this account. Every message waits for your approval."
+        "send": "Send, reply and forward as this account. Every message waits for your approval.",
+        "organize": "Label, star and create labels, with no approval. Archiving, marking as read and moving to the bin wait for your approval, with the messages in view. Google words this permission as “read, compose and send”: it offers no narrower one for labelling; HydraOps does only what you tick here."
       },
       "reconnect": "connect again",
       "canUse": "May use it:",
@@ -876,7 +896,7 @@
       "disconnectConfirm": "Disconnect {{email}}? Its tokens are deleted and no agent can read it until you connect it again.",
       "noAccounts": "No accounts connected yet. Connect the first one with the button above.",
       "noApp": "Save your Google OAuth client's ID and secret first.",
-      "approvalHint": "Reading a mailbox asks for no approval: nothing changes in it. A draft asks for none either: it waits in Gmail's Drafts, nothing leaves the account. Sending always waits for your approval in the chat (and on your phone if you have Telegram), with the account, the recipients, the subject and the text in view. An email is other people's writing, and the classic way to slip instructions to an agent: what the agents read arrives marked as outside content, and anything with effects they want to do after reading waits for you. An agent can only use the accounts you assign it here.",
+      "approvalHint": "Reading a mailbox asks for no approval: nothing changes in it. A draft asks for none either: it waits in Gmail's Drafts, nothing leaves the account. Sending always waits for your approval in the chat (and on your phone if you have Telegram), with the account, the recipients, the subject and the text in view. An email is other people's writing, and the classic way to slip instructions to an agent: what the agents read arrives marked as outside content, and anything with effects they want to do after reading waits for you. An agent can only use the accounts you assign it here. Labelling and starring ask for no approval either; archiving, marking as read and the bin do, with the messages in view.",
       "errors": {
         "generic": "Google could not be reached. Try again in a moment.",
         "bad_client_id": "That does not look like a Google OAuth client ID (it ends in .apps.googleusercontent.com).",
