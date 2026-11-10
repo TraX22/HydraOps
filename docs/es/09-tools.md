@@ -252,12 +252,16 @@ HydraOps se conecta a **tu propio cliente OAuth de Google Cloud**, y a través d
 
 ### 1. Crear el cliente OAuth en Google Cloud
 
-Se hace una vez, en [console.cloud.google.com](https://console.cloud.google.com/):
+Se hace una vez, en [console.cloud.google.com](https://console.cloud.google.com/). Los nombres de abajo son los de la consola en inglés; agregando `?hl=en` a su dirección se ve así.
 
-1. Creá un proyecto (cualquier nombre) y en **APIs y servicios → Biblioteca** habilitá la **API de Gmail**.
-2. En **APIs y servicios → Pantalla de consentimiento de OAuth** elegí **Externa**, completá el nombre de la app y tu correo, y cuando exista pulsá **Publicar app** para que quede **En producción**. Una app que se queda en *Prueba* da tokens de renovación que vencen a los siete días, y las cuentas pedirían conectarse de nuevo cada semana. Al conectar una cuenta Google va a mostrar el aviso "esta app no está verificada": es tu propia app, nadie la verificó, y se continúa por *Configuración avanzada*.
-3. En **APIs y servicios → Credenciales** pulsá **Crear credenciales → ID de cliente de OAuth**, tipo **Aplicación de escritorio**, cualquier nombre. Copiá el **ID de cliente** (termina en `.apps.googleusercontent.com`) y el **Secreto del cliente**.
-4. En **Herramientas → Gmail** pegá los dos y pulsá **Guardar**. Van al almacén de claves de HydraOps, nunca a la base de datos ni al repositorio.
+1. **Un proyecto.** Creá uno (cualquier nombre). Si tu cuenta de Google tiene cuentas de facturación el formulario te pide elegir una; la API de Gmail en sí no cuesta nada.
+2. **La API de Gmail.** En **APIs & Services → Library** buscá **Gmail API** y pulsá **Enable**.
+3. **La app.** Abrí **APIs & Services → OAuth consent screen** (se llama *Google Auth Platform*) y pulsá **Get started**: un nombre de app, tu correo como *User support email*, **External** como público, un correo de contacto, aceptar la política de datos de usuario de Google, **Create**.
+4. **A producción.** Una app que se queda en *Testing* da tokens de renovación que vencen a los siete días, y las cuentas pedirían conectarse de nuevo cada semana. Google todavía no deja publicar: en **Branding** pide antes una **Application home page**, un **Application privacy policy link** y, en *Authorized domains*, el dominio de esas dos direcciones. Sirve cualquier página tuya (tu sitio, una página que publiques); es tu app y vos sos su único usuario. Guardá, después andá a **Audience**, pulsá **Publish app** y **Confirm**: el estado pasa a **In production**. No hace falta verificación para una app que solo usás vos.
+5. **El cliente.** En **Clients** pulsá **Create client**, elegí **Desktop app** como tipo de aplicación y ponele cualquier nombre. Dejá sin marcar *Use this client for an AI-powered agent*. Pulsá **Create**: Google muestra el **Client ID** (termina en `.apps.googleusercontent.com`) y el **Client secret**. El secreto se muestra esa única vez (*Download JSON* guarda una copia); después solo se le puede agregar uno nuevo al cliente.
+6. **En HydraOps.** En **Herramientas → Gmail** pegá los dos y pulsá **Guardar**. Van al almacén de claves de HydraOps, nunca a la base de datos ni al repositorio. Google avisa que un cliente nuevo puede tardar de cinco minutos a unas horas en funcionar: si la conexión falla enseguida, probá más tarde.
+
+Al conectar una cuenta Google muestra el aviso "esta app no está verificada": es tu propia app, nadie la verificó, y se continúa por *Configuración avanzada*.
 
 No hay ninguna dirección de vuelta que registrar: un cliente de escritorio devuelve el navegador al HydraOps de esta computadora (`http://127.0.0.1:3000/api/integrations/gmail/callback`, que la tarjeta muestra) y Google acepta cualquier dirección de loopback para ese tipo de cliente.
 
