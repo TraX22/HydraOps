@@ -852,7 +852,7 @@
       "appMissing": "Sin cliente",
       "clientId": "Client ID (…apps.googleusercontent.com)",
       "clientSecret": "Secreto del cliente",
-      "appHint": "En tu propio proyecto de Google Cloud: habilitá la API de Gmail, configurá la pantalla de consentimiento OAuth (Externa, y publicala en Producción) y creá un cliente OAuth de tipo «Aplicación de escritorio» en",
+      "appHint": "En tu propio proyecto de Google Cloud: habilitá la API de Gmail; en Google Auth Platform creá la app (External), completá en Branding una página de inicio, un enlace de privacidad y su dominio, y publicala en Producción desde Audience; y en Clients creá un cliente de tipo «Desktop app» en ",
       "howTo": "Paso a paso",
       "callbackHint": "Google devuelve el navegador a {{uri}} en la computadora donde corre: un cliente de escritorio acepta esa dirección sin registrarla. Si HydraOps corre en un servidor, pegás la dirección que muestra el navegador.",
       "free": "La API de Gmail es gratis: no hay saldo que cargar ni se cobra nada por lectura.",
