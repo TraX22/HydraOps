@@ -304,23 +304,41 @@ export const gmailDraftTool: HydraTool = {
   },
 };
 
+/**
+ * What keeps a gmail_send call from being a message the user can decide on: no text, nobody to
+ * send it to, or a new message with no subject that the user did not ask to send that way.
+ * A call like that is answered at once and is never put in front of the user.
+ */
+export function gmailSendProblem(a: any): string | null {
+  if (!a?.text && !a?.forward) return "Not sent: the message needs `text` (or a message to `forward`).";
+  if (!a?.reply_to && !(a?.to?.length || a?.cc?.length || a?.bcc?.length)) return "Not sent: the message needs at least one recipient (`to`), or `reply_to` to answer someone.";
+  if (!a?.reply_to && !a?.forward && !String(a?.subject ?? "").trim() && a?.no_subject !== true) {
+    return "Not sent and not shown to the user yet: this new message has no subject. Ask the user which subject it should carry (you may suggest one, but do not pick it for them). If the user answers that it should go without a subject, call gmail_send again with the same fields and `no_subject: true`. That answer is for this message only: ask again for the next one.";
+  }
+  return null;
+}
+
 export const gmailSendTool: HydraTool = {
   name: "gmail_send",
   title: "Send from Gmail",
-  // A message goes out under the user's name: every call waits for the user's approval, one by one.
-  risk: { sensitive: true, approval: "always" },
+  // A message goes out under the user's name: every call waits for the user's approval, one by
+  // one. A call that is not yet a message (see gmailSendProblem) is not held: it gets its answer
+  // straight away, and execute returns before anything reaches the API. Asked with no arguments
+  // (plan mode, the tools listing) it reports what it is: a tool that sends.
+  risk: (args) => (args && Object.keys(args).length && gmailSendProblem(args) ? {} : { sensitive: true, approval: "always" }),
   description:
-    "Send an e-mail from one of the user's Gmail accounts: a new message (`to`, `subject`, `text`), a reply (`reply_to` with the id of the message answered; `to` and `subject` come from it unless given), a forward (`forward` with the id; `text` goes above the forwarded message), with the user's files as `attachments`. It is never run without the user's approval: they see the account, the recipients, the subject and the text exactly as they will go out, and decide, so the message is always given in full here (to send what a draft says, pass its fields; gmail_draft get shows them). Give the final text, not a sketch. The account must be connected for sending (gmail_accounts says so).",
+    "Send an e-mail from one of the user's Gmail accounts: a new message (`to`, `subject`, `text`; a new message needs a subject: when the user gave none, ask before calling, and pass `no_subject: true` only if the user wants that message sent without one; ask for each new message), a reply (`reply_to` with the id of the message answered; `to` and `subject` come from it unless given), a forward (`forward` with the id; `text` goes above the forwarded message), with the user's files as `attachments`. It is never run without the user's approval: they see the account, the recipients, the subject and the text exactly as they will go out, and decide, so the message is always given in full here (to send what a draft says, pass its fields; gmail_draft get shows them). Give the final text, not a sketch. The account must be connected for sending (gmail_accounts says so).",
   schema: z.object({
     account: z.string().min(3).describe("The address of the account to send from, as gmail_accounts lists it."),
     ...messageFields,
+    no_subject: z.boolean().optional().describe("true only when the user said THIS message should go out with no subject. It is an answer about one message: what the user decided for an earlier message says nothing about this one."),
   }),
   execute: async (args, ctx) => {
     const agentId = String(ctx?.agentId ?? "").trim();
     if (!agentId) return "This task carries no agent identity, so nothing can be sent.";
     const a = args as Record<string, any>;
-    if (!a.text && !a.forward) return "Not sent: the message needs `text` (or a message to `forward`).";
-    if (!a.reply_to && !(a.to?.length || a.cc?.length || a.bcc?.length)) return "Not sent: the message needs at least one recipient (`to`), or `reply_to` to answer someone.";
+    const problem = gmailSendProblem(a);
+    if (problem) return problem;
     try {
       // The arguments go as they are: the API accepts this run only as the execution of the call the user approved, argument for argument.
       const { ok, status, data } = await callApi("POST", "/gmail/send", { agentId, taskId: taskIdOf(ctx), args: a }, 150_000);

@@ -69,7 +69,7 @@ import { IconComponent } from '../icon/icon.component';
           <div class="cal-row"><span class="cal-label">{{ 'chat.held.gmail.to' | translate }}</span>{{ g.to || ('chat.held.gmail.replySender' | translate) }}</div>
             @if (g.cc) { <div class="cal-row"><span class="cal-label">{{ 'chat.held.gmail.cc' | translate }}</span>{{ g.cc }}</div> }
             @if (g.bcc) { <div class="cal-row"><span class="cal-label">{{ 'chat.held.gmail.bcc' | translate }}</span>{{ g.bcc }}</div> }
-            <div class="cal-row"><span class="cal-label">{{ 'chat.held.gmail.subject' | translate }}</span>{{ g.subject || ('chat.held.gmail.fromOriginal' | translate) }}</div>
+            <div class="cal-row"><span class="cal-label">{{ 'chat.held.gmail.subject' | translate }}</span>{{ g.subject || ((g.replyTo || g.forward ? 'chat.held.gmail.fromOriginal' : 'chat.held.gmail.noSubject') | translate) }}</div>
             @if (g.replyTo) { <p class="post-extra">{{ 'chat.held.gmail.replyTo' | translate:{ id: g.replyTo } }}</p> }
             @if (g.forward) { <p class="post-extra">{{ 'chat.held.gmail.forward' | translate:{ id: g.forward } }}</p> }
             @if (g.text) { <div class="post-part"><div class="post-body"><pre class="post-text">{{ g.text }}</pre></div></div> }

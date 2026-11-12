@@ -319,7 +319,8 @@
             "read": "Dejan de figurar como no leídos. No se cobra nada.",
             "trash": "Van a la papelera, que Gmail vacía a los 30 días; hasta entonces se pueden recuperar. Se aprueba cada vez."
           }
-        }
+        },
+        "noSubject": "(sin asunto)"
       }
     },
     "linkUnverified": "⚠ No verificado: el agente no abrió ni vio esta dirección en esta conversación. Puede existir, pero salió de su memoria, no de una consulta.",
