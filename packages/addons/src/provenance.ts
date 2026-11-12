@@ -204,11 +204,16 @@ function describeArgs(args: unknown): string {
 }
 
 function originRef(args: any): string | undefined {
-  for (const key of ['url', 'videoUrl', 'video_url', 'link', 'query', 'q', 'path', 'repo', 'username', 'action']) {
+  for (const key of ['url', 'videoUrl', 'video_url', 'link', 'query', 'q', 'path', 'repo', 'username']) {
     const v = args?.[key];
     if (typeof v === 'string' && v.trim()) return redactSecrets(v.trim()).slice(0, 200);
   }
-  return undefined;
+  // A tool that takes an `action` (gmail_read message, x_read tweet…): the action alone names
+  // nothing, so the thing it was done to goes with it ("message 1a2b…").
+  const action = typeof args?.action === 'string' ? args.action.trim() : '';
+  if (!action) return undefined;
+  const id = typeof args?.id === 'string' || typeof args?.id === 'number' ? String(args.id).trim() : '';
+  return redactSecrets(id ? `${action} ${id}` : action).slice(0, 200);
 }
 
 // Results that carry no third-party text: our own guard's refusal, or nothing at all.
@@ -300,7 +305,10 @@ export function createTaskSecurity(options: TaskSecurityOptions = {}): TaskSecur
         tainted = true;
         record({ type: 'tainted', toolName, detail: ref ?? '' });
       }
-      if (origins.length < MAX_ORIGINS && !origins.some((o) => o.tool === toolName && o.ref === ref)) {
+      // The same thing named twice is one origin: a task started by a new e-mail already carries
+      // "message <id> from <sender>", and reading that message adds nothing to the list.
+      const known = (o: TaintOrigin) => o.tool === toolName && (o.ref === ref || (!!ref && !!o.ref && o.ref.startsWith(`${ref} `)));
+      if (origins.length < MAX_ORIGINS && !origins.some(known)) {
         origins.push({ tool: toolName, ...(ref ? { ref } : {}) });
       }
       return wrapExternalContent(result, toolName, id);
