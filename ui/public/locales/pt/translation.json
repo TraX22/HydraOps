@@ -319,7 +319,8 @@
             "read": "Deixam de aparecer como não lidas. Nada é cobrado.",
             "trash": "Vão para a lixeira, que o Gmail esvazia após 30 dias; até lá podem ser recuperadas. Aprova-se a cada vez."
           }
-        }
+        },
+        "noSubject": "(sem assunto)"
       }
     },
     "linkUnverified": "⚠ Não verificado: o agente não abriu nem viu este endereço nesta conversa. Pode existir, mas veio da memória dele, não de uma consulta.",

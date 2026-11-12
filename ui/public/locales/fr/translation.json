@@ -319,7 +319,8 @@
             "read": "Ils ne figurent plus comme non lus. Rien n'est facturé.",
             "trash": "Ils vont à la corbeille, que Gmail vide après 30 jours ; d'ici là ils sont récupérables. À approuver à chaque fois."
           }
-        }
+        },
+        "noSubject": "(sans objet)"
       }
     },
     "linkUnverified": "⚠ Non vérifié : l'agent n'a ni ouvert ni vu cette adresse dans cette conversation. Elle peut exister, mais elle vient de sa mémoire, pas d'une consultation.",

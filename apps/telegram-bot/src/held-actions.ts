@@ -117,7 +117,7 @@ function describeGmailSend(a: any): string {
     `To: ${list(args.to) || "(the sender of the message answered)"}`,
     list(args.cc) ? `Cc: ${list(args.cc)}` : "",
     list(args.bcc) ? `Bcc: ${list(args.bcc)}` : "",
-    `Subject: ${args.subject || "(from the original message)"}`,
+    `Subject: ${String(args.subject ?? "").trim() || (args.reply_to || args.forward ? "(from the original message)" : "(no subject)")}`,
     args.reply_to ? `A reply to message ${args.reply_to}.` : "",
     args.forward ? `Forwards message ${args.forward}.` : "",
     Array.isArray(args.attachments) && args.attachments.length ? `Attachments: ${args.attachments.map(String).join(", ")}` : "",
