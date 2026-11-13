@@ -274,6 +274,8 @@ async function loadUserProfile(): Promise<string> {
     const p = JSON.parse(await readFile(path.join(usersDir, "profile.json"), "utf-8"));
     const lines = [
       p.name && `- Name: ${p.name}`,
+      // What "my e-mail" or "my personal account" means when an agent has several addresses to choose from.
+      p.email && `- Their personal e-mail address: ${p.email}`,
       p.occupation && `- Occupation: ${p.occupation}`,
       p.tools && `- Tools & tech they use: ${p.tools}`,
       p.interests && `- Interests: ${p.interests}`,
