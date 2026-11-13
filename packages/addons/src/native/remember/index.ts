@@ -56,7 +56,7 @@ export const rememberTool: HydraTool = {
   risk: { sensitive: true },
   title: "Remember",
   description:
-    "Save a short note to your own permanent memory, applied to every future conversation. Use it when the user asks you to remember something (\"remember that...\", \"acordate que...\") or when you learn a stable preference or fact worth keeping (their name, how they like answers, an ongoing project). Do NOT store one-off task details or things already in the conversation. One short, self-contained fact per call.",
+    "Save a short note to your own permanent memory, applied to every future conversation. Use it when the user asks you to remember something (\"remember that...\", \"acordate que...\") or when you learn a stable preference or fact worth keeping (their name, how they like answers, an ongoing project). Do NOT store one-off task details or what your memory already holds. One short, self-contained fact per call. Only this call saves anything: never tell the user that you noted, saved or will remember something unless you called it in this turn and it answered that it was saved.",
   schema: z.object({
     text: z
       .string()

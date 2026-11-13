@@ -8,9 +8,9 @@
  * The AI SDK sends only the active tools' schemas (`activeTools` in prepareStep); the
  * tool map stays complete, so execution, approvals and the guard do not change.
  *
- * What is active from the start: `load_tools`, what the same chat used in its previous
- * task, the calls a continuation carries, and any connection or tool named in the
- * user's message. A tool the model calls stays active for the rest of the task.
+ * What is active from the start: `load_tools`, `remember` (see ALWAYS_LOADED), what the same
+ * chat used in its previous task, the calls a continuation carries, and any connection or
+ * tool named in the user's message. A tool the model calls stays active for the rest of the task.
  */
 import { z } from "zod";
 import { tool } from "ai";
@@ -22,6 +22,13 @@ export const ON_DEMAND_MIN_TOOLS = 12;
 /** A connection is loaded whole (named in the message, or asked for by `group`) only up to this many tools; past it, the model picks. */
 export const PRELOAD_GROUP_MAX = 15;
 const SUMMARY_MAX = 90;
+/**
+ * Loaded in every task that has them. `remember`: the moment to save something is the turn the
+ * user says it, and an agent that has to load the tool first (one more step, the whole prompt
+ * again) tends to answer "noted" and save nothing. Its definition is small, and being there
+ * from the first step it never changes the tool list mid-task.
+ */
+export const ALWAYS_LOADED = ["remember"];
 
 export interface ToolIndexEntry {
   name: string;
@@ -240,7 +247,7 @@ export function setupToolsOnDemand(opts: {
   const named = new Set(namedGroups(index, opts.text ?? ""));
   // "Mirá el modelo en Blender" after a ComfyUI task: the ComfyUI tools stay out.
   const previous = (opts.previousTask ?? []).filter((n) => !named.size || named.has(groupOf.get(n) ?? ""));
-  const loader = createToolLoader(index, [...(opts.preload ?? []), ...previous, ...preloadFromText(index, opts.text ?? "")]);
+  const loader = createToolLoader(index, [...ALWAYS_LOADED, ...(opts.preload ?? []), ...previous, ...preloadFromText(index, opts.text ?? "")]);
   const inIndex = new Set(index.map((e) => e.name));
   return {
     loader,
