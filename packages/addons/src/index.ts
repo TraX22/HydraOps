@@ -23,6 +23,7 @@ import { gmailAccountsTool, gmailSearchTool, gmailReadTool, gmailDraftTool, gmai
 import { delegateTaskTool } from './native/delegate_task/index.js';
 import { rememberTool } from './native/remember/index.js';
 import { recallTool } from './native/recall/index.js';
+import { hydraopsDocsTool } from './native/hydraops_docs/index.js';
 import { skillsTools } from './native/skills/index.js';
 export * from './types.js';
 export { rememberTool };
@@ -62,6 +63,7 @@ export async function createRegistry(): Promise<ToolRegistry> {
   registry.registerNative({ ...delegateTaskTool, source: 'native' });
   registry.registerNative({ ...rememberTool, source: 'native' });
   registry.registerNative({ ...recallTool, source: 'native' });
+  registry.registerNative({ ...hydraopsDocsTool, source: 'native' });
   for (const t of githubTools) registry.registerNative({ ...t, source: 'native' });
   for (const t of huggingfaceTools) registry.registerNative({ ...t, source: 'native' });
   for (const t of civitaiTools) registry.registerNative({ ...t, source: 'native' });

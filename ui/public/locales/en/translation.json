@@ -348,6 +348,7 @@
       "remember": "Saving to its memory",
       "recall": "Searching past conversations: “{{ref}}”",
       "recallNoRef": "Searching past conversations",
+      "manual": "Reading the HydraOps manual",
       "delegate": "Delegating to {{ref}}",
       "delegateNoRef": "Delegating to another agent",
       "image": "Generating the image",

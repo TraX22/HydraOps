@@ -16,7 +16,7 @@ En la vista **Agentes**, pulsa **Nuevo agente** y elige:
   - **video** — generación de vídeo.
 - **Modelo** — el LLM que usará; si no eliges, el modelo predeterminado de Configuración.
 
-El agente nuevo nace con lo básico ya concedido: `web_search`, `fetch_url`, `remember` y `recall`. Todo lo demás queda apagado hasta que se lo des desde su `tools.md`.
+El agente nuevo nace con lo básico ya concedido: `web_search`, `fetch_url`, `remember`, `recall` y `hydraops_docs`. Todo lo demás queda apagado hasta que se lo des desde su `tools.md`.
 
 ## La ficha del agente
 
