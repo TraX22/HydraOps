@@ -16,7 +16,7 @@ In the **Agents** view, click **New agent** and choose:
   - **video** — video generation.
 - **Model** — the LLM it will use; if you don't pick one, the default model from Settings.
 
-A new agent is born with the basics already granted: `web_search`, `fetch_url`, `remember` and `recall`. Everything else stays off until you grant it from its `tools.md`.
+A new agent is born with the basics already granted: `web_search`, `fetch_url`, `remember`, `recall` and `hydraops_docs`. Everything else stays off until you grant it from its `tools.md`.
 
 ## The agent's profile
 

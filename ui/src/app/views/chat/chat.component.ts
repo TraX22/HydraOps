@@ -524,6 +524,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     if (t === 'send_to_telegram') return 'telegram';
     if (t === 'remember') return 'remember';
     if (t === 'recall') return 'recall';
+    if (t === 'hydraops_docs') return 'manual';
     if (t === 'delegate_task') return 'delegate';
     if (t === 'generate_image') return 'image';
     if (t === 'generate_video') return 'video';
@@ -534,7 +535,7 @@ export class ChatComponent implements OnInit, OnDestroy {
 
   private static readonly STEP_ICONS: Record<string, string> = {
     thinking: '💭', held: '⏸', skill: '🧩', createSkill: '✨', github: '🐙', huggingface: '🤗', civitai: '🧬', youtube: '▶️', telegram: '📨',
-    remember: '🧠', recall: '🗂️', delegate: '🤝', image: '🎨', video: '🎬', search: '🔎', read: '📄', tool: '🛠️',
+    remember: '🧠', recall: '🗂️', manual: '📘', delegate: '🤝', image: '🎨', video: '🎬', search: '🔎', read: '📄', tool: '🛠️',
     vaultRead: '🗄️', vaultFind: '🗄️', vaultNote: '📝',
   };
 

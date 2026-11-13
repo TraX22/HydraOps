@@ -348,6 +348,7 @@
       "remember": "Enregistrement dans sa mémoire",
       "recall": "Recherche dans les conversations passées : « {{ref}} »",
       "recallNoRef": "Recherche dans les conversations passées",
+      "manual": "Lecture du manuel de HydraOps",
       "delegate": "Délégation à {{ref}}",
       "delegateNoRef": "Délégation à un autre agent",
       "image": "Génération de l'image",

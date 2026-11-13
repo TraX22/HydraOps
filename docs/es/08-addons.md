@@ -20,6 +20,7 @@ Vienen con la aplicación. Hoy son:
 - `youtube_transcript` — transcripción de un vídeo de YouTube, sin clave.
 - `remember` — el agente guarda notas duraderas en su propia memoria (ver [Agentes](./05-agents.md)).
 - `recall` — el agente busca en sus conversaciones pasadas, más allá del historial reciente.
+- `hydraops_docs` — el agente lee este manual, tal como viene con la versión que tienes instalada: la lista de páginas, una búsqueda por palabras, y una página o una sección por vez. Pregúntale cómo se hace algo en HydraOps y lo consulta en vez de responder de memoria. En inglés o en español. Un agente que creaste antes de que existiera esta herramienta la recibe desde su `tools.md`, como cualquier otra.
 - `delegate_task` — el agente le pasa una tarea a otro agente por su nombre; la respuesta aparece en el chat del otro (ver [Agentes](./05-agents.md)).
 
 Cada tarjeta explica qué hace el suyo, y las integraciones con servicios externos (Telegram, GitHub) viven en [Herramientas](./09-tools.md).
@@ -115,6 +116,6 @@ Vale para todas las herramientas de ese servidor y para ningún otro. Una conexi
 
 ## Qué herramientas ve cada agente
 
-Ninguna, hasta que se la concedas: una herramienta —nativa, add-on propio o servidor MCP— solo llega a un agente si su `tools.md` la nombra. Se gestiona con el selector de etiquetas de la vista Agentes (ver [Agentes](./05-agents.md)); los agentes nuevos vienen con `web_search`, `fetch_url`, `remember` y `recall` ya concedidas. Así tu agente de investigación puede tener buscador y tu agente de código no.
+Ninguna, hasta que se la concedas: una herramienta —nativa, add-on propio o servidor MCP— solo llega a un agente si su `tools.md` la nombra. Se gestiona con el selector de etiquetas de la vista Agentes (ver [Agentes](./05-agents.md)); los agentes nuevos vienen con `web_search`, `fetch_url`, `remember`, `recall` y `hydraops_docs` ya concedidas. Así tu agente de investigación puede tener buscador y tu agente de código no.
 
 Además, cada add-on nativo tiene un interruptor global en esta vista: apagarlo aquí lo apaga para **todos** los agentes, diga lo que diga su `tools.md`.

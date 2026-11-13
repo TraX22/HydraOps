@@ -20,6 +20,7 @@ They ship with the application. Today they are:
 - `calendar_list`, `calendar_add`, `calendar_update`, `calendar_remove` — the shared calendar (see [Scheduled tasks](./10-scheduled-tasks.md)): the agent reads the agenda, adds a note freely, and schedules an action, changes or removes an entry with your approval.
 - `remember` — the agent saves durable notes to its own memory (see [Agents](./05-agents.md)).
 - `recall` — the agent searches its past conversations, beyond the recent history.
+- `hydraops_docs` — the agent reads this manual, as it ships with the version you have installed: the list of pages, a search by words, and one page or one section at a time. Ask it how to do something in HydraOps and it looks it up instead of answering from memory. In English or Spanish. An agent you created before this tool existed gets it from its `tools.md`, like any other.
 - `delegate_task` — the agent hands a task to another agent by name; the reply shows up in that agent's chat (see [Agents](./05-agents.md)).
 
 Each card explains what its add-on does, and the integrations with external services (Telegram, GitHub) live in [Tools](./09-tools.md).
@@ -115,6 +116,6 @@ It applies to every tool of that server and to no other. A catalog connection th
 
 ## Which tools each agent sees
 
-None, until you grant them: a tool — native, custom add-on or MCP server — reaches an agent only if its `tools.md` names it. It's managed with the tag selector in the Agents view (see [Agents](./05-agents.md)); new agents come with `web_search`, `fetch_url`, `remember` and `recall` already granted. That way your research agent can have a web search tool while your coding agent doesn't.
+None, until you grant them: a tool — native, custom add-on or MCP server — reaches an agent only if its `tools.md` names it. It's managed with the tag selector in the Agents view (see [Agents](./05-agents.md)); new agents come with `web_search`, `fetch_url`, `remember`, `recall` and `hydraops_docs` already granted. That way your research agent can have a web search tool while your coding agent doesn't.
 
 On top of that, every native add-on has a global switch in this view: turning it off here turns it off for **every** agent, whatever its `tools.md` says.
