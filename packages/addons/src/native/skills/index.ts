@@ -2,7 +2,7 @@ import { z } from "zod";
 import { HydraTool, ToolContext } from "../../types.js";
 import {
   SKILL_FILE, SKILL_LIMITS, isValidSkillName, listInstalledSkills, readSkillFile, scanSkill,
-  skillExists, writeSkillFolder, type SkillFile,
+  skillCreatorGuide, skillExists, writeSkillFolder, type SkillFile,
 } from "../../skills.js";
 
 // skills_view — open an installed skill (granted by `skills` in tools.md, a prefix
@@ -74,6 +74,9 @@ export const skillsViewTool: HydraTool = {
 // security mode (risk.approval = 'always'): a skill becomes instructions for every
 // agent that uses skills. It runs only when the user approves, and it never replaces
 // an existing skill. The skill stays on this computer.
+// The one call that is not a proposal, and so is not held: `guide: true` alone, which
+// returns the skill-creator guide (it ships with the app; nothing is written).
+const isGuideRequest = (a: any) => !!a && a.guide === true && !String(a.name ?? "").trim() && !String(a.instructions ?? "").trim();
 const referenceSchema = z.object({
   path: z.string().describe("Relative path inside the skill: references/<name>.md or templates/<name>.md"),
   content: z.string().describe("The file's Markdown content."),
@@ -96,6 +99,12 @@ function buildSkillMd(name: string, description: string, instructions: string, a
 }
 
 async function createSkill(args: any, ctx?: ToolContext): Promise<string> {
+  if (isGuideRequest(args)) {
+    const guide = await skillCreatorGuide();
+    return guide
+      ? `[SKILL-CREATOR GUIDE]\n${guide}\n[END SKILL-CREATOR GUIDE]\n\nNothing was proposed. When the skill is written, call create_skill again with its name, description and instructions.`
+      : "The writing guide is not installed with this copy of HydraOps. Write the skill as clear numbered steps with their checks, and call create_skill with its name, description and instructions.";
+  }
   const name = String(args?.name ?? "").trim();
   const description = String(args?.description ?? "").trim();
   const instructions = String(args?.instructions ?? "").trim();
@@ -131,13 +140,17 @@ async function createSkill(args: any, ctx?: ToolContext): Promise<string> {
 export const createSkillTool: HydraTool = {
   name: "create_skill",
   title: "Create skill",
-  risk: { sensitive: true, approval: "always" },
+  // With no arguments (plan mode, listings) it reports the proposal: always asks.
+  risk: (args: any) => (isGuideRequest(args) ? {} : { sensitive: true, approval: "always" }),
+  // The guide is a procedure to follow: the model gets all of it, not a digest.
+  vault: false,
   description:
     "Propose a NEW skill: reusable step-by-step instructions for a kind of task you worked out and expect to repeat (not one-off facts; those go to memory). It is saved only after the user approves it, and existing skills cannot be changed. Write the description as what it does + when to use it; keep the instructions concrete (steps, checks, a short example); put long material in references.",
   schema: z.object({
-    name: z.string().describe("lowercase-with-hyphens, max 64 chars, e.g. weekly-market-report"),
-    description: z.string().describe("1-3 sentences: what the skill does and when to use it."),
-    instructions: z.string().describe("The SKILL.md body in Markdown: steps, checks, examples. No secrets or personal data."),
+    guide: z.boolean().optional().describe("true, with nothing else: returns the writing guide and its template. Call this first; it proposes nothing and needs no approval."),
+    name: z.string().optional().describe("lowercase-with-hyphens, max 64 chars, e.g. weekly-market-report"),
+    description: z.string().optional().describe("1-3 sentences: what the skill does and when to use it."),
+    instructions: z.string().optional().describe("The SKILL.md body in Markdown: steps, checks, examples. No secrets or personal data."),
     references: z.array(referenceSchema).max(5).optional().describe("Optional extra files (references/*.md, templates/*.md)."),
   }),
   execute: async (args, ctx) => await createSkill(args, ctx),
