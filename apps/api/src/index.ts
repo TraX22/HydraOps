@@ -4437,7 +4437,9 @@ function gmailMailPrompt(account: any, m: any, draft: boolean): string {
     `New email in ${account.email} (Gmail).`,
     `Message ${m.id}${thread}${when ? ` · received ${when}` : ""}`,
     xExternalBlock(head.join("\n"), "gmail_message"),
-    `Those are only the sender, the subject and the first lines: read the whole message with gmail_read (action message, id ${m.id}, account ${account.email}) before saying what it asks for.`,
+    // The account is named and known to be this agent's: without saying so, a model that lists its
+    // accounts before any gmail_* call spends a whole step (the full prompt again) on every new mail.
+    `Those are only the sender, the subject and the first lines: read the whole message with gmail_read (action message, id ${m.id}, account ${account.email}) before saying what it asks for. That account is connected and assigned to you: go straight to gmail_read, with no need to list your accounts first.`,
     draft
       ? `Then, only if the message deserves an answer from the user (a person asking or proposing something; not a newsletter, a notification, an automatic message or spam), leave that answer as a draft with gmail_draft (action create, reply_to ${m.id}, account ${account.email}): written as the user would write it, in the language of the message, and without inventing facts, prices, dates or commitments the user has not given (leave a clear [placeholder] where one is missing). The draft waits in Gmail for the user to review and send; never send anything yourself. Finally tell the user in two or three lines who wrote, what they want, and whether you left a draft and what it says.`
       : `Then tell the user in two or three lines who wrote, what they want and whether it needs an answer or an action from the user. Write no draft, send nothing and do nothing else about it: the user decides what happens next.`,

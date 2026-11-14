@@ -24,7 +24,7 @@ export const gmailAccountsTool: HydraTool = {
   // Reads this installation's own settings: nothing from outside, nothing sensitive.
   risk: {},
   description:
-    "The Gmail accounts this agent may use (the user assigned them in Tools → Gmail), with their addresses and what each was connected for. Call it before any other gmail_* tool: with one account, use it; with several and a request that does not say which, ask the user; with none, say so instead of improvising.",
+    "The Gmail accounts this agent may use (the user assigned them in Tools → Gmail), with their addresses and what each was connected for. Call it before any other gmail_* tool when you do not yet know which account to use: with one account, use it; with several and a request that does not say which, ask the user; with none, say so instead of improvising. A task that already names the account (one started by a new e-mail does) needs no call: go straight to that account.",
   schema: z.object({}),
   execute: async (_args, ctx) => {
     const agentId = String(ctx?.agentId ?? "").trim();
