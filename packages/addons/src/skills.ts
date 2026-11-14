@@ -424,8 +424,12 @@ export const sha256 = (text: string) => createHash('sha256').update(text, 'utf-8
 /** The skill every agent allowed to create skills follows; it ships with the app. */
 export const SKILL_CREATOR = 'skill-creator';
 
-/** skill-creator's instructions and its template, for the prompt of an agent that may create skills. */
-async function creatorGuide(builtinRoot: string): Promise<string> {
+/**
+ * skill-creator's instructions and its template: what `create_skill` hands over when asked for
+ * its guide. It used to travel in the system prompt of every agent allowed to create skills
+ * (some 7,000 characters on every step of every task, for something an agent does rarely).
+ */
+export async function skillCreatorGuide(builtinRoot = builtinSkillsDir): Promise<string> {
   const main = await readSkillFile(SKILL_CREATOR, SKILL_FILE, builtinRoot, builtinRoot);
   if (!main.ok) return '';
   let guide = parseFrontmatter(main.content).body.trim();
@@ -436,9 +440,10 @@ async function creatorGuide(builtinRoot: string): Promise<string> {
 
 /**
  * The block appended to an agent's system prompt when it may use or create skills: one
- * line per installed skill for `skills`, and the skill-creator guide itself for
- * `create_skill` (so an agent that creates always knows the format, even without
- * `skills`). Empty for other agents, so their prompts (and KV caches) do not change.
+ * line per installed skill for `skills`, and for `create_skill` where to get the
+ * skill-creator guide (from the tool itself, so an agent that creates can always read the
+ * format, even without `skills`). Empty for other agents, so their prompts (and KV caches)
+ * do not change.
  */
 export async function skillsPromptSection(allowedTools: string[], root = skillsDir, builtinRoot = builtinSkillsDir): Promise<string> {
   const canView = allowedTools.includes('skills_view');
@@ -460,10 +465,9 @@ export async function skillsPromptSection(allowedTools: string[], root = skillsD
   if (canCreate) {
     lines.push(
       'You may propose a new skill with create_skill when you have worked out a repeatable procedure worth reusing (not one-off facts: those go to memory). ' +
-      'Every new skill waits for the user\'s approval, and existing skills cannot be changed. Follow this guide when you write one:',
+      'Every new skill waits for the user\'s approval, and existing skills cannot be changed. ' +
+      'Before you write one, call create_skill with only `guide: true`: it returns the writing guide and its template (nothing is proposed by that call). Follow that guide.',
     );
-    const guide = await creatorGuide(builtinRoot);
-    if (guide) lines.push('', '[SKILL-CREATOR GUIDE]', guide, '[END SKILL-CREATOR GUIDE]');
   }
   return lines.join('\n');
 }
