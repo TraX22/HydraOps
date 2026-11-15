@@ -2,7 +2,7 @@
 
 La sección **Herramientas** de la barra lateral conecta HydraOps con servicios externos. No confundir con los [Add-ons](./08-addons.md): un add-on es una herramienta que *usan los agentes* (buscar en la web, leer una página); una herramienta de esta sección es un **conector** que te deja *operar HydraOps desde fuera*.
 
-Hoy están **Telegram** (hablar con tus agentes desde el móvil), **GitHub**, **[Hugging Face](#hugging-face-modelos-datasets-y-spaces)** (modelos, datasets y Spaces), **[Civitai](#civitai-modelos-palabras-disparadoras-y-ajustes-de-ejemplo)** (modelos, palabras disparadoras y ajustes de ejemplo), las **[Skills](#skills-habilidades-para-los-agentes)** (las habilidades que los agentes leen cuando una tarea las necesita) y las **[Conexiones](#conexiones-servidores-mcp-listos-para-usar)** (aplicaciones y servicios que los agentes pueden manejar) y **[X](#x-tus-cuentas-publicadas-con-tu-aprobación)** (tus cuentas de X). Discord, Signal y Reddit aparecen como "próximamente".
+Hoy están **Telegram** (hablar con tus agentes desde el móvil), **GitHub**, **[Git](#git-commits-ramas-y-envíos-a-github)** (commits, ramas y envíos desde las carpetas que elijas), **[Hugging Face](#hugging-face-modelos-datasets-y-spaces)** (modelos, datasets y Spaces), **[Civitai](#civitai-modelos-palabras-disparadoras-y-ajustes-de-ejemplo)** (modelos, palabras disparadoras y ajustes de ejemplo), las **[Skills](#skills-habilidades-para-los-agentes)** (las habilidades que los agentes leen cuando una tarea las necesita) y las **[Conexiones](#conexiones-servidores-mcp-listos-para-usar)** (aplicaciones y servicios que los agentes pueden manejar) y **[X](#x-tus-cuentas-publicadas-con-tu-aprobación)** (tus cuentas de X). Discord, Signal y Reddit aparecen como "próximamente".
 
 ## Telegram: manejar los agentes desde el móvil
 
@@ -321,6 +321,53 @@ Por qué la separación: un correo puede traer instrucciones ("asistente, archiv
 Las dos toman hasta 50 mensajes por llamada, por los ids que devolvió una búsqueda, o conversaciones enteras con `threads`. Nada acá borra definitivamente: Gmail guarda la papelera 30 días y `gmail_organize` trae un mensaje de vuelta. Las etiquetas de sistema (Recibidos, Spam, Papelera) no se pueden poner ni quitar por nombre; solo las tuyas.
 
 **Sobre el permiso de Google.** Para ponerle una etiqueta a un mensaje Google ofrece un solo permiso, `gmail.modify`, y en su pantalla de consentimiento lo describe como "leer, redactar y enviar". No hay uno más acotado. HydraOps lo pide solo cuando marcás Organizar y lo usa solo para lo que describe esta sección: los borradores y el envío siguen necesitando sus propias marcas, y una cuenta con Organizar solo no puede redactar ni enviar.
+
+## Git: commits, ramas y envíos a GitHub
+
+Con las herramientas **git** un agente usa el Git instalado en tu equipo, dentro de las carpetas que elijas: ve qué cambió, hace commits, crea ramas y envía el trabajo a GitHub. Son aparte de las herramientas **github** (el lado de GitHub: issues, pull requests, leer archivos allí): un agente puede tener unas sin las otras. Dale las tres a un agente con una línea, `git`, en sus herramientas (**Agentes → Herramientas**).
+
+### 1. Instalar Git
+
+HydraOps no trae Git: usa el de tu equipo (versión 2.28 o más nueva).
+
+- **Windows**: descárgalo de [git-scm.com/downloads](https://git-scm.com/downloads) e instálalo con las opciones por defecto (Git LFS viene incluido).
+- **macOS**: `xcode-select --install`, o `brew install git git-lfs`.
+- **Linux**: `sudo apt install git git-lfs`, o el equivalente de tu distribución.
+
+Después dile a Git quién eres, una sola vez, en una terminal. Cada commit lleva este nombre y esta dirección:
+
+```
+git config --global user.name "Tu Nombre"
+git config --global user.email "tu@ejemplo.com"
+```
+
+Para un repositorio público puedes usar la dirección privada que te da GitHub (Settings → Emails → *Keep my email addresses private*) en lugar de la tuya.
+
+**Git LFS** mantiene los archivos binarios grandes (texturas, audio, modelos 3D: un proyecto de Unity o Unreal está lleno de ellos) fuera del historial del repositorio. Si el proyecto lo usa, ejecuta `git lfs install` una vez. La tarjeta **Herramientas → Git** muestra si encontró Git y Git LFS; reinicia HydraOps después de instalarlos.
+
+### 2. Elegir las carpetas
+
+En **Herramientas → Git** escribe las carpetas donde Git puede trabajar, una por línea, y guarda. Una carpeta incluye sus subcarpetas, así que puede ser un proyecto o la carpeta donde guardas todos. Los agentes pueden usar Git **solo ahí**. Sin ninguna carpeta, las herramientas de Git no hacen nada y lo avisan.
+
+Las carpetas de datos y de claves de HydraOps no se pueden permitir, ni una carpeta que las contenga (toda tu carpeta de usuario, el disco del sistema).
+
+### 3. El token de GitHub
+
+Hacer commits no necesita token: ocurre en tu equipo. Para push, pull o clone, HydraOps usa el token de **Herramientas → GitHub**, y trabaja solo con repositorios de github.com.
+
+Crea un token fine-grained en [github.com/settings/tokens](https://github.com/settings/tokens?type=beta), elige los repositorios que cubre y, en *Repository permissions*, dale **Contents: Read and write** (con solo lectura alcanza para pull y clone). Un token clásico necesita el scope `repo`.
+
+Los agentes nunca ven el token. En cada comando, Git apunta al proxy de claves de HydraOps, que agrega el token camino a GitHub. Nada de eso se escribe en la configuración del repositorio, y no se usa el inicio de sesión de tu propia terminal (Git Credential Manager, una clave SSH): lo que un agente puede alcanzar es lo que ese token permite.
+
+### 4. Qué pueden hacer los agentes
+
+- `git_read` mira y no cambia nada: `status`, `log`, `diff`, `show`, `branches`, `remotes`. Lo que devuelve (mensajes de commits, contenido de archivos) puede haberlo escrito otra persona, así que marca la tarea como que leyó contenido externo ([Seguridad](./13-security.md)).
+- `git_write` cambia el repositorio en tu equipo: `commit` (preparando todos los cambios, o las rutas que nombre, en la misma llamada), `stage`, `unstage`, `branch`, `switch`, `init` y `set_remote`. En una tarea que no leyó nada de afuera se ejecuta solo; después queda retenido como cualquier otra llamada sensible.
+- `git_sync` habla con GitHub: `fetch`, `pull`, `clone` y `push`.
+
+**Un push siempre espera tu aprobación**, haya leído lo que haya leído la tarea y con cualquier ajuste de seguridad, y no tiene "aprobar para el resto de la tarea": es el paso que sale de tu equipo. La tarjeta muestra la carpeta, la rama, el repositorio de GitHub y los commits que se enviarían, leídos del repositorio en ese momento.
+
+Lo que estas herramientas nunca hacen: reescribir el historial (ni amend, ni `reset --hard`, ni rebase), forzar un push, ni hacer merge. Un pull solo ocurre cuando es un fast-forward; si tu rama y la de GitHub avanzaron las dos, el agente te lo dice en vez de mezclarlas. Los hooks del repositorio (una verificación de pre-commit, Git LFS) corren igual que en tu terminal.
 
 ## Hugging Face: modelos, datasets y Spaces
 

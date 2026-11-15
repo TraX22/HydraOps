@@ -382,9 +382,23 @@ export interface GmailListen { on: boolean; agent: string; intervalMinutes: numb
 /** A permission group of a Gmail account: what the user connected it for. */
 export type GmailGrant = 'read' | 'compose' | 'send' | 'organize';
 export const GMAIL_GRANTS: GmailGrant[] = ['read', 'compose', 'send', 'organize'];
-/** What a held gmail_tidy call would touch: the messages (or threads) it names, as the server read them from the stored call. */
+/** What a push would send: the branch, where to, and its commits (the newest first, up to 20 of `total`). */
+export interface GitPushPreview {
+  repo: string;
+  branch: string;
+  remote: string;
+  /** owner/repository on GitHub. */
+  target: string;
+  newBranch: boolean;
+  total: number;
+  commits: { hash: string; subject: string; author: string; date: string }[];
+}
+/** What a held call would touch, as the server read it from the stored call: the messages (or threads) of a gmail_tidy, the commits of a push. */
 export interface HeldPreview {
-  kind: 'gmail_messages' | null;
+  kind: 'gmail_messages' | 'git_push' | null;
+  push?: GitPushPreview;
+  /** git_push: why the repository could not be read. */
+  problem?: string;
   account?: string;
   threads?: boolean;
   items?: { id: string; from: string; subject: string; at: number | null; count?: number; missing?: boolean }[];
@@ -418,6 +432,17 @@ export interface TelegramIntegration {
 export interface GitHubIntegration {
   enabled: boolean;
   tokenConfigured: boolean;
+}
+
+/** The git tools: on or off, the folders they may work in, and what is installed on this computer. */
+export interface GitIntegration {
+  enabled: boolean;
+  /** The GitHub token of the GitHub card: what a push, a pull or a clone uses. */
+  tokenConfigured: boolean;
+  folders: string[];
+  /** The installed Git's version, or null when Git is not installed (or not on the PATH). */
+  git: string | null;
+  lfs: string | null;
 }
 
 export interface CivitaiIntegration {
@@ -1191,6 +1216,19 @@ export class ApiService {
 
   saveGitHubIntegration(cfg: Partial<GitHubIntegration>): Observable<void> {
     return this.http.post<void>(`${this.base}/system/integrations/github`, cfg);
+  }
+
+  getGitIntegration(): Observable<GitIntegration> {
+    return this.http.get<GitIntegration>(`${this.base}/system/integrations/git`);
+  }
+
+  saveGitIntegration(cfg: { enabled: boolean }): Observable<void> {
+    return this.http.post<void>(`${this.base}/system/integrations/git`, cfg);
+  }
+
+  /** The folders Git may work in. A folder the server refuses comes back in the error, with the reason. */
+  saveGitFolders(folders: string[]): Observable<{ success: boolean; folders: string[] }> {
+    return this.http.post<{ success: boolean; folders: string[] }>(`${this.base}/system/integrations/git/folders`, { folders });
   }
 
   getCivitaiIntegration(): Observable<CivitaiIntegration> {

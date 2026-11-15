@@ -518,6 +518,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     if (t === 'skills_view') return 'skill';
     if (t === 'create_skill') return 'createSkill';
     if (t.startsWith('github')) return 'github';
+    if (t === 'git_read' || t === 'git_write' || t === 'git_sync') return 'git';
     if (t.startsWith('huggingface')) return 'huggingface';
     if (t.startsWith('civitai')) return 'civitai';
     if (t === 'youtube_transcript') return 'youtube';
@@ -534,7 +535,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   private static readonly STEP_ICONS: Record<string, string> = {
-    thinking: '💭', held: '⏸', skill: '🧩', createSkill: '✨', github: '🐙', huggingface: '🤗', civitai: '🧬', youtube: '▶️', telegram: '📨',
+    thinking: '💭', held: '⏸', skill: '🧩', createSkill: '✨', github: '🐙', git: '🌿', huggingface: '🤗', civitai: '🧬', youtube: '▶️', telegram: '📨',
     remember: '🧠', recall: '🗂️', manual: '📘', delegate: '🤝', image: '🎨', video: '🎬', search: '🔎', read: '📄', tool: '🛠️',
     vaultRead: '🗄️', vaultFind: '🗄️', vaultNote: '📝',
   };
@@ -547,7 +548,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     const kind = this.stepKind(step);
     const params = { ref: step.ref ?? '', tool: step.tool ?? '' };
     // Steps that name what they work on have a plain variant for when there is nothing to name.
-    const withRef = ['search', 'read', 'skill', 'createSkill', 'github', 'huggingface', 'civitai', 'recall', 'delegate', 'youtube', 'vaultRead', 'vaultFind', 'vaultNote'];
+    const withRef = ['search', 'read', 'skill', 'createSkill', 'github', 'git', 'huggingface', 'civitai', 'recall', 'delegate', 'youtube', 'vaultRead', 'vaultFind', 'vaultNote'];
     const key = withRef.includes(kind) && !step.ref ? `chat.progress.${kind}NoRef` : `chat.progress.${kind}`;
     return this.translate.instant(key, params);
   }

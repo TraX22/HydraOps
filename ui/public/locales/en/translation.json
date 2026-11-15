@@ -321,6 +321,20 @@
           }
         },
         "noSubject": "(no subject)"
+      },
+      "git": {
+        "push": "Push the branch {{branch}} to {{target}} on GitHub",
+        "pushPlain": "Push {{branch}} to the remote {{remote}}",
+        "currentBranch": "the current branch",
+        "folder": "Folder",
+        "newBranch": "The branch {{branch}} is not on GitHub yet: it will be created there.",
+        "nothing": "Nothing new to send: GitHub already has these commits.",
+        "commitsOne": "1 commit will be sent:",
+        "commitsMany": "{{n}} commits will be sent:",
+        "more": "…and {{n}} older ones.",
+        "loading": "reading the commits…",
+        "failed": "The commits could not be read to show them.",
+        "note": "Sent to GitHub with the token stored in HydraOps, once you approve. Never forced: nothing on GitHub is overwritten. Approved each time."
       }
     },
     "linkUnverified": "⚠ Not verified: the agent did not open or see this address in this conversation. It may exist, but it came from its memory, not from a lookup.",
@@ -340,6 +354,8 @@
       "createSkillNoRef": "Proposing a skill",
       "github": "Checking GitHub: {{ref}}",
       "githubNoRef": "Checking GitHub",
+      "git": "Git: {{ref}}",
+      "gitNoRef": "Working with Git",
       "huggingface": "Checking Hugging Face: {{ref}}",
       "huggingfaceNoRef": "Checking Hugging Face",
       "civitai": "Checking Civitai: {{ref}}",
@@ -959,6 +975,29 @@
       "tokenPlaceholder": "GitHub fine-grained PAT",
       "getToken": "Create a token",
       "connectHint": "Use a fine-grained token and scope its permissions and repos on GitHub. The token lives only in the encrypted key store; the agent never sees it. What it can do is decided by the token itself."
+    },
+    "git": {
+      "name": "Git",
+      "description": "Let the agents use the Git installed on this computer: commits, branches, and pushing to GitHub.",
+      "installed": "On this computer",
+      "notInstalled": "Git is not installed",
+      "noLfs": "No Git LFS",
+      "installHint": "Install Git and restart HydraOps; the Tools page of the manual has the steps.",
+      "folders": "Folders Git may work in",
+      "foldersSet": "{{n}} allowed",
+      "foldersNone": "None: it does nothing",
+      "foldersPlaceholder": "One folder per line, e.g. D:\\Projects\\my-game",
+      "foldersHint": "The agents can use Git only inside these folders and their subfolders. With none, the Git tools do nothing. An agent gets the tools with the “git” tag in Agents → Tools.",
+      "github": "GitHub token",
+      "githubHint": "Push, pull and clone use the token of the GitHub card above; to push, it needs “Contents: Read and write” on the repository. The agent never sees it. A push always waits for your approval.",
+      "rejected": {
+        "not_absolute": "“{{folder}}” is not a full path (e.g. D:\\Projects\\my-game).",
+        "not_found": "“{{folder}}” does not exist.",
+        "not_a_folder": "“{{folder}}” is a file, not a folder.",
+        "private": "“{{folder}}” holds HydraOps' own data or keys, so Git cannot work there. Choose a more specific folder.",
+        "too_many": "Too many folders (30 at most).",
+        "failed": "The folders could not be saved."
+      }
     },
     "huggingface": {
       "name": "Hugging Face",

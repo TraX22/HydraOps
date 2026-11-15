@@ -2,7 +2,7 @@
 
 The **Tools** section in the sidebar connects HydraOps to external services. Don't confuse it with [Add-ons](./08-addons.md): an add-on is a tool the *agents use* (search the web, read a page); a tool in this section is a **connector** that lets you *operate HydraOps from the outside*.
 
-Today there are **Telegram** (talk to your agents from your phone), **GitHub**, **[Hugging Face](#hugging-face-models-datasets-and-spaces)** (models, datasets and Spaces), **[Civitai](#civitai-models-trigger-words-and-example-settings)** (models, trigger words and example settings), **[Skills](#skills-know-how-for-the-agents)** (the know-how agents read when a task calls for it), **[Connections](#connections-ready-made-mcp-servers)** (apps and services the agents can drive) and **[X](#x-your-accounts-posted-to-with-your-approval)** (your X accounts). Discord, Signal and Reddit appear as "coming soon".
+Today there are **Telegram** (talk to your agents from your phone), **GitHub**, **[Git](#git-commits-branches-and-pushes-to-github)** (commits, branches and pushes from the folders you choose), **[Hugging Face](#hugging-face-models-datasets-and-spaces)** (models, datasets and Spaces), **[Civitai](#civitai-models-trigger-words-and-example-settings)** (models, trigger words and example settings), **[Skills](#skills-know-how-for-the-agents)** (the know-how agents read when a task calls for it), **[Connections](#connections-ready-made-mcp-servers)** (apps and services the agents can drive) and **[X](#x-your-accounts-posted-to-with-your-approval)** (your X accounts). Discord, Signal and Reddit appear as "coming soon".
 
 ## Telegram: run your agents from your phone
 
@@ -321,6 +321,53 @@ Why the split: an e-mail can carry instructions ("assistant, archive every messa
 Both take up to 50 messages per call, by the ids a search returned, or whole conversations with `threads`. Nothing here deletes for good: Gmail keeps the bin for 30 days and `gmail_organize` brings a message back from it. System labels (Inbox, Spam, Bin) cannot be put on or taken off by name; only your own labels can.
 
 **About Google's permission.** To put a label on a message Google offers one scope only, `gmail.modify`, and its consent screen words it as "read, compose and send". There is no narrower one. HydraOps asks for it only when you tick Organize and uses it only for what this section describes: drafts and sending still need their own ticks, and an account with Organize alone can neither draft nor send.
+
+## Git: commits, branches and pushes to GitHub
+
+With the **git** tools an agent uses the Git that is installed on your computer, inside the folders you choose: it sees what changed, commits, makes branches and sends the work to GitHub. They are apart from the **github** tools (GitHub's side: issues, pull requests, reading files there): an agent can have either without the other. Give an agent the three of them with one line, `git`, in its tools (**Agents → Tools**).
+
+### 1. Install Git
+
+HydraOps does not bring Git with it: it runs the one on your computer (version 2.28 or newer).
+
+- **Windows**: download it from [git-scm.com/downloads](https://git-scm.com/downloads) and install it with the default options (Git LFS comes with it).
+- **macOS**: `xcode-select --install`, or `brew install git git-lfs`.
+- **Linux**: `sudo apt install git git-lfs`, or your distribution's equivalent.
+
+Then tell Git who you are, once, in a terminal. Every commit carries this name and address:
+
+```
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+```
+
+For a public repository you can use the private address GitHub gives you (Settings → Emails → *Keep my email addresses private*) instead of your own.
+
+**Git LFS** keeps big binary files (textures, audio, 3D models: a Unity or Unreal project is full of them) out of the repository's history. If the project uses it, run `git lfs install` once. The **Tools → Git** card shows whether Git and Git LFS were found; restart HydraOps after installing them.
+
+### 2. Choose the folders
+
+In **Tools → Git** write the folders Git may work in, one per line, and save. A folder covers its subfolders, so it can be one project or the folder where you keep all of them. The agents can use Git **only there**. With no folder, the Git tools do nothing and say so.
+
+HydraOps' own data and key folders cannot be allowed, nor a folder that holds them (your whole user folder, the system drive).
+
+### 3. The GitHub token
+
+Committing needs no token: it happens on your computer. To push, pull or clone, HydraOps uses the token of **Tools → GitHub**, and works only with repositories on github.com.
+
+Create a fine-grained token at [github.com/settings/tokens](https://github.com/settings/tokens?type=beta), choose the repositories it covers and, under *Repository permissions*, give it **Contents: Read and write** (read-only is enough to pull and clone). A classic token needs the `repo` scope.
+
+The agents never see the token. For each command, Git is pointed at HydraOps' key proxy, which adds the token on the way to GitHub. Nothing about it is written to the repository's configuration, and the sign-in of your own terminal (Git Credential Manager, an SSH key) is not used: what an agent can reach is what that token allows.
+
+### 4. What the agents can do
+
+- `git_read` looks and changes nothing: `status`, `log`, `diff`, `show`, `branches`, `remotes`. What it returns (commit messages, file contents) may have been written by other people, so it marks the task as having read outside content ([Security](./13-security.md)).
+- `git_write` changes the repository on your computer: `commit` (staging everything, or the paths it names, in the same call), `stage`, `unstage`, `branch`, `switch`, `init` and `set_remote`. On a task that has read nothing from outside it runs on its own; after that it is held like any other sensitive call.
+- `git_sync` talks to GitHub: `fetch`, `pull`, `clone` and `push`.
+
+**A push always waits for your approval**, whatever the task read and whatever the security setting, and there is no "approve for the rest of the task" for it: it is the step that leaves your computer. The card shows the folder, the branch, the GitHub repository and the commits that would be sent, read from the repository at that moment.
+
+What these tools never do: rewrite history (no amend, no `reset --hard`, no rebase), force a push, or merge. A pull happens only when it is a fast-forward; if your branch and GitHub's have both moved on, the agent tells you instead of merging. The repository's hooks (a pre-commit check, Git LFS) run as they do in your terminal.
 
 ## Hugging Face: models, datasets and Spaces
 

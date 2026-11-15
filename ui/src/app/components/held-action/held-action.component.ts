@@ -1,6 +1,6 @@
 import { Component, EventEmitter, Input, OnInit, Output, inject, signal } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { ApiService, HeldAction, HeldPreview, XAccount } from '../../services/api.service';
+import { ApiService, GitPushPreview, HeldAction, HeldPreview, XAccount } from '../../services/api.service';
 import { IconComponent } from '../icon/icon.component';
 
 // A sensitive tool call an agent wanted to make on a task that had read outside
@@ -101,6 +101,35 @@ import { IconComponent } from '../icon/icon.component';
           }
           <p class="post-cost">{{ ('chat.held.gmail.tidy.note.' + t.action) | translate }}</p>
         </div>
+      } @else if (gitPush; as g) {
+        <div class="post">
+          @if (pushPreview(); as p) {
+            <p class="post-act"><app-icon name="git" /> {{ 'chat.held.git.push' | translate:{ branch: p.branch, target: p.target } }}</p>
+            <div class="cal-row"><span class="cal-label">{{ 'chat.held.git.folder' | translate }}</span><code class="browser-url">{{ p.repo }}</code></div>
+            @if (p.newBranch) { <p class="post-extra">{{ 'chat.held.git.newBranch' | translate:{ branch: p.branch } }}</p> }
+            @if (p.total === 0) {
+              <p class="post-warn">{{ 'chat.held.git.nothing' | translate }}</p>
+            } @else {
+              <p class="post-label">{{ (p.total === 1 ? 'chat.held.git.commitsOne' : 'chat.held.git.commitsMany') | translate:{ n: p.total } }}</p>
+              <ul class="mail-list commit-list">
+                @for (c of p.commits; track c.hash) {
+                  <li>
+                    <span class="commit-hash">{{ c.hash }}</span>
+                    <span class="mail-subject" [title]="c.subject">{{ c.subject }}</span>
+                    <span class="mail-when" [title]="c.author">{{ c.date }}</span>
+                  </li>
+                }
+              </ul>
+              @if (p.total > p.commits.length) { <p class="post-extra">{{ 'chat.held.git.more' | translate:{ n: p.total - p.commits.length } }}</p> }
+            }
+          } @else {
+            <p class="post-act"><app-icon name="git" /> {{ 'chat.held.git.pushPlain' | translate:{ branch: g.branch || ('chat.held.git.currentBranch' | translate), remote: g.remote } }}</p>
+            @if (g.repo) { <div class="cal-row"><span class="cal-label">{{ 'chat.held.git.folder' | translate }}</span><code class="browser-url">{{ g.repo }}</code></div> }
+            @if (pushProblem()) { <p class="post-warn">{{ pushProblem() }}</p> }
+            @else if (action.status === 'pending') { <p class="post-extra">{{ 'chat.held.git.loading' | translate }}</p> }
+          }
+          <p class="post-cost">{{ 'chat.held.git.note' | translate }}</p>
+        </div>
       } @else if (xAct; as x) {
         <div class="post">
           <div class="post-account">
@@ -151,7 +180,7 @@ import { IconComponent } from '../icon/icon.component';
           <button class="held-approve" [disabled]="busy()" (click)="decide('approve')">
             <app-icon name="check" /> {{ 'chat.held.approve' | translate }}
           </button>
-          @if (!post && action.toolName !== 'x_dm' && action.toolName !== 'gmail_send' && gmailTidy?.action !== 'trash') {
+          @if (!post && !gitPush && action.toolName !== 'x_dm' && action.toolName !== 'gmail_send' && gmailTidy?.action !== 'trash') {
             <button class="held-approve held-approve-task" [disabled]="busy()" (click)="decide('approveTask')" [title]="'chat.held.approveTaskHint' | translate">
               <app-icon name="check" /> {{ 'chat.held.approveTask' | translate }}
             </button>
@@ -237,6 +266,9 @@ import { IconComponent } from '../icon/icon.component';
     .mail-when { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
     .mail-list li.missing .mail-from, .mail-list li.missing .mail-subject { color: var(--text-muted); font-weight: 400; }
     .mail-ids { font-family: ui-monospace, monospace; font-size: 11px; word-break: break-all; }
+    .commit-list li { grid-template-columns: max-content minmax(0, 1fr) max-content; }
+    .commit-hash { font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--text-muted); }
+    .post-act app-icon svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 2px; }
   `],
 })
 export class HeldActionComponent implements OnInit {
@@ -250,6 +282,9 @@ export class HeldActionComponent implements OnInit {
   tidyItems = signal<NonNullable<HeldPreview['items']> | null>(null);
   tidyFailed = signal(false);
   error = signal('');
+  /** For a push: the commits it would send, as the server read them from the repository; null until they arrive. */
+  pushPreview = signal<GitPushPreview | null>(null);
+  pushProblem = signal('');
   /** For x_post: the connected account the handle names, once Tools → X answered. */
   xAccount = signal<XAccount | null>(null);
   xChecked = signal(false);
@@ -260,6 +295,12 @@ export class HeldActionComponent implements OnInit {
       this.api.getHeldPreview(this.action.id).subscribe({
         next: p => { if (p.kind === 'gmail_messages' && p.items?.length) this.tidyItems.set(p.items); else this.tidyFailed.set(true); },
         error: () => this.tidyFailed.set(true),
+      });
+    }
+    if (this.gitPush && this.action.status === 'pending') {
+      this.api.getHeldPreview(this.action.id).subscribe({
+        next: p => { if (p.kind === 'git_push' && p.push) this.pushPreview.set(p.push); else this.pushProblem.set(p.problem || this.translate.instant('chat.held.git.failed')); },
+        error: () => this.pushProblem.set(this.translate.instant('chat.held.git.failed')),
       });
     }
     const handle = this.post?.account ?? this.xAct?.account;
@@ -285,6 +326,14 @@ export class HeldActionComponent implements OnInit {
     const s = (k: string) => (typeof a[k] === 'string' ? (a[k] as string) : '');
     const list = (k: string) => (Array.isArray(a[k]) ? (a[k] as unknown[]).map(String).join(', ') : s(k));
     return { account: s('account'), to: list('to'), cc: list('cc'), bcc: list('bcc'), subject: s('subject'), text: s('text'), attachments: Array.isArray(a['attachments']) ? (a['attachments'] as unknown[]).map(String) : [], replyTo: s('reply_to'), forward: s('forward') };
+  }
+
+  /** A git_sync push, as the call names it: the folder, the branch (empty: the one checked out) and the remote. */
+  get gitPush(): { repo: string; branch: string; remote: string } | null {
+    const a = (this.action.args ?? {}) as Record<string, unknown>;
+    if (this.action.toolName !== 'git_sync' || a['action'] !== 'push') return null;
+    const s = (k: string) => (typeof a[k] === 'string' ? (a[k] as string).trim() : '');
+    return { repo: s('repo'), branch: s('branch'), remote: s('remote') || 'origin' };
   }
 
   /** A gmail_tidy call: what it takes out of view (archive, read, the bin), in which account, and the ids it names. */

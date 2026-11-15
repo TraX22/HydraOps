@@ -307,6 +307,8 @@ export class AgentsComponent implements OnInit {
       }));
       // `github` is a prefix grant: one tag enables every github_* tool
       opts.push({ name: 'github', description: 'GitHub (github_*)', group: 'integrations' });
+      // `git` grants git_read, git_write and git_sync; it does not grant the github_* tools, nor they it.
+      opts.push({ name: 'git', description: 'Git (git_*)', group: 'integrations' });
       opts.push({ name: 'huggingface', description: 'Hugging Face (huggingface_*)', group: 'integrations' });
       opts.push({ name: 'civitai', description: 'Civitai (civitai_*)', group: 'integrations' });
       // Skills: `skills` grants skills_view (prefix grant); creating is a separate grant.
