@@ -321,6 +321,20 @@
           }
         },
         "noSubject": "(sans objet)"
+      },
+      "git": {
+        "push": "Envoyer la branche {{branch}} vers {{target}} sur GitHub",
+        "pushPlain": "Envoyer {{branch}} vers le dépôt distant {{remote}}",
+        "currentBranch": "la branche actuelle",
+        "folder": "Dossier",
+        "newBranch": "La branche {{branch}} n'est pas encore sur GitHub : elle y sera créée.",
+        "nothing": "Rien de nouveau à envoyer : GitHub a déjà ces commits.",
+        "commitsOne": "1 commit sera envoyé :",
+        "commitsMany": "{{n}} commits seront envoyés :",
+        "more": "…et {{n}} plus anciens.",
+        "loading": "lecture des commits…",
+        "failed": "Les commits n'ont pas pu être lus pour les afficher.",
+        "note": "Envoyé vers GitHub avec le jeton enregistré dans HydraOps, une fois approuvé. Jamais forcé : rien n'est écrasé sur GitHub. Approuvé à chaque fois."
       }
     },
     "linkUnverified": "⚠ Non vérifié : l'agent n'a ni ouvert ni vu cette adresse dans cette conversation. Elle peut exister, mais elle vient de sa mémoire, pas d'une consultation.",
@@ -340,6 +354,8 @@
       "createSkillNoRef": "Proposition d'une skill",
       "github": "Consultation de GitHub : {{ref}}",
       "githubNoRef": "Consultation de GitHub",
+      "git": "Git : {{ref}}",
+      "gitNoRef": "Travaille avec Git",
       "huggingface": "Consultation de Hugging Face : {{ref}}",
       "huggingfaceNoRef": "Consultation de Hugging Face",
       "civitai": "Consultation de Civitai : {{ref}}",
@@ -959,6 +975,29 @@
       "tokenPlaceholder": "PAT fine-grained de GitHub",
       "getToken": "Créer un jeton",
       "connectHint": "Utilisez un jeton fine-grained et limitez ses permissions et dépôts sur GitHub. Le jeton ne vit que dans le coffre de clés chiffré ; l'agent ne le voit jamais. Ce qu'il peut faire est décidé par le jeton lui-même."
+    },
+    "git": {
+      "name": "Git",
+      "description": "Permet aux agents d'utiliser le Git installé sur cet ordinateur : commits, branches et envoi vers GitHub.",
+      "installed": "Sur cet ordinateur",
+      "notInstalled": "Git n'est pas installé",
+      "noLfs": "Sans Git LFS",
+      "installHint": "Installez Git et redémarrez HydraOps ; la page Outils du manuel indique les étapes.",
+      "folders": "Dossiers où Git peut travailler",
+      "foldersSet": "{{n}} autorisés",
+      "foldersNone": "Aucun : il ne fait rien",
+      "foldersPlaceholder": "Un dossier par ligne, p. ex. D:\\Projets\\mon-jeu",
+      "foldersHint": "Les agents ne peuvent utiliser Git que dans ces dossiers et leurs sous-dossiers. Sans aucun dossier, les outils Git ne font rien. Un agent reçoit les outils avec l'étiquette « git » dans Agents → Outils.",
+      "github": "Jeton GitHub",
+      "githubHint": "Push, pull et clone utilisent le jeton de la carte GitHub ci-dessus ; pour un push, il lui faut « Contents: Read and write » sur le dépôt. L'agent ne le voit jamais. Un push attend toujours votre approbation.",
+      "rejected": {
+        "not_absolute": "« {{folder}} » n'est pas un chemin complet (p. ex. D:\\Projets\\mon-jeu).",
+        "not_found": "« {{folder}} » n'existe pas.",
+        "not_a_folder": "« {{folder}} » est un fichier, pas un dossier.",
+        "private": "« {{folder}} » contient les données ou les clés de HydraOps : Git ne peut pas y travailler. Choisissez un dossier plus précis.",
+        "too_many": "Trop de dossiers (30 au maximum).",
+        "failed": "Les dossiers n'ont pas pu être enregistrés."
+      }
     },
     "huggingface": {
       "name": "Hugging Face",

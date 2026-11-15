@@ -66,6 +66,9 @@
 .tool-title { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
 .tool-icon { color: #29a9eb; width: 26px; height: 26px; flex-shrink: 0; }
 .tool-icon.github { color: var(--text-primary); }
+.tool-icon.git { color: #f05033; }
+.folders-input { display: block; width: 100%; box-sizing: border-box; min-height: 64px; margin-bottom: 8px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.5; white-space: pre; overflow-x: auto; }
+.tool-hint.folder-bad { color: #ef4444; }
 .tool-icon.huggingface { color: #ff9d00; }
 .tool-icon.civitai { color: #228be6; }
 .tool-title-text { display: flex; flex-direction: column; }

@@ -6,7 +6,7 @@ import { SkillsCardComponent } from './skills-card/skills-card.component';
 import { ConnectionsCardComponent } from './connections-card/connections-card.component';
 import { XCardComponent } from './x-card/x-card.component';
 import { GmailCardComponent } from './gmail-card/gmail-card.component';
-import { ApiService, Agent, AppConfig, TelegramIntegration, GitHubIntegration, HuggingFaceIntegration, CivitaiIntegration } from '../../services/api.service';
+import { ApiService, Agent, AppConfig, TelegramIntegration, GitHubIntegration, GitIntegration, HuggingFaceIntegration, CivitaiIntegration } from '../../services/api.service';
 
 @Component({
   selector: 'app-herramientas',
@@ -32,6 +32,13 @@ export class HerramientasComponent implements OnInit {
   ghTokenInput = signal('');
   ghTokenSaved = signal(false);
 
+  git = signal<GitIntegration | null>(null);
+  /** The folders as typed, one per line. */
+  gitFoldersInput = signal('');
+  gitFoldersSaved = signal(false);
+  /** The folders the server refused, each with its reason (a translation key's last part). */
+  gitFoldersRejected = signal<{ folder: string; reason: string }[]>([]);
+
   hfTokenInput = signal('');
   hfTokenSaved = signal(false);
 
@@ -55,6 +62,10 @@ export class HerramientasComponent implements OnInit {
     this.api.getGitHubIntegration().subscribe(g => {
       this.github.set(g);
       if (g.tokenConfigured) this.ghTokenInput.set(this.tokenMask);
+    });
+    this.api.getGitIntegration().subscribe(g => {
+      this.git.set(g);
+      this.gitFoldersInput.set(g.folders.join('\n'));
     });
     this.loadHuggingFace();
     this.loadCivitai();
@@ -109,6 +120,40 @@ export class HerramientasComponent implements OnInit {
       this.ghTokenInput.set(this.tokenMask); // show dots, not an empty field
       this.ghTokenSaved.set(true);
       setTimeout(() => this.ghTokenSaved.set(false), 2000);
+    });
+  }
+
+  // ── Git ──
+  toggleGit(): void {
+    const g = this.git();
+    if (!g) return;
+    const enabled = !g.enabled;
+    this.git.set({ ...g, enabled });
+    this.api.saveGitIntegration({ enabled }).subscribe();
+  }
+
+  get gitFoldersChanged(): boolean {
+    const typed = this.gitFoldersInput().split('\n').map(l => l.trim()).filter(Boolean);
+    return typed.join('\n') !== (this.git()?.folders ?? []).join('\n');
+  }
+
+  saveGitFolders(): void {
+    const g = this.git();
+    if (!g) return;
+    const folders = this.gitFoldersInput().split('\n').map(l => l.trim()).filter(Boolean);
+    this.gitFoldersRejected.set([]);
+    this.api.saveGitFolders(folders).subscribe({
+      next: r => {
+        // The server answers with each folder as it really is on disk.
+        this.git.set({ ...g, folders: r.folders });
+        this.gitFoldersInput.set(r.folders.join('\n'));
+        this.gitFoldersSaved.set(true);
+        setTimeout(() => this.gitFoldersSaved.set(false), 2000);
+      },
+      error: e => {
+        const rejected = Array.isArray(e?.error?.rejected) ? e.error.rejected : [];
+        this.gitFoldersRejected.set(rejected.length ? rejected : [{ folder: '', reason: e?.error?.error === 'too_many' ? 'too_many' : 'failed' }]);
+      },
     });
   }
 

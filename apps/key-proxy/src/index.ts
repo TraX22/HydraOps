@@ -18,6 +18,7 @@ import { KeystoreError, keyStoreDir, keyStoreFile, readStore, securePrivateDir }
 import { handleControl as chatgptControl, isConnected as chatgptConnected, proxy as chatgptProxy } from "./chatgpt.js";
 import { handleControl as xControl, hasAccounts as xHasAccounts } from "./x.js";
 import { handleControl as gmailControl, hasAccounts as gmailHasAccounts } from "./gmail.js";
+import { proxyGit } from "./github-git.js";
 
 const PORT = Number(process.env.KEY_PROXY_PORT || 9099);
 const KEYS_PATH = keyStoreFile;
@@ -132,6 +133,11 @@ const server = http.createServer(async (req, res) => {
       if (await chatgptControl(req, res, rest.replace(/\?.*$/, ""))) return;
       return sendJson(res, 404, { error: "Unknown chatgpt path" });
     }
+
+    // Git's own traffic to GitHub (the git tools): the same token as the github tools, sent
+    // the way Git over HTTPS takes it (github-git.ts).
+    const git = url.match(/^\/githubgit(\/.*)?$/);
+    if (git) return await proxyGit(req, res, git[1] || "/", ((await loadKeys())[PROVIDERS.github.keyName] || "").trim());
 
     const match = url.match(/^\/([a-z]+)(\/.*)?$/);
     const provider = match ? PROVIDERS[match[1]] : undefined;

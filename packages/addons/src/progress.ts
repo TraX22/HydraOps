@@ -53,6 +53,10 @@ export function progressRef(toolName: string, args: unknown): string | undefined
     const repo = str('owner') && str('repo') ? `${str('owner')}/${str('repo')}` : str('repo') ?? str('query') ?? str('path');
     return repo ? clipRef(repo) : undefined;
   }
+  if (toolName === 'git_read' || toolName === 'git_write' || toolName === 'git_sync') {
+    const what = [str('action'), str('branch') ?? str('name') ?? str('ref')].filter(Boolean).join(' ');
+    return what ? clipRef(what) : undefined;
+  }
   if (toolName.startsWith('calendar_')) {
     const what = str('title') ?? str('id') ?? [str('from'), str('to')].filter(Boolean).join('→');
     return what ? clipRef(what) : undefined;

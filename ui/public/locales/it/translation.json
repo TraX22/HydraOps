@@ -321,6 +321,20 @@
           }
         },
         "noSubject": "(senza oggetto)"
+      },
+      "git": {
+        "push": "Inviare il ramo {{branch}} a {{target}} su GitHub",
+        "pushPlain": "Inviare {{branch}} al remoto {{remote}}",
+        "currentBranch": "il ramo corrente",
+        "folder": "Cartella",
+        "newBranch": "Il ramo {{branch}} non è ancora su GitHub: verrà creato lì.",
+        "nothing": "Niente di nuovo da inviare: GitHub ha già questi commit.",
+        "commitsOne": "Verrà inviato 1 commit:",
+        "commitsMany": "Verranno inviati {{n}} commit:",
+        "more": "…e altri {{n}} più vecchi.",
+        "loading": "lettura dei commit…",
+        "failed": "Non è stato possibile leggere i commit per mostrarli.",
+        "note": "Inviato a GitHub con il token salvato in HydraOps, quando approvi. Mai forzato: su GitHub non viene sovrascritto nulla. Si approva ogni volta."
       }
     },
     "linkUnverified": "⚠ Non verificato: l'agente non ha aperto né visto questo indirizzo in questa conversazione. Può esistere, ma viene dalla sua memoria, non da una consultazione.",
@@ -340,6 +354,8 @@
       "createSkillNoRef": "Propone una skill",
       "github": "Consulta GitHub: {{ref}}",
       "githubNoRef": "Consulta GitHub",
+      "git": "Git: {{ref}}",
+      "gitNoRef": "Lavora con Git",
       "huggingface": "Consultando Hugging Face: {{ref}}",
       "huggingfaceNoRef": "Consultando Hugging Face",
       "civitai": "Consultando Civitai: {{ref}}",
@@ -959,6 +975,29 @@
       "tokenPlaceholder": "PAT fine-grained di GitHub",
       "getToken": "Crea un token",
       "connectHint": "Usa un token fine-grained e limita permessi e repository su GitHub. Il token vive solo nell'archivio chiavi cifrato; l'agente non lo vede mai. Cosa può fare lo decide il token stesso."
+    },
+    "git": {
+      "name": "Git",
+      "description": "Permette agli agenti di usare il Git installato su questo computer: commit, rami e invio a GitHub.",
+      "installed": "Su questo computer",
+      "notInstalled": "Git non è installato",
+      "noLfs": "Senza Git LFS",
+      "installHint": "Installa Git e riavvia HydraOps; la pagina Strumenti del manuale spiega i passaggi.",
+      "folders": "Cartelle in cui Git può lavorare",
+      "foldersSet": "{{n}} consentite",
+      "foldersNone": "Nessuna: non fa nulla",
+      "foldersPlaceholder": "Una cartella per riga, es. D:\\Progetti\\il-mio-gioco",
+      "foldersHint": "Gli agenti possono usare Git solo dentro queste cartelle e le loro sottocartelle. Senza cartelle, gli strumenti di Git non fanno nulla. Un agente riceve gli strumenti con l'etichetta “git” in Agenti → Strumenti.",
+      "github": "Token di GitHub",
+      "githubHint": "Push, pull e clone usano il token della scheda GitHub qui sopra; per il push serve “Contents: Read and write” sul repository. L'agente non lo vede mai. Un push attende sempre la tua approvazione.",
+      "rejected": {
+        "not_absolute": "“{{folder}}” non è un percorso completo (es. D:\\Progetti\\il-mio-gioco).",
+        "not_found": "“{{folder}}” non esiste.",
+        "not_a_folder": "“{{folder}}” è un file, non una cartella.",
+        "private": "“{{folder}}” contiene i dati o le chiavi di HydraOps, quindi Git non può lavorarci. Scegli una cartella più specifica.",
+        "too_many": "Troppe cartelle (30 al massimo).",
+        "failed": "Non è stato possibile salvare le cartelle."
+      }
     },
     "huggingface": {
       "name": "Hugging Face",

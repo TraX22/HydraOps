@@ -44,6 +44,7 @@ import {
   parsePreset, presetServerEntry, presetMarkerOf, isPresetEntryModified, presetCommandLine, launcherInstallHint,
   isValidPresetName, PRESET_LAUNCHERS, expandServerCwd, type ConnectionPreset,
   blenderImportCode, parseBlenderImportResult, BLENDER_SERVERS, BLENDER_CODE_TOOL,
+  pushPreview, checkGitFolder, gitVersions,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
 import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, taskChainAutoApproved, HISTORY_DAYS, isHistoryLevel, calendarEntries, listCalendarEntries, zonedToUtc, advance as calendarAdvance, localParts, isTimeZone, listTimeZones, systemTimeZone, isCalendarDate, isCalendarTime, isCalendarRepeat, isCalendarKind, CALENDAR_LIMITS, formatWhen, toDate, userLocale } from "@hydraops/db";
@@ -3263,7 +3264,7 @@ const ADDON_DESCRIPTION_OVERRIDES: Record<string, string> = {
   fetch_url: "Lee una página web y la convierte a Markdown.",
   youtube_transcript: "Trae la transcripción (subtítulos) de un vídeo de YouTube.",
   comfy_workflows: "Lista los flujos que guardaste en tu ComfyUI y copia uno para que el agente lo use.",
-  // github_* tools are managed under Herramientas → GitHub, not the Add-ons view.
+  // github_* and git_* tools are managed under Herramientas (GitHub, Git), not the Add-ons view.
 };
 
 // Tools that belong to an external integration (managed in Herramientas, e.g.
@@ -3271,7 +3272,7 @@ const ADDON_DESCRIPTION_OVERRIDES: Record<string, string> = {
 // connection (its token) and each agent's tools.md already govern them, so a
 // per-tool toggle here would just be noise.
 // The skill tools are managed under Herramientas → Skills.
-const isIntegrationTool = (name: string) => name.startsWith("github") || name.startsWith("huggingface_") || name.startsWith("civitai_") || name === "skills_view" || name === "create_skill";
+const isIntegrationTool = (name: string) => name.startsWith("github") || name.startsWith("git_") || name.startsWith("huggingface_") || name.startsWith("civitai_") || name === "skills_view" || name === "create_skill";
 
 api.get("/system/addons", async (_req, res) => {
   try {
@@ -5073,6 +5074,52 @@ api.post("/system/integrations/civitai/adult", async (req, res) => {
   }
 });
 
+// Git (the git_* tools): the Git installed on this computer, inside the folders the user
+// allows and nowhere else. The folders are HydraOps' own setting: the tools ask for them
+// here on every call, and with none they do nothing. What goes to GitHub uses the token of
+// the GitHub card, through the key-proxy.
+const GIT_FOLDERS_KEY = "git_folders";
+const GIT_MAX_FOLDERS = 30;
+async function gitFolders(): Promise<string[]> {
+  const rows = await (db as any).select().from(systemConfigs).where(eq(systemConfigs.key, GIT_FOLDERS_KEY)).limit(1);
+  try {
+    const v = JSON.parse(rows[0]?.value ?? "[]");
+    return Array.isArray(v) ? v.filter((f: unknown) => typeof f === "string") : [];
+  } catch { return []; }
+}
+// Whether Git (and Git LFS) is installed: asked once a minute at most.
+let gitInstalled: { at: number; v: { git: string | null; lfs: string | null } } | null = null;
+integrationRoutes("git", "git_", "GITHUB_TOKEN", async () => {
+  if (!gitInstalled || Date.now() - gitInstalled.at > 60_000) gitInstalled = { at: Date.now(), v: await gitVersions() };
+  return { folders: await gitFolders(), git: gitInstalled.v.git, lfs: gitInstalled.v.lfs };
+});
+
+api.post("/system/integrations/git/folders", async (req, res) => {
+  try {
+    const list: unknown[] = Array.isArray(req.body?.folders) ? req.body.folders : [];
+    if (list.length > GIT_MAX_FOLDERS) return res.status(400).json({ error: "too_many", max: GIT_MAX_FOLDERS });
+    const folders: string[] = [];
+    const rejected: { folder: string; reason: string }[] = [];
+    for (const raw of list) {
+      if (typeof raw !== "string" || !raw.trim()) continue;
+      // HydraOps' own private folders (the key store, its data) are never a place for Git.
+      const checked = await checkGitFolder(raw, [keyStoreDir, dataRoot]);
+      if ("error" in checked) rejected.push({ folder: raw.trim().slice(0, 300), reason: checked.error });
+      else if (!folders.includes(checked.folder)) folders.push(checked.folder);
+    }
+    if (rejected.length) return res.status(400).json({ error: "invalid_folders", rejected });
+    const value = JSON.stringify(folders);
+    await (db as any).insert(systemConfigs)
+      .values({ key: GIT_FOLDERS_KEY, value, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: systemConfigs.key, set: { value, updatedAt: new Date() } })
+      .run();
+    res.json({ success: true, folders });
+  } catch (err: any) {
+    console.error("[api] POST /system/integrations/git/folders failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
 // --- Skills (Herramientas) ---
 // Global skills in skillsDir, used by the agents whose tools.md grants `skills` and
 // written by those granted `create_skill` (always held for the user's approval; the
@@ -6454,8 +6501,9 @@ api.get("/security/actions", securityLimiter, async (req, res) => {
   }
 });
 
-// What a held gmail_tidy call would touch, for its card and its Telegram notice: the sender,
-// subject and date of each message it names. Read from the STORED call, never from the
+// What a held call would touch, for its card. A git_sync push: the commits it would send.
+// A gmail_tidy call (also for its Telegram notice): the sender, subject and date of each
+// message it names. Read from the STORED call, never from the
 // request, so the card shows what approving will run; kept a few minutes, since ids do not
 // change meaning.
 const gmailHeldPreviews = new Map<string, { at: number; body: any }>();
@@ -6465,6 +6513,11 @@ api.get("/security/actions/:id/preview", securityLimiter, async (req, res) => {
     if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: "invalid_id" });
     const [row] = await (db as any).select().from(pendingActions).where(eq(pendingActions.id, id)).limit(1);
     if (!row) return res.status(404).json({ error: "not_found" });
+    // A held push: the commits it would send, read from the repository as it is now.
+    if (row.toolName === "git_sync" && row.args?.action === "push") {
+      const preview = await pushPreview(row.args, await gitFolders());
+      return res.json("error" in preview ? { kind: "git_push", problem: preview.error } : { kind: "git_push", push: preview });
+    }
     if (row.toolName !== "gmail_tidy") return res.json({ kind: null });
     const cached = gmailHeldPreviews.get(id);
     if (cached && Date.now() - cached.at < 10 * 60_000) return res.json(cached.body);

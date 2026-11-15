@@ -188,7 +188,7 @@ async function notifyNew(deps: HeldActionsDeps): Promise<void> {
       inline_keyboard: [
         [{ text: "✅ Approve", callback_data: `held:a:${a.id}` }, { text: "❌ Reject", callback_data: `held:r:${a.id}` }],
         // A post always asks, one by one: no task-wide approval for it.
-        ...(a.toolName === "x_post" || a.toolName === "x_dm" || a.toolName === "gmail_send" || (a.toolName === "gmail_tidy" && a.args?.action === "trash") ? [] : [[{ text: "✅✅ Approve for the rest of the task", callback_data: `held:t:${a.id}` }]]),
+        ...(a.toolName === "x_post" || a.toolName === "x_dm" || a.toolName === "gmail_send" || (a.toolName === "git_sync" && a.args?.action === "push") || (a.toolName === "gmail_tidy" && a.args?.action === "trash") ? [] : [[{ text: "✅✅ Approve for the rest of the task", callback_data: `held:t:${a.id}` }]]),
       ],
     };
     const text = a.toolName === "gmail_tidy" ? await describeGmailTidy(deps, a) : describe(a);

@@ -206,6 +206,83 @@
       </div>
     }
 
+    <!-- Git -->
+    @if (git(); as g) {
+      <div class="tool-card">
+        <div class="tool-head">
+          <div class="tool-title">
+            <app-icon name="git" class="tool-icon git" />
+            <div class="tool-title-text">
+              <span class="addon-name">{{ 'herramientas.git.name' | translate }}</span>
+              <span class="addon-type">{{ 'herramientas.git.description' | translate }}</span>
+            </div>
+          </div>
+          <button class="toggle-btn" [class.on]="g.enabled" (click)="toggleGit()">
+            {{ g.enabled ? 'ON' : 'OFF' }}
+          </button>
+        </div>
+
+        <div class="tool-field">
+          <label class="tool-label">
+            {{ 'herramientas.git.installed' | translate }}
+            @if (g.git) {
+              <span class="addon-badge key-ok">Git {{ g.git }}</span>
+              <span class="addon-badge" [class.key-ok]="g.lfs">{{ g.lfs ? 'Git LFS ' + g.lfs : ('herramientas.git.noLfs' | translate) }}</span>
+            } @else {
+              <span class="addon-badge key-bad">{{ 'herramientas.git.notInstalled' | translate }}</span>
+            }
+          </label>
+          @if (!g.git) {
+            <p class="tool-hint">
+              {{ 'herramientas.git.installHint' | translate }}
+              <a class="key-help" href="https://git-scm.com/downloads" target="_blank" rel="noopener">git-scm.com/downloads</a>
+            </p>
+          }
+        </div>
+
+        <div class="tool-field">
+          <label class="tool-label" for="git-folders">
+            {{ 'herramientas.git.folders' | translate }}
+            <span class="addon-badge" [class.key-ok]="g.folders.length > 0">
+              {{ (g.folders.length ? 'herramientas.git.foldersSet' : 'herramientas.git.foldersNone') | translate: { n: g.folders.length } }}
+            </span>
+          </label>
+          <textarea
+            id="git-folders"
+            class="key-input folders-input"
+            rows="3"
+            spellcheck="false"
+            autocomplete="off"
+            [placeholder]="'herramientas.git.foldersPlaceholder' | translate"
+            [value]="gitFoldersInput()"
+            (input)="gitFoldersInput.set($any($event.target).value)"
+          ></textarea>
+          <div class="addon-keyrow">
+            <button class="btn-primary key-save" [disabled]="!gitFoldersChanged" (click)="saveGitFolders()">
+              {{ 'common.save' | translate }}
+            </button>
+            @if (gitFoldersSaved()) {
+              <span class="saved-msg">✓ {{ 'common.saved' | translate }}</span>
+            }
+          </div>
+          @for (r of gitFoldersRejected(); track r.folder) {
+            <p class="tool-hint folder-bad">{{ ('herramientas.git.rejected.' + r.reason) | translate: { folder: r.folder } }}</p>
+          }
+          <p class="tool-hint">{{ 'herramientas.git.foldersHint' | translate }}</p>
+        </div>
+
+        <div class="tool-field">
+          <label class="tool-label">
+            {{ 'herramientas.git.github' | translate }}
+            <span class="addon-badge" [class.key-ok]="g.tokenConfigured">
+              {{ (g.tokenConfigured ? 'herramientas.github.tokenSet' : 'herramientas.github.tokenMissing') | translate }}
+            </span>
+          </label>
+          <p class="tool-hint">{{ 'herramientas.git.githubHint' | translate }}</p>
+        </div>
+      </div>
+    }
+
     <!-- Hugging Face -->
     @if (huggingface(); as h) {
       <div class="tool-card">
