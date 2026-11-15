@@ -42,6 +42,12 @@ const BASE_CONFIG = [
   // The user's own sign-in (Git Credential Manager, a stored password) is never used.
   "-c", "credential.helper=",
   "-c", "core.askPass=",
+  // A folder inside a working tree that is laid out as a repository of its own (a cloned
+  // project can carry one) is not taken for one: its configuration, which can name programs
+  // to run, would otherwise be obeyed by a command run from that folder.
+  "-c", "safe.bareRepository=explicit",
+  // Only GitHub over HTTPS is ever reached: no repository on this computer as a remote.
+  "-c", "protocol.file.allow=never",
 ];
 
 const gitBin = () => process.env.HYDRA_GIT_BIN || "git";
@@ -173,6 +179,7 @@ export async function repoTop(dir: string, folders: string[]): Promise<{ top: st
   const r = await runGit(dir, ["rev-parse", "--show-toplevel"]);
   if (r.missing) return { error: NO_GIT };
   if (r.code !== 0) {
+    if (/cannot use bare repository/i.test(r.err)) return { error: `"${dir}" is laid out as a Git repository of its own inside another folder (no working files, only Git's data). This tool does not work in such a folder: use the project's own folder.` };
     if (/not a git repository/i.test(r.err)) return { error: `"${dir}" is not a Git repository yet. git_write with action "init" makes it one.` };
     return { error: gitFail(r) };
   }
