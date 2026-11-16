@@ -435,11 +435,19 @@ export interface GitHubIntegration {
 }
 
 /** The git tools: on or off, the folders they may work in, and what is installed on this computer. */
+export interface GitFolderState {
+  folder: string;
+  state: 'repository' | 'holds' | 'inside' | 'none' | 'missing';
+  repos?: number;
+}
+
 export interface GitIntegration {
   enabled: boolean;
   /** The GitHub token of the GitHub card: what a push, a pull or a clone uses. */
   tokenConfigured: boolean;
   folders: string[];
+  /** What each allowed folder is: a repository, a folder that holds some, or neither. */
+  folderStates?: GitFolderState[];
   /** The installed Git's version, or null when Git is not installed (or not on the PATH). */
   git: string | null;
   lfs: string | null;
@@ -1227,8 +1235,8 @@ export class ApiService {
   }
 
   /** The folders Git may work in. A folder the server refuses comes back in the error, with the reason. */
-  saveGitFolders(folders: string[]): Observable<{ success: boolean; folders: string[] }> {
-    return this.http.post<{ success: boolean; folders: string[] }>(`${this.base}/system/integrations/git/folders`, { folders });
+  saveGitFolders(folders: string[]): Observable<{ success: boolean; folders: string[]; folderStates?: GitFolderState[] }> {
+    return this.http.post<{ success: boolean; folders: string[]; folderStates?: GitFolderState[] }>(`${this.base}/system/integrations/git/folders`, { folders });
   }
 
   getCivitaiIntegration(): Observable<CivitaiIntegration> {

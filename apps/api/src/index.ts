@@ -44,7 +44,7 @@ import {
   parsePreset, presetServerEntry, presetMarkerOf, isPresetEntryModified, presetCommandLine, launcherInstallHint,
   isValidPresetName, PRESET_LAUNCHERS, expandServerCwd, type ConnectionPreset,
   blenderImportCode, parseBlenderImportResult, BLENDER_SERVERS, BLENDER_CODE_TOOL,
-  pushPreview, checkGitFolder, gitVersions,
+  pushPreview, checkGitFolder, gitVersions, gitFolderStates,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
 import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, taskChainAutoApproved, HISTORY_DAYS, isHistoryLevel, calendarEntries, listCalendarEntries, zonedToUtc, advance as calendarAdvance, localParts, isTimeZone, listTimeZones, systemTimeZone, isCalendarDate, isCalendarTime, isCalendarRepeat, isCalendarKind, CALENDAR_LIMITS, formatWhen, toDate, userLocale } from "@hydraops/db";
@@ -5091,7 +5091,8 @@ async function gitFolders(): Promise<string[]> {
 let gitInstalled: { at: number; v: { git: string | null; lfs: string | null } } | null = null;
 integrationRoutes("git", "git_", "GITHUB_TOKEN", async () => {
   if (!gitInstalled || Date.now() - gitInstalled.at > 60_000) gitInstalled = { at: Date.now(), v: await gitVersions() };
-  return { folders: await gitFolders(), git: gitInstalled.v.git, lfs: gitInstalled.v.lfs };
+  const folders = await gitFolders();
+  return { folders, folderStates: await gitFolderStates(folders), git: gitInstalled.v.git, lfs: gitInstalled.v.lfs };
 });
 
 api.post("/system/integrations/git/folders", async (req, res) => {
@@ -5113,7 +5114,7 @@ api.post("/system/integrations/git/folders", async (req, res) => {
       .values({ key: GIT_FOLDERS_KEY, value, updatedAt: new Date() })
       .onConflictDoUpdate({ target: systemConfigs.key, set: { value, updatedAt: new Date() } })
       .run();
-    res.json({ success: true, folders });
+    res.json({ success: true, folders, folderStates: await gitFolderStates(folders) });
   } catch (err: any) {
     console.error("[api] POST /system/integrations/git/folders failed", err);
     res.status(500).json({ error: "internal_error" });

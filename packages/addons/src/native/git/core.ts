@@ -208,6 +208,48 @@ export async function checkGitFolder(p: unknown, privateDirs: string[]): Promise
   return { folder: r };
 }
 
+/**
+ * What an allowed folder is, for the Tools card: the user should see at a glance whether
+ * the folder they wrote is the project itself.
+ *   repository  it is a Git repository (or part of one that starts in an allowed folder)
+ *   holds       it is not one, but `repos` of the folders right inside it are
+ *   inside      it is part of a repository that starts above it, outside the allowed folders
+ *   none        no repository here nor right inside it
+ *   missing     the folder is no longer there
+ */
+export interface GitFolderState {
+  folder: string;
+  state: "repository" | "holds" | "inside" | "none" | "missing";
+  repos?: number;
+}
+
+const hasGitEntry = async (dir: string) => (await stat(path.join(dir, ".git")).catch(() => null)) !== null;
+
+export async function gitFolderStates(folders: string[]): Promise<GitFolderState[]> {
+  const allowed = await realFolders(folders);
+  const out: GitFolderState[] = [];
+  for (const folder of folders) {
+    const r = typeof folder === "string" && path.isAbsolute(folder) ? await real(folder) : null;
+    const st = r ? await stat(r).catch(() => null) : null;
+    if (!r || !st?.isDirectory()) { out.push({ folder, state: "missing" }); continue; }
+    if (await hasGitEntry(r)) { out.push({ folder, state: "repository" }); continue; }
+    let repos = 0;
+    const entries = await readdir(r, { withFileTypes: true }).catch(() => []);
+    for (const e of entries.slice(0, 500)) {
+      if (e.isDirectory() && await hasGitEntry(path.join(r, e.name))) repos++;
+    }
+    if (repos) { out.push({ folder, state: "holds", repos }); continue; }
+    const top = await runGit(r, ["rev-parse", "--show-toplevel"]);
+    if (top.code === 0 && top.out.trim()) {
+      const t = (await real(top.out.trim())) ?? path.resolve(top.out.trim());
+      out.push({ folder, state: allowed.some((f) => isInside(f, t)) ? "repository" : "inside" });
+      continue;
+    }
+    out.push({ folder, state: "none" });
+  }
+  return out;
+}
+
 // ── GitHub remotes ────────────────────────────────────────────────────────────
 
 /** owner and repository of a github.com address, in any of the forms Git accepts. */

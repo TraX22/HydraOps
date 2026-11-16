@@ -349,6 +349,8 @@ Para un repositorio público puedes usar la dirección privada que te da GitHub 
 
 En **Herramientas → Git** escribe las carpetas donde Git puede trabajar, una por línea, y guarda. Una carpeta incluye sus subcarpetas, así que puede ser un proyecto o la carpeta donde guardas todos. Los agentes pueden usar Git **solo ahí**. Sin ninguna carpeta, las herramientas de Git no hacen nada y lo avisan.
 
+La carpeta que hay que escribir es **la del proyecto mismo**: la que tiene sus archivos y su historial de Git (una carpeta oculta `.git`); en un proyecto de Unity, la que tiene `Assets` y `ProjectSettings`. No es un lugar donde Git guarda cosas: una carpeta vacía, o la carpeta donde salen tus compilaciones, no le da al agente nada con qué trabajar. Al guardar, la tarjeta dice qué es cada carpeta: **Repositorio Git**, **Repositorios dentro** (una carpeta que contiene varios proyectos) o **No es un repositorio Git**, que es la señal de que la ruta no es la del proyecto. Un proyecto nuevo que todavía no tiene historial también aparece así hasta que un agente lo inicie ahí.
+
 Las carpetas de datos y de claves de HydraOps no se pueden permitir, ni una carpeta que las contenga (toda tu carpeta de usuario, el disco del sistema).
 
 ### 3. El token de GitHub

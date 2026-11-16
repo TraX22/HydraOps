@@ -145,7 +145,7 @@ export class HerramientasComponent implements OnInit {
     this.api.saveGitFolders(folders).subscribe({
       next: r => {
         // The server answers with each folder as it really is on disk.
-        this.git.set({ ...g, folders: r.folders });
+        this.git.set({ ...g, folders: r.folders, folderStates: r.folderStates });
         this.gitFoldersInput.set(r.folders.join('\n'));
         this.gitFoldersSaved.set(true);
         setTimeout(() => this.gitFoldersSaved.set(false), 2000);

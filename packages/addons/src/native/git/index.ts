@@ -343,4 +343,4 @@ export const gitSyncTool: HydraTool = {
 };
 
 export const gitTools: HydraTool[] = [gitReadTool, gitWriteTool, gitSyncTool];
-export { pushPreview, checkGitFolder, gitVersions, type PushPreview } from "./core.js";
+export { pushPreview, checkGitFolder, gitVersions, gitFolderStates, type PushPreview, type GitFolderState } from "./core.js";

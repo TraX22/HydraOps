@@ -85,7 +85,7 @@ export * from './approvals.js';
 export * from './skills.js';
 export * from './skills-github.js';
 export { noteSkillsOpened } from './native/skills/index.js';
-export { pushPreview, checkGitFolder, gitVersions, type PushPreview } from './native/git/index.js';
+export { pushPreview, checkGitFolder, gitVersions, gitFolderStates, type PushPreview, type GitFolderState } from './native/git/index.js';
 export * from './progress.js';
 export * from './plan.js';
 export * from './vault.js';

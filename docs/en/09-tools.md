@@ -349,6 +349,8 @@ For a public repository you can use the private address GitHub gives you (Settin
 
 In **Tools → Git** write the folders Git may work in, one per line, and save. A folder covers its subfolders, so it can be one project or the folder where you keep all of them. The agents can use Git **only there**. With no folder, the Git tools do nothing and say so.
 
+The folder to write is **the project's own**: the one that holds its files and its Git history (a hidden `.git` folder), for a Unity project the one with `Assets` and `ProjectSettings`. It is not a place where Git saves things: an empty folder, or the one where your builds go, gives the agent nothing to work on. Once saved, the card says what each folder is: **Git repository**, **Repositories inside** (a folder that holds several projects), or **Not a Git repository**, which is the sign that the path is not the project's. A new project that has no history yet shows that too until an agent starts one there.
+
 HydraOps' own data and key folders cannot be allowed, nor a folder that holds them (your whole user folder, the system drive).
 
 ### 3. The GitHub token
