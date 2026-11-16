@@ -987,7 +987,19 @@
       "foldersSet": "{{n}} consentite",
       "foldersNone": "Nessuna: non fa nulla",
       "foldersPlaceholder": "Una cartella per riga, es. D:\\Progetti\\il-mio-gioco",
-      "foldersHint": "Gli agenti possono usare Git solo dentro queste cartelle e le loro sottocartelle. Senza cartelle, gli strumenti di Git non fanno nulla. Un agente riceve gli strumenti con l'etichetta “git” in Agenti → Strumenti.",
+      "foldersHint": "Scrivi la cartella del progetto stesso: quella che contiene i file del progetto e la sua cronologia Git (una cartella nascosta “.git”), non una cartella vuota né quella in cui si salvano le build. Va bene anche la cartella in cui tieni più progetti. Gli agenti possono usare Git solo dentro queste cartelle e le loro sottocartelle. Senza cartelle, gli strumenti di Git non fanno nulla. Un agente riceve gli strumenti con l'etichetta “git” in Agenti → Strumenti.",
+      "state": {
+        "repository": "Repository Git",
+        "holds": "Repository all'interno: {{n}}",
+        "inside": "Dentro un repository più grande",
+        "none": "Non è un repository Git",
+        "missing": "Non trovata"
+      },
+      "stateNote": {
+        "none": "È la cartella del progetto stesso?",
+        "inside": "Il repository inizia in una cartella più in alto: consenti quella cartella.",
+        "missing": "La cartella non esiste più."
+      },
       "github": "Token di GitHub",
       "githubHint": "Push, pull e clone usano il token della scheda GitHub qui sopra; per il push serve “Contents: Read and write” sul repository. L'agente non lo vede mai. Un push attende sempre la tua approvazione.",
       "rejected": {

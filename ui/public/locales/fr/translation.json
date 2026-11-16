@@ -987,7 +987,19 @@
       "foldersSet": "{{n}} autorisés",
       "foldersNone": "Aucun : il ne fait rien",
       "foldersPlaceholder": "Un dossier par ligne, p. ex. D:\\Projets\\mon-jeu",
-      "foldersHint": "Les agents ne peuvent utiliser Git que dans ces dossiers et leurs sous-dossiers. Sans aucun dossier, les outils Git ne font rien. Un agent reçoit les outils avec l'étiquette « git » dans Agents → Outils.",
+      "foldersHint": "Écrivez le dossier du projet lui-même : celui qui contient les fichiers du projet et son historique Git (un dossier caché « .git »), pas un dossier vide ni celui où sont enregistrées les compilations. Le dossier où vous gardez plusieurs projets convient aussi. Les agents ne peuvent utiliser Git que dans ces dossiers et leurs sous-dossiers. Sans aucun dossier, les outils Git ne font rien. Un agent reçoit les outils avec l'étiquette « git » dans Agents → Outils.",
+      "state": {
+        "repository": "Dépôt Git",
+        "holds": "Dépôts à l'intérieur : {{n}}",
+        "inside": "Dans un dépôt plus grand",
+        "none": "Pas un dépôt Git",
+        "missing": "Introuvable"
+      },
+      "stateNote": {
+        "none": "Est-ce bien le dossier du projet lui-même ?",
+        "inside": "Le dépôt commence dans un dossier situé plus haut : autorisez ce dossier.",
+        "missing": "Le dossier n'existe plus."
+      },
       "github": "Jeton GitHub",
       "githubHint": "Push, pull et clone utilisent le jeton de la carte GitHub ci-dessus ; pour un push, il lui faut « Contents: Read and write » sur le dépôt. L'agent ne le voit jamais. Un push attend toujours votre approbation.",
       "rejected": {

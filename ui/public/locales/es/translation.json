@@ -987,7 +987,19 @@
       "foldersSet": "{{n}} permitidas",
       "foldersNone": "Ninguna: no hace nada",
       "foldersPlaceholder": "Una carpeta por línea, p. ej. D:\\Proyectos\\mi-juego",
-      "foldersHint": "Los agentes solo pueden usar Git dentro de estas carpetas y sus subcarpetas. Sin ninguna, las herramientas de Git no hacen nada. Un agente recibe las herramientas con la etiqueta “git” en Agentes → Herramientas.",
+      "foldersHint": "Escribe la carpeta del proyecto mismo: la que tiene los archivos del proyecto y su historial de Git (una carpeta oculta “.git”), no una carpeta vacía ni la carpeta donde se guardan las compilaciones. También sirve la carpeta donde guardas varios proyectos. Los agentes solo pueden usar Git dentro de estas carpetas y sus subcarpetas. Sin ninguna, las herramientas de Git no hacen nada. Un agente recibe las herramientas con la etiqueta “git” en Agentes → Herramientas.",
+      "state": {
+        "repository": "Repositorio Git",
+        "holds": "Repositorios dentro: {{n}}",
+        "inside": "Dentro de un repositorio mayor",
+        "none": "No es un repositorio Git",
+        "missing": "No encontrada"
+      },
+      "stateNote": {
+        "none": "¿Es la carpeta del proyecto mismo?",
+        "inside": "El repositorio empieza en una carpeta de más arriba: permite esa carpeta.",
+        "missing": "La carpeta ya no existe."
+      },
       "github": "Token de GitHub",
       "githubHint": "Push, pull y clone usan el token de la tarjeta de GitHub de arriba; para hacer push necesita “Contents: Read and write” sobre el repositorio. El agente nunca lo ve. Un push siempre espera tu aprobación.",
       "rejected": {

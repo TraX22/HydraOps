@@ -268,6 +268,17 @@
           @for (r of gitFoldersRejected(); track r.folder) {
             <p class="tool-hint folder-bad">{{ ('herramientas.git.rejected.' + r.reason) | translate: { folder: r.folder } }}</p>
           }
+          @for (s of g.folderStates ?? []; track s.folder) {
+            <p class="tool-hint folder-state">
+              <span class="folder-path">{{ s.folder }}</span>
+              <span class="addon-badge" [class.key-ok]="s.state === 'repository' || s.state === 'holds'" [class.key-bad]="s.state !== 'repository' && s.state !== 'holds'">
+                {{ ('herramientas.git.state.' + s.state) | translate: { n: s.repos } }}
+              </span>
+              @if (s.state === 'none' || s.state === 'inside' || s.state === 'missing') {
+                <span class="folder-note">{{ ('herramientas.git.stateNote.' + s.state) | translate }}</span>
+              }
+            </p>
+          }
           <p class="tool-hint">{{ 'herramientas.git.foldersHint' | translate }}</p>
         </div>
 

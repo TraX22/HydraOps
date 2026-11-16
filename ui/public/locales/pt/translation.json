@@ -987,7 +987,19 @@
       "foldersSet": "{{n}} permitidas",
       "foldersNone": "Nenhuma: não faz nada",
       "foldersPlaceholder": "Uma pasta por linha, ex.: D:\\Projetos\\meu-jogo",
-      "foldersHint": "Os agentes só podem usar o Git dentro destas pastas e das suas subpastas. Sem nenhuma, as ferramentas do Git não fazem nada. Um agente recebe as ferramentas com a etiqueta “git” em Agentes → Ferramentas.",
+      "foldersHint": "Escreva a pasta do próprio projeto: a que tem os arquivos do projeto e o seu histórico do Git (uma pasta oculta “.git”), não uma pasta vazia nem a pasta onde as compilações são salvas. A pasta onde você guarda vários projetos também serve. Os agentes só podem usar o Git dentro destas pastas e das suas subpastas. Sem nenhuma, as ferramentas do Git não fazem nada. Um agente recebe as ferramentas com a etiqueta “git” em Agentes → Ferramentas.",
+      "state": {
+        "repository": "Repositório Git",
+        "holds": "Repositórios dentro: {{n}}",
+        "inside": "Dentro de um repositório maior",
+        "none": "Não é um repositório Git",
+        "missing": "Não encontrada"
+      },
+      "stateNote": {
+        "none": "É a pasta do próprio projeto?",
+        "inside": "O repositório começa em uma pasta acima desta: permita essa pasta.",
+        "missing": "A pasta não existe mais."
+      },
       "github": "Token do GitHub",
       "githubHint": "Push, pull e clone usam o token do cartão do GitHub acima; para fazer push ele precisa de “Contents: Read and write” no repositório. O agente nunca o vê. Um push sempre espera a sua aprovação.",
       "rejected": {

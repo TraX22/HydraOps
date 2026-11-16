@@ -987,7 +987,19 @@
       "foldersSet": "{{n}} allowed",
       "foldersNone": "None: it does nothing",
       "foldersPlaceholder": "One folder per line, e.g. D:\\Projects\\my-game",
-      "foldersHint": "The agents can use Git only inside these folders and their subfolders. With none, the Git tools do nothing. An agent gets the tools with the “git” tag in Agents → Tools.",
+      "foldersHint": "Write the folder of the project itself: the one that has the project's files and its Git history (a hidden “.git” folder), not an empty folder or the one where builds are saved. The folder where you keep several projects works too. The agents can use Git only inside these folders and their subfolders. With none, the Git tools do nothing. An agent gets the tools with the “git” tag in Agents → Tools.",
+      "state": {
+        "repository": "Git repository",
+        "holds": "Repositories inside: {{n}}",
+        "inside": "Inside a bigger repository",
+        "none": "Not a Git repository",
+        "missing": "Not found"
+      },
+      "stateNote": {
+        "none": "Is this the project's own folder?",
+        "inside": "The repository starts in a folder above this one: allow that folder.",
+        "missing": "The folder is no longer there."
+      },
       "github": "GitHub token",
       "githubHint": "Push, pull and clone use the token of the GitHub card above; to push, it needs “Contents: Read and write” on the repository. The agent never sees it. A push always waits for your approval.",
       "rejected": {
