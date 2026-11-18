@@ -56,6 +56,20 @@ Mientras el agente está trabajando, Aceptar y Descartar esperan a que termine.
 
 Los hooks de Git del repositorio (un lint al hacer commit, por ejemplo) **no corren** en estos commits. Un repositorio puede guardar sus hooks en una carpeta que el agente puede escribir, así que ejecutarlos sería ejecutar lo que el agente escribió.
 
+## Leer y editar el código
+
+Haz clic en un archivo del árbol y se abre en un editor, en una pestaña junto a **Cambios**. Puede haber varios archivos abiertos a la vez.
+
+- **Lo que ves es la copia del agente**: tu último commit más lo que espera ser aceptado. Las líneas que difieren de tu commit llevan una barra a la izquierda.
+- **Puedes editar.** Corrige un detalle tú mismo en vez de pedirlo. **Guardar** (o Ctrl+S) escribe tu edición en la copia del agente, donde se suma a los cambios que esperan tu decisión; llega a tu carpeta cuando aceptas, igual que el trabajo del agente. Lo que no guardaste no entra en lo que aceptas, y el panel Cambios te lo recuerda.
+- **Mientras el agente trabaja, el archivo es de solo lectura.** Cuando termina, un archivo abierto muestra el texto nuevo por sí solo.
+- **Si el agente cambió un archivo que estabas editando**, el guardado se detiene y lo avisa, para que el trabajo de ninguno de los dos se pise sin que lo veas. Tú eliges: cargar la versión del agente, o conservar tu texto y copiar lo que necesites.
+- **Cerrar una pestaña con cambios sin guardar pregunta antes.** Ir a otra sección y volver conserva los archivos abiertos y lo que escribiste; recargar la página no.
+
+**Copiar ruta** da la ubicación del archivo en tu propia carpeta, para abrirlo en tu editor de siempre. Recuerda que tu carpeta tiene tu versión, no los cambios pendientes.
+
+El editor abre archivos de texto de hasta 1 MB. Las imágenes, las compilaciones y otros archivos binarios no se muestran, y los archivos de credenciales (`.env`, claves) no se abren nunca.
+
 ## Instrucciones: HydraOps.md
 
 `HydraOps.md`, en la raíz de la carpeta del proyecto, guarda las instrucciones del proyecto: cómo se construye y se ejecuta, sus convenciones, qué no tocar. El agente lo recibe en cada mensaje del proyecto. Ábrelo desde la columna izquierda para escribirlo o editarlo.

@@ -56,6 +56,20 @@ While the agent is working, Accept and Discard wait until it finishes.
 
 The repository's Git hooks (a lint on commit, for example) **do not run** on these commits. A repository can keep its hooks in a folder the agent can write, so running them would run what the agent wrote.
 
+## Read and edit the code
+
+Click a file in the tree and it opens in an editor, in a tab next to **Changes**. Several files can be open at once.
+
+- **What you see is the agent's copy**: your last commit plus whatever is waiting to be accepted. The lines that differ from your commit carry a bar at the left.
+- **You can edit.** Fix a detail yourself instead of asking for it. **Save** (or Ctrl+S) writes your edit to the agent's copy, where it joins the changes waiting for you; it reaches your folder when you accept, like the agent's work. Edits you have not saved are not part of what you accept, and the Changes panel reminds you.
+- **While the agent is working the file is read-only.** When it finishes, an open file shows the new text by itself.
+- **If the agent changed a file you were editing**, saving stops and says so, so that neither side's work is overwritten unseen. You choose: load the agent's version, or keep your text and copy what you need.
+- **Closing a tab with unsaved edits asks first.** Going to another section and coming back keeps the open files and what you typed; reloading the page does not.
+
+**Copy path** gives the file's place in your own folder, to open it in your usual editor. Remember that your folder has your version, not the pending changes.
+
+The editor opens text files up to 1 MB. Images, builds and other binary files are not shown, and credentials files (`.env`, keys) are never opened.
+
 ## Instructions: HydraOps.md
 
 `HydraOps.md`, at the top of the project's folder, holds the project's instructions: how it is built and run, its conventions, what not to touch. The agent gets it in every message of the project. Open it from the left column to write or edit it.

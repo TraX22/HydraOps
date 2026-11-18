@@ -47,6 +47,7 @@ import {
   pushPreview, checkGitFolder, gitVersions, gitFolderStates,
   openProject, pendingChanges, fileDiff, acceptChanges, discardChanges, repoState, removeWorkingCopies, initRepository,
   readInstructions, writeInstructions, readMemory, listFiles, INSTRUCTIONS_FILE, MEMORY_FILE,
+  readProjectFile, writeProjectFile, isSensitivePath,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
 import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, taskChainAutoApproved, HISTORY_DAYS, isHistoryLevel, calendarEntries, listCalendarEntries, zonedToUtc, advance as calendarAdvance, localParts, isTimeZone, listTimeZones, systemTimeZone, isCalendarDate, isCalendarTime, isCalendarRepeat, isCalendarKind, CALENDAR_LIMITS, formatWhen, toDate, userLocale, loadProjects, saveProjects, findProject, projectChannel, projectIdOfChannel, MAX_PROJECTS, type ProjectRecord } from "@hydraops/db";
@@ -5283,6 +5284,40 @@ api.get("/projects/:id/tree", async (req, res) => {
     res.json({ files: files.slice(0, MAX), total: files.length, roots: space.repos.map((r) => r.prefix).filter(Boolean) });
   } catch (err: any) {
     console.error("[api] GET /projects/:id/tree failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// One file of the agents' copy, for the editor in the project's tab: its text, a fingerprint
+// of it, and the lines that differ from the user's commit.
+const FILE_STATUS: Record<string, number> = { not_found: 404, changed: 409 };
+api.get("/projects/:id/file", async (req, res) => {
+  try {
+    const p = await projectOr404(req, res);
+    if (!p) return;
+    const space = await openProject(projectRefOf(p));
+    const file = await readProjectFile(space, typeof req.query.path === "string" ? req.query.path : "", isSensitivePath);
+    if ("error" in file) return res.status(FILE_STATUS[file.code] ?? 400).json({ error: file.code, detail: file.error });
+    res.json(file);
+  } catch (err: any) {
+    console.error("[api] GET /projects/:id/file failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// The user's own edit, saved to the agents' copy: it joins what waits to be accepted. Not
+// while the agent is at work, and not over a file that changed since it was opened.
+api.put("/projects/:id/file", async (req, res) => {
+  try {
+    const p = await projectOr404(req, res);
+    if (!p) return;
+    if (await projectBusy(p)) return res.status(409).json({ error: "agent_working" });
+    const space = await openProject(projectRefOf(p));
+    const saved = await writeProjectFile(space, req.body?.path, req.body?.content, req.body?.baseHash, isSensitivePath);
+    if ("error" in saved) return res.status(FILE_STATUS[saved.code] ?? 400).json({ error: saved.code, detail: saved.error });
+    res.json({ success: true, hash: saved.hash });
+  } catch (err: any) {
+    console.error("[api] PUT /projects/:id/file failed", err);
     res.status(500).json({ error: "internal_error" });
   }
 });

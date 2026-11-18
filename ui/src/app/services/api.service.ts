@@ -471,6 +471,19 @@ export interface ProjectDetail {
   memoryChars: number;
 }
 
+/** One file of the agent's copy, as the editor of the project's tab gets it. */
+export interface ProjectFile {
+  path: string;
+  text: string;
+  /** A fingerprint of the text: a save says which text it started from. */
+  hash: string;
+  state: ProjectChange['state'] | null;
+  /** Lines (1-based) that differ from the user's commit. */
+  changedLines: number[];
+  /** Where the file is in the user's own folder. */
+  source: string;
+}
+
 export interface ProjectAcceptResult {
   prefix: string;
   ok: boolean;
@@ -1298,6 +1311,16 @@ export class ApiService {
 
   getProjectTree(id: string): Observable<{ files: string[]; total: number; roots: string[] }> {
     return this.http.get<{ files: string[]; total: number; roots: string[] }>(`${this.base}/projects/${id}/tree`);
+  }
+
+  /** A file that cannot be opened comes back as an error with its reason (`error`: binary, too_large, credentials…). */
+  getProjectFile(id: string, path: string): Observable<ProjectFile> {
+    return this.http.get<ProjectFile>(`${this.base}/projects/${id}/file`, { params: new HttpParams().set('path', path) });
+  }
+
+  /** 409 `changed`: the file is no longer the one that was opened; 409 `agent_working`: the agent is at work. */
+  saveProjectFile(id: string, path: string, content: string, baseHash: string): Observable<{ success: boolean; hash: string }> {
+    return this.http.put<{ success: boolean; hash: string }>(`${this.base}/projects/${id}/file`, { path, content, baseHash });
   }
 
   getProjectDiff(id: string, path: string): Observable<{ diff: string; cut: boolean }> {

@@ -525,6 +525,33 @@
         "local_changes": "Your folder has unsaved work in the same files, so nothing was touched. Commit or set aside your own changes, then accept again.",
         "git": "Git could not save the changes. Nothing was touched."
       }
+    },
+    "editor": {
+      "unsaved": "Edits not saved",
+      "unsavedNote": "Open files with edits you have not saved: {{n}}. Save them first if they should be part of what you accept.",
+      "state": {
+        "added": "new",
+        "modified": "changed",
+        "deleted": "deleted"
+      },
+      "viewDiff": "See the diff",
+      "copyPath": "Copy path",
+      "copied": "Copied",
+      "readOnly": "The agent is working: the file is read-only until it finishes.",
+      "stale": "The agent changed this file while you were editing it. Saving is stopped so its work is not overwritten.",
+      "reload": "Load the agent's version (your edits are lost)",
+      "closeConfirm": "This file has edits you have not saved.",
+      "closeYes": "Close without saving",
+      "saveFailed": "The file could not be saved.",
+      "cannot": {
+        "not_found": "This file is no longer in the project.",
+        "is_folder": "That is a folder, not a file.",
+        "too_large": "This file is too large to open here (1 MB at most).",
+        "binary": "This is not a text file, so it is not shown here.",
+        "credentials": "This is a credentials file: it is not opened here.",
+        "invalid_path": "This file cannot be opened.",
+        "unknown": "This file could not be read."
+      }
     }
   },
   "agents": {

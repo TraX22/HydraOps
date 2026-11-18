@@ -525,6 +525,33 @@
         "local_changes": "La tua cartella ha lavoro non salvato negli stessi file, quindi non è stato toccato nulla. Fai un commit delle tue modifiche o mettile da parte, poi accetta di nuovo.",
         "git": "Git non ha potuto salvare le modifiche. Non è stato toccato nulla."
       }
+    },
+    "editor": {
+      "unsaved": "Modifiche non salvate",
+      "unsavedNote": "File aperti con modifiche non salvate: {{n}}. Salvali prima se devono far parte di ciò che accetti.",
+      "state": {
+        "added": "nuovo",
+        "modified": "modificato",
+        "deleted": "eliminato"
+      },
+      "viewDiff": "Vedi le differenze",
+      "copyPath": "Copia percorso",
+      "copied": "Copiato",
+      "readOnly": "L'agente sta lavorando: il file è in sola lettura finché non finisce.",
+      "stale": "L'agente ha modificato questo file mentre lo stavi modificando. Il salvataggio è fermo per non sovrascrivere il suo lavoro.",
+      "reload": "Carica la versione dell'agente (le tue modifiche vanno perse)",
+      "closeConfirm": "Questo file ha modifiche non salvate.",
+      "closeYes": "Chiudi senza salvare",
+      "saveFailed": "Non è stato possibile salvare il file.",
+      "cannot": {
+        "not_found": "Questo file non è più nel progetto.",
+        "is_folder": "È una cartella, non un file.",
+        "too_large": "Questo file è troppo grande per essere aperto qui (1 MB al massimo).",
+        "binary": "Non è un file di testo, quindi non viene mostrato qui.",
+        "credentials": "È un file di credenziali: non viene aperto qui.",
+        "invalid_path": "Questo file non può essere aperto.",
+        "unknown": "Non è stato possibile leggere questo file."
+      }
     }
   },
   "agents": {

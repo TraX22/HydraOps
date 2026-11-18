@@ -94,7 +94,7 @@
         </div>
         <div class="tree">
           @for (row of rows(); track row.path) {
-            <button class="tree-row" [class.dir]="row.dir" [class.clickable]="row.dir || !!row.state" [class.selected]="selected() === row.path"
+            <button class="tree-row clickable" [class.dir]="row.dir" [class.selected]="rightTab() === row.path || (rightTab() === 'changes' && selected() === row.path)"
                     [attr.data-state]="row.state ?? null" [style.padding-left.px]="8 + row.depth * 14" (click)="clickRow(row)" [title]="row.path">
               @if (row.dir) { <app-icon class="tree-caret" [name]="row.open ? 'chevron-down' : 'chevron-right'" /> }
               @else { <span class="tree-caret"></span> }
@@ -138,7 +138,10 @@
       </section>
 
       <!-- Right: what the agent changed; or the settings, or one of the project's two files -->
-      <aside class="col-right">
+      <aside class="col-right" [class.wide]="rightTab() !== 'changes'">
+        <!-- Settings and the project's two files open over the panel: the changes and the open files stay as they are underneath. -->
+        @if (settingsOpen() || fileOpen()) {
+        <div class="overlay-panel">
         @if (settingsOpen()) {
           <div class="panel-head">
             <span>{{ 'projects.settings.title' | translate }}</span>
@@ -200,13 +203,29 @@
             @if (fileText()) { <pre class="file-view">{{ fileText() }}</pre> }
             @else { <p class="empty">{{ 'projects.memory.empty' | translate }}</p> }
           </div>
-        } @else {
-          <div class="panel-head">
-            <span>{{ 'projects.changes.title' | translate }}</span>
-            @if (detail()?.changes?.length) {
-              <span class="totals"><span class="plus">+{{ totals().added }}</span> <span class="minus">−{{ totals().removed }}</span></span>
-            }
-          </div>
+        }
+        </div>
+        }
+
+        <!-- Changes, and one tab per file opened from the tree -->
+        <div class="right-tabs">
+          <button class="rtab" [class.active]="rightTab() === 'changes'" (click)="rightTab.set('changes')">
+            {{ 'projects.changes.title' | translate }}
+            @if (detail()?.changes?.length) { <span class="rtab-count">{{ detail()!.changes.length }}</span> }
+          </button>
+          @for (f of openFiles(); track f.path) {
+            <button class="rtab file" [class.active]="rightTab() === f.path" (click)="rightTab.set(f.path)" [title]="f.path">
+              @if (f.dirty) { <span class="rtab-dirty" [title]="'projects.editor.unsaved' | translate"></span> }
+              <span class="rtab-name">{{ fileName(f.path) }}</span>
+              <span class="tab-close" (click)="closeFile(f.path, $event)" [title]="'common.close' | translate">×</span>
+            </button>
+          }
+          @if (rightTab() === 'changes' && detail()?.changes?.length) {
+            <span class="totals"><span class="plus">+{{ totals().added }}</span> <span class="minus">−{{ totals().removed }}</span></span>
+          }
+        </div>
+
+        @if (rightTab() === 'changes') {
           <div class="panel-body">
             @if (!detail()?.changes?.length) {
               <p class="empty">{{ (detail()?.busy ? 'projects.changes.working' : 'projects.changes.none') | translate }}</p>
@@ -253,6 +272,7 @@
               <input id="project-commit" class="commit-input" type="text" [ngModel]="message()" (ngModelChange)="onMessage($event)" maxlength="200"
                      [placeholder]="'projects.changes.messagePlaceholder' | translate" [disabled]="!!working()" />
               @if (detail()?.busy) { <p class="foot-note">{{ 'projects.changes.busy' | translate }}</p> }
+              @if (dirtyCount()) { <p class="foot-note warn">{{ 'projects.editor.unsavedNote' | translate:{ n: dirtyCount() } }}</p> }
               @if (confirmDiscard()) {
                 <p class="foot-note warn">{{ 'projects.changes.discardConfirm' | translate:{ n: detail()!.changes.length } }}</p>
                 <div class="foot-actions">
@@ -270,6 +290,38 @@
               }
             </div>
           }
+        }
+
+        <!-- The open files: each keeps its own editor, so its text and its undo history survive a change of tab -->
+        @for (f of openFiles(); track f.path) {
+          <div class="editor-pane" [hidden]="rightTab() !== f.path">
+            <div class="editor-bar">
+              <span class="diff-path" [title]="f.path">{{ f.path }}</span>
+              @if (f.state) { <span class="badge" [attr.data-change]="f.state">{{ ('projects.editor.state.' + f.state) | translate }}</span> }
+              @if (f.state === 'modified') { <button class="link-btn" (click)="showDiffOf(f.path)">{{ 'projects.editor.viewDiff' | translate }}</button> }
+              @if (f.source) { <button class="link-btn" (click)="copyPath(f)" [title]="f.source">{{ (copied() === f.path ? 'projects.editor.copied' : 'projects.editor.copyPath') | translate }}</button> }
+              <button class="btn-primary small save-file" [disabled]="!f.dirty || f.saving || detail()?.busy" (click)="saveFile(f.path)">{{ 'common.save' | translate }}</button>
+            </div>
+            @if (detail()?.busy) { <p class="editor-note">{{ 'projects.editor.readOnly' | translate }}</p> }
+            @if (f.stale) {
+              <p class="editor-note warn">{{ 'projects.editor.stale' | translate }}
+                <button class="link-btn" (click)="reloadFile(f.path)">{{ 'projects.editor.reload' | translate }}</button></p>
+            }
+            @if (f.saveError) { <p class="editor-note warn">{{ f.saveError | translate }}</p> }
+            @if (closing() === f.path) {
+              <p class="editor-note warn">{{ 'projects.editor.closeConfirm' | translate }}
+                <button class="link-btn" (click)="closeFile(f.path, $event, true)">{{ 'projects.editor.closeYes' | translate }}</button>
+                <button class="link-btn" (click)="closing.set(null)">{{ 'common.cancel' | translate }}</button></p>
+            }
+            @if (f.error) {
+              <p class="empty">{{ ('projects.editor.cannot.' + f.error) | translate }}</p>
+            } @else if (!f.loading) {
+              <div class="editor-box">
+                <app-code-editor [text]="f.draft ?? f.text" [path]="f.path" [readOnly]="!!detail()?.busy" [dark]="theme.theme() === 'dark'"
+                                 [marks]="f.changedLines" (edited)="markDirty(f.path)" (save)="saveFile(f.path)" />
+              </div>
+            }
+          </div>
         }
       </aside>
     </div>

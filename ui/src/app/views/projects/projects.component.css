@@ -82,7 +82,33 @@ button:disabled { opacity: 0.55; cursor: default; }
 .col-chat { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
 .chat-host { flex: 1; min-height: 0; }
 .chat-host app-chat { display: block; height: 100%; }
-.col-right { width: 400px; flex: none; display: flex; flex-direction: column; background: var(--bg-surface); border-left: 1px solid var(--border-color); min-height: 0; }
+.col-right { width: 400px; flex: none; display: flex; flex-direction: column; background: var(--bg-surface); border-left: 1px solid var(--border-color); min-height: 0; position: relative; }
+/* With a file in front the panel takes half the room: code needs width. */
+.col-right.wide { width: min(52%, 980px); }
+.overlay-panel { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; background: var(--bg-surface); }
+
+.right-tabs { display: flex; align-items: stretch; gap: 2px; padding: 0 8px; border-bottom: 1px solid var(--border-color); overflow-x: auto; scrollbar-width: none; flex: none; min-height: 44px; }
+.right-tabs::-webkit-scrollbar { display: none; }
+.rtab { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: none; background: transparent; color: var(--text-secondary); font-size: 13px; cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; flex: none; }
+.rtab.active { color: var(--text-primary); border-bottom-color: var(--accent); font-weight: 600; }
+.rtab-count { font-size: 11px; font-weight: 600; background: var(--status-working); color: #fff; border-radius: var(--radius-full); padding: 0 6px; }
+.rtab-dirty { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.rtab-name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.tab-close { font-size: 15px; line-height: 1; color: var(--text-muted); padding: 0 2px; border-radius: 3px; }
+.tab-close:hover { color: var(--text-primary); background: var(--bg-hover); }
+.right-tabs .totals { margin-left: auto; align-self: center; padding-right: 6px; }
+
+.editor-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.editor-pane[hidden] { display: none; }
+.editor-bar { display: flex; align-items: center; gap: 10px; padding: 6px 10px 6px 14px; border-bottom: 1px solid var(--border-color); background: var(--bg-surface-alt); flex: none; }
+.editor-box { flex: 1; min-height: 0; overflow: hidden; }
+.editor-note { font-size: 12px; line-height: 1.45; padding: 6px 14px; color: var(--text-secondary); border-bottom: 1px solid var(--border-color); flex: none; }
+.editor-note.warn { color: var(--text-primary); background: color-mix(in srgb, var(--status-working) 14%, transparent); }
+.editor-note .link-btn { margin-left: 8px; }
+.btn-primary.small { padding: 4px 12px; font-size: 12px; }
+.badge[data-change] { margin-left: 0; }
+.badge[data-change="added"] { background: color-mix(in srgb, var(--status-online) 16%, transparent); color: var(--status-online); }
+.badge[data-change="modified"] { background: color-mix(in srgb, var(--status-working) 20%, transparent); color: var(--status-working); }
 
 .agent-card { display: flex; align-items: center; gap: 10px; padding: 12px; border-bottom: 1px solid var(--border-color); }
 .agent-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex: none; }
@@ -181,7 +207,8 @@ button:disabled { opacity: 0.55; cursor: default; }
 @media (max-width: 1150px) {
   .projects-view { height: auto; min-height: 100vh; }
   .project-body { flex-direction: column; }
-  .col-left, .col-right { width: auto; border: none; border-bottom: 1px solid var(--border-color); }
+  .col-left, .col-right, .col-right.wide { width: auto; border: none; border-bottom: 1px solid var(--border-color); }
+  .col-right.wide { min-height: 70vh; }
   .col-left { max-height: 320px; }
   .col-chat { height: 70vh; flex: none; }
   .col-right { min-height: 360px; max-height: 80vh; }
