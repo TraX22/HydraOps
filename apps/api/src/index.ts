@@ -5131,7 +5131,10 @@ api.post("/system/integrations/git/folders", async (req, res) => {
 // diff, for the user to accept or discard (see @hydraops/addons native/project/core.ts).
 const projectRefOf = (p: ProjectRecord) => ({ id: p.id, name: p.name, slug: p.slug, folder: p.folder });
 const isAgentId = (id: unknown): id is string => typeof id === "string" && /^[a-z0-9][a-z0-9_-]*$/i.test(id);
-const agentExists = async (id: unknown) => isAgentId(id) && fileExists(path.join(agentsDir, id, `${id}.agent.md`)).then(async (ok) => ok || fileExists(path.join(agentsDir, id)));
+// An agent is a folder of the agents' directory: the name is looked up in that list, and no
+// path is ever built from what the request sent.
+const agentExists = async (id: unknown) =>
+  isAgentId(id) && (await readdir(agentsDir, { withFileTypes: true }).catch(() => [])).some((d) => d.isDirectory() && d.name === id);
 const projectName = (v: unknown) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, 80) : "");
 
 /** The name as a branch can carry it, not used by another project. */

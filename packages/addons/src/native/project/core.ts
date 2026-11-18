@@ -191,7 +191,10 @@ export const spaceProblem = (space: ProjectSpace) => (space.repos.length ? "" : 
 const sameName = (a: string, b: string) => (process.platform === "win32" ? a.toLowerCase() === b.toLowerCase() : a === b);
 /** A path's segment that is, or on Windows opens as, Git's own folder. */
 const isGitSegment = (seg: string) => {
-  const s = seg.replace(/[. ]+$/, "").toLowerCase();
+  // Windows drops the dots and spaces a name ends with: ".git." opens ".git".
+  let end = seg.length;
+  while (end > 0 && (seg[end - 1] === "." || seg[end - 1] === " ")) end--;
+  const s = seg.slice(0, end).toLowerCase();
   return s === ".git" || /^git~\d+$/.test(s);
 };
 const ownFileName = (seg: string) => sameName(seg, INSTRUCTIONS_FILE) || sameName(seg, MEMORY_FILE);
