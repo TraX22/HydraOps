@@ -17,6 +17,8 @@ export interface ApprovedCall {
   /** Bullet lines of the agent's tools.md: the gate is the same as for a live task. */
   requestedTools: string[];
   nativeState: Record<string, boolean>;
+  /** Tools the task had besides those of tools.md (a project's chat gives its own). */
+  extraAllowed?: string[];
   context: ToolContext;
   /** A worker's own tool (generate_video) is not in the registry; the worker runs it here. */
   runOwnTool?: (toolName: string, args: any) => Promise<string> | undefined;
@@ -37,7 +39,7 @@ export async function executeApprovedCall(registry: ToolRegistry, call: Approved
     try { return { ok: true, result: clean(await own) }; }
     catch (err: any) { return { ok: false, result: clean(err?.message ?? err) }; }
   }
-  const allowed = registry.resolveAllowedToolNames(call.requestedTools);
+  const allowed = [...registry.resolveAllowedToolNames(call.requestedTools), ...(call.extraAllowed ?? [])];
   if (!allowed.includes(call.toolName)) {
     return { ok: false, result: `The agent no longer has the ${call.toolName} tool.` };
   }

@@ -52,7 +52,7 @@ const BASE_CONFIG = [
 
 const gitBin = () => process.env.HYDRA_GIT_BIN || "git";
 
-export function runGit(cwd: string, args: string[], opts: { timeoutMs?: number; config?: string[] } = {}): Promise<GitRun> {
+export function runGit(cwd: string, args: string[], opts: { timeoutMs?: number; config?: string[]; env?: Record<string, string> } = {}): Promise<GitRun> {
   const env: Record<string, string | undefined> = {
     ...process.env,
     // Never wait for someone to type a user name or a password.
@@ -66,6 +66,7 @@ export function runGit(cwd: string, args: string[], opts: { timeoutMs?: number; 
     // The key-proxy is on this computer: a proxy set for the Internet is not on the way to it.
     NO_PROXY: "127.0.0.1,localhost",
     no_proxy: "127.0.0.1,localhost",
+    ...(opts.env ?? {}),
   };
   // The repository is the folder the command runs in, whatever this process inherited.
   for (const k of ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_NAMESPACE", "GIT_CONFIG_PARAMETERS"]) delete env[k];

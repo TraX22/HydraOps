@@ -49,6 +49,9 @@ export const myAddonsDir = path.join(dataRoot, "my_addons");
 /** Installed skills (one folder per skill, each with a SKILL.md): from the catalog,
  *  copied in by hand, or written by an agent and approved by the user. */
 export const skillsDir = path.join(dataRoot, "skills");
+/** The agents' working copies of the projects (one folder per project, one Git working
+ *  tree per repository): what an agent writes stays here until the user accepts it. */
+export const projectsDir = path.join(dataRoot, "projects");
 export const dbFile = path.join(dataRoot, "db.sqlite3");
 export const envFile = path.join(dataRoot, ".env");
 

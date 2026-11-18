@@ -45,9 +45,11 @@ import {
   isValidPresetName, PRESET_LAUNCHERS, expandServerCwd, type ConnectionPreset,
   blenderImportCode, parseBlenderImportResult, BLENDER_SERVERS, BLENDER_CODE_TOOL,
   pushPreview, checkGitFolder, gitVersions, gitFolderStates,
+  openProject, pendingChanges, fileDiff, acceptChanges, discardChanges, repoState, removeWorkingCopies, initRepository,
+  readInstructions, writeInstructions, readMemory, INSTRUCTIONS_FILE, MEMORY_FILE,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
-import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, taskChainAutoApproved, HISTORY_DAYS, isHistoryLevel, calendarEntries, listCalendarEntries, zonedToUtc, advance as calendarAdvance, localParts, isTimeZone, listTimeZones, systemTimeZone, isCalendarDate, isCalendarTime, isCalendarRepeat, isCalendarKind, CALENDAR_LIMITS, formatWhen, toDate, userLocale } from "@hydraops/db";
+import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, taskChainAutoApproved, HISTORY_DAYS, isHistoryLevel, calendarEntries, listCalendarEntries, zonedToUtc, advance as calendarAdvance, localParts, isTimeZone, listTimeZones, systemTimeZone, isCalendarDate, isCalendarTime, isCalendarRepeat, isCalendarKind, CALENDAR_LIMITS, formatWhen, toDate, userLocale, loadProjects, saveProjects, findProject, projectChannel, projectIdOfChannel, MAX_PROJECTS, type ProjectRecord } from "@hydraops/db";
 import { buildEnvelope } from "@hydraops/events";
 import { eq, and, gte, lt, asc, desc, like, inArray, isNull, count, sql } from "drizzle-orm";
 import os from "node:os";
@@ -2387,6 +2389,7 @@ api.post("/tasks", async (req, res) => {
 
     if (!prompt) return res.status(400).json({ error: "prompt is required" });
     const channel = String(req.body?.channel ?? "main");
+    if (projectIdOfChannel(channel) && !(await findProject(db, projectIdOfChannel(channel)))) return res.status(404).json({ error: "project_not_found" });
     // Default read (the user's own message typed in the UI); external transports
     // (e.g. the Telegram bot) pass isRead:false so the agent shows unread activity.
     const isRead = req.body?.isRead !== false;
@@ -5121,6 +5124,278 @@ api.post("/system/integrations/git/folders", async (req, res) => {
   }
 });
 
+// --- Projects ---
+// A project is a folder of the user's with code in it, one agent, and a chat of its own
+// (the channel `project:<id>`). The agent never writes in the folder: it works on a copy
+// of each repository kept under HydraOps' data, and what it changed waits here, as a
+// diff, for the user to accept or discard (see @hydraops/addons native/project/core.ts).
+const projectRefOf = (p: ProjectRecord) => ({ id: p.id, name: p.name, slug: p.slug, folder: p.folder });
+const isAgentId = (id: unknown): id is string => typeof id === "string" && /^[a-z0-9][a-z0-9_-]*$/i.test(id);
+const agentExists = async (id: unknown) => isAgentId(id) && fileExists(path.join(agentsDir, id, `${id}.agent.md`)).then(async (ok) => ok || fileExists(path.join(agentsDir, id)));
+const projectName = (v: unknown) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, 80) : "");
+
+/** The name as a branch can carry it, not used by another project. */
+function projectSlug(name: string, taken: string[]): string {
+  const base = name.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "project";
+  let slug = base;
+  for (let i = 2; taken.includes(slug); i++) slug = `${base}-${i}`;
+  return slug;
+}
+
+async function instructionsState(p: ProjectRecord): Promise<"none" | "accepted" | "pending"> {
+  const ins = await readInstructions(projectRefOf(p));
+  return !ins ? "none" : ins.hash === p.instructionsHash ? "accepted" : "pending";
+}
+
+async function projectSummary(p: ProjectRecord) {
+  return {
+    id: p.id, name: p.name, folder: p.folder, agentId: p.agentId, agentMissing: !(await agentExists(p.agentId)),
+    agentMemory: p.agentMemory, channel: projectChannel(p.id), branch: `hydraops/${p.slug}`,
+    instructions: await instructionsState(p), createdAt: p.createdAt,
+  };
+}
+
+/** Whether the project's agent is at work: its files are not to change under it. */
+async function projectBusy(p: ProjectRecord): Promise<boolean> {
+  const rows = await (db as any).select({ id: tasks.id }).from(tasks)
+    .where(and(eq(tasks.channel, projectChannel(p.id)), inArray(tasks.status, ["pending", "assigned"]))).limit(1);
+  return rows.length > 0;
+}
+
+const projectOr404 = async (req: express.Request, res: express.Response): Promise<ProjectRecord | null> => {
+  const p = await findProject(db, String(req.params.id ?? ""));
+  if (!p) res.status(404).json({ error: "project_not_found" });
+  return p;
+};
+
+api.get("/projects", async (_req, res) => {
+  try {
+    if (!gitInstalled || Date.now() - gitInstalled.at > 60_000) gitInstalled = { at: Date.now(), v: await gitVersions() };
+    const projects = await loadProjects(db);
+    res.json({ projects: await Promise.all(projects.map(projectSummary)), git: gitInstalled.v.git });
+  } catch (err: any) {
+    console.error("[api] GET /projects failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+api.post("/projects", async (req, res) => {
+  try {
+    const name = projectName(req.body?.name);
+    if (!name) return res.status(400).json({ error: "name_required" });
+    if (!(await agentExists(req.body?.agentId))) return res.status(400).json({ error: "agent_not_found" });
+    // HydraOps' own private folders (the key store, its data) are never a project.
+    const folder = await checkGitFolder(req.body?.folder, [keyStoreDir, dataRoot]);
+    if ("error" in folder) return res.status(400).json({ error: "invalid_folder", reason: folder.error });
+    const projects = await loadProjects(db);
+    if (projects.length >= MAX_PROJECTS) return res.status(400).json({ error: "too_many", max: MAX_PROJECTS });
+    const same = (a: string, b: string) => (process.platform === "win32" ? a.toLowerCase() === b.toLowerCase() : a === b);
+    if (projects.some((p) => same(p.folder, folder.folder))) return res.status(409).json({ error: "folder_in_use" });
+    const project: ProjectRecord = {
+      id: randomUUID(), name, slug: projectSlug(name, projects.map((p) => p.slug)), folder: folder.folder,
+      agentId: String(req.body.agentId), agentMemory: req.body?.agentMemory === true, instructionsHash: null,
+      createdAt: new Date().toISOString(),
+    };
+    await saveProjects(db, [...projects, project]);
+    res.status(201).json({ project: await projectSummary(project) });
+  } catch (err: any) {
+    console.error("[api] POST /projects failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// The project with what its tab shows: each repository's state, what could not be opened,
+// and the changes waiting for the user.
+api.get("/projects/:id", async (req, res) => {
+  try {
+    const p = await projectOr404(req, res);
+    if (!p) return;
+    const space = await openProject(projectRefOf(p), { sync: !(await projectBusy(p)) });
+    res.json({
+      project: await projectSummary(p),
+      repos: await Promise.all(space.repos.map(repoState)),
+      problems: space.problems,
+      changes: space.repos.length ? await pendingChanges(space) : [],
+      busy: await projectBusy(p),
+      memoryChars: (await readMemory(projectRefOf(p))).length,
+    });
+  } catch (err: any) {
+    console.error("[api] GET /projects/:id failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+api.patch("/projects/:id", async (req, res) => {
+  try {
+    const p = await projectOr404(req, res);
+    if (!p) return;
+    const next = { ...p };
+    if (req.body?.name !== undefined) {
+      const name = projectName(req.body.name);
+      if (!name) return res.status(400).json({ error: "name_required" });
+      next.name = name;
+    }
+    if (req.body?.agentId !== undefined) {
+      if (!(await agentExists(req.body.agentId))) return res.status(400).json({ error: "agent_not_found" });
+      next.agentId = String(req.body.agentId);
+    }
+    if (typeof req.body?.agentMemory === "boolean") next.agentMemory = req.body.agentMemory;
+    await saveProjects(db, (await loadProjects(db)).map((x) => (x.id === p.id ? next : x)));
+    res.json({ project: await projectSummary(next) });
+  } catch (err: any) {
+    console.error("[api] PATCH /projects/:id failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// Deleting a project removes the agents' copies and their branch; the user's folder, its
+// two project files and the chat's history stay. Changes still pending would be lost, so
+// they must be discarded on purpose (`?discard=1`).
+api.delete("/projects/:id", async (req, res) => {
+  try {
+    const p = await projectOr404(req, res);
+    if (!p) return;
+    if (await projectBusy(p)) return res.status(409).json({ error: "agent_working" });
+    const space = await openProject(projectRefOf(p));
+    const pending = space.repos.length ? (await pendingChanges(space)).length : 0;
+    if (pending && req.query.discard !== "1") return res.status(409).json({ error: "pending_changes", pending });
+    await removeWorkingCopies(projectRefOf(p));
+    await saveProjects(db, (await loadProjects(db)).filter((x) => x.id !== p.id));
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("[api] DELETE /projects/:id failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// What the agent changed: the list, or with `?path=` one file's diff.
+api.get("/projects/:id/changes", async (req, res) => {
+  try {
+    const p = await projectOr404(req, res);
+    if (!p) return;
+    const space = await openProject(projectRefOf(p));
+    if (typeof req.query.path === "string" && req.query.path) {
+      const d = await fileDiff(space, req.query.path);
+      if ("error" in d) return res.status(400).json({ error: "invalid_path", detail: d.error });
+      return res.json(d);
+    }
+    res.json({ changes: space.repos.length ? await pendingChanges(space) : [], problems: space.problems });
+  } catch (err: any) {
+    console.error("[api] GET /projects/:id/changes failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// Accept: one commit per repository with changes, made as the user, and the user's branch
+// moved forward to it. Each repository answers for itself: one can be accepted while
+// another cannot (the same lines changed on both sides, unsaved work in the same files).
+api.post("/projects/:id/accept", async (req, res) => {
+  try {
+    const p = await projectOr404(req, res);
+    if (!p) return;
+    if (await projectBusy(p)) return res.status(409).json({ error: "agent_working" });
+    const message = (typeof req.body?.message === "string" ? req.body.message.trim() : "") || `Changes by ${p.agentId} (HydraOps)`;
+    if (message.length > 8000) return res.status(400).json({ error: "message_too_long", max: 8000 });
+    const space = await openProject(projectRefOf(p));
+    const results = await acceptChanges(space, message, typeof req.body?.repo === "string" ? req.body.repo : undefined);
+    res.json({ results, changes: space.repos.length ? await pendingChanges(space) : [] });
+  } catch (err: any) {
+    console.error("[api] POST /projects/:id/accept failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+api.post("/projects/:id/discard", async (req, res) => {
+  try {
+    const p = await projectOr404(req, res);
+    if (!p) return;
+    if (await projectBusy(p)) return res.status(409).json({ error: "agent_working" });
+    const space = await openProject(projectRefOf(p));
+    const r = await discardChanges(space, Array.isArray(req.body?.paths) ? req.body.paths : undefined);
+    if ("error" in r) return res.status(400).json({ error: "invalid_path", detail: r.error });
+    res.json({ ...r, changes: space.repos.length ? await pendingChanges(space) : [] });
+  } catch (err: any) {
+    console.error("[api] POST /projects/:id/discard failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// The project's instructions (HydraOps.md in its folder). The agents obey only the content
+// the user accepted: a file that came with the folder, or changed outside HydraOps, waits.
+api.get("/projects/:id/instructions", async (req, res) => {
+  try {
+    const p = await projectOr404(req, res);
+    if (!p) return;
+    const ins = await readInstructions(projectRefOf(p));
+    res.json({ file: INSTRUCTIONS_FILE, text: ins?.text ?? "", state: !ins ? "none" : ins.hash === p.instructionsHash ? "accepted" : "pending" });
+  } catch (err: any) {
+    console.error("[api] GET /projects/:id/instructions failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+const setInstructionsHash = async (id: string, hash: string | null) =>
+  saveProjects(db, (await loadProjects(db)).map((x) => (x.id === id ? { ...x, instructionsHash: hash } : x)));
+
+// The user's own edit: written and in force at once.
+api.put("/projects/:id/instructions", async (req, res) => {
+  try {
+    const p = await projectOr404(req, res);
+    if (!p) return;
+    if (typeof req.body?.content !== "string") return res.status(400).json({ error: "content_required" });
+    const w = await writeInstructions(projectRefOf(p), req.body.content);
+    if ("error" in w) return res.status(400).json({ error: "not_written", detail: w.error });
+    await setInstructionsHash(p.id, w.hash);
+    res.json({ success: true, state: "accepted" });
+  } catch (err: any) {
+    console.error("[api] PUT /projects/:id/instructions failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// Accept the file as it is on disk now. With `hash` (the tool that wrote an approved
+// proposal sends it) the file must still be that one.
+api.post("/projects/:id/instructions/accept", async (req, res) => {
+  try {
+    const p = await projectOr404(req, res);
+    if (!p) return;
+    const ins = await readInstructions(projectRefOf(p));
+    if (!ins) return res.status(404).json({ error: "no_instructions" });
+    if (typeof req.body?.hash === "string" && req.body.hash !== ins.hash) return res.status(409).json({ error: "changed" });
+    await setInstructionsHash(p.id, ins.hash);
+    res.json({ success: true, state: "accepted" });
+  } catch (err: any) {
+    console.error("[api] POST /projects/:id/instructions/accept failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+api.get("/projects/:id/memory", async (req, res) => {
+  try {
+    const p = await projectOr404(req, res);
+    if (!p) return;
+    res.json({ file: MEMORY_FILE, text: await readMemory(projectRefOf(p)) });
+  } catch (err: any) {
+    console.error("[api] GET /projects/:id/memory failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// A folder that is not a repository yet: make it one, with a first commit. `commitAll`
+// puts every file that is there in that commit (what a .gitignore names stays out).
+api.post("/projects/:id/init", async (req, res) => {
+  try {
+    const p = await projectOr404(req, res);
+    if (!p) return;
+    const r = await initRepository(p.folder, req.body?.commitAll === true);
+    if ("error" in r) return res.status(r.reason === "exists" ? 409 : 400).json({ error: r.reason ?? "git_failed", detail: r.error });
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("[api] POST /projects/:id/init failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
 // --- Skills (Herramientas) ---
 // Global skills in skillsDir, used by the agents whose tools.md grants `skills` and
 // written by those granted `create_skill` (always held for the user's approval; the
@@ -6573,7 +6848,8 @@ async function decidePendingAction(id: string, decision: "approved" | "rejected"
     return { status: 200, body: { action: publicPendingAction({ ...row, status: "rejected", decidedAt: now }) } };
   }
   const [cfg] = await (db as any).select().from(agentConfigs).where(eq(agentConfigs.agentId, row.agentId)).limit(1);
-  const workerType = cfg?.workerType || "general";
+  // A project's tasks run on the coder worker whatever the agent's type: so do their approved calls.
+  const workerType = projectIdOfChannel(row.channel) ? "coder" : cfg?.workerType || "general";
   const eventId = randomUUID();
   const ev = buildEnvelope({
     id: eventId,

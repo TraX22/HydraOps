@@ -114,8 +114,9 @@ export class ToolRegistry {
     const named = (toolName: string) => norm.some((c) => toolName === c || toolName.startsWith(c + "_"));
 
     const allowed: string[] = [];
-    for (const name of this.nativeTools.keys()) {
-      if (named(name)) allowed.push(name);
+    for (const [name, t] of this.nativeTools) {
+      // A project's tools are given by the project's chat, never by tools.md.
+      if (named(name) && !t.scope) allowed.push(name);
     }
     for (const t of this.mcpManager.mcpTools.keys()) {
       if (!named(t)) continue;
@@ -146,6 +147,11 @@ export class ToolRegistry {
     });
   }
 
+  /** The tools a project's chat adds to its agent's own (see native/project). */
+  projectToolNames(): string[] {
+    return [...this.nativeTools.values()].filter((t) => t.scope === 'project').map((t) => t.name);
+  }
+
   /** What tools-on-demand.ts needs to build the index: the tool maps and who owns each MCP tool. */
   indexSources(): { nativeTools: Map<string, HydraTool>; mcpTools: Map<string, HydraTool>; serverOfTool: (name: string) => string | undefined } {
     return { nativeTools: this.nativeTools, mcpTools: this.mcpManager.mcpTools, serverOfTool: (n) => this.mcpManager.serverOfTool(n) };
@@ -153,7 +159,7 @@ export class ToolRegistry {
 
   // Metadata for the UI (no schema/execute)
   listNative(): { name: string; title?: string; description: string; source: string; requiresKey?: ToolKeyRequirement; risk: ToolRisk }[] {
-    return [...this.nativeTools.values()].map(t => ({
+    return [...this.nativeTools.values()].filter(t => !t.scope).map(t => ({
       name: t.name,
       ...(t.title ? { title: t.title } : {}),
       description: t.description,

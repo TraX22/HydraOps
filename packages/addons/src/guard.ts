@@ -36,6 +36,11 @@ const SENSITIVE_PATH_PATTERNS: { re: RegExp; label: string }[] = [
   { re: /user data[\\/].*(login data|cookies)/i, label: "browser credential store" },
 ];
 
+/** Whether a path names a credential file (the same list the guard refuses in arguments). */
+export function isSensitivePath(p: string): boolean {
+  return SENSITIVE_PATH_PATTERNS.some(({ re }) => re.test(p));
+}
+
 // ------------------------------------------------------------- commands ----
 
 // Only unambiguous destructive command syntax — a web_search query about
@@ -195,7 +200,7 @@ export function guardTool<T extends GuardableTool>(t: T): T {
   return {
     ...t,
     execute: async (args: any) => {
-      const violation = checkToolArgs(t.name, args);
+      const violation = checkToolArgs(t.name, typeof t.guardedArgs === "function" ? t.guardedArgs(args) : args);
       if (violation) {
         console.warn(`[guard] BLOCKED ${t.name}: ${violation}`);
         return `⛔ Blocked by HydraOps security guard: ${violation}. This action is always forbidden — do not retry or try to work around it; tell the user it was blocked.`;

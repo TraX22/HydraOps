@@ -19,7 +19,7 @@ import {
   tasks,
   agentConfigs,
   cronJobs,
-  workerStatus, systemConfigs } from "@hydraops/db";
+  workerStatus, systemConfigs, projectOfChannel, projectIdOfChannel } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, subjectForType } from "@hydraops/nats";
 import { eq } from "drizzle-orm";
@@ -82,6 +82,15 @@ async function pickAgent(channel: string, prompt: string): Promise<{ agentId: st
   const configs = await (db as any).select().from(agentConfigs);
   const workerTypeOf = (id: string) =>
     configs.find((c: any) => c.agentId === id)?.workerType ?? "coder";
+
+  // 0) A project's chat: the project's agent, on the coder worker whatever the agent's own
+  // type (a project is code, and that worker is the one that knows projects).
+  if (projectIdOfChannel(channel)) {
+    const project = await projectOfChannel(db, channel);
+    if (!project) throw new Error(`The project of channel "${channel}" no longer exists`);
+    if (!agentIds.includes(project.agentId)) throw new Error(`The agent of the project "${project.name}" (${project.agentId}) no longer exists`);
+    return { agentId: project.agentId, workerType: "coder" };
+  }
 
   // 1) Private channel: the channel IS the agent id — absolute priority
   if (channel !== "main" && agentIds.includes(channel)) {
