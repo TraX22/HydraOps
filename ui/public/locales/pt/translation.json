@@ -48,6 +48,7 @@
   },
   "nav": {
     "chat": "Chat",
+    "projects": "Projetos",
     "complementos": "Complementos",
     "agents": "Agentes",
     "system": "Sistema",
@@ -335,6 +336,10 @@
         "loading": "lendo os commits…",
         "failed": "Não foi possível ler os commits para mostrá-los.",
         "note": "Enviado ao GitHub com o token guardado no HydraOps, quando você aprovar. Nunca forçado: nada no GitHub é sobrescrito. Aprovado a cada vez."
+      },
+      "project": {
+        "instructions": "Novas instruções para o projeto (HydraOps.md):",
+        "note": "Quando você aprovar, este texto substitui o HydraOps.md na pasta do projeto e o agente passa a segui-lo a partir da próxima mensagem."
       }
     },
     "linkUnverified": "⚠ Não verificado: o agente não abriu nem viu este endereço nesta conversa. Pode existir, mas veio da memória dele, não de uma consulta.",
@@ -356,6 +361,8 @@
       "githubNoRef": "Consultando o GitHub",
       "git": "Git: {{ref}}",
       "gitNoRef": "Trabalhando com o Git",
+      "project": "Projeto: {{ref}}",
+      "projectNoRef": "Trabalhando no projeto",
       "huggingface": "Consultando o Hugging Face: {{ref}}",
       "huggingfaceNoRef": "Consultando o Hugging Face",
       "civitai": "Consultando o Civitai: {{ref}}",
@@ -418,6 +425,107 @@
     },
     "readFromBrowser": "navegador",
     "readFromBrowserHint": "Lido da aba aberta no painel do navegador"
+  },
+  "projects": {
+    "title": "Projetos",
+    "noGit": "O Git não está instalado neste computador, e os projetos precisam dele. Instale-o e reinicie o HydraOps; a página Projetos do manual tem os passos.",
+    "agentWorks": "trabalha neste projeto",
+    "agentMissing": "este agente não existe mais: escolha outro",
+    "detached": "sem branch",
+    "files": "Arquivos",
+    "noFiles": "Ainda não há arquivos.",
+    "treeCut": "Mostrando {{n}} de {{total}} arquivos.",
+    "new": {
+      "button": "Novo projeto",
+      "title": "Novo projeto",
+      "lead": "Um projeto é uma pasta com o seu código e um agente que trabalha nele. O agente nunca escreve na sua pasta: trabalha em uma cópia própria, e você vê o que ele mudou e aceita ou descarta.",
+      "name": "Nome",
+      "namePlaceholder": "ex.: Site da loja",
+      "folder": "Pasta",
+      "folderPlaceholder": "ex.: D:/Projetos/loja",
+      "folderHint": "A pasta do próprio projeto: um repositório Git, ou uma pasta que contém vários (backend, frontend). Se ainda não for um repositório, você pode transformá-la em um no passo seguinte.",
+      "agent": "Agente",
+      "agentHint": "Um agente por projeto. Ele recebe as ferramentas para ler e alterar os arquivos do projeto apenas no chat deste projeto.",
+      "create": "Criar o projeto",
+      "error": {
+        "name_required": "Dê um nome ao projeto.",
+        "not_absolute": "Escreva o caminho completo da pasta (por exemplo D:/Projetos/loja).",
+        "not_found": "Essa pasta não existe.",
+        "not_a_folder": "Isso é um arquivo, não uma pasta.",
+        "private": "Essa pasta contém os dados ou as chaves do HydraOps: não pode ser um projeto.",
+        "folder_in_use": "Outro projeto já usa essa pasta.",
+        "agent_not_found": "Escolha um agente.",
+        "too_many": "Há projetos demais: exclua um primeiro.",
+        "unknown": "Não foi possível salvar o projeto."
+      }
+    },
+    "settings": {
+      "title": "Ajustes do projeto",
+      "agentMemory": "Carregar também a memória pessoal do agente",
+      "agentMemoryHint": "Desligado: neste projeto o agente usa apenas as notas do projeto. Ligado: ele recebe também o que lembra do próprio chat, e pode salvar lá.",
+      "branch": "O branch do agente",
+      "branchHint": "A cópia que o agente tem de cada repositório fica neste branch. O HydraOps o cria e o remove; você não precisa mexer nele.",
+      "delete": "Excluir o projeto",
+      "deleteConfirm": "Excluir este projeto? As cópias do agente e o branch delas são removidos. Sua pasta, seus arquivos e o histórico do chat ficam.",
+      "deleteConfirmPending": "Este projeto tem {{n}} arquivos alterados que você não aceitou: ao excluí-lo eles se perdem. Sua pasta e seus arquivos ficam como estão.",
+      "deleteYes": "Sim, excluir"
+    },
+    "instructions": {
+      "state": {
+        "none": "vazio",
+        "accepted": "em vigor",
+        "pending": "a revisar"
+      },
+      "lead": "As instruções do projeto: como ele é construído e executado, suas convenções, o que não tocar. O agente as recebe em cada mensagem deste projeto. O arquivo é HydraOps.md, na raiz da pasta do projeto.",
+      "placeholder": "Por exemplo: Angular 21 com componentes standalone. Executa com pnpm start. Não adicionar dependências sem perguntar.",
+      "pendingBanner": "Esta pasta tem um HydraOps.md que você ainda não aceitou. O agente não o segue até você aceitar.",
+      "pendingNote": "Este texto veio com a pasta, ou mudou fora do HydraOps. Leia: depois de aceito, o agente o segue.",
+      "review": "Revisar",
+      "acceptAsIs": "Aceitar como está",
+      "saved": "Salvo e em vigor"
+    },
+    "memory": {
+      "notes": "notas",
+      "lead": "As notas que o agente guarda sobre este projeto: decisões, como as coisas são feitas, o que foi tentado. O arquivo é ProjectMemory.md, na raiz da pasta do projeto; você pode editá-lo com qualquer editor.",
+      "empty": "Ainda não há notas."
+    },
+    "problem": {
+      "folder_missing": "A pasta do projeto não está mais lá.",
+      "no_repository": "Esta pasta ainda não é um repositório Git. O agente trabalha a partir do que está em um commit, então precisa de um.",
+      "no_commits": "Este repositório ainda não tem commits. O agente trabalha a partir do que está em um commit.",
+      "no_git": "O Git não está instalado neste computador.",
+      "copy_failed": "Não foi possível criar a cópia do agente deste repositório.",
+      "initAll": "Transformá-la em repositório com os arquivos que estão lá",
+      "initEmpty": "Transformá-la em um repositório vazio",
+      "initHint": "A primeira opção salva todos os arquivos em um primeiro commit (o que um .gitignore lista fica de fora). Com a segunda, o agente começa de um projeto vazio e seus arquivos ficam sem rastreamento.",
+      "initFailed": "Não foi possível criar o repositório."
+    },
+    "changes": {
+      "title": "Alterações",
+      "none": "Nada para revisar. Quando o agente alterar arquivos, eles aparecem aqui.",
+      "working": "O agente está trabalhando…",
+      "accept": "Aceitar",
+      "accepting": "Aceitando…",
+      "discard": "Descartar",
+      "discardFile": "Descartar este arquivo",
+      "discardConfirm": "Descartar os {{n}} arquivos alterados? O trabalho do agente neles se perde.",
+      "discardYes": "Sim, descartar",
+      "messagePlaceholder": "O que mudou (a mensagem do commit)",
+      "acceptHint": "Aceitar salva as alterações na sua pasta como um commit no seu branch. Nada é enviado ao GitHub.",
+      "busy": "O agente está trabalhando: espere ele terminar.",
+      "accepted": "Aceito: commit {{commit}} em {{branch}}",
+      "binary": "Não é um arquivo de texto: não há diferenças para mostrar.",
+      "emptyDiff": "Nenhuma linha alterada.",
+      "diffFailed": "Não foi possível ler as diferenças.",
+      "diffCut": "As diferenças são mais longas do que o que é mostrado.",
+      "refused": {
+        "identity": "O Git não tem nome nem e-mail de autor neste computador. Configure-os uma vez em um terminal: git config --global user.name \"Seu Nome\" e git config --global user.email \"voce@exemplo.com\". Depois aceite de novo.",
+        "detached": "Não há nenhum branch ativo na sua pasta, então não há onde salvar as alterações. Mude para um branch e aceite de novo.",
+        "conflict": "Seu branch alterou as mesmas linhas nesse meio-tempo, então nada foi tocado. Descarte estas alterações e peça de novo ao agente: ele vai partir da sua última versão. Arquivos:",
+        "local_changes": "Sua pasta tem trabalho não salvo nos mesmos arquivos, então nada foi tocado. Faça um commit das suas alterações ou guarde-as à parte, e aceite de novo.",
+        "git": "O Git não conseguiu salvar as alterações. Nada foi tocado."
+      }
+    }
   },
   "agents": {
     "title": "Agentes",

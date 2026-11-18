@@ -26,6 +26,8 @@ export class App implements OnInit {
   // En /login no hay sesión: se esconde el armazón (sidebar + panel) y la
   // pantalla ocupa todo el ancho.
   protected readonly isLogin = signal(false);
+  // A project's tab has its own agent and three columns of its own: the agents' panel stays out.
+  protected readonly isProjects = signal(false);
 
   ngOnInit(): void {
     const savedLang = localStorage.getItem('hydra_lang');
@@ -35,6 +37,7 @@ export class App implements OnInit {
       .hydraDesktop?.setLang?.(savedLang || 'en');
     this.router.events.pipe(filter(e => e instanceof NavigationEnd)).subscribe(() => {
       this.isLogin.set(this.router.url.startsWith('/login'));
+      this.isProjects.set(this.router.url.startsWith('/projects'));
     });
     this.agentsService.startPolling();
     // A new version is announced by the sidebar's update block (UpdateService), in every view.

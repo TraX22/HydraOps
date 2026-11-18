@@ -168,6 +168,12 @@ import { IconComponent } from '../icon/icon.component';
           @if (c.attachments.length) { <div class="cal-row"><span class="cal-label">{{ 'chat.held.calendar.attachments' | translate }}</span>{{ c.attachments.join(', ') }}</div> }
           <p class="cal-note">{{ ('chat.held.calendar.' + (c.verb === 'add' ? 'addNote' : c.verb === 'update' ? 'updateNote' : 'removeNote')) | translate }}</p>
         </div>
+      } @else if (projectInstructions; as text) {
+        <div class="post">
+          <p class="post-label">{{ 'chat.held.project.instructions' | translate }}</p>
+          <div class="post-part"><div class="post-body"><pre class="post-text">{{ text }}</pre></div></div>
+          <p class="post-cost">{{ 'chat.held.project.note' | translate }}</p>
+        </div>
       } @else if (argLines.length) {
         <dl class="held-args">
           @for (a of argLines; track a.key) {
@@ -329,6 +335,12 @@ export class HeldActionComponent implements OnInit {
   }
 
   /** A git_sync push, as the call names it: the folder, the branch (empty: the one checked out) and the remote. */
+  /** A project_instructions call: the text the agent proposes for the project's HydraOps.md, shown whole. */
+  get projectInstructions(): string | null {
+    const content = (this.action.args as Record<string, unknown> | null)?.['content'];
+    return this.action.toolName === 'project_instructions' && typeof content === 'string' && content.trim() ? content : null;
+  }
+
   get gitPush(): { repo: string; branch: string; remote: string } | null {
     const a = (this.action.args ?? {}) as Record<string, unknown>;
     if (this.action.toolName !== 'git_sync' || a['action'] !== 'push') return null;

@@ -109,7 +109,8 @@ export class ChatService {
   // agent's dot green). The endpoint clears by agent, beyond the 24h window
   // the chat displays. 'main' has no single owning agent, so it's skipped.
   private markRead(channel: string): void {
-    if (channel === 'main') return;
+    // 'main' has no single owning agent, and a project's chat is not an agent's.
+    if (channel === 'main' || channel.startsWith('project:')) return;
     this.api.markAgentRead(channel).subscribe({ error: () => { /* best-effort */ } });
   }
 
@@ -120,7 +121,7 @@ export class ChatService {
    * change; in the main chat the agent is picked by the orchestrator, so nothing is assumed.
    */
   private typingPlaceholder(taskId: string, channel: string): ChatMessage {
-    const tab = channel === 'main' ? undefined : this.tabs().find(t => t.id === channel);
+    const tab = channel === 'main' ? undefined : this.tabs().find(t => t.id === channel) ?? this.channelAgents.get(channel);
     return {
       id: 'typing-' + taskId,
       role: 'assistant',
@@ -130,6 +131,12 @@ export class ChatService {
       timestamp: new Date().toISOString(),
       ...(tab ? { agentId: tab.id, agentName: tab.label, avatarUrl: tab.avatarUrl } : {}),
     };
+  }
+
+  /** A chat that is not an agent's tab (a project's): who answers there, for the typing bubble. */
+  private channelAgents = new Map<string, ChatTab>();
+  setChannelAgent(channel: string, agent: ChatTab): void {
+    this.channelAgents.set(channel, agent);
   }
 
   openAgentTab(agentId: string, agentName: string, avatarUrl?: string): void {

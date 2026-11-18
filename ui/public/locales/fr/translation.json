@@ -48,6 +48,7 @@
   },
   "nav": {
     "chat": "Chat",
+    "projects": "Projets",
     "complementos": "Extensions",
     "agents": "Agents",
     "system": "Système",
@@ -335,6 +336,10 @@
         "loading": "lecture des commits…",
         "failed": "Les commits n'ont pas pu être lus pour les afficher.",
         "note": "Envoyé vers GitHub avec le jeton enregistré dans HydraOps, une fois approuvé. Jamais forcé : rien n'est écrasé sur GitHub. Approuvé à chaque fois."
+      },
+      "project": {
+        "instructions": "Nouvelles instructions pour le projet (HydraOps.md) :",
+        "note": "Une fois approuvé, ce texte remplace HydraOps.md dans le dossier du projet et l'agent le suit dès le message suivant."
       }
     },
     "linkUnverified": "⚠ Non vérifié : l'agent n'a ni ouvert ni vu cette adresse dans cette conversation. Elle peut exister, mais elle vient de sa mémoire, pas d'une consultation.",
@@ -356,6 +361,8 @@
       "githubNoRef": "Consultation de GitHub",
       "git": "Git : {{ref}}",
       "gitNoRef": "Travaille avec Git",
+      "project": "Projet : {{ref}}",
+      "projectNoRef": "Travaille sur le projet",
       "huggingface": "Consultation de Hugging Face : {{ref}}",
       "huggingfaceNoRef": "Consultation de Hugging Face",
       "civitai": "Consultation de Civitai : {{ref}}",
@@ -418,6 +425,107 @@
     },
     "readFromBrowser": "navigateur",
     "readFromBrowserHint": "Lu depuis l'onglet ouvert dans le panneau du navigateur"
+  },
+  "projects": {
+    "title": "Projets",
+    "noGit": "Git n'est pas installé sur cet ordinateur, et les projets en ont besoin. Installez-le et redémarrez HydraOps ; la page Projets du manuel donne les étapes.",
+    "agentWorks": "travaille sur ce projet",
+    "agentMissing": "cet agent n'existe plus : choisissez-en un autre",
+    "detached": "aucune branche",
+    "files": "Fichiers",
+    "noFiles": "Pas encore de fichiers.",
+    "treeCut": "{{n}} fichiers affichés sur {{total}}.",
+    "new": {
+      "button": "Nouveau projet",
+      "title": "Nouveau projet",
+      "lead": "Un projet est un dossier avec votre code et un agent qui y travaille. L'agent n'écrit jamais dans votre dossier : il travaille sur sa propre copie, et vous voyez ce qu'il a changé pour l'accepter ou l'écarter.",
+      "name": "Nom",
+      "namePlaceholder": "p. ex. Site de la boutique",
+      "folder": "Dossier",
+      "folderPlaceholder": "p. ex. D:/Projets/boutique",
+      "folderHint": "Le dossier du projet lui-même : un dépôt Git, ou un dossier qui en contient plusieurs (backend, frontend). S'il n'est pas encore un dépôt, vous pourrez en faire un à l'étape suivante.",
+      "agent": "Agent",
+      "agentHint": "Un agent par projet. Il reçoit les outils pour lire et modifier les fichiers du projet uniquement dans le chat de ce projet.",
+      "create": "Créer le projet",
+      "error": {
+        "name_required": "Donnez un nom au projet.",
+        "not_absolute": "Écrivez le chemin complet du dossier (par exemple D:/Projets/boutique).",
+        "not_found": "Ce dossier n'existe pas.",
+        "not_a_folder": "C'est un fichier, pas un dossier.",
+        "private": "Ce dossier contient les données ou les clés de HydraOps : il ne peut pas être un projet.",
+        "folder_in_use": "Un autre projet utilise déjà ce dossier.",
+        "agent_not_found": "Choisissez un agent.",
+        "too_many": "Il y a trop de projets : supprimez-en un d'abord.",
+        "unknown": "Le projet n'a pas pu être enregistré."
+      }
+    },
+    "settings": {
+      "title": "Réglages du projet",
+      "agentMemory": "Charger aussi la mémoire personnelle de l'agent",
+      "agentMemoryHint": "Désactivé : dans ce projet l'agent n'utilise que les notes du projet. Activé : il reçoit aussi ce qu'il retient de son propre chat, et peut y enregistrer.",
+      "branch": "La branche de l'agent",
+      "branchHint": "La copie que l'agent a de chaque dépôt est sur cette branche. HydraOps la crée et la retire ; vous n'avez pas à y toucher.",
+      "delete": "Supprimer le projet",
+      "deleteConfirm": "Supprimer ce projet ? Les copies de l'agent et leur branche sont retirées. Votre dossier, ses fichiers et l'historique du chat restent.",
+      "deleteConfirmPending": "Ce projet a {{n}} fichiers modifiés que vous n'avez pas acceptés : le supprimer les perd. Votre dossier et ses fichiers restent tels quels.",
+      "deleteYes": "Oui, le supprimer"
+    },
+    "instructions": {
+      "state": {
+        "none": "vide",
+        "accepted": "en vigueur",
+        "pending": "à revoir"
+      },
+      "lead": "Les instructions du projet : comment il se construit et s'exécute, ses conventions, ce qu'il ne faut pas toucher. L'agent les reçoit à chaque message de ce projet. Le fichier est HydraOps.md, à la racine du dossier du projet.",
+      "placeholder": "Par exemple : Angular 21 avec des composants standalone. Se lance avec pnpm start. Ne pas ajouter de dépendances sans demander.",
+      "pendingBanner": "Ce dossier contient un HydraOps.md que vous n'avez pas encore accepté. L'agent ne le suit pas tant que vous ne l'avez pas fait.",
+      "pendingNote": "Ce texte est venu avec le dossier, ou a changé en dehors de HydraOps. Lisez-le : une fois accepté, l'agent le suit.",
+      "review": "Revoir",
+      "acceptAsIs": "Accepter tel quel",
+      "saved": "Enregistré et en vigueur"
+    },
+    "memory": {
+      "notes": "notes",
+      "lead": "Les notes que l'agent garde sur ce projet : décisions, comment les choses sont faites, ce qui a été essayé. Le fichier est ProjectMemory.md, à la racine du dossier du projet ; vous pouvez le modifier avec n'importe quel éditeur.",
+      "empty": "Pas encore de notes."
+    },
+    "problem": {
+      "folder_missing": "Le dossier du projet n'est plus là.",
+      "no_repository": "Ce dossier n'est pas encore un dépôt Git. L'agent travaille à partir de ce qui est dans un commit, il en a donc besoin.",
+      "no_commits": "Ce dépôt n'a pas encore de commits. L'agent travaille à partir de ce qui est dans un commit.",
+      "no_git": "Git n'est pas installé sur cet ordinateur.",
+      "copy_failed": "La copie de ce dépôt pour l'agent n'a pas pu être créée.",
+      "initAll": "En faire un dépôt avec les fichiers présents",
+      "initEmpty": "En faire un dépôt vide",
+      "initHint": "La première option enregistre tous les fichiers dans un premier commit (ce que nomme un .gitignore reste en dehors). Avec la seconde, l'agent part d'un projet vide et vos fichiers restent non suivis.",
+      "initFailed": "Le dépôt n'a pas pu être créé."
+    },
+    "changes": {
+      "title": "Modifications",
+      "none": "Rien à revoir. Quand l'agent modifie des fichiers, ils apparaissent ici.",
+      "working": "L'agent travaille…",
+      "accept": "Accepter",
+      "accepting": "Acceptation…",
+      "discard": "Écarter",
+      "discardFile": "Écarter ce fichier",
+      "discardConfirm": "Écarter les {{n}} fichiers modifiés ? Le travail de l'agent sur ces fichiers est perdu.",
+      "discardYes": "Oui, écarter",
+      "messagePlaceholder": "Ce qui a changé (le message du commit)",
+      "acceptHint": "Accepter enregistre les modifications dans votre dossier sous la forme d'un commit sur votre branche. Rien n'est envoyé à GitHub.",
+      "busy": "L'agent travaille : attendez qu'il termine.",
+      "accepted": "Accepté : commit {{commit}} sur {{branch}}",
+      "binary": "Ce n'est pas un fichier texte : aucune différence à afficher.",
+      "emptyDiff": "Aucune ligne modifiée.",
+      "diffFailed": "Les différences n'ont pas pu être lues.",
+      "diffCut": "Les différences sont plus longues que ce qui est affiché.",
+      "refused": {
+        "identity": "Git n'a ni nom ni e-mail d'auteur sur cet ordinateur. Réglez-les une fois dans un terminal : git config --global user.name \"Votre Nom\" et git config --global user.email \"vous@exemple.com\". Puis acceptez de nouveau.",
+        "detached": "Aucune branche n'est active dans votre dossier, il n'y a donc nulle part où enregistrer les modifications. Passez sur une branche et acceptez de nouveau.",
+        "conflict": "Votre branche a modifié les mêmes lignes entre-temps, rien n'a donc été touché. Écartez ces modifications et redemandez à l'agent : il partira de votre dernière version. Fichiers :",
+        "local_changes": "Votre dossier contient du travail non enregistré dans les mêmes fichiers, rien n'a donc été touché. Faites un commit de vos modifications ou mettez-les de côté, puis acceptez de nouveau.",
+        "git": "Git n'a pas pu enregistrer les modifications. Rien n'a été touché."
+      }
+    }
   },
   "agents": {
     "title": "Agents",

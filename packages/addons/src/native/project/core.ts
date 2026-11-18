@@ -47,11 +47,18 @@ export interface ProjectRepo {
   branch: string;
 }
 
+/** Why a repository (or the whole project, with no prefix) cannot be worked on: `error` in words, `code` for the interface. */
+export interface ProjectProblem {
+  prefix: string;
+  error: string;
+  code: "folder_missing" | "no_repository" | "no_commits" | "no_git" | "copy_failed";
+}
+
 export interface ProjectSpace {
   project: ProjectRef;
   repos: ProjectRepo[];
   /** Repositories that cannot be worked on now, and why (in words for the agent and the user). */
-  problems: { prefix: string; error: string }[];
+  problems: ProjectProblem[];
 }
 
 const norm = (p: string) => { const r = path.resolve(p); return process.platform === "win32" ? r.toLowerCase() : r; };
@@ -118,7 +125,7 @@ async function commonDir(dir: string): Promise<string | null> {
 const checked = new Map<string, number>();
 const CHECK_TTL = 20_000;
 
-async function ensureWorkingCopy(project: ProjectRef, found: { key: string; prefix: string; source: string }): Promise<ProjectRepo | { error: string }> {
+async function ensureWorkingCopy(project: ProjectRef, found: { key: string; prefix: string; source: string }): Promise<ProjectRepo | { error: string; code: ProjectProblem["code"] }> {
   const dir = path.join(projectsDir, project.id, found.key);
   const repo: ProjectRepo = { ...found, dir, branch: `hydraops/${project.slug}` };
   const at = checked.get(norm(dir));
@@ -126,8 +133,8 @@ async function ensureWorkingCopy(project: ProjectRef, found: { key: string; pref
 
   const label = found.prefix ? `"${found.prefix}"` : "The project";
   const head = await pgit(found.source, ["rev-parse", "--verify", "-q", "HEAD^{commit}"], { user: true });
-  if (head.missing) return { error: NO_GIT };
-  if (head.code !== 0) return { error: `${label} is a Git repository with no commits yet. The agent works from what is committed, so the user makes a first commit (from the project's tab, or in a terminal).` };
+  if (head.missing) return { code: "no_git", error: NO_GIT };
+  if (head.code !== 0) return { code: "no_commits", error: `${label} is a Git repository with no commits yet. The agent works from what is committed, so the user makes a first commit (from the project's tab, or in a terminal).` };
 
   if (await exists(path.join(dir, ".git"))) {
     const [mine, theirs] = [await commonDir(dir), await commonDir(found.source)];
@@ -138,7 +145,7 @@ async function ensureWorkingCopy(project: ProjectRef, found: { key: string; pref
   await mkdir(path.dirname(dir), { recursive: true });
   await pgit(found.source, ["worktree", "prune"], { user: true });
   const add = await pgit(found.source, ["worktree", "add", "--quiet", "-B", repo.branch, dir, head.out.trim()], { timeoutMs: LONG });
-  if (add.code !== 0) return { error: `The working copy of ${label.toLowerCase()} could not be made. ${gitFail(add)}` };
+  if (add.code !== 0) return { code: "copy_failed", error: `The working copy of ${label.toLowerCase()} could not be made. ${gitFail(add)}` };
   checked.set(norm(dir), Date.now());
   return repo;
 }
@@ -169,14 +176,14 @@ export async function openProject(project: ProjectRef, opts: { sync?: boolean } 
   const space: ProjectSpace = { project, repos: [], problems: [] };
   const folder = await real(project.folder);
   if (!folder || !(await stat(folder).catch(() => null))?.isDirectory()) {
-    space.problems.push({ prefix: "", error: `The project's folder ("${project.folder}") is no longer there.` });
+    space.problems.push({ prefix: "", code: "folder_missing", error: `The project's folder ("${project.folder}") is no longer there.` });
     return space;
   }
   const found = await discoverRepos(folder);
-  if (!found.length) { space.problems.push({ prefix: "", error: NO_REPO }); return space; }
+  if (!found.length) { space.problems.push({ prefix: "", code: "no_repository", error: NO_REPO }); return space; }
   for (const f of found) {
     const repo = await ensureWorkingCopy(project, f);
-    if ("error" in repo) { space.problems.push({ prefix: f.prefix, error: repo.error }); continue; }
+    if ("error" in repo) { space.problems.push({ prefix: f.prefix, code: repo.code, error: repo.error }); continue; }
     if (opts.sync) await syncWorkingCopy(repo).catch(() => {});
     space.repos.push(repo);
   }

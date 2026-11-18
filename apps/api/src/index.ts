@@ -46,7 +46,7 @@ import {
   blenderImportCode, parseBlenderImportResult, BLENDER_SERVERS, BLENDER_CODE_TOOL,
   pushPreview, checkGitFolder, gitVersions, gitFolderStates,
   openProject, pendingChanges, fileDiff, acceptChanges, discardChanges, repoState, removeWorkingCopies, initRepository,
-  readInstructions, writeInstructions, readMemory, INSTRUCTIONS_FILE, MEMORY_FILE,
+  readInstructions, writeInstructions, readMemory, listFiles, INSTRUCTIONS_FILE, MEMORY_FILE,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
 import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, taskChainAutoApproved, HISTORY_DAYS, isHistoryLevel, calendarEntries, listCalendarEntries, zonedToUtc, advance as calendarAdvance, localParts, isTimeZone, listTimeZones, systemTimeZone, isCalendarDate, isCalendarTime, isCalendarRepeat, isCalendarKind, CALENDAR_LIMITS, formatWhen, toDate, userLocale, loadProjects, saveProjects, findProject, projectChannel, projectIdOfChannel, MAX_PROJECTS, type ProjectRecord } from "@hydraops/db";
@@ -5267,6 +5267,22 @@ api.delete("/projects/:id", async (req, res) => {
     res.json({ success: true });
   } catch (err: any) {
     console.error("[api] DELETE /projects/:id failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// The project's files as the agent sees them (what Git follows plus what is new, without
+// what Git ignores), for the tab's tree. The marks of what changed come with /changes.
+api.get("/projects/:id/tree", async (req, res) => {
+  try {
+    const p = await projectOr404(req, res);
+    if (!p) return;
+    const space = await openProject(projectRefOf(p));
+    const files = space.repos.length ? await listFiles(space) : [];
+    const MAX = 5000;
+    res.json({ files: files.slice(0, MAX), total: files.length, roots: space.repos.map((r) => r.prefix).filter(Boolean) });
+  } catch (err: any) {
+    console.error("[api] GET /projects/:id/tree failed", err);
     res.status(500).json({ error: "internal_error" });
   }
 });

@@ -434,6 +434,53 @@ export interface GitHubIntegration {
   tokenConfigured: boolean;
 }
 
+/** A project: a folder with code, one agent and a chat of its own (the channel). */
+export interface Project {
+  id: string;
+  name: string;
+  folder: string;
+  agentId: string;
+  /** The agent was deleted: the project needs another one. */
+  agentMissing: boolean;
+  /** Also load the agent's own memory in this project's chat. */
+  agentMemory: boolean;
+  channel: string;
+  /** The branch the agent's copies are on. */
+  branch: string;
+  /** HydraOps.md: none in the folder, the one the user accepted, or one waiting to be accepted. */
+  instructions: 'none' | 'accepted' | 'pending';
+  createdAt: string;
+}
+
+export interface ProjectChange {
+  path: string;
+  state: 'added' | 'modified' | 'deleted';
+  /** Lines added and removed; null for a file that is not text. */
+  added: number | null;
+  removed: number | null;
+}
+
+export interface ProjectDetail {
+  project: Project;
+  repos: { prefix: string; source: string; branch: string | null; behind: boolean }[];
+  /** Repositories that cannot be worked on now, in words. */
+  problems: { prefix: string; error: string; code: 'folder_missing' | 'no_repository' | 'no_commits' | 'no_git' | 'copy_failed' }[];
+  changes: ProjectChange[];
+  /** The agent is at work: accepting and discarding wait. */
+  busy: boolean;
+  memoryChars: number;
+}
+
+export interface ProjectAcceptResult {
+  prefix: string;
+  ok: boolean;
+  commit?: string;
+  branch?: string;
+  files?: number;
+  reason?: 'identity' | 'detached' | 'conflict' | 'local_changes' | 'git';
+  detail?: string;
+}
+
 /** The git tools: on or off, the folders they may work in, and what is installed on this computer. */
 export interface GitFolderState {
   folder: string;
@@ -1224,6 +1271,65 @@ export class ApiService {
 
   saveGitHubIntegration(cfg: Partial<GitHubIntegration>): Observable<void> {
     return this.http.post<void>(`${this.base}/system/integrations/github`, cfg);
+  }
+
+  // ── Projects ──
+  getProjects(): Observable<{ projects: Project[]; git: string | null }> {
+    return this.http.get<{ projects: Project[]; git: string | null }>(`${this.base}/projects`);
+  }
+
+  /** A folder the server refuses comes back in the error (`error`, and `reason` for the folder). */
+  createProject(p: { name: string; folder: string; agentId: string; agentMemory?: boolean }): Observable<{ project: Project }> {
+    return this.http.post<{ project: Project }>(`${this.base}/projects`, p);
+  }
+
+  getProject(id: string): Observable<ProjectDetail> {
+    return this.http.get<ProjectDetail>(`${this.base}/projects/${id}`);
+  }
+
+  updateProject(id: string, p: { name?: string; agentId?: string; agentMemory?: boolean }): Observable<{ project: Project }> {
+    return this.http.patch<{ project: Project }>(`${this.base}/projects/${id}`, p);
+  }
+
+  /** With changes still pending the server answers 409 `pending_changes` unless `discard` is set. */
+  deleteProject(id: string, discard = false): Observable<{ success: boolean }> {
+    return this.http.delete<{ success: boolean }>(`${this.base}/projects/${id}`, discard ? { params: new HttpParams().set('discard', '1') } : {});
+  }
+
+  getProjectTree(id: string): Observable<{ files: string[]; total: number; roots: string[] }> {
+    return this.http.get<{ files: string[]; total: number; roots: string[] }>(`${this.base}/projects/${id}/tree`);
+  }
+
+  getProjectDiff(id: string, path: string): Observable<{ diff: string; cut: boolean }> {
+    return this.http.get<{ diff: string; cut: boolean }>(`${this.base}/projects/${id}/changes`, { params: new HttpParams().set('path', path) });
+  }
+
+  acceptProjectChanges(id: string, message: string): Observable<{ results: ProjectAcceptResult[]; changes: ProjectChange[] }> {
+    return this.http.post<{ results: ProjectAcceptResult[]; changes: ProjectChange[] }>(`${this.base}/projects/${id}/accept`, { message });
+  }
+
+  discardProjectChanges(id: string, paths?: string[]): Observable<{ discarded: number; changes: ProjectChange[] }> {
+    return this.http.post<{ discarded: number; changes: ProjectChange[] }>(`${this.base}/projects/${id}/discard`, paths?.length ? { paths } : {});
+  }
+
+  getProjectInstructions(id: string): Observable<{ file: string; text: string; state: 'none' | 'accepted' | 'pending' }> {
+    return this.http.get<{ file: string; text: string; state: 'none' | 'accepted' | 'pending' }>(`${this.base}/projects/${id}/instructions`);
+  }
+
+  saveProjectInstructions(id: string, content: string): Observable<{ success: boolean }> {
+    return this.http.put<{ success: boolean }>(`${this.base}/projects/${id}/instructions`, { content });
+  }
+
+  acceptProjectInstructions(id: string): Observable<{ success: boolean }> {
+    return this.http.post<{ success: boolean }>(`${this.base}/projects/${id}/instructions/accept`, {});
+  }
+
+  getProjectMemory(id: string): Observable<{ file: string; text: string }> {
+    return this.http.get<{ file: string; text: string }>(`${this.base}/projects/${id}/memory`);
+  }
+
+  initProjectRepository(id: string, commitAll: boolean): Observable<{ success: boolean }> {
+    return this.http.post<{ success: boolean }>(`${this.base}/projects/${id}/init`, { commitAll });
   }
 
   getGitIntegration(): Observable<GitIntegration> {
