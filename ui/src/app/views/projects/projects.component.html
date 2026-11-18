@@ -1,0 +1,277 @@
+<div class="projects-view">
+  <!-- Header: one tab per project -->
+  <div class="projects-header">
+    <h2 class="header-title">{{ 'projects.title' | translate }}</h2>
+    <div class="tabs-bar">
+      @for (p of projects(); track p.id) {
+        <button class="tab" [class.active]="!creating() && activeId() === p.id" (click)="open(p)" [title]="p.folder">
+          <app-icon name="code" />
+          {{ p.name }}
+          @if (p.instructions === 'pending' || p.agentMissing) { <span class="tab-warn" aria-hidden="true">!</span> }
+        </button>
+      }
+      <button class="tab new-tab" [class.active]="creating()" (click)="startCreating()" [title]="'projects.new.title' | translate">
+        <app-icon name="plus" /> {{ 'projects.new.button' | translate }}
+      </button>
+    </div>
+  </div>
+
+  @if (loaded() && git() === null) {
+    <div class="banner warn"><app-icon name="alert" /> {{ 'projects.noGit' | translate }}</div>
+  }
+
+  @if (creating() || (loaded() && !projects().length)) {
+    <!-- New project -->
+    <div class="new-wrap">
+      <form class="new-card" (ngSubmit)="create()">
+        <h3>{{ 'projects.new.title' | translate }}</h3>
+        <p class="new-lead">{{ 'projects.new.lead' | translate }}</p>
+
+        <label class="field">
+          <span>{{ 'projects.new.name' | translate }}</span>
+          <input id="project-name" type="text" name="name" [(ngModel)]="form.name" maxlength="80" [placeholder]="'projects.new.namePlaceholder' | translate" />
+        </label>
+        <label class="field">
+          <span>{{ 'projects.new.folder' | translate }}</span>
+          <input id="project-folder" type="text" name="folder" [(ngModel)]="form.folder" spellcheck="false" [placeholder]="'projects.new.folderPlaceholder' | translate" />
+          <small>{{ 'projects.new.folderHint' | translate }}</small>
+        </label>
+        <label class="field">
+          <span>{{ 'projects.new.agent' | translate }}</span>
+          <select id="project-agent" name="agent" [ngModel]="formAgent()" (ngModelChange)="form.agentId = $event">
+            @for (a of agents.agents(); track a.id) { <option [value]="a.id">{{ a.name }}</option> }
+          </select>
+          <small>{{ 'projects.new.agentHint' | translate }}</small>
+        </label>
+        <label class="check">
+          <input type="checkbox" name="agentMemory" [(ngModel)]="form.agentMemory" />
+          <span>{{ 'projects.settings.agentMemory' | translate }}<small>{{ 'projects.settings.agentMemoryHint' | translate }}</small></span>
+        </label>
+
+        @if (formError()) { <p class="form-error"><app-icon name="alert" /> {{ formError() | translate }}</p> }
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" [disabled]="saving()">{{ 'projects.new.create' | translate }}</button>
+          @if (projects().length) { <button type="button" class="btn-secondary" (click)="cancelCreating()">{{ 'common.cancel' | translate }}</button> }
+        </div>
+      </form>
+    </div>
+  } @else if (active(); as p) {
+    <div class="project-body">
+      <!-- Left: the agent, the project's two files, the tree -->
+      <aside class="col-left">
+        <div class="agent-card">
+          @if (agentOf(p)?.avatarUrl; as av) { <img class="agent-avatar" [src]="av" alt="" /> }
+          @else { <span class="agent-avatar letter">{{ agentName(p)[0] }}</span> }
+          <div class="agent-info">
+            <span class="agent-name">{{ agentName(p) }}</span>
+            <span class="agent-sub" [class.bad]="p.agentMissing">{{ (p.agentMissing ? 'projects.agentMissing' : 'projects.agentWorks') | translate }}</span>
+          </div>
+          <button class="icon-btn" (click)="openSettings()" [title]="'projects.settings.title' | translate"><app-icon name="config" /></button>
+        </div>
+
+        @for (r of detail()?.repos ?? []; track r.prefix) {
+          <div class="repo-line" [title]="r.source">
+            <app-icon name="git" />
+            <span class="repo-name">{{ r.prefix || p.name }}</span>
+            <span class="repo-branch">{{ r.branch ?? ('projects.detached' | translate) }}</span>
+          </div>
+        }
+
+        <div class="own-files">
+          <button class="own-file" [class.active]="fileOpen() === 'instructions'" (click)="openFile('instructions')">
+            <app-icon name="file" /> HydraOps.md
+            <span class="badge" [attr.data-state]="p.instructions">{{ ('projects.instructions.state.' + p.instructions) | translate }}</span>
+          </button>
+          <button class="own-file" [class.active]="fileOpen() === 'memory'" (click)="openFile('memory')">
+            <app-icon name="memory" /> ProjectMemory.md
+            @if (detail()?.memoryChars) { <span class="badge">{{ 'projects.memory.notes' | translate }}</span> }
+          </button>
+        </div>
+
+        <div class="tree-head">
+          <span>{{ 'projects.files' | translate }}</span>
+          @if (treeTotal()) { <span class="tree-count">{{ treeTotal() }}</span> }
+        </div>
+        <div class="tree">
+          @for (row of rows(); track row.path) {
+            <button class="tree-row" [class.dir]="row.dir" [class.clickable]="row.dir || !!row.state" [class.selected]="selected() === row.path"
+                    [attr.data-state]="row.state ?? null" [style.padding-left.px]="8 + row.depth * 14" (click)="clickRow(row)" [title]="row.path">
+              @if (row.dir) { <app-icon class="tree-caret" [name]="row.open ? 'chevron-down' : 'chevron-right'" /> }
+              @else { <span class="tree-caret"></span> }
+              <span class="tree-name">{{ row.name }}</span>
+              @if (row.state) { <span class="tree-mark">{{ stateLetter(row.state) }}</span> }
+              @else if (row.changed) { <span class="tree-dot"></span> }
+            </button>
+          } @empty {
+            @if (detail() && !detail()!.problems.length) { <p class="tree-empty">{{ 'projects.noFiles' | translate }}</p> }
+          }
+          @if (treeTotal() > files().length) { <p class="tree-empty">{{ 'projects.treeCut' | translate:{ n: files().length, total: treeTotal() } }}</p> }
+        </div>
+      </aside>
+
+      <!-- Centre: the project's chat -->
+      <section class="col-chat">
+        @for (b of detail()?.problems ?? []; track b.prefix + b.code) {
+          <div class="banner warn problem">
+            <div>
+              <app-icon name="alert" />
+              @if (b.prefix) { <strong>{{ b.prefix }}/</strong> }
+              {{ problemKey(b.code) | translate }}
+            </div>
+            @if (canInit(b.code, b.prefix)) {
+              <div class="problem-actions">
+                <button class="btn-primary" [disabled]="initWorking()" (click)="initRepository(true)">{{ 'projects.problem.initAll' | translate }}</button>
+                <button class="btn-secondary" [disabled]="initWorking()" (click)="initRepository(false)">{{ 'projects.problem.initEmpty' | translate }}</button>
+              </div>
+              <small>{{ 'projects.problem.initHint' | translate }}</small>
+              @if (initError()) { <p class="form-error">{{ initError() | translate }}</p> }
+            }
+          </div>
+        }
+        @if (p.instructions === 'pending') {
+          <div class="banner info">
+            <div><app-icon name="file" /> {{ 'projects.instructions.pendingBanner' | translate }}</div>
+            <button class="btn-secondary" (click)="openFile('instructions')">{{ 'projects.instructions.review' | translate }}</button>
+          </div>
+        }
+        <div class="chat-host"><app-chat [embedded]="true" /></div>
+      </section>
+
+      <!-- Right: what the agent changed; or the settings, or one of the project's two files -->
+      <aside class="col-right">
+        @if (settingsOpen()) {
+          <div class="panel-head">
+            <span>{{ 'projects.settings.title' | translate }}</span>
+            <button class="icon-btn" (click)="settingsOpen.set(false)" [title]="'common.close' | translate"><app-icon name="x" /></button>
+          </div>
+          <div class="panel-body form-panel">
+            <label class="field"><span>{{ 'projects.new.name' | translate }}</span>
+              <input type="text" [(ngModel)]="settings.name" maxlength="80" /></label>
+            <label class="field"><span>{{ 'projects.new.agent' | translate }}</span>
+              <select [(ngModel)]="settings.agentId">
+                @for (a of agents.agents(); track a.id) { <option [value]="a.id">{{ a.name }}</option> }
+              </select></label>
+            <label class="check">
+              <input type="checkbox" [(ngModel)]="settings.agentMemory" />
+              <span>{{ 'projects.settings.agentMemory' | translate }}<small>{{ 'projects.settings.agentMemoryHint' | translate }}</small></span>
+            </label>
+            <div class="field"><span>{{ 'projects.new.folder' | translate }}</span><code class="path">{{ p.folder }}</code></div>
+            <div class="field"><span>{{ 'projects.settings.branch' | translate }}</span><code class="path">{{ p.branch }}</code>
+              <small>{{ 'projects.settings.branchHint' | translate }}</small></div>
+            @if (settingsError()) { <p class="form-error"><app-icon name="alert" /> {{ settingsError() | translate }}</p> }
+            <div class="form-actions">
+              <button class="btn-primary" (click)="saveSettings()">{{ 'common.save' | translate }}</button>
+            </div>
+            <div class="danger-zone">
+              @if (!confirmDelete()) {
+                <button class="btn-danger" (click)="confirmDelete.set(true)"><app-icon name="trash" /> {{ 'projects.settings.delete' | translate }}</button>
+              } @else {
+                <p>{{ ((detail()?.changes?.length ?? 0) ? 'projects.settings.deleteConfirmPending' : 'projects.settings.deleteConfirm') | translate:{ n: detail()?.changes?.length ?? 0 } }}</p>
+                <div class="form-actions">
+                  <button class="btn-danger solid" (click)="remove()">{{ 'projects.settings.deleteYes' | translate }}</button>
+                  <button class="btn-secondary" (click)="confirmDelete.set(false)">{{ 'common.cancel' | translate }}</button>
+                </div>
+              }
+            </div>
+          </div>
+        } @else if (fileOpen() === 'instructions') {
+          <div class="panel-head">
+            <span>HydraOps.md</span>
+            <button class="icon-btn" (click)="fileOpen.set('')" [title]="'common.close' | translate"><app-icon name="x" /></button>
+          </div>
+          <div class="panel-body form-panel grow">
+            <p class="panel-note">{{ 'projects.instructions.lead' | translate }}</p>
+            @if (p.instructions === 'pending') { <p class="panel-note warn">{{ 'projects.instructions.pendingNote' | translate }}</p> }
+            <textarea id="project-instructions" class="file-text" [ngModel]="fileText()" (ngModelChange)="fileText.set($event)" spellcheck="false"
+                      [placeholder]="'projects.instructions.placeholder' | translate"></textarea>
+            <div class="form-actions">
+              <button class="btn-primary" (click)="saveInstructions()">{{ 'common.save' | translate }}</button>
+              @if (p.instructions === 'pending') { <button class="btn-secondary" (click)="acceptInstructions()">{{ 'projects.instructions.acceptAsIs' | translate }}</button> }
+              @if (fileSaved()) { <span class="saved-msg">{{ 'projects.instructions.saved' | translate }}</span> }
+            </div>
+          </div>
+        } @else if (fileOpen() === 'memory') {
+          <div class="panel-head">
+            <span>ProjectMemory.md</span>
+            <button class="icon-btn" (click)="fileOpen.set('')" [title]="'common.close' | translate"><app-icon name="x" /></button>
+          </div>
+          <div class="panel-body form-panel grow">
+            <p class="panel-note">{{ 'projects.memory.lead' | translate }}</p>
+            @if (fileText()) { <pre class="file-view">{{ fileText() }}</pre> }
+            @else { <p class="empty">{{ 'projects.memory.empty' | translate }}</p> }
+          </div>
+        } @else {
+          <div class="panel-head">
+            <span>{{ 'projects.changes.title' | translate }}</span>
+            @if (detail()?.changes?.length) {
+              <span class="totals"><span class="plus">+{{ totals().added }}</span> <span class="minus">−{{ totals().removed }}</span></span>
+            }
+          </div>
+          <div class="panel-body">
+            @if (!detail()?.changes?.length) {
+              <p class="empty">{{ (detail()?.busy ? 'projects.changes.working' : 'projects.changes.none') | translate }}</p>
+            } @else {
+              <ul class="change-list">
+                @for (c of detail()!.changes; track c.path) {
+                  <li>
+                    <button class="change" [class.selected]="selected() === c.path" [attr.data-state]="c.state" (click)="showDiff(c.path)" [title]="c.path">
+                      <span class="tree-mark">{{ stateLetter(c.state) }}</span>
+                      <span class="change-path">{{ c.path }}</span>
+                      @if (c.added !== null) { <span class="change-count"><span class="plus">+{{ c.added }}</span> <span class="minus">−{{ c.removed }}</span></span> }
+                    </button>
+                  </li>
+                }
+              </ul>
+              @if (selected(); as sel) {
+                <div class="diff-head">
+                  <span class="diff-path" [title]="sel">{{ sel }}</span>
+                  <button class="link-btn" [disabled]="!!working() || detail()?.busy" (click)="discard([sel])">{{ 'projects.changes.discardFile' | translate }}</button>
+                  <button class="icon-btn" (click)="closeDiff()" [title]="'common.close' | translate"><app-icon name="x" /></button>
+                </div>
+                <div class="diff">
+                  @if (diffNote()) { <p class="empty">{{ diffNote() | translate }}</p> }
+                  @for (l of diff() ?? []; track $index) {
+                    <div class="diff-line" [attr.data-kind]="l.kind">{{ l.text || ' ' }}</div>
+                  }
+                  @if (diffCut()) { <p class="empty">{{ 'projects.changes.diffCut' | translate }}</p> }
+                </div>
+              }
+            }
+          </div>
+          @for (r of results(); track $index) {
+            <div class="result" [class.ok]="r.ok" [class.bad]="!r.ok">
+              @if (r.ok) {
+                <app-icon name="check" /> {{ 'projects.changes.accepted' | translate:{ commit: r.commit, branch: r.branch } }}@if (r.prefix) { ({{ r.prefix }}) }
+              } @else {
+                <div><app-icon name="alert" /> @if (r.prefix) { <strong>{{ r.prefix }}:</strong> } {{ reasonText(r) }}</div>
+                @if (r.detail) { <pre>{{ r.detail }}</pre> }
+              }
+            </div>
+          }
+          @if (detail()?.changes?.length) {
+            <div class="panel-foot">
+              <input id="project-commit" class="commit-input" type="text" [ngModel]="message()" (ngModelChange)="onMessage($event)" maxlength="200"
+                     [placeholder]="'projects.changes.messagePlaceholder' | translate" [disabled]="!!working()" />
+              @if (detail()?.busy) { <p class="foot-note">{{ 'projects.changes.busy' | translate }}</p> }
+              @if (confirmDiscard()) {
+                <p class="foot-note warn">{{ 'projects.changes.discardConfirm' | translate:{ n: detail()!.changes.length } }}</p>
+                <div class="foot-actions">
+                  <button class="btn-danger solid" [disabled]="!!working()" (click)="discard()">{{ 'projects.changes.discardYes' | translate }}</button>
+                  <button class="btn-secondary" (click)="confirmDiscard.set(false)">{{ 'common.cancel' | translate }}</button>
+                </div>
+              } @else {
+                <div class="foot-actions">
+                  <button class="btn-primary accept" [disabled]="!!working() || detail()?.busy" (click)="accept()">
+                    <app-icon name="check" /> {{ (working() === 'accept' ? 'projects.changes.accepting' : 'projects.changes.accept') | translate }}
+                  </button>
+                  <button class="btn-secondary discard" [disabled]="!!working() || detail()?.busy" (click)="confirmDiscard.set(true)">{{ 'projects.changes.discard' | translate }}</button>
+                </div>
+                <p class="foot-note">{{ 'projects.changes.acceptHint' | translate }}</p>
+              }
+            </div>
+          }
+        }
+      </aside>
+    </div>
+  }
+</div>

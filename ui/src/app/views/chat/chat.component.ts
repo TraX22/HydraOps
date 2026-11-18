@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy, signal, computed, viewChild, ElementRef, afterNextRender, effect } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal, computed, viewChild, ElementRef, afterNextRender, effect, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -30,6 +30,12 @@ import { CommandService, PaletteItem } from '../../services/command.service';
 })
 export class ChatComponent implements OnInit, OnDestroy {
   chat = inject(ChatService);
+  /**
+   * Inside another view (a project's tab): only the messages and the box to write in. The
+   * host chooses the chat with ChatService.switchTab; the tabs, the browser panel and the
+   * "What's new" notice belong to the Chat view.
+   */
+  embedded = input(false);
   agents = inject(AgentsService);
   private api = inject(ApiService);
   commands = inject(CommandService);
@@ -110,14 +116,14 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.browser.attach();
+    if (!this.embedded()) this.browser.attach();
     this.revealActiveTab();
     this.clock = setInterval(() => this.now.set(Date.now()), 1000);
     if (this.chat.activeTab() !== WHATS_NEW_TAB) {
       this.chat.fetchHistory(this.chat.activeTab());
       this.chat.startPolling(this.chat.activeTab());
     }
-    this.whatsNew.check();
+    if (!this.embedded()) this.whatsNew.check();
     this.commands.load();
     // Engine ids (Leonardo uses bare UUIDs) become readable names once the
     // shared model list arrives; until then the footer shows the id.
@@ -128,7 +134,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.browser.detach();
+    if (!this.embedded()) this.browser.detach();
     if (this.clock) clearInterval(this.clock);
     this.chat.stopPolling();
     this.stopMermaid?.();
@@ -199,7 +205,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     const known = this.agents.agents().find(a => a.id === name || a.name.toLowerCase() === name);
     if (known) return known.id;
     const tab = this.chat.activeTab();
-    return tab === 'main' ? null : tab;
+    return tab === 'main' || tab.startsWith('project:') ? null : tab;
   }
 
   openProfile(msg: ChatMessage): void {
@@ -519,6 +525,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     if (t === 'create_skill') return 'createSkill';
     if (t.startsWith('github')) return 'github';
     if (t === 'git_read' || t === 'git_write' || t === 'git_sync') return 'git';
+    if (t.startsWith('project_')) return 'project';
     if (t.startsWith('huggingface')) return 'huggingface';
     if (t.startsWith('civitai')) return 'civitai';
     if (t === 'youtube_transcript') return 'youtube';
@@ -535,7 +542,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   private static readonly STEP_ICONS: Record<string, string> = {
-    thinking: '💭', held: '⏸', skill: '🧩', createSkill: '✨', github: '🐙', git: '🌿', huggingface: '🤗', civitai: '🧬', youtube: '▶️', telegram: '📨',
+    thinking: '💭', held: '⏸', skill: '🧩', createSkill: '✨', github: '🐙', git: '🌿', project: '📁', huggingface: '🤗', civitai: '🧬', youtube: '▶️', telegram: '📨',
     remember: '🧠', recall: '🗂️', manual: '📘', delegate: '🤝', image: '🎨', video: '🎬', search: '🔎', read: '📄', tool: '🛠️',
     vaultRead: '🗄️', vaultFind: '🗄️', vaultNote: '📝',
   };
@@ -548,7 +555,7 @@ export class ChatComponent implements OnInit, OnDestroy {
     const kind = this.stepKind(step);
     const params = { ref: step.ref ?? '', tool: step.tool ?? '' };
     // Steps that name what they work on have a plain variant for when there is nothing to name.
-    const withRef = ['search', 'read', 'skill', 'createSkill', 'github', 'git', 'huggingface', 'civitai', 'recall', 'delegate', 'youtube', 'vaultRead', 'vaultFind', 'vaultNote'];
+    const withRef = ['search', 'read', 'skill', 'createSkill', 'github', 'git', 'project', 'huggingface', 'civitai', 'recall', 'delegate', 'youtube', 'vaultRead', 'vaultFind', 'vaultNote'];
     const key = withRef.includes(kind) && !step.ref ? `chat.progress.${kind}NoRef` : `chat.progress.${kind}`;
     return this.translate.instant(key, params);
   }

@@ -48,6 +48,7 @@
   },
   "nav": {
     "chat": "Chat",
+    "projects": "Projects",
     "complementos": "Plugins",
     "agents": "Agents",
     "system": "System",
@@ -335,6 +336,10 @@
         "loading": "reading the commits…",
         "failed": "The commits could not be read to show them.",
         "note": "Sent to GitHub with the token stored in HydraOps, once you approve. Never forced: nothing on GitHub is overwritten. Approved each time."
+      },
+      "project": {
+        "instructions": "New instructions for the project (HydraOps.md):",
+        "note": "Once you approve, this text replaces HydraOps.md in the project's folder and the agent follows it from the next message on."
       }
     },
     "linkUnverified": "⚠ Not verified: the agent did not open or see this address in this conversation. It may exist, but it came from its memory, not from a lookup.",
@@ -356,6 +361,8 @@
       "githubNoRef": "Checking GitHub",
       "git": "Git: {{ref}}",
       "gitNoRef": "Working with Git",
+      "project": "Project: {{ref}}",
+      "projectNoRef": "Working on the project",
       "huggingface": "Checking Hugging Face: {{ref}}",
       "huggingfaceNoRef": "Checking Hugging Face",
       "civitai": "Checking Civitai: {{ref}}",
@@ -418,6 +425,107 @@
     },
     "readFromBrowser": "browser",
     "readFromBrowserHint": "Read from the tab open in the browser panel"
+  },
+  "projects": {
+    "title": "Projects",
+    "noGit": "Git is not installed on this computer, and projects need it. Install it and restart HydraOps; the Projects page of the manual has the steps.",
+    "agentWorks": "works on this project",
+    "agentMissing": "this agent no longer exists: choose another",
+    "detached": "no branch",
+    "files": "Files",
+    "noFiles": "No files yet.",
+    "treeCut": "Showing {{n}} of {{total}} files.",
+    "new": {
+      "button": "New project",
+      "title": "New project",
+      "lead": "A project is a folder with your code and an agent that works on it. The agent never writes in your folder: it works on its own copy, and you see what it changed and accept it or discard it.",
+      "name": "Name",
+      "namePlaceholder": "e.g. Shop website",
+      "folder": "Folder",
+      "folderPlaceholder": "e.g. D:/Projects/shop",
+      "folderHint": "The folder of the project itself: a Git repository, or a folder that holds several (backend, frontend). If it is not a repository yet, you can make it one in the next step.",
+      "agent": "Agent",
+      "agentHint": "One agent per project. It gets the tools to read and change the project's files only in this project's chat.",
+      "create": "Create the project",
+      "error": {
+        "name_required": "Give the project a name.",
+        "not_absolute": "Write the folder's full path (for example D:/Projects/shop).",
+        "not_found": "That folder does not exist.",
+        "not_a_folder": "That is a file, not a folder.",
+        "private": "That folder holds HydraOps' own data or keys: it cannot be a project.",
+        "folder_in_use": "Another project already uses that folder.",
+        "agent_not_found": "Choose an agent.",
+        "too_many": "There are too many projects: delete one first.",
+        "unknown": "The project could not be saved."
+      }
+    },
+    "settings": {
+      "title": "Project settings",
+      "agentMemory": "Also load the agent's personal memory",
+      "agentMemoryHint": "Off: in this project the agent uses only the project's notes. On: it also gets what it remembers from its own chat, and can save there.",
+      "branch": "The agent's branch",
+      "branchHint": "The agent's copy of each repository is on this branch. HydraOps makes it and removes it; you do not need to touch it.",
+      "delete": "Delete the project",
+      "deleteConfirm": "Delete this project? The agent's copies and their branch are removed. Your folder, its files and the chat's history stay.",
+      "deleteConfirmPending": "This project has {{n}} changed files you have not accepted: deleting it loses them. Your folder and its files stay as they are.",
+      "deleteYes": "Yes, delete it"
+    },
+    "instructions": {
+      "state": {
+        "none": "empty",
+        "accepted": "in force",
+        "pending": "to review"
+      },
+      "lead": "The project's instructions: how it is built and run, its conventions, what not to touch. The agent gets them in every message of this project. The file is HydraOps.md, at the top of the project's folder.",
+      "placeholder": "For example: Angular 21 with standalone components. Run with pnpm start. Do not add dependencies without asking.",
+      "pendingBanner": "This folder has a HydraOps.md you have not accepted yet. The agent does not follow it until you do.",
+      "pendingNote": "This text came with the folder, or changed outside HydraOps. Read it: once accepted, the agent follows it.",
+      "review": "Review",
+      "acceptAsIs": "Accept as it is",
+      "saved": "Saved and in force"
+    },
+    "memory": {
+      "notes": "notes",
+      "lead": "Notes the agent keeps about this project: decisions, how things are built, what was tried. The file is ProjectMemory.md, at the top of the project's folder; you can edit it with any editor.",
+      "empty": "No notes yet."
+    },
+    "problem": {
+      "folder_missing": "The project's folder is no longer there.",
+      "no_repository": "This folder is not a Git repository yet. The agent works from what is committed, so it needs one.",
+      "no_commits": "This repository has no commits yet. The agent works from what is committed.",
+      "no_git": "Git is not installed on this computer.",
+      "copy_failed": "The agent's copy of this repository could not be made.",
+      "initAll": "Make it a repository with the files that are there",
+      "initEmpty": "Make it an empty repository",
+      "initHint": "The first option saves every file in a first commit (what a .gitignore names stays out). With the second, the agent starts from an empty project and your files stay untracked.",
+      "initFailed": "The repository could not be made."
+    },
+    "changes": {
+      "title": "Changes",
+      "none": "Nothing to review. When the agent changes files, they appear here.",
+      "working": "The agent is working…",
+      "accept": "Accept",
+      "accepting": "Accepting…",
+      "discard": "Discard",
+      "discardFile": "Discard this file",
+      "discardConfirm": "Discard the {{n}} changed files? The agent's work on them is lost.",
+      "discardYes": "Yes, discard",
+      "messagePlaceholder": "What changed (the commit's message)",
+      "acceptHint": "Accepting saves the changes in your folder as one commit on your branch. Nothing is sent to GitHub.",
+      "busy": "The agent is working: wait for it to finish.",
+      "accepted": "Accepted: commit {{commit}} on {{branch}}",
+      "binary": "Not a text file: there is no diff to show.",
+      "emptyDiff": "No lines changed.",
+      "diffFailed": "The diff could not be read.",
+      "diffCut": "The diff is longer than what is shown.",
+      "refused": {
+        "identity": "Git has no author name and e-mail on this computer. Set them once in a terminal: git config --global user.name \"Your Name\" and git config --global user.email \"you@example.com\". Then accept again.",
+        "detached": "No branch is checked out in your folder, so there is nowhere to save the changes. Switch to a branch and accept again.",
+        "conflict": "Your branch changed the same lines in the meantime, so nothing was touched. Discard these changes and ask the agent again: it will start from your latest version. Files:",
+        "local_changes": "Your folder has unsaved work in the same files, so nothing was touched. Commit or set aside your own changes, then accept again.",
+        "git": "Git could not save the changes. Nothing was touched."
+      }
+    }
   },
   "agents": {
     "title": "Agents",

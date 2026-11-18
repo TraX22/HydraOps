@@ -1,9 +1,10 @@
-<div class="chat-view" (dragenter)="onDragEnter($event)" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
+<div class="chat-view" [class.embedded]="embedded()" (dragenter)="onDragEnter($event)" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
   @if (dropActive()) {
     <app-drop-overlay [title]="'chat.dropHere' | translate" [hint]="'chat.dropHint' | translate" />
   }
   <div class="chat-column">
   <!-- Header + Tabs -->
+  @if (!embedded()) {
   <div class="chat-header">
     <div class="header-row">
       <h2 class="header-title">{{ 'chat.title' | translate }}</h2>
@@ -35,6 +36,7 @@
       }
     </div>
   </div>
+  }
 
   @if (isWhatsNew()) {
     <!-- What's new: release notes shipped with the app (English). -->
@@ -358,7 +360,7 @@
 
   </div>
 
-  @if (browser.available && browser.open()) {
+  @if (!embedded() && browser.available && browser.open()) {
     <app-browser-panel />
   }
 

@@ -54,6 +54,7 @@ export class SidebarComponent implements OnInit {
 
   navItems: NavItem[] = [
     { path: '/', icon: 'chat', labelKey: 'nav.chat', section: 'main' },
+    { path: '/projects', icon: 'code', labelKey: 'nav.projects', section: 'main' },
     { path: '/agents', icon: 'agents', labelKey: 'nav.agents', section: 'main' },
     { path: '/system', icon: 'system', labelKey: 'nav.system', section: 'main' },
     { path: '#complementos', icon: 'puzzle', labelKey: 'nav.complementos', section: 'tools', action: 'modal' },
