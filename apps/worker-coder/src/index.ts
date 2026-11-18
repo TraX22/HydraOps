@@ -14,7 +14,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, resolveLLMConfig, resolveMaxSteps, buildUserMessage } from "@hydraops/llm";
-import { createResultFiles, taskFilesContext, conversationFiles, conversationFilesPrompt, type ConversationFile, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, carriedSkillsPrompt, noteSkillsOpened, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan, setupToolsOnDemand, harvestMediaFiles, connectionOrigins, openProject, projectPrompt, pendingChanges } from "@hydraops/addons";
+import { createResultFiles, taskFilesContext, conversationFiles, conversationFilesPrompt, type ConversationFile, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, carriedSkillsPrompt, noteSkillsOpened, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan, setupToolsOnDemand, harvestMediaFiles, connectionOrigins, openProject, projectPrompt, pendingChanges, agentFilesPrompt } from "@hydraops/addons";
 
 const env = loadEnv({ ...process.env, SERVICE_NAME: process.env.SERVICE_NAME ?? "worker-coder" });
 const consumerName = env.SERVICE_NAME;
@@ -483,13 +483,9 @@ for await (const m of sub) {
       console.log(`[worker-coder] All personality files read.`);
       console.log(`[worker-coder] Files loaded for ${agentId}`);
 
-      agentPersonalityContext = fileContents
-        .map((content, i) => ({ type: fileTypes[i], content }))
-        // In a project's chat the notes are the project's; the agent's own memory comes
-        // along only when the project says so.
-        .filter((f) => f.content.trim().length > 0 && !(project && !project.agentMemory && f.type === 'memory'))
-        .map((f) => `\n--- AGENT ${f.type.toUpperCase()} ---\n${f.content}`)
-        .join("\n");
+      // In a project's chat the notes are the project's; the agent's own memory comes
+      // along only when the project says so.
+      agentPersonalityContext = agentFilesPrompt(fileTypes, fileContents, { skip: project && !project.agentMemory ? ['memory'] : [] });
 
     } catch (e) {
       console.warn(`[worker-coder] Error loading complete configuration for ${agentId}`);

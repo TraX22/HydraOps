@@ -95,6 +95,7 @@ export {
   type ProjectSpace, type ProjectRepo, type ChangedFile, type AcceptResult, type ProjectFile,
 } from './native/project/index.js';
 export { isSensitivePath } from './guard.js';
+export { agentFilesPrompt } from './agent-files.js';
 export * from './progress.js';
 export * from './plan.js';
 export * from './vault.js';
