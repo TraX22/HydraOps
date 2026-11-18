@@ -10,6 +10,7 @@ import { comfyWorkflowsTool } from './native/comfy_workflows/index.js';
 import { comfyDownloadModelTool } from './native/comfy_download/index.js';
 import { githubTools } from './native/github/index.js';
 import { gitTools } from './native/git/index.js';
+import { projectTools } from './native/project/index.js';
 import { huggingfaceTools } from './native/huggingface/index.js';
 import { civitaiTools } from './native/civitai/index.js';
 import { imageEditTool } from './native/image_edit/index.js';
@@ -67,6 +68,7 @@ export async function createRegistry(): Promise<ToolRegistry> {
   registry.registerNative({ ...hydraopsDocsTool, source: 'native' });
   for (const t of githubTools) registry.registerNative({ ...t, source: 'native' });
   for (const t of gitTools) registry.registerNative({ ...t, source: 'native' });
+  for (const t of projectTools) registry.registerNative({ ...t, source: 'native' });
   for (const t of huggingfaceTools) registry.registerNative({ ...t, source: 'native' });
   for (const t of civitaiTools) registry.registerNative({ ...t, source: 'native' });
   registry.registerNative({ ...imageEditTool, source: 'native' });
@@ -86,6 +88,11 @@ export * from './skills.js';
 export * from './skills-github.js';
 export { noteSkillsOpened } from './native/skills/index.js';
 export { pushPreview, checkGitFolder, gitVersions, gitFolderStates, type PushPreview, type GitFolderState } from './native/git/index.js';
+export {
+  openProject, spaceProblem, pendingChanges, fileDiff, acceptChanges, discardChanges, repoState, removeWorkingCopies, initRepository,
+  listFiles, discoverRepos, readInstructions, writeInstructions, readMemory, projectPrompt, INSTRUCTIONS_FILE, MEMORY_FILE,
+  type ProjectSpace, type ProjectRepo, type ChangedFile, type AcceptResult,
+} from './native/project/index.js';
 export * from './progress.js';
 export * from './plan.js';
 export * from './vault.js';

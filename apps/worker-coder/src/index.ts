@@ -9,12 +9,12 @@ import { loadEnv, envFile, dataRoot, storageDir, agentsDir, logsDir, usersDir, r
 
 loadDotenv({ path: envFile });
 
-import { cronUnreadSources, cronReadSourcesPrompt, addUsage, CRON_SOURCES_UNREAD, CRON_SOURCES_UNREAD_TEXT, createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, filterCronAnswer, cronNothingNewPrompt, CRON_NOTHING_NEW, loadRecentChannelHistory, historyOptions, searchAgentTasks, isTaskCancelled, modelNeverAnswered, lastTaskToolNames, taskChainAutoApproved, calendarAgendaBlock, isTimeZone, systemTimeZone, calendarTaskContext } from "@hydraops/db";
+import { cronUnreadSources, cronReadSourcesPrompt, addUsage, CRON_SOURCES_UNREAD, CRON_SOURCES_UNREAD_TEXT, createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, filterCronAnswer, cronNothingNewPrompt, CRON_NOTHING_NEW, loadRecentChannelHistory, historyOptions, searchAgentTasks, isTaskCancelled, modelNeverAnswered, lastTaskToolNames, taskChainAutoApproved, calendarAgendaBlock, isTimeZone, systemTimeZone, calendarTaskContext, projectOfChannel } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, resolveLLMConfig, resolveMaxSteps, buildUserMessage } from "@hydraops/llm";
-import { createResultFiles, taskFilesContext, conversationFiles, conversationFilesPrompt, type ConversationFile, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, carriedSkillsPrompt, noteSkillsOpened, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan, setupToolsOnDemand, harvestMediaFiles, connectionOrigins } from "@hydraops/addons";
+import { createResultFiles, taskFilesContext, conversationFiles, conversationFilesPrompt, type ConversationFile, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, carriedSkillsPrompt, noteSkillsOpened, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan, setupToolsOnDemand, harvestMediaFiles, connectionOrigins, openProject, projectPrompt, pendingChanges } from "@hydraops/addons";
 
 const env = loadEnv({ ...process.env, SERVICE_NAME: process.env.SERVICE_NAME ?? "worker-coder" });
 const consumerName = env.SERVICE_NAME;
@@ -287,13 +287,17 @@ async function runApprovedAction(actionId: string): Promise<void> {
   const agentId = String(action.agentId);
   await globalRegistry.mcpManager.ensure(await mcpConfigForMyAgents(mcpServersConfigStr, agentId), 15_000);
   console.log(`[worker-coder] Running approved ${action.toolName} (${actionId}) for ${agentId}...`);
+  // A call held in a project's chat runs with that project's tools and in that project.
+  const actionProject = await projectOfChannel(db, action.channel).catch(() => null);
   const outcome = await executeApprovedCall(globalRegistry, {
     toolName: String(action.toolName),
     args: action.args ?? {},
     requestedTools: await readAgentToolLines(agentId),
     nativeState: JSON.parse(getGlobalConfig("native_addons_state", "{}")),
+    ...(actionProject ? { extraAllowed: globalRegistry.projectToolNames() } : {}),
     context: {
       agentId,
+      ...(actionProject ? { project: { id: actionProject.id, name: actionProject.name, slug: actionProject.slug, folder: actionProject.folder } } : {}),
       searchPastTasks: (query: string, limit?: number) => searchAgentTasks(sqliteClient, agentId, query, limit),
       // The held call came from a task that had read outside content; a replayed
       // delegate_task must hand that taint on.
@@ -417,6 +421,10 @@ for await (const m of sub) {
     }
 
     const agentName = task?.assignedAgent || agentId || 'Agent';
+    // A project's chat (see @hydraops/addons native/project): the agent works on that
+    // project's code, with the project's own tools, instructions and notes.
+    const project = await projectOfChannel(db, channel).catch(() => null);
+    const projectRef = project ? { id: project.id, name: project.name, slug: project.slug, folder: project.folder } : null;
 
     // Consult DB to respect the model chosen in UI for this agent.
     // "Tipo" (graphicEngine) overrides when set; 'auto' → agent model → global default.
@@ -476,8 +484,11 @@ for await (const m of sub) {
       console.log(`[worker-coder] Files loaded for ${agentId}`);
 
       agentPersonalityContext = fileContents
-        .filter(content => content.trim().length > 0)
-        .map((content, i) => `\n--- AGENT ${fileTypes[i].toUpperCase()} ---\n${content}`)
+        .map((content, i) => ({ type: fileTypes[i], content }))
+        // In a project's chat the notes are the project's; the agent's own memory comes
+        // along only when the project says so.
+        .filter((f) => f.content.trim().length > 0 && !(project && !project.agentMemory && f.type === 'memory'))
+        .map((f) => `\n--- AGENT ${f.type.toUpperCase()} ---\n${f.content}`)
         .join("\n");
 
     } catch (e) {
@@ -485,7 +496,7 @@ for await (const m of sub) {
     }
 
     const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    const contextType = channel === 'main' ? 'the main chat' : 'a private conversation';
+    const contextType = project ? `the chat of the project "${project.name}"` : channel === 'main' ? 'the main chat' : 'a private conversation';
     const craft = await loadCraft();
     const userProfile = (await loadUserProfile()) + (await loadAgenda());
 
@@ -538,7 +549,13 @@ ${EXTERNAL_CONTENT_RULE}
     const planParentRows = planSeed?.parentTaskId ? await (db as any).select({ plan: tasks.plan }).from(tasks).where(eq(tasks.id, planSeed.parentTaskId)).limit(1) : [];
     const planPrevious: Plan | null = planParentRows[0]?.plan && typeof planParentRows[0].plan === "object" ? (planParentRows[0].plan as Plan) : null;
     const planVersion = planSeed?.version ?? 1;
-    const allowedToolsAll = globalRegistry.resolveAllowedToolNames(agentRequestedTools, enabledMcpServers);
+    // A project's chat adds the project's tools to the agent's own. Its notes go to the
+    // project, so the agent's own `remember` stays out unless its memory is loaded there.
+    const projectToolNames = project ? globalRegistry.projectToolNames() : [];
+    const allowedToolsAll = [
+      ...globalRegistry.resolveAllowedToolNames(agentRequestedTools, enabledMcpServers).filter((n: string) => !(project && !project.agentMemory && n === "remember")),
+      ...projectToolNames,
+    ];
     const allowedTools = planMode ? globalRegistry.readOnlyToolNames(allowedToolsAll) : allowedToolsAll;
 
     console.log(`[worker-coder] Enabled MCP servers from chat: [${enabledMcpServers.join(', ')}] → ${allowedTools.length} tools total`);
@@ -571,7 +588,9 @@ ${EXTERNAL_CONTENT_RULE}
     const taskSecurity = createTaskSecurity({
       mode: resolveSecurityMode(getGlobalConfig("security_mode", "ask"), cfgRows[0]?.securityMode),
       // One image per task is bound elsewhere; a video is held (it is the costly one).
-      neverHold: ["generate_image", ...autoApproved],
+      // In a project, reading the code is reading outside content, and writing is the work:
+      // files change only in the agents' copy and the user decides on the diff.
+      neverHold: ["generate_image", ...autoApproved, ...(project ? ["project_write", "project_memory"] : [])],
       // The agent's permanent memory: an injected rule saved there would outlive the task.
       alwaysHold: ["remember"],
       // Delegated by a task that had read outside content (delegate_task passes it on).
@@ -585,6 +604,7 @@ ${EXTERNAL_CONTENT_RULE}
     const convFiles: ConversationFile[] = [];
     const toolContext = {
       agentId,
+      ...(projectRef ? { project: projectRef } : {}),
       searchPastTasks: (query: string, limit?: number) => searchAgentTasks(sqliteClient, agentId, query, limit),
       // recall: a past answer written after reading outside content taints this task too.
       external: (tool: string, ref: string | undefined, content: string) => taskSecurity.external(tool, ref, content),
@@ -630,7 +650,7 @@ ${EXTERNAL_CONTENT_RULE}
       allowedNames: allowedTools,
       enabled: getGlobalConfig("TOOLS_ON_DEMAND", "on").trim().toLowerCase() !== "off",
       text: userPrompt,
-      preload: continuationOf ? (await loadTaskActions(db, continuationOf).catch(() => [] as any[])).map((a: any) => String(a.toolName)) : [],
+      preload: [...projectToolNames, ...(continuationOf ? (await loadTaskActions(db, continuationOf).catch(() => [] as any[])).map((a: any) => String(a.toolName)) : [])],
       previousTask: await lastTaskToolNames(db, channel).catch(() => [] as string[]),
     });
     if (onDemand) console.log(`[worker-coder] tools on demand: ${onDemand.loader.summary().total} in the index, ${onDemand.loader.active().length - 1} preloaded`);
@@ -646,6 +666,22 @@ ${EXTERNAL_CONTENT_RULE}
     const historyRows = await loadRecentChannelHistory(db, channel, taskId, historyOptions(cfgRows[0]?.historyLevel, llmConfig.provider));
     convFiles.push(...conversationFiles(storageDir, historyRows));
     const conversationFilesSection = conversationFilesPrompt(convFiles);
+
+    // The project's part of the prompt: where the agent works, the instructions the user
+    // accepted and the project's notes. Working copies with nothing pending follow the user's branch.
+    let projectSection = "";
+    if (project && projectRef) {
+      try {
+        const space = await openProject(projectRef, { sync: true });
+        const pending = space.repos.length ? (await pendingChanges(space)).length : 0;
+        // The notes are not the user's word (unlike the instructions they accepted): they
+        // enter as outside content, so what the task does after reading them is held as usual.
+        projectSection = await projectPrompt(space, { acceptedHash: project.instructionsHash, pending, asOutside: (text) => taskSecurity.external("project_memory", "ProjectMemory.md", text) });
+      } catch (e: any) {
+        console.warn(`[worker-coder] project ${project.id} could not be opened: ${e?.message ?? e}`);
+        projectSection = `\n\n[PROJECT — this chat belongs to the project "${project.name}"] Its files could not be opened right now (${String(e?.message ?? e).slice(0, 200)}). Tell the user.`;
+      }
+    }
 
     const history = historyRows.reverse().map((t: any) => {
       const assistantText = historyAssistantText(t.resultMeta);
@@ -673,7 +709,7 @@ ${EXTERNAL_CONTENT_RULE}
       llmGenerateText(
         llmConfig,
         [...finalMessages, ...extra],
-        systemPrompt + skillsSection + planSection + cronDedup + vault.promptSection() + conversationFilesSection + (onDemand?.promptSection ?? ""),
+        systemPrompt + projectSection + skillsSection + planSection + cronDedup + vault.promptSection() + conversationFilesSection + (onDemand?.promptSection ?? ""),
         modelTools,
         planTools ? [...rawTools, ...planTools.raw] : rawTools,
         { abortSignal: controller.signal, prepareStep: (step: any) => vault.prepareStep(step), stepImages: stepToolImages, maxSteps: resolveMaxSteps(cfgRows[0]?.maxSteps), roundTimeoutMs: ROUND_TIMEOUT_MS(llmConfig.provider, getGlobalConfig), ...(onDemand ? onDemand.llmOptionsFor(modelTools) : {}), onBreakdown: (b: any[]) => { stepBreakdown = b; } }

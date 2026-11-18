@@ -30,8 +30,21 @@ export interface PastTaskHit {
 // Per-task context a worker binds to the tools it hands the model. The model
 // never fills these values — they identify WHO is running, so a tool like
 // `remember` can act on the calling agent without trusting model input.
+/** The project a task's chat belongs to, as its tools need it (see native/project). */
+export interface ProjectRef {
+  id: string;
+  name: string;
+  /** The agents' branch in each repository is `hydraops/<slug>`. */
+  slug: string;
+  /** The user's folder. The agents never write in it, except the project's two own files. */
+  folder: string;
+}
+
 export interface ToolContext {
   agentId?: string;
+  // The project whose chat this task runs in. The worker binds it; the model never names
+  // one, so a project's tools can only ever reach that project.
+  project?: ProjectRef;
   // Full-text search over THIS agent's completed tasks. The worker binds the
   // agent identity into the closure, so the model only ever supplies keywords.
   searchPastTasks?: (query: string, limit?: number) => PastTaskHit[] | Promise<PastTaskHit[]>;
@@ -86,4 +99,11 @@ export interface HydraTool {
   // False for a tool whose result is instructions the model must get whole (an installed
   // skill): it is neither digested into the task vault nor cut. The tool caps itself.
   vault?: false;
+  // 'project': the tool exists only in a project's chat. No tools.md grants it and the
+  // lists of tools the user picks from leave it out; the worker adds it there.
+  scope?: 'project';
+  // The part of the arguments the security guard reads (default: all of them). A tool that
+  // writes a file's content gives its paths only: text that names ".env" or shows a command
+  // is not a path being opened nor a command being run.
+  guardedArgs?: (args: any) => unknown;
 }

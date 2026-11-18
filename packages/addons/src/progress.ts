@@ -57,6 +57,10 @@ export function progressRef(toolName: string, args: unknown): string | undefined
     const what = [str('action'), str('branch') ?? str('name') ?? str('ref')].filter(Boolean).join(' ');
     return what ? clipRef(what) : undefined;
   }
+  if (toolName.startsWith('project_')) {
+    const what = [str('action'), str('path') ?? str('query')].filter(Boolean).join(' ');
+    return what ? clipRef(what) : undefined;
+  }
   if (toolName.startsWith('calendar_')) {
     const what = str('title') ?? str('id') ?? [str('from'), str('to')].filter(Boolean).join('→');
     return what ? clipRef(what) : undefined;
