@@ -674,7 +674,9 @@ ${EXTERNAL_CONTENT_RULE}
       try {
         const space = await openProject(projectRef, { sync: true });
         const pending = space.repos.length ? (await pendingChanges(space)).length : 0;
-        projectSection = await projectPrompt(space, { acceptedHash: project.instructionsHash, pending });
+        // The notes are not the user's word (unlike the instructions they accepted): they
+        // enter as outside content, so what the task does after reading them is held as usual.
+        projectSection = await projectPrompt(space, { acceptedHash: project.instructionsHash, pending, asOutside: (text) => taskSecurity.external("project_memory", "ProjectMemory.md", text) });
       } catch (e: any) {
         console.warn(`[worker-coder] project ${project.id} could not be opened: ${e?.message ?? e}`);
         projectSection = `\n\n[PROJECT — this chat belongs to the project "${project.name}"] Its files could not be opened right now (${String(e?.message ?? e).slice(0, 200)}). Tell the user.`;

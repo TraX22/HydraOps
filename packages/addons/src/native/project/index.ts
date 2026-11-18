@@ -288,6 +288,8 @@ export const projectMemoryTool: HydraTool = {
   // change (the notes reach the prompt as notes, never as the user's instructions).
   risk: (args: any) => (args?.action === "search" || args?.action === "read" ? {} : { sensitive: true }),
   vault: false,
+  // It takes no path (the file is always the project's notes): a note that names ".env" is prose.
+  guardedArgs: () => ({}),
   description:
     `Keep this project's notes (${MEMORY_FILE}, which every agent working on the project gets in its context). Actions: "add" (one short note in \`text\`: a decision and its reason, how something is built, what was tried and failed; not what the code already says), "search" (the notes that mention \`query\`), "read" (all of them, when the context shows only a part).`,
   schema: z.object({
@@ -321,6 +323,9 @@ export const projectInstructionsTool: HydraTool = {
   // The instructions rule every later task of the project: changing them is the user's
   // decision, every time, whatever the task read and whatever the security mode.
   risk: { sensitive: true, approval: "always" },
+  // It takes no path (the file is always the project's instructions), and instructions
+  // often name ".env" or show a command; the user reads the text before it is written.
+  guardedArgs: () => ({}),
   description:
     `Propose new instructions for this project (${INSTRUCTIONS_FILE}: how the project is built and run, its conventions, what not to touch). Give the whole file in \`content\`, keeping what stays. It ALWAYS waits for the user's approval: call it once, say what you propose to change and why, and do not retry. Use it when the user asks you to write or update the project's instructions, not for notes (those go to project_memory).`,
   schema: z.object({
