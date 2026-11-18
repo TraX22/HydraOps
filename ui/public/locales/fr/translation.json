@@ -525,6 +525,33 @@
         "local_changes": "Votre dossier contient du travail non enregistré dans les mêmes fichiers, rien n'a donc été touché. Faites un commit de vos modifications ou mettez-les de côté, puis acceptez de nouveau.",
         "git": "Git n'a pas pu enregistrer les modifications. Rien n'a été touché."
       }
+    },
+    "editor": {
+      "unsaved": "Modifications non enregistrées",
+      "unsavedNote": "Fichiers ouverts avec des modifications non enregistrées : {{n}}. Enregistrez-les d'abord s'ils doivent faire partie de ce que vous acceptez.",
+      "state": {
+        "added": "nouveau",
+        "modified": "modifié",
+        "deleted": "supprimé"
+      },
+      "viewDiff": "Voir les différences",
+      "copyPath": "Copier le chemin",
+      "copied": "Copié",
+      "readOnly": "L'agent travaille : le fichier est en lecture seule jusqu'à ce qu'il termine.",
+      "stale": "L'agent a modifié ce fichier pendant que vous l'éditiez. L'enregistrement est arrêté pour ne pas écraser son travail.",
+      "reload": "Charger la version de l'agent (vos modifications sont perdues)",
+      "closeConfirm": "Ce fichier contient des modifications non enregistrées.",
+      "closeYes": "Fermer sans enregistrer",
+      "saveFailed": "Le fichier n'a pas pu être enregistré.",
+      "cannot": {
+        "not_found": "Ce fichier n'est plus dans le projet.",
+        "is_folder": "C'est un dossier, pas un fichier.",
+        "too_large": "Ce fichier est trop volumineux pour être ouvert ici (1 Mo au maximum).",
+        "binary": "Ce n'est pas un fichier texte, il n'est donc pas affiché ici.",
+        "credentials": "C'est un fichier d'identifiants : il n'est pas ouvert ici.",
+        "invalid_path": "Ce fichier ne peut pas être ouvert.",
+        "unknown": "Ce fichier n'a pas pu être lu."
+      }
     }
   },
   "agents": {

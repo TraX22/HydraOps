@@ -248,7 +248,9 @@ export async function resolvePath(space: ProjectSpace, p: unknown, opts: { dirOk
   if (!rest.length && !opts.dirOk) return { error: "That is a folder: give a file's path." };
   // The project's own two files live in the user's folder, not in a working copy.
   if (repo.prefix === "" && rest.length === 1 && ownFileName(rest[0])) return { error: OWN_FILE(rest[0]) };
-  const abs = path.join(repo.dir, ...rest);
+  const abs = path.resolve(repo.dir, ...rest);
+  // The place named must be the copy itself or lie under it, whatever the segments were.
+  if (abs !== repo.dir && !abs.startsWith(repo.dir + path.sep)) return { error: `"${segs.join("/")}" is not a path inside the project.` };
   const LINK = `"${segs.join("/")}" goes through a link, so it is not opened: a link can name any place of the computer, also one that does not exist yet.`;
   // No part of the path may be a link, whether or not what it points at exists (a link to
   // a file that is not there yet would be followed by the write that creates it).
@@ -284,13 +286,14 @@ const shownPath = (repo: ProjectRepo, rel: string) => (repo.prefix ? `${repo.pre
 export interface TextFile { text: string; crlf: boolean; bom: boolean }
 
 /** A text file as the agent works with it: line ends as \n, no byte-order mark; both are put back on writing. */
-export async function readTextFile(abs: string): Promise<TextFile | { error: string }> {
+export type FileProblem = "not_found" | "is_folder" | "too_large" | "binary";
+export async function readTextFile(abs: string): Promise<TextFile | { error: string; code: FileProblem }> {
   const st = await stat(abs).catch(() => null);
-  if (!st) return { error: "There is no such file." };
-  if (!st.isFile()) return { error: "That is a folder, not a file." };
-  if (st.size > MAX_FILE_BYTES) return { error: `The file is too large to open here (${Math.round(st.size / 1024)} KB; the limit is ${MAX_FILE_BYTES / 1024} KB).` };
+  if (!st) return { code: "not_found", error: "There is no such file." };
+  if (!st.isFile()) return { code: "is_folder", error: "That is a folder, not a file." };
+  if (st.size > MAX_FILE_BYTES) return { code: "too_large", error: `The file is too large to open here (${Math.round(st.size / 1024)} KB; the limit is ${MAX_FILE_BYTES / 1024} KB).` };
   const buf = await readFile(abs);
-  if (buf.subarray(0, 8000).includes(0)) return { error: "That is not a text file (an image, a build, a binary), so it is not shown." };
+  if (buf.subarray(0, 8000).includes(0)) return { code: "binary", error: "That is not a text file (an image, a build, a binary), so it is not shown." };
   let text = buf.toString("utf8");
   const bom = text.charCodeAt(0) === 0xfeff;
   if (bom) text = text.slice(1);
@@ -379,6 +382,70 @@ export async function fileDiff(space: ProjectSpace, p: unknown): Promise<{ diff:
   const r = await pgit(at.repo.dir, ["--literal-pathspecs", "diff", "--cached", ...DIFF_ARGS, "HEAD", "--", at.rel]);
   if (r.code !== 0) return { error: gitFail(r) };
   return { diff: r.out.slice(0, MAX_DIFF), cut: r.out.length > MAX_DIFF };
+}
+
+// ── One file, for the editor in the project's tab ─────────────────────────────
+
+export interface ProjectFile {
+  path: string;
+  /** The file's text, with Unix line ends. */
+  text: string;
+  /** A fingerprint of that text: a save says which text it started from. */
+  hash: string;
+  state: ChangedFile["state"] | null;
+  /** The lines (1-based) that differ from the user's commit: what the agent, or an edit made here, changed. */
+  changedLines: number[];
+  /** Where the file is in the user's own folder. */
+  source: string;
+}
+
+export type ProjectFileProblem = FileProblem | "invalid_path" | "credentials" | "changed";
+const textHash = (text: string) => sha256(Buffer.from(text, "utf8"));
+
+/** The lines of the working copy's file that the pending change added or rewrote. */
+async function changedLinesOf(repo: ProjectRepo, rel: string): Promise<number[]> {
+  await pgit(repo.dir, ["add", "-A"], { timeoutMs: LONG });
+  const r = await pgit(repo.dir, ["--literal-pathspecs", "diff", "--cached", "-U0", ...DIFF_ARGS, "HEAD", "--", rel]);
+  const lines: number[] = [];
+  for (const m of r.out.matchAll(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/gm)) {
+    const start = Number(m[1]), count = m[2] === undefined ? 1 : Number(m[2]);
+    for (let i = 0; i < count && lines.length < 20_000; i++) lines.push(start + i);
+  }
+  return lines;
+}
+
+/** A file of the agents' copy, for the user to read and edit in the project's tab. */
+export async function readProjectFile(space: ProjectSpace, p: unknown, isCredentials: (path: string) => boolean): Promise<ProjectFile | { error: string; code: ProjectFileProblem }> {
+  const at = await resolvePath(space, p);
+  if ("error" in at) return { code: "invalid_path", error: at.error };
+  if (isCredentials(`/${at.shown}`)) return { code: "credentials", error: "That is a credentials file: it is not opened here." };
+  const file = await readTextFile(at.abs);
+  if ("error" in file) return file;
+  const state = (await repoChanges(at.repo)).find((c) => c.path === at.shown)?.state ?? null;
+  return {
+    path: at.shown, text: file.text, hash: textHash(file.text), state,
+    changedLines: state === "modified" ? await changedLinesOf(at.repo, at.rel) : [],
+    source: path.join(at.repo.source, ...at.rel.split("/")),
+  };
+}
+
+/**
+ * Save the user's edit of a file of the agents' copy. `baseHash` is the text the edit
+ * started from: when the file is no longer that one (the agent changed it meanwhile)
+ * nothing is written, so neither side's work is lost without anyone seeing it.
+ */
+export async function writeProjectFile(space: ProjectSpace, p: unknown, content: unknown, baseHash: unknown, isCredentials: (path: string) => boolean): Promise<{ hash: string } | { error: string; code: ProjectFileProblem }> {
+  const at = await resolvePath(space, p);
+  if ("error" in at) return { code: "invalid_path", error: at.error };
+  if (isCredentials(`/${at.shown}`)) return { code: "credentials", error: "That is a credentials file: it is not written here." };
+  if (typeof content !== "string") return { code: "invalid_path", error: "No text to save." };
+  const text = content.replace(/\r\n/g, "\n");
+  if (Buffer.byteLength(text, "utf8") > MAX_FILE_BYTES) return { code: "too_large", error: `The file would be too large (${MAX_FILE_BYTES / 1024} KB at most).` };
+  const now = await readTextFile(at.abs);
+  if ("error" in now) return now;
+  if (typeof baseHash === "string" && baseHash && textHash(now.text) !== baseHash) return { code: "changed", error: "The file changed since it was opened." };
+  await writeTextFile(at.abs, text, now);
+  return { hash: textHash(text) };
 }
 
 // ── Accept and discard ────────────────────────────────────────────────────────

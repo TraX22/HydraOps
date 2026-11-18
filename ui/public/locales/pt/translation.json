@@ -525,6 +525,33 @@
         "local_changes": "Sua pasta tem trabalho não salvo nos mesmos arquivos, então nada foi tocado. Faça um commit das suas alterações ou guarde-as à parte, e aceite de novo.",
         "git": "O Git não conseguiu salvar as alterações. Nada foi tocado."
       }
+    },
+    "editor": {
+      "unsaved": "Alterações não salvas",
+      "unsavedNote": "Arquivos abertos com alterações que você não salvou: {{n}}. Salve-os antes se devem fazer parte do que você aceita.",
+      "state": {
+        "added": "novo",
+        "modified": "alterado",
+        "deleted": "excluído"
+      },
+      "viewDiff": "Ver diferenças",
+      "copyPath": "Copiar caminho",
+      "copied": "Copiado",
+      "readOnly": "O agente está trabalhando: o arquivo fica somente leitura até ele terminar.",
+      "stale": "O agente alterou este arquivo enquanto você o editava. O salvamento foi interrompido para não sobrescrever o trabalho dele.",
+      "reload": "Carregar a versão do agente (suas alterações se perdem)",
+      "closeConfirm": "Este arquivo tem alterações que você não salvou.",
+      "closeYes": "Fechar sem salvar",
+      "saveFailed": "Não foi possível salvar o arquivo.",
+      "cannot": {
+        "not_found": "Este arquivo não está mais no projeto.",
+        "is_folder": "Isso é uma pasta, não um arquivo.",
+        "too_large": "Este arquivo é grande demais para abrir aqui (1 MB no máximo).",
+        "binary": "Não é um arquivo de texto, então não é mostrado aqui.",
+        "credentials": "É um arquivo de credenciais: não é aberto aqui.",
+        "invalid_path": "Este arquivo não pode ser aberto.",
+        "unknown": "Não foi possível ler este arquivo."
+      }
     }
   },
   "agents": {

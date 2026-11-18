@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal, viewChildren } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { Subscription, catchError, EMPTY, interval, switchMap } from 'rxjs';
@@ -7,6 +7,9 @@ import { AgentsService } from '../../services/agents.service';
 import { ChatService } from '../../services/chat.service';
 import { IconComponent } from '../../components/icon/icon.component';
 import { ChatComponent } from '../chat/chat.component';
+import { CodeEditorComponent } from '../../components/code-editor/code-editor.component';
+import { OpenFile, ProjectFilesService } from '../../services/project-files.service';
+import { ThemeService } from '../../services/theme.service';
 
 /** One line of the file tree as it is drawn: a folder (open or not) or a file. */
 interface TreeRow {
@@ -33,7 +36,7 @@ const ACTIVE_KEY = 'hydra_project_active';
 @Component({
   selector: 'app-projects',
   standalone: true,
-  imports: [FormsModule, TranslatePipe, IconComponent, ChatComponent],
+  imports: [FormsModule, TranslatePipe, IconComponent, ChatComponent, CodeEditorComponent],
   templateUrl: './projects.component.html',
   styleUrl: './projects.component.css',
 })
@@ -85,6 +88,21 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   initWorking = signal(false);
   initError = signal('');
 
+  // ── The editor: the files opened from the tree, each in its own tab of the right panel ──
+  private filesStore = inject(ProjectFilesService);
+  theme = inject(ThemeService);
+  openFiles = signal<OpenFile[]>([]);
+  /** 'changes', or the path of the open file in front. */
+  rightTab = signal<string>('changes');
+  /** The file whose tab the user asked to close while it has unsaved edits. */
+  closing = signal<string | null>(null);
+  copied = signal<string | null>(null);
+  dirtyCount = computed(() => this.openFiles().filter(f => f.dirty).length);
+  private editors = viewChildren(CodeEditorComponent);
+  private wasBusy = false;
+  /** The project whose open files `openFiles` holds. */
+  private filesShownFor: string | null = null;
+
   private poll?: Subscription;
   /** The chat that was open in the Chat view, given back on leaving. */
   private previousTab = 'main';
@@ -100,6 +118,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.keepOpenFiles();
     this.poll?.unsubscribe();
     this.chat.stopPolling();
     this.chat.activeTab.set(this.previousTab);
@@ -133,6 +152,15 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   }
 
   open(p: Project): void {
+    this.keepOpenFiles();
+    const kept = this.filesStore.load(p.id);
+    // A file that was still being read when the view went away is simply not open.
+    const files = kept.files.filter(f => !f.loading);
+    this.openFiles.set(files);
+    this.rightTab.set(kept.tab === 'changes' || files.some(f => f.path === kept.tab) ? kept.tab : 'changes');
+    this.filesShownFor = p.id;
+    this.closing.set(null);
+    this.wasBusy = false;
     this.creating.set(false);
     this.settingsOpen.set(false);
     this.fileOpen.set('');
@@ -158,6 +186,10 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     this.detail.set(d);
     this.projects.update(list => list.map(p => (p.id === d.project.id ? d.project : p)));
     const key = d.changes.map(c => `${c.state}:${c.path}:${c.added}:${c.removed}`).join('|') + `#${d.repos.length}`;
+    // The agent just finished, or what is pending changed: the open files are read again.
+    const finished = this.wasBusy && !d.busy;
+    this.wasBusy = d.busy;
+    if (finished || (key !== this.changesKey && this.changesKey !== '')) this.syncOpenFiles();
     if (key === this.changesKey && this.treeFor === d.project.id) return;
     this.changesKey = key;
     this.loadTree(d);
@@ -232,8 +264,12 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       const next = new Set(this.openDirs());
       if (next.has(row.path)) next.delete(row.path); else next.add(row.path);
       this.openDirs.set(next);
-    } else if (row.state) {
+    } else if (row.state === 'deleted') {
+      // Nothing to open: what is left of it is its diff.
+      this.rightTab.set('changes');
       this.showDiff(row.path);
+    } else {
+      this.openInEditor(row.path);
     }
   }
 
@@ -402,6 +438,9 @@ export class ProjectsComponent implements OnInit, OnDestroy {
         const rest = this.projects().filter(x => x.id !== p.id);
         this.projects.set(rest);
         this.detail.set(null);
+        this.filesStore.forget(p.id);
+        this.openFiles.set([]);
+        this.rightTab.set('changes');
         if (rest[0]) this.open(rest[0]);
         else { this.activeId.set(null); try { localStorage.removeItem(ACTIVE_KEY); } catch { /* storage unavailable */ } }
       },
@@ -454,6 +493,151 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   /** Whether "make it a repository" answers this problem. */
   canInit(code: string, prefix: string): boolean {
     return !prefix && (code === 'no_repository' || code === 'no_commits');
+  }
+
+  // ── The editor ──
+  fileName(path: string): string {
+    return path.split('/').pop() ?? path;
+  }
+
+  private patchFile(path: string, patch: Partial<OpenFile>): void {
+    this.openFiles.update(list => list.map(f => (f.path === path ? { ...f, ...patch } : f)));
+  }
+
+  private editorOf(path: string): CodeEditorComponent | undefined {
+    return this.editors().find(e => e.path() === path);
+  }
+
+  /** Before the view (or this project's tab) goes away: what was typed and not saved is kept. */
+  private keepOpenFiles(): void {
+    const id = this.activeId();
+    // Only what this view is showing is kept: before the first project opens there is nothing of its own to keep.
+    if (!id || this.filesShownFor !== id) return;
+    const files = this.openFiles().map(f => (f.dirty ? { ...f, draft: this.editorOf(f.path)?.value() ?? f.draft ?? f.text } : { ...f, draft: undefined }));
+    this.filesStore.store(id, files, this.rightTab());
+  }
+
+  /** A file of the tree opens in a tab of the right panel (or comes to the front if it is open). */
+  openInEditor(path: string): void {
+    const id = this.activeId();
+    if (!id) return;
+    this.settingsOpen.set(false);
+    this.fileOpen.set('');
+    this.rightTab.set(path);
+    if (this.openFiles().some(f => f.path === path)) return;
+    this.openFiles.update(list => [...list, { path, text: '', hash: '', state: null, changedLines: [], source: '', loading: true, dirty: false, stale: false, saving: false }]);
+    this.api.getProjectFile(id, path).subscribe({
+      next: f => this.patchFile(path, { text: f.text, hash: f.hash, state: f.state, changedLines: f.changedLines, source: f.source, loading: false }),
+      error: err => this.patchFile(path, { loading: false, error: this.fileProblem(err) }),
+    });
+  }
+
+  private fileProblem(err: any): string {
+    const code = String(err?.error?.error ?? '');
+    return ['not_found', 'is_folder', 'too_large', 'binary', 'credentials', 'invalid_path'].includes(code) ? code : 'unknown';
+  }
+
+  markDirty(path: string): void {
+    const f = this.openFiles().find(x => x.path === path);
+    if (f && !f.dirty) this.patchFile(path, { dirty: true, saveError: undefined });
+  }
+
+  saveFile(path: string): void {
+    const id = this.activeId();
+    const f = this.openFiles().find(x => x.path === path);
+    const editor = this.editorOf(path);
+    if (!id || !f || !editor || !f.dirty || f.saving || this.detail()?.busy) return;
+    const content = editor.value();
+    this.patchFile(path, { saving: true, saveError: undefined });
+    this.api.saveProjectFile(id, path, content, f.hash).subscribe({
+      next: r => {
+        this.patchFile(path, { saving: false, dirty: false, stale: false, draft: undefined, text: content, hash: r.hash });
+        this.closing.set(null);
+        this.refresh();
+        this.refreshMarks(path);
+      },
+      error: err => {
+        const code = err?.error?.error;
+        this.patchFile(path, { saving: false, stale: code === 'changed' ? true : f.stale, saveError: code === 'changed' ? undefined : code === 'agent_working' ? 'projects.editor.readOnly' : 'projects.editor.saveFailed' });
+      },
+    });
+  }
+
+  /** After a save: the file's state and its changed lines, as the copy has them now. */
+  private refreshMarks(path: string): void {
+    const id = this.activeId();
+    if (!id) return;
+    this.api.getProjectFile(id, path).subscribe({
+      next: f => { const cur = this.openFiles().find(x => x.path === path); if (cur && !cur.dirty && cur.hash === f.hash) this.patchFile(path, { state: f.state, changedLines: f.changedLines }); },
+      error: () => {},
+    });
+  }
+
+  /** Read the file again from the copy, dropping what was typed here. */
+  reloadFile(path: string): void {
+    const id = this.activeId();
+    if (!id) return;
+    this.api.getProjectFile(id, path).subscribe({
+      next: f => {
+        this.patchFile(path, { text: f.text, hash: f.hash, state: f.state, changedLines: f.changedLines, source: f.source, dirty: false, stale: false, draft: undefined, error: undefined, saveError: undefined });
+        this.editorOf(path)?.setText(f.text, f.changedLines);
+      },
+      error: err => this.afterFileGone(path, err),
+    });
+  }
+
+  private afterFileGone(path: string, err: any): void {
+    if (err?.status !== 404) return;
+    // The file is no longer in the copy (a discarded new file): its tab closes.
+    this.openFiles.update(list => list.filter(f => f.path !== path));
+    if (this.rightTab() === path) this.rightTab.set('changes');
+  }
+
+  /**
+   * The copy changed (the agent worked, or changes were accepted or discarded): each open
+   * file is read again. One with nothing unsaved takes the new text; one with unsaved
+   * edits keeps them and says the file changed underneath.
+   */
+  private syncOpenFiles(): void {
+    const id = this.activeId();
+    if (!id) return;
+    for (const open of this.openFiles()) {
+      if (open.loading || open.error) continue;
+      const path = open.path;
+      this.api.getProjectFile(id, path).subscribe({
+        next: f => {
+          const cur = this.openFiles().find(x => x.path === path);
+          if (!cur || this.activeId() !== id) return;
+          if (f.hash === cur.hash) { this.patchFile(path, cur.dirty ? { state: f.state } : { state: f.state, changedLines: f.changedLines }); return; }
+          if (cur.dirty) { this.patchFile(path, { stale: true }); return; }
+          this.patchFile(path, { text: f.text, hash: f.hash, state: f.state, changedLines: f.changedLines });
+          this.editorOf(path)?.setText(f.text, f.changedLines);
+        },
+        error: err => this.afterFileGone(path, err),
+      });
+    }
+  }
+
+  closeFile(path: string, ev: Event, force = false): void {
+    ev.stopPropagation();
+    const f = this.openFiles().find(x => x.path === path);
+    if (f?.dirty && !force) { this.rightTab.set(path); this.closing.set(path); return; }
+    this.closing.set(null);
+    this.openFiles.update(list => list.filter(x => x.path !== path));
+    if (this.rightTab() === path) this.rightTab.set('changes');
+  }
+
+  showDiffOf(path: string): void {
+    this.rightTab.set('changes');
+    this.showDiff(path);
+  }
+
+  /** The file's place in the user's own folder, to open it in their editor. */
+  copyPath(f: OpenFile): void {
+    navigator.clipboard.writeText(f.source).then(() => {
+      this.copied.set(f.path);
+      setTimeout(() => this.copied.set(null), 2000);
+    }).catch(() => {});
   }
 
   stateLetter(state?: ProjectChange['state']): string {

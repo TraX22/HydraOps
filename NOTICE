@@ -9,6 +9,8 @@ terms. The most significant of these are:
 
   - Electron, Angular, Express, Drizzle ORM, better-sqlite3 and NATS,
     licensed under the MIT License.
+  - CodeMirror 6 (the code editor of the Projects view) and the Lezer
+    parsers it uses, licensed under the MIT License.
   - sharp and the Vercel AI SDK, licensed under the Apache License 2.0.
 
 The full dependency list, with the license of each package, is in

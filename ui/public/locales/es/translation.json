@@ -525,6 +525,33 @@
         "local_changes": "Tu carpeta tiene trabajo sin guardar en los mismos archivos, así que no se tocó nada. Hacé un commit de tus cambios o apartalos, y aceptá de nuevo.",
         "git": "Git no pudo guardar los cambios. No se tocó nada."
       }
+    },
+    "editor": {
+      "unsaved": "Cambios sin guardar",
+      "unsavedNote": "Archivos abiertos con cambios que no guardaste: {{n}}. Guardalos antes si tienen que entrar en lo que aceptás.",
+      "state": {
+        "added": "nuevo",
+        "modified": "cambiado",
+        "deleted": "borrado"
+      },
+      "viewDiff": "Ver diferencias",
+      "copyPath": "Copiar ruta",
+      "copied": "Copiada",
+      "readOnly": "El agente está trabajando: el archivo es de solo lectura hasta que termine.",
+      "stale": "El agente cambió este archivo mientras lo editabas. No se guarda para no pisar su trabajo.",
+      "reload": "Cargar la versión del agente (se pierden tus cambios)",
+      "closeConfirm": "Este archivo tiene cambios que no guardaste.",
+      "closeYes": "Cerrar sin guardar",
+      "saveFailed": "No se pudo guardar el archivo.",
+      "cannot": {
+        "not_found": "Este archivo ya no está en el proyecto.",
+        "is_folder": "Eso es una carpeta, no un archivo.",
+        "too_large": "Este archivo es demasiado grande para abrirlo acá (1 MB como máximo).",
+        "binary": "No es un archivo de texto, así que no se muestra acá.",
+        "credentials": "Es un archivo de credenciales: no se abre acá.",
+        "invalid_path": "Este archivo no se puede abrir.",
+        "unknown": "No se pudo leer este archivo."
+      }
     }
   },
   "agents": {
