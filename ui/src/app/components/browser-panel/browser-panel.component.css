@@ -1,10 +1,13 @@
 /* The host carries the width (bound from the component); everything inside fills it. */
 :host { display: block; height: 100vh; flex: none; position: relative; min-width: 0; overflow: hidden; }
-.bp { position: relative; height: 100%; width: 100%; min-width: 0; display: flex; flex-direction: column; background: var(--bg-surface); border-left: 1px solid var(--border-color); }
+.bp { position: relative; height: 100%; width: 100%; min-width: 0; display: flex; flex-direction: column; background: var(--bg-surface); border-left: 2px solid var(--border-color); }
 
-/* The draggable edge */
-.bp-handle { position: absolute; left: -4px; top: 0; bottom: 0; width: 8px; cursor: col-resize; z-index: 2; }
-.bp-handle::after { content: ""; position: absolute; left: 3px; top: 50%; height: 44px; width: 2px; margin-top: -22px; border-radius: 2px; background: var(--border-color); transition: background .15s; }
+/* The draggable edge. It starts at the panel's outer edge: what lay to the left of it was cut
+   off by the host. Its mark is the border's width and as much again inside the panel, and the
+   page area starts after the mark (see .bp-page): Electron draws the page over that area, and
+   a mark under the page would neither be seen nor take the pointer. */
+.bp-handle { position: absolute; left: -2px; top: 0; bottom: 0; width: 8px; cursor: col-resize; z-index: 2; }
+.bp-handle::after { content: ""; position: absolute; left: 0; top: 50%; height: 44px; width: 4px; margin-top: -22px; border-radius: 2px; background: var(--border-color); transition: background .15s; }
 .bp-handle:hover::after { background: var(--accent); }
 
 /* Tabs */
@@ -49,7 +52,7 @@
 @media (max-width: 1500px) { .bp-vis-label { display: none; } }
 
 /* The page area: Electron paints over it; only the empty and error states show through */
-.bp-page { flex: 1; min-height: 0; position: relative; background: var(--bg-app); }
+.bp-page { flex: 1; min-height: 0; position: relative; background: var(--bg-app); margin-left: 2px; }
 .bp-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--text-muted); font-size: 13px; text-align: center; padding: 24px; }
 .bp-empty app-icon { font-size: 36px; opacity: .5; }
 .bp-empty p { margin: 0; max-width: 32ch; line-height: 1.5; }
