@@ -649,15 +649,31 @@ export async function appendMemory(project: ProjectRef, note: unknown, by: strin
   const entry = String(note ?? "").split("\n").map((l) => l.trim()).filter(Boolean).join(" ");
   if (!entry) return "Nothing to save: the note is empty.";
   if (entry.length > MAX_NOTE_CHARS) return `The note is too long (${entry.length} characters, ${MAX_NOTE_CHARS} at most). Keep the essence: what was decided, where it is, why.`;
-  const at = await ownFile(project, MEMORY_FILE);
-  if ("error" in at) return at.error;
-  if (at.size > MAX_MEMORY_BYTES) return `${MEMORY_FILE} is full (over ${MAX_MEMORY_BYTES / 1024} KB). The user prunes old notes before new ones are saved.`;
-  let prefix = "";
-  if (!at.size) prefix = MEMORY_HEADER;
-  else if (!(await readFile(at.file, "utf8")).endsWith("\n")) prefix = "\n";
-  const who = /^[\w-]{1,40}$/.test(by) ? ` (${by})` : "";
-  await appendFile(at.file, `${prefix}- [${new Date().toISOString().slice(0, 10)}]${who} ${entry}\n`, "utf8");
-  return `Saved to ${MEMORY_FILE}. It is part of this project's context from the next message on.`;
+  // An agent often saves several notes in one step, and those calls run at the same time.
+  // Each one looks at the file (is it empty? does it end in a new line?) and then writes,
+  // so they take turns: two that both found the file empty would each write its heading.
+  return inTurn(norm(path.join(project.folder, MEMORY_FILE)), async () => {
+    const at = await ownFile(project, MEMORY_FILE);
+    if ("error" in at) return at.error;
+    if (at.size > MAX_MEMORY_BYTES) return `${MEMORY_FILE} is full (over ${MAX_MEMORY_BYTES / 1024} KB). The user prunes old notes before new ones are saved.`;
+    let prefix = "";
+    if (!at.size) prefix = MEMORY_HEADER;
+    else if (!(await readFile(at.file, "utf8")).endsWith("\n")) prefix = "\n";
+    const who = /^[\w-]{1,40}$/.test(by) ? ` (${by})` : "";
+    await appendFile(at.file, `${prefix}- [${new Date().toISOString().slice(0, 10)}]${who} ${entry}\n`, "utf8");
+    return `Saved to ${MEMORY_FILE}. It is part of this project's context from the next message on.`;
+  });
+}
+
+const turns = new Map<string, Promise<unknown>>();
+/** Runs `work` once everything queued earlier under the same key has finished, whether it succeeded or not. */
+function inTurn<T>(key: string, work: () => Promise<T>): Promise<T> {
+  const mine = (turns.get(key) ?? Promise.resolve()).then(work, work);
+  const settled = mine.catch(() => undefined);
+  turns.set(key, settled);
+  // The last one out leaves nothing behind.
+  void settled.then(() => { if (turns.get(key) === settled) turns.delete(key); });
+  return mine;
 }
 
 // ── The project in the agent's prompt ─────────────────────────────────────────
