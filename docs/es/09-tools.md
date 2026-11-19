@@ -2,6 +2,8 @@
 
 La sección **Herramientas** de la barra lateral conecta HydraOps con servicios externos. No confundir con los [Add-ons](./08-addons.md): un add-on es una herramienta que *usan los agentes* (buscar en la web, leer una página); una herramienta de esta sección es un **conector** que te deja *operar HydraOps desde fuera*.
 
+Cada herramienta es una tarjeta. Las tarjetas empiezan **plegadas**, mostrando su nombre y una línea; la flecha a la derecha de una tarjeta la despliega para ver y cambiar sus ajustes, y lo que despliegas queda desplegado. El interruptor ON/OFF funciona también con la tarjeta plegada.
+
 Hoy están **Telegram** (hablar con tus agentes desde el móvil), **GitHub**, **[Git](#git-commits-ramas-y-envíos-a-github)** (commits, ramas y envíos desde las carpetas que elijas), **[Hugging Face](#hugging-face-modelos-datasets-y-spaces)** (modelos, datasets y Spaces), **[Civitai](#civitai-modelos-palabras-disparadoras-y-ajustes-de-ejemplo)** (modelos, palabras disparadoras y ajustes de ejemplo), las **[Skills](#skills-habilidades-para-los-agentes)** (las habilidades que los agentes leen cuando una tarea las necesita) y las **[Conexiones](#conexiones-servidores-mcp-listos-para-usar)** (aplicaciones y servicios que los agentes pueden manejar) y **[X](#x-tus-cuentas-publicadas-con-tu-aprobación)** (tus cuentas de X). Discord, Signal y Reddit aparecen como "próximamente".
 
 ## Telegram: manejar los agentes desde el móvil

@@ -1458,7 +1458,9 @@
     "close": "Close",
     "delete": "Delete",
     "version": "version",
-    "edit": "Edit"
+    "edit": "Edit",
+    "openCard": "Show the whole card",
+    "foldCard": "Fold the card"
   },
   "links": {
     "leaving": "You are about to leave for the internet",

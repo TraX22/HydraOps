@@ -2,6 +2,7 @@ import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { IconComponent } from '../../../components/icon/icon.component';
 import { ApiService, CatalogConnection, ConnectionPreview, ConnectionServer, McpToolClass } from '../../../services/api.service';
+import { FoldCardDirective } from '../../../shared/fold-card.directive';
 
 // One row of the "Available" table: a catalog connection and what installing it would do.
 interface AvailableRow {
@@ -28,7 +29,7 @@ interface PreviewState {
 @Component({
   selector: 'app-connections-card',
   standalone: true,
-  imports: [TranslatePipe, IconComponent],
+  imports: [TranslatePipe, IconComponent, FoldCardDirective],
   templateUrl: './connections-card.component.html',
   // The card vocabulary (tables, chips, buttons, drawer) is the Skills card's.
   styleUrls: ['../skills-card/skills-card.component.css', './connections-card.component.css'],

@@ -1,6 +1,7 @@
 import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
+import { FoldCardDirective } from '../../shared/fold-card.directive';
 import {
   ApiService,
   AppConfig,
@@ -14,7 +15,7 @@ const STATUS_POLL_MS = 15_000;
 @Component({
   selector: 'app-addons',
   standalone: true,
-  imports: [FormsModule, TranslatePipe],
+  imports: [FormsModule, TranslatePipe, FoldCardDirective],
   templateUrl: './addons.component.html',
   styleUrl: './addons.component.css',
 })

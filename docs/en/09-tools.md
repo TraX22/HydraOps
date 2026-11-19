@@ -2,6 +2,8 @@
 
 The **Tools** section in the sidebar connects HydraOps to external services. Don't confuse it with [Add-ons](./08-addons.md): an add-on is a tool the *agents use* (search the web, read a page); a tool in this section is a **connector** that lets you *operate HydraOps from the outside*.
 
+Each tool is a card. The cards start **folded**, showing their name and one line; the arrow at the right of a card opens it to see and change its settings, and what you open stays open. The ON/OFF switch works on a folded card too.
+
 Today there are **Telegram** (talk to your agents from your phone), **GitHub**, **[Git](#git-commits-branches-and-pushes-to-github)** (commits, branches and pushes from the folders you choose), **[Hugging Face](#hugging-face-models-datasets-and-spaces)** (models, datasets and Spaces), **[Civitai](#civitai-models-trigger-words-and-example-settings)** (models, trigger words and example settings), **[Skills](#skills-know-how-for-the-agents)** (the know-how agents read when a task calls for it), **[Connections](#connections-ready-made-mcp-servers)** (apps and services the agents can drive) and **[X](#x-your-accounts-posted-to-with-your-approval)** (your X accounts). Discord, Signal and Reddit appear as "coming soon".
 
 ## Telegram: run your agents from your phone

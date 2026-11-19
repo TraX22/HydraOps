@@ -1,6 +1,7 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { IconComponent } from '../../../components/icon/icon.component';
+import { FoldCardDirective } from '../../../shared/fold-card.directive';
 import {
   ApiService, CatalogSkill, GitHubRepoPreview, GitHubSkillDetail, GitHubSkillPreview, HeldAction, InstalledSkill, SkillPreview, SkillsState,
 } from '../../../services/api.service';
@@ -42,7 +43,7 @@ const REASON_KEYS: [string, string][] = [
 @Component({
   selector: 'app-skills-card',
   standalone: true,
-  imports: [TranslatePipe, IconComponent],
+  imports: [TranslatePipe, IconComponent, FoldCardDirective],
   templateUrl: './skills-card.component.html',
   styleUrl: './skills-card.component.css',
 })

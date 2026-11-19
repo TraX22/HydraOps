@@ -366,3 +366,21 @@ a.link-mismatch::after { content: ' ⚠'; }
 .msg-bubble.plan-exec details { font-size: 12px; opacity: .85; }
 .msg-bubble.plan-exec summary { cursor: pointer; }
 .msg-bubble.plan-exec pre { margin: 6px 0 0; white-space: pre-wrap; font-size: 11.5px; }
+
+/* Folding cards (Add-ons and Tools; see shared/fold-card.directive.ts). Folded, a card shows its
+   head only and its description on one line; the arrow appears on the cards that have more. */
+.fold-card.fold-closed.fold-has-head > :not(.tool-head):not(.addon-row) { display: none !important; }
+.fold-card.fold-closed > .tool-head { margin-bottom: 0 !important; }
+.fold-card.fold-closed .tool-title, .fold-card.fold-closed .tool-title-text, .fold-card.fold-closed .addon-info { min-width: 0; flex: 1 1 auto; }
+.fold-card.fold-closed .tool-title-text { display: flex; flex-direction: column; }
+.fold-card.fold-closed .addon-type { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fold-card.fold-more > .tool-head, .fold-card.fold-more > .addon-row, .fold-card.fold-more:not(.fold-has-head) { cursor: pointer; }
+.card-fold {
+  flex: none; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border-color); border-radius: 50%; background: var(--bg-surface-alt); color: var(--text-secondary);
+  cursor: pointer; padding: 0; transition: background .15s, color .15s;
+}
+.card-fold[hidden] { display: none; }
+.card-fold:hover { background: var(--bg-hover); color: var(--text-primary); }
+.card-fold svg { width: 16px; height: 16px; transition: transform .15s; }
+.card-fold[aria-expanded="true"] svg { transform: rotate(180deg); }

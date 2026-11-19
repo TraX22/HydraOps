@@ -17,7 +17,7 @@
 
     <!-- Telegram -->
     @if (telegram(); as t) {
-      <div class="tool-card">
+      <div class="tool-card" appFoldCard="tool:telegram">
         <div class="tool-head">
           <div class="tool-title">
             <app-icon name="send" class="tool-icon" />
@@ -157,7 +157,7 @@
 
     <!-- GitHub -->
     @if (github(); as g) {
-      <div class="tool-card">
+      <div class="tool-card" appFoldCard="tool:github">
         <div class="tool-head">
           <div class="tool-title">
             <app-icon name="github" class="tool-icon github" />
@@ -208,7 +208,7 @@
 
     <!-- Git -->
     @if (git(); as g) {
-      <div class="tool-card">
+      <div class="tool-card" appFoldCard="tool:git">
         <div class="tool-head">
           <div class="tool-title">
             <app-icon name="git" class="tool-icon git" />
@@ -296,7 +296,7 @@
 
     <!-- Hugging Face -->
     @if (huggingface(); as h) {
-      <div class="tool-card">
+      <div class="tool-card" appFoldCard="tool:huggingface">
         <div class="tool-head">
           <div class="tool-title">
             <app-icon name="huggingface" class="tool-icon huggingface" />
@@ -350,7 +350,7 @@
 
     <!-- Civitai -->
     @if (civitai(); as c) {
-      <div class="tool-card">
+      <div class="tool-card" appFoldCard="tool:civitai">
         <div class="tool-head">
           <div class="tool-title">
             <app-icon name="civitai" class="tool-icon civitai" />
