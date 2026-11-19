@@ -172,7 +172,12 @@ export const asGitHub = (s: string) => s.replace(/https?:\/\/(?:127\.0\.0\.1|loc
 export function gitFail(r: GitRun): string {
   if (r.missing) return NO_GIT;
   if (r.timedOut) return "Git took too long and was stopped.";
-  return `Git refused:\n${asGitHub(firstLines(r.err || r.out)) || `(exit code ${r.code})`}`;
+  const said = asGitHub(firstLines(r.err || r.out));
+  // Run as a service with a read-only home, Git cannot write in a folder the unit does not list.
+  const readOnly = /Read-only file system/i.test(said)
+    ? "\nHydraOps cannot write in that folder: it is read-only for it. When HydraOps runs as a service (systemd), the user adds the folder to the unit as a ReadWritePaths= line and restarts the service (the Server mode page of the manual has the steps)."
+    : "";
+  return `Git refused:\n${said || `(exit code ${r.code})`}${readOnly}`;
 }
 
 /** The repository `dir` belongs to: its top folder, which must be an allowed one too. */

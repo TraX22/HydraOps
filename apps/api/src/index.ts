@@ -5442,7 +5442,7 @@ api.post("/projects/:id/init", async (req, res) => {
     const p = await projectOr404(req, res);
     if (!p) return;
     const r = await initRepository(p.folder, req.body?.commitAll === true);
-    if ("error" in r) return res.status(r.reason === "exists" ? 409 : 400).json({ error: r.reason ?? "git_failed", detail: r.error });
+    if ("error" in r) return res.status(r.reason === "exists" ? 409 : r.reason === "read_only" ? 403 : 400).json({ error: r.reason ?? "git_failed", detail: r.error });
     res.json({ success: true });
   } catch (err: any) {
     console.error("[api] POST /projects/:id/init failed", err);

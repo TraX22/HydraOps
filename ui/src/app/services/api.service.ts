@@ -464,7 +464,7 @@ export interface ProjectDetail {
   project: Project;
   repos: { prefix: string; source: string; branch: string | null; behind: boolean }[];
   /** Repositories that cannot be worked on now, in words. */
-  problems: { prefix: string; error: string; code: 'folder_missing' | 'no_repository' | 'no_commits' | 'no_git' | 'copy_failed' }[];
+  problems: { prefix: string; error: string; code: 'folder_missing' | 'read_only' | 'no_repository' | 'no_commits' | 'no_git' | 'copy_failed' }[];
   changes: ProjectChange[];
   /** The agent is at work: accepting and discarding wait. */
   busy: boolean;

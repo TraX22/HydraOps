@@ -491,6 +491,7 @@
     },
     "problem": {
       "folder_missing": "A pasta do projeto não está mais lá.",
+      "read_only": "O HydraOps não consegue escrever nesta pasta. Se ele roda como serviço (systemd), o serviço só pode escrever nas próprias pastas: adicione esta à unidade com uma linha ReadWritePaths= e reinicie o serviço. A página Modo servidor do manual tem os passos. Caso contrário, verifique as permissões da pasta.",
       "no_repository": "Esta pasta ainda não é um repositório Git. O agente trabalha a partir do que está em um commit, então precisa de um.",
       "no_commits": "Este repositório ainda não tem commits. O agente trabalha a partir do que está em um commit.",
       "no_git": "O Git não está instalado neste computador.",

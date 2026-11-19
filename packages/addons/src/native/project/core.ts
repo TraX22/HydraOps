@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { appendFile, lstat, mkdir, readFile, readdir, realpath, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { access, appendFile, lstat, mkdir, readFile, readdir, realpath, rm, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { projectsDir } from "@hydraops/config";
 import { runGit, gitFail, isInside, NO_GIT, type GitRun } from "../git/core.js";
@@ -51,7 +52,7 @@ export interface ProjectRepo {
 export interface ProjectProblem {
   prefix: string;
   error: string;
-  code: "folder_missing" | "no_repository" | "no_commits" | "no_git" | "copy_failed";
+  code: "folder_missing" | "read_only" | "no_repository" | "no_commits" | "no_git" | "copy_failed";
 }
 
 export interface ProjectSpace {
@@ -111,6 +112,17 @@ export async function discoverRepos(folder: string): Promise<{ key: string; pref
   }
   return out;
 }
+
+/**
+ * Whether HydraOps may write in a folder. A project needs it in the user's own folder (the
+ * agent's branch and working tree are recorded in the repository there, the notes and the
+ * instructions are files of it, and accepting changes its files). Run as a service with
+ * the home read-only (the systemd unit that ships with HydraOps), it may not until the
+ * folder is listed in the unit.
+ */
+const canWrite = (dir: string) => access(dir, constants.W_OK).then(() => true, () => false);
+export const READ_ONLY = (dir: string) =>
+  `HydraOps cannot write in "${dir}": the folder is read-only for it. When HydraOps runs as a service (systemd) its unit lets it write only in its own folders: the user adds this folder to the unit as a ReadWritePaths= line and restarts the service (the Server mode page of the manual has the steps). Otherwise the user checks the folder's permissions.`;
 
 const NO_REPO =
   "This project's folder holds no Git repository (neither the folder itself nor a folder right inside it), so there is nothing to work on yet. The user makes it one from the project's tab, or with `git init` and a first commit.";
@@ -179,9 +191,12 @@ export async function openProject(project: ProjectRef, opts: { sync?: boolean } 
     space.problems.push({ prefix: "", code: "folder_missing", error: `The project's folder ("${project.folder}") is no longer there.` });
     return space;
   }
+  if (!(await canWrite(folder))) { space.problems.push({ prefix: "", code: "read_only", error: READ_ONLY(folder) }); return space; }
   const found = await discoverRepos(folder);
   if (!found.length) { space.problems.push({ prefix: "", code: "no_repository", error: NO_REPO }); return space; }
   for (const f of found) {
+    // A repository of the project kept elsewhere (a link, another disk) can be read-only on its own.
+    if (f.prefix && !(await canWrite(f.source))) { space.problems.push({ prefix: f.prefix, code: "read_only", error: READ_ONLY(f.source) }); continue; }
     const repo = await ensureWorkingCopy(project, f);
     if ("error" in repo) { space.problems.push({ prefix: f.prefix, code: repo.code, error: repo.error }); continue; }
     if (opts.sync) await syncWorkingCopy(repo).catch(() => {});
@@ -577,7 +592,8 @@ export async function removeWorkingCopies(project: ProjectRef): Promise<void> {
  * a first commit. With `commitAll` the commit holds every file there (what a .gitignore
  * names stays out); without it the commit is empty and the files stay untracked.
  */
-export async function initRepository(folder: string, commitAll: boolean): Promise<{ ok: true } | { error: string; reason?: "identity" | "exists" }> {
+export async function initRepository(folder: string, commitAll: boolean): Promise<{ ok: true } | { error: string; reason?: "identity" | "exists" | "read_only" }> {
+  if (!(await canWrite(folder))) return { error: READ_ONLY(folder), reason: "read_only" };
   const inside = await pgit(folder, ["rev-parse", "--show-toplevel"], { user: true });
   if (inside.missing) return { error: NO_GIT };
   if (inside.code === 0 && await hasGitEntry(folder)) {
