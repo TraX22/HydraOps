@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy, signal, computed, viewChild, ElementRef, afterNextRender, effect, input } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal, computed, viewChild, ElementRef, afterNextRender, effect, input, HostListener } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -93,6 +93,9 @@ export class ChatComponent implements OnInit, OnDestroy {
       this.inputValue.set(this.chat.getDraft(tab));
       this.attachments.set(this.chat.getPendingAttachments(tab));
     });
+    // The message box is as tall as its text: whenever the text changes (typing, a paste, a
+    // sent message, another chat's draft) it is measured again, once the text is in the box.
+    effect(() => { this.inputValue(); setTimeout(() => this.fitInput()); });
     // Opening or switching to a chat jumps to the latest message (not the first).
     // A new message in the current chat (or a reply that just finished) pulls the view
     // down only while the user is already near the bottom, so scrolling up to read older
@@ -168,6 +171,26 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   inputField = viewChild<ElementRef<HTMLTextAreaElement>>('inputField');
+
+  /**
+   * The message box grows with what is written in it, from one line up to two fifths of the
+   * window's height; a longer text scrolls inside it. A pasted prompt of many lines can be
+   * read and corrected before it is sent, and the conversation keeps most of the window.
+   */
+  @HostListener('window:resize')
+  fitInput(): void {
+    const el = this.inputField()?.nativeElement;
+    if (!el) return;
+    const wasAtBottom = this.isNearBottom();
+    const before = el.offsetHeight;
+    el.style.height = 'auto';
+    const wanted = el.scrollHeight + (el.offsetHeight - el.clientHeight);
+    const max = Math.max(120, Math.round(window.innerHeight * 0.4));
+    el.style.height = `${Math.min(wanted, max)}px`;
+    el.style.overflowY = wanted > max ? 'auto' : 'hidden';
+    // A taller box takes room from the messages: the last one stays in sight.
+    if (el.offsetHeight !== before && wasAtBottom) this.scrollToBottom('auto');
+  }
 
   onInput(text: string): void {
     this.inputValue.set(text);
