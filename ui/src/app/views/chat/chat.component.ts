@@ -104,7 +104,11 @@ export class ChatComponent implements OnInit, OnDestroy {
       const tab = this.chat.activeTab();
       const list = this.chat.messagesByChannel()[tab] ?? [];
       const last = list[list.length - 1];
-      const key = `${tab}|${list.length}|${last?.id ?? ''}|${last?.isTyping ? 't' : ''}`;
+      // While the agent works its row grows without any new message: the line with what it
+      // is doing, then the "see steps" link once there are two. Each step counts as a change,
+      // so the row stays in sight instead of sliding under the message box.
+      const working = last?.isTyping ? `t${last.progress?.steps?.length ?? 0}` : '';
+      const key = `${tab}|${list.length}|${last?.id ?? ''}|${working}`;
       const opened = tab !== this.lastScrolledTab;
       const changed = key !== this.lastScrollKey;
       this.lastScrolledTab = tab;
@@ -503,8 +507,13 @@ export class ChatComponent implements OnInit, OnDestroy {
   toggleSteps(taskId?: string): void {
     if (!taskId) return;
     const next = new Set(this.openSteps());
-    if (next.has(taskId)) next.delete(taskId); else next.add(taskId);
+    const opening = !next.has(taskId);
+    if (opening) next.add(taskId); else next.delete(taskId);
     this.openSteps.set(next);
+    // The list opens downwards: when it belongs to the last row and the user is at the
+    // bottom, the view follows it so the steps are not hidden behind the message box.
+    const list = this.chat.messagesByChannel()[this.chat.activeTab()] ?? [];
+    if (opening && list[list.length - 1]?.taskId === taskId && this.isNearBottom()) this.scrollToLatest();
   }
 
   /** Elapsed time since the task started (m:ss), ticking with the clock. */
