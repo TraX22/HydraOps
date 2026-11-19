@@ -81,6 +81,12 @@ ReadWritePaths=-/home/hydraops/.config/comfy-cli
 # update) live outside the clone, in ~/.config/HydraOps/backups: without this line the
 # update from the app stops at "the copy could not be made". Create the folder first.
 ReadWritePaths=-/home/hydraops/.config/HydraOps
+# Projects and the Git tools write in the folders of YOUR code: the agent's branch and
+# working tree are recorded in the repository there, the project's notes are a file in it,
+# and accepting a change writes its files. Under ProtectHome=read-only those folders are
+# read-only until they are listed here: one line for each project folder, or for the
+# folder where you keep them all. The project's tab says so when a folder is missing here.
+#ReadWritePaths=/home/hydraops/projects
 
 [Install]
 WantedBy=multi-user.target

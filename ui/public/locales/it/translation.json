@@ -491,6 +491,7 @@
     },
     "problem": {
       "folder_missing": "La cartella del progetto non c'è più.",
+      "read_only": "HydraOps non può scrivere in questa cartella. Se gira come servizio (systemd), il servizio può scrivere solo nelle proprie cartelle: aggiungi questa all'unità con una riga ReadWritePaths= e riavvia il servizio. La pagina Modalità server del manuale spiega i passaggi. Altrimenti controlla i permessi della cartella.",
       "no_repository": "Questa cartella non è ancora un repository Git. L'agente lavora a partire da ciò che è in un commit, quindi ne ha bisogno.",
       "no_commits": "Questo repository non ha ancora commit. L'agente lavora a partire da ciò che è in un commit.",
       "no_git": "Git non è installato su questo computer.",

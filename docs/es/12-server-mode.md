@@ -67,6 +67,18 @@ sudo systemctl enable --now hydraops
 
 La unidad corre la pila con el home en solo lectura, salvo el clon, el almacén de claves y las cachés de `uvx` y `npx`, que es lo que arranca las conexiones (servidores MCP) y guarda su código; y pone `~/.local/bin`, donde `uv` se instala, en el `PATH` del servicio. Una unidad instalada antes de 0.1.59 no tiene ninguna de las dos cosas: sin ellas una conexión como BlenderLab nunca arranca bajo el servicio (desde una terminal sí). Añade la línea `Environment=PATH=` y las `ReadWritePaths=` extra del `deploy/hydraops.service` actual, y luego `sudo systemctl daemon-reload && sudo systemctl restart hydraops`. La conexión ComfyUI necesita una de esas líneas más (`~/.config/comfy-cli`, donde comfy-cli anota los trabajos que envía; en la unidad desde 0.1.66): sin ella el flujo sí arranca en ComfyUI, pero la herramienta devuelve un error y el agente nunca se entera del id del trabajo. Y actualizar desde la aplicación necesita `~/.config/HydraOps`, donde van las copias de la instalación (en la unidad desde 0.1.69): sin ella la actualización se frena en «no se pudo hacer la copia previa de tu instalación».
 
+**Las carpetas con tu código.** [Proyectos](./16-projects.md) y las [herramientas de Git](./09-tools.md#git-commits-ramas-y-envíos-a-github) escriben en las carpetas de tu propio código: la rama del agente se registra en el repositorio que está ahí, las notas del proyecto son un archivo de esa carpeta, y aceptar un cambio escribe sus archivos. Con esta unidad esas carpetas son de solo lectura hasta que las listes. Añade una línea por cada carpeta de proyecto, o una para la carpeta donde los guardas todos, y reinicia:
+
+```
+ReadWritePaths=/home/tu-usuario/proyectos
+```
+
+```
+sudo systemctl daemon-reload && sudo systemctl restart hydraops
+```
+
+La carpeta tiene que existir antes de que arranque el servicio, y si más adelante la borras y la creas de nuevo, reinicia el servicio. Sin la línea, la pestaña de un proyecto dice que HydraOps no puede escribir en la carpeta, y las herramientas de Git responden «Read-only file system».
+
 Los logs de todos los servicios acaban en el journal: `journalctl -u hydraops -f`. Parar con `systemctl stop hydraops` hace un apagado limpio de la pila entera.
 
 ## Actualizar un servidor

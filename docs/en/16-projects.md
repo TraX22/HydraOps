@@ -8,6 +8,7 @@ Each project has its own tab in the **Projects** section of the sidebar, with th
 
 - **Git** installed on your computer (version 2.28 or newer), with your name and e-mail set. The [Tools page](./09-tools.md#1-install-git) has the steps. Without Git the Projects view says so.
 - An **agent**. Any agent works; in a project it gets the tools for the project's files on top of its own.
+- **Write access to the project's folder.** On your own computer you have it. If HydraOps runs as a service on a server, the folder has to be listed in the service's unit first: see [Server mode](./12-server-mode.md#starting-on-boot-linux-systemd).
 
 You do not need to allow the folder in Tools → Git, and you do not need a GitHub token: a project works on your computer only.
 

@@ -8,6 +8,7 @@ Cada proyecto tiene su pestaña en la sección **Proyectos** de la barra lateral
 
 - **Git** instalado en tu equipo (versión 2.28 o más nueva), con tu nombre y tu correo configurados. La [página Herramientas](./09-tools.md#1-instalar-git) tiene los pasos. Sin Git, la vista Proyectos lo avisa.
 - Un **agente**. Sirve cualquiera; en un proyecto recibe las herramientas para los archivos del proyecto además de las suyas.
+- **Permiso de escritura en la carpeta del proyecto.** En tu propio equipo lo tienes. Si HydraOps corre como servicio en un servidor, primero hay que listar la carpeta en la unidad del servicio: ver [Modo servidor](./12-server-mode.md#arrancar-solo-al-encender-linux-systemd).
 
 No hace falta permitir la carpeta en Herramientas → Git ni tener un token de GitHub: un proyecto trabaja solo en tu equipo.
 

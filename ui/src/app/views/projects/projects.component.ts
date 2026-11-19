@@ -483,7 +483,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     this.initError.set('');
     this.api.initProjectRepository(p.id, commitAll).subscribe({
       next: () => { this.initWorking.set(false); this.changesKey = ''; this.treeFor = ''; this.refresh(); },
-      error: err => { this.initWorking.set(false); this.initError.set(err?.error?.error === 'identity' ? 'projects.changes.refused.identity' : 'projects.problem.initFailed'); },
+      error: err => { this.initWorking.set(false); this.initError.set(err?.error?.error === 'identity' ? 'projects.changes.refused.identity' : err?.error?.error === 'read_only' ? 'projects.problem.read_only' : 'projects.problem.initFailed'); },
     });
   }
 

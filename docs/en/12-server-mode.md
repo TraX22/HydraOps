@@ -67,6 +67,18 @@ sudo systemctl enable --now hydraops
 
 The unit runs the stack with a read-only home, except the clone, the key store and the caches of `uvx` and `npx`, which is what starts the connections (MCP servers) and keeps their code; and it puts `~/.local/bin`, where `uv` installs itself, on the service's `PATH`. A unit installed before 0.1.59 lacks both: without them a connection such as BlenderLab never starts under the service (it does from a terminal). Add the `Environment=PATH=` line and the extra `ReadWritePaths=` lines from the current `deploy/hydraops.service`, then `sudo systemctl daemon-reload && sudo systemctl restart hydraops`. The ComfyUI connection needs one more of those lines (`~/.config/comfy-cli`, where comfy-cli records the jobs it submits; in the unit since 0.1.66): without it a workflow does start in ComfyUI, but the tool answers an error and the agent never learns the job's id. And updating from the app needs `~/.config/HydraOps`, where the copies of the installation go (in the unit since 0.1.69): without it the update stops at "the copy of your installation could not be made".
 
+**Folders with your code.** [Projects](./16-projects.md) and the [Git tools](./09-tools.md#git-commits-branches-and-pushes-to-github) write in the folders of your own code: the agent's branch is recorded in the repository there, the project's notes are a file in it, and accepting a change writes its files. Under this unit those folders are read-only until you list them. Add a line for each project folder, or one for the folder where you keep them all, and restart:
+
+```
+ReadWritePaths=/home/you/projects
+```
+
+```
+sudo systemctl daemon-reload && sudo systemctl restart hydraops
+```
+
+The folder must exist before the service starts, and if you later delete it and create it again, restart the service. Without the line, a project's tab says that HydraOps cannot write in the folder, and the Git tools answer "Read-only file system".
+
 Every service's logs end up in the journal: `journalctl -u hydraops -f`. Stopping with `systemctl stop hydraops` shuts the whole stack down cleanly.
 
 ## Updating a server

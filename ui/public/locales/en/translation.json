@@ -491,6 +491,7 @@
     },
     "problem": {
       "folder_missing": "The project's folder is no longer there.",
+      "read_only": "HydraOps cannot write in this folder. If it runs as a service (systemd), the service may only write in its own folders: add this one to the unit as a ReadWritePaths= line and restart the service. The Server mode page of the manual has the steps. Otherwise check the folder's permissions.",
       "no_repository": "This folder is not a Git repository yet. The agent works from what is committed, so it needs one.",
       "no_commits": "This repository has no commits yet. The agent works from what is committed.",
       "no_git": "Git is not installed on this computer.",
