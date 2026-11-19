@@ -4,6 +4,8 @@ Tools are what separate an agent that *answers* from one that *does*. HydraOps h
 
 ![The Add-ons view: native, custom and MCP servers](../img/en/addons.png)
 
+Every add-on is a card that starts **folded** to its name and the first line of what it does. A card with more to show (a longer description, a field for its key) has an arrow at the right that opens it; what you open stays open.
+
 ## Native add-ons
 
 They ship with the application. Today they are:

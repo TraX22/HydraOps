@@ -1458,7 +1458,9 @@
     "close": "Fermer",
     "delete": "Supprimer",
     "version": "version",
-    "edit": "Modifier"
+    "edit": "Modifier",
+    "openCard": "Déplier la carte",
+    "foldCard": "Replier la carte"
   },
   "links": {
     "leaving": "Vous allez sortir sur internet",

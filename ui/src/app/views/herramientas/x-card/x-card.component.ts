@@ -2,6 +2,7 @@ import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular
 import { RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ApiService, Agent, XAccount, XGrant, XIntegration, X_GRANTS } from '../../../services/api.service';
+import { FoldCardDirective } from '../../../shared/fold-card.directive';
 
 const POLL_MS = 3000;
 
@@ -16,7 +17,7 @@ const POLL_MS = 3000;
 @Component({
   selector: 'app-x-card',
   standalone: true,
-  imports: [TranslatePipe, RouterLink],
+  imports: [TranslatePipe, RouterLink, FoldCardDirective],
   templateUrl: './x-card.component.html',
   styleUrl: './x-card.component.css',
 })

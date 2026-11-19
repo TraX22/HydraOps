@@ -1458,7 +1458,9 @@
     "close": "Cerrar",
     "delete": "Eliminar",
     "version": "versión",
-    "edit": "Editar"
+    "edit": "Editar",
+    "openCard": "Desplegar la tarjeta",
+    "foldCard": "Plegar la tarjeta"
   },
   "links": {
     "leaving": "Vas a salir a internet",

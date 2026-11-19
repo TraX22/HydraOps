@@ -7,7 +7,7 @@
     <h3>{{ 'addons.nativeTitle' | translate }}</h3>
     <div class="addons-grid">
       @for (addon of nativeAddons(); track addon.name) {
-        <div class="addon-card" [class.has-key]="addon.requiresKey">
+        <div class="addon-card" [class.has-key]="addon.requiresKey" [appFoldCard]="'addon:' + addon.name">
           <div class="addon-row">
             <div class="addon-info">
               <span class="addon-name">
@@ -94,7 +94,7 @@
     <div class="addons-grid">
       @if (mcpStatus(); as st) {
         @for (server of st.servers; track server.name) {
-          <div class="addon-card" [class.dimmed]="server.state === 'off'">
+          <div class="addon-card" [class.dimmed]="server.state === 'off'" [appFoldCard]="'mcp:' + server.name">
             <span class="state-dot" [style.background]="stateColor(server.state)"></span>
             <div class="addon-info">
               <span class="addon-name">{{ server.name }}</span>

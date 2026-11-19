@@ -7,11 +7,12 @@ import { ConnectionsCardComponent } from './connections-card/connections-card.co
 import { XCardComponent } from './x-card/x-card.component';
 import { GmailCardComponent } from './gmail-card/gmail-card.component';
 import { ApiService, Agent, AppConfig, TelegramIntegration, GitHubIntegration, GitIntegration, HuggingFaceIntegration, CivitaiIntegration } from '../../services/api.service';
+import { FoldCardDirective } from '../../shared/fold-card.directive';
 
 @Component({
   selector: 'app-herramientas',
   standalone: true,
-  imports: [FormsModule, TranslatePipe, IconComponent, SkillsCardComponent, ConnectionsCardComponent, XCardComponent, GmailCardComponent],
+  imports: [FormsModule, TranslatePipe, IconComponent, SkillsCardComponent, ConnectionsCardComponent, XCardComponent, GmailCardComponent, FoldCardDirective],
   templateUrl: './herramientas.component.html',
   styleUrl: './herramientas.component.css',
 })

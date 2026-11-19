@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { IconComponent } from '../../../components/icon/icon.component';
 import { ApiService, Agent, GmailAccount, GmailGrant, GmailIntegration, GmailListen, GmailListenMode, GMAIL_GRANTS } from '../../../services/api.service';
+import { FoldCardDirective } from '../../../shared/fold-card.directive';
 
 const POLL_MS = 3000;
 
@@ -17,7 +18,7 @@ const POLL_MS = 3000;
 @Component({
   selector: 'app-gmail-card',
   standalone: true,
-  imports: [TranslatePipe, RouterLink, IconComponent],
+  imports: [TranslatePipe, RouterLink, IconComponent, FoldCardDirective],
   templateUrl: './gmail-card.component.html',
   // The card vocabulary (fields, chips, connect box, account rows) is the X card's.
   styleUrls: ['../x-card/x-card.component.css', './gmail-card.component.css'],

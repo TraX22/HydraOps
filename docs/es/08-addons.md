@@ -4,6 +4,8 @@ Las herramientas son lo que separa a un agente que *contesta* de uno que *hace*.
 
 ![La vista Add-ons: nativos, propios y servidores MCP](../img/es/addons.png)
 
+Cada add-on es una tarjeta que empieza **plegada**, con su nombre y la primera línea de lo que hace. Una tarjeta con más para mostrar (una descripción más larga, el campo de su clave) tiene a la derecha una flecha que la despliega; lo que despliegas queda desplegado.
+
 ## Add-ons nativos
 
 Vienen con la aplicación. Hoy son:

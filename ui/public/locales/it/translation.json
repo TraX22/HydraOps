@@ -1458,7 +1458,9 @@
     "close": "Chiudi",
     "delete": "Elimina",
     "version": "versione",
-    "edit": "Modifica"
+    "edit": "Modifica",
+    "openCard": "Apri la scheda",
+    "foldCard": "Chiudi la scheda"
   },
   "links": {
     "leaving": "Stai per uscire su internet",
