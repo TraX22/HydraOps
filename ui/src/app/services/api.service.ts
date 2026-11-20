@@ -469,6 +469,8 @@ export interface ProjectDetail {
   /** The agent is at work: accepting and discarding wait. */
   busy: boolean;
   memoryChars: number;
+  /** What the agent says its pending change does, in one line: offered as the commit's message. */
+  suggestedMessage?: string;
 }
 
 /** One file of the agent's copy, as the editor of the project's tab gets it. */

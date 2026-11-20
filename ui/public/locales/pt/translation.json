@@ -512,6 +512,7 @@
       "discardConfirm": "Descartar os {{n}} arquivos alterados? O trabalho do agente neles se perde.",
       "discardYes": "Sim, descartar",
       "messagePlaceholder": "O que mudou (a mensagem do commit)",
+      "agentMessage": "Mensagem proposta por {{agent}}. Compare com as alterações acima; você pode editá-la.",
       "acceptHint": "Aceitar salva as alterações na sua pasta como um commit no seu branch. Nada é enviado ao GitHub.",
       "busy": "O agente está trabalhando: espere ele terminar.",
       "accepted": "Aceito: commit {{commit}} em {{branch}}",

@@ -47,7 +47,7 @@ import {
   pushPreview, checkGitFolder, gitVersions, gitFolderStates,
   openProject, pendingChanges, fileDiff, acceptChanges, discardChanges, repoState, removeWorkingCopies, initRepository,
   readInstructions, writeInstructions, readMemory, listFiles, INSTRUCTIONS_FILE, MEMORY_FILE,
-  readProjectFile, writeProjectFile, isSensitivePath,
+  readProjectFile, writeProjectFile, isSensitivePath, getChangeSummary, clearChangeSummary,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
 import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, taskChainAutoApproved, HISTORY_DAYS, isHistoryLevel, calendarEntries, listCalendarEntries, zonedToUtc, advance as calendarAdvance, localParts, isTimeZone, listTimeZones, systemTimeZone, isCalendarDate, isCalendarTime, isCalendarRepeat, isCalendarKind, CALENDAR_LIMITS, formatWhen, toDate, userLocale, loadProjects, saveProjects, findProject, projectChannel, projectIdOfChannel, MAX_PROJECTS, type ProjectRecord } from "@hydraops/db";
@@ -5222,6 +5222,8 @@ api.get("/projects/:id", async (req, res) => {
       changes: space.repos.length ? await pendingChanges(space) : [],
       busy: await projectBusy(p),
       memoryChars: (await readMemory(projectRefOf(p))).length,
+      // What the agent says its pending change does: offered as the commit's message.
+      suggestedMessage: await getChangeSummary(projectRefOf(p)),
     });
   } catch (err: any) {
     console.error("[api] GET /projects/:id failed", err);
@@ -5352,7 +5354,11 @@ api.post("/projects/:id/accept", async (req, res) => {
     if (message.length > 8000) return res.status(400).json({ error: "message_too_long", max: 8000 });
     const space = await openProject(projectRefOf(p));
     const results = await acceptChanges(space, message, typeof req.body?.repo === "string" ? req.body.repo : undefined);
-    res.json({ results, changes: space.repos.length ? await pendingChanges(space) : [] });
+    const left = space.repos.length ? await pendingChanges(space) : [];
+    // The agent's line was for the whole pending change. Once a commit was made with it (in
+    // any repository), or nothing is pending, it no longer describes what is left.
+    if (!left.length || results.some((r) => r.ok && r.commit)) await clearChangeSummary(projectRefOf(p));
+    res.json({ results, changes: left });
   } catch (err: any) {
     console.error("[api] POST /projects/:id/accept failed", err);
     res.status(500).json({ error: "internal_error" });
@@ -5367,7 +5373,10 @@ api.post("/projects/:id/discard", async (req, res) => {
     const space = await openProject(projectRefOf(p));
     const r = await discardChanges(space, Array.isArray(req.body?.paths) ? req.body.paths : undefined);
     if ("error" in r) return res.status(400).json({ error: "invalid_path", detail: r.error });
-    res.json({ ...r, changes: space.repos.length ? await pendingChanges(space) : [] });
+    const left = space.repos.length ? await pendingChanges(space) : [];
+    // Part of the change was thrown away: the line that described all of it goes too.
+    if (!left.length || r.discarded > 0) await clearChangeSummary(projectRefOf(p));
+    res.json({ ...r, changes: left });
   } catch (err: any) {
     console.error("[api] POST /projects/:id/discard failed", err);
     res.status(500).json({ error: "internal_error" });

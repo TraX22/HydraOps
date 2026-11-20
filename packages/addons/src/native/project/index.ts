@@ -6,7 +6,7 @@ import { isSensitivePath } from "../../guard.js";
 import { gitFail } from "../git/core.js";
 import {
   openProject, spaceProblem, resolvePath, readTextFile, writeTextFile, listFiles, pendingChanges, fileDiff, pgit,
-  readMemory, appendMemory, writeInstructions, INSTRUCTIONS_FILE, MEMORY_FILE, MAX_FILE_BYTES, type ProjectSpace,
+  readMemory, appendMemory, writeInstructions, setChangeSummary, INSTRUCTIONS_FILE, MEMORY_FILE, MAX_FILE_BYTES, type ProjectSpace,
 } from "./core.js";
 
 // project_read / project_write / project_memory / project_instructions — what an agent has
@@ -212,8 +212,19 @@ export const projectWriteTool: HydraTool = {
     })).min(1).max(30).optional().describe("edit: the replacements, applied in order."),
     content: z.string().optional().describe("write: the file's whole text."),
     to: z.string().optional().describe("move: the new path."),
+    summary: z.string().optional().describe("With the last change of your turn: one line saying what the whole pending change does, as a commit message: under 72 characters, in English unless the user or the project's instructions ask for another language. The user gets it as the commit's message when they accept."),
   }),
-  execute: async ({ action, path: p, edits, content, to }, ctx) => {
+  execute: async (args, ctx) => {
+    const result = await changeFile(args, ctx);
+    // The agent's line for the commit, kept only when the change itself was made.
+    if (ctx?.project && typeof args?.summary === "string" && /^(Created|Rewrote|Edited|Deleted|Moved) /.test(String(result))) {
+      await setChangeSummary(ctx.project, args.summary).catch(() => {});
+    }
+    return result;
+  },
+};
+
+async function changeFile({ action, path: p, edits, content, to }: any, ctx?: ToolContext): Promise<string> {
     try {
       const space = await spaceOf(ctx);
       if ("error" in space) return space.error;
@@ -275,8 +286,7 @@ export const projectWriteTool: HydraTool = {
     } catch (e: any) {
       return `The file could not be changed: ${e?.message || e}`;
     }
-  },
-};
+}
 
 // ── project_memory ────────────────────────────────────────────────────────────
 
@@ -354,6 +364,6 @@ export const projectTools: HydraTool[] = [projectReadTool, projectWriteTool, pro
 export {
   openProject, spaceProblem, pendingChanges, fileDiff, acceptChanges, discardChanges, repoState, removeWorkingCopies, initRepository,
   listFiles, discoverRepos, readInstructions, writeInstructions, readMemory, projectPrompt, INSTRUCTIONS_FILE, MEMORY_FILE,
-  readProjectFile, writeProjectFile,
+  readProjectFile, writeProjectFile, getChangeSummary, clearChangeSummary,
   type ProjectSpace, type ProjectRepo, type ChangedFile, type AcceptResult, type ProjectFile,
 } from "./core.js";

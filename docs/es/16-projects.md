@@ -42,7 +42,7 @@ Pide en el chat del proyecto como en cualquier chat: *"agrega un campo `slug` a 
 
 El panel **Cambios** lista cada archivo que el agente cambió, con las líneas agregadas y quitadas. Haz clic en un archivo para ver su diff. Los mismos archivos aparecen marcados en el árbol: **A** agregado, **M** modificado, **D** borrado.
 
-- **Aceptar** guarda los cambios en tu carpeta como **un commit en tu rama**, con tu nombre. El mensaje lo escribes tú; HydraOps sugiere tu último pedido. No se envía nada a GitHub: el push sigue siendo de las [herramientas de Git](./09-tools.md#git-commits-ramas-y-envíos-a-github) y de su aprobación.
+- **Aceptar** guarda los cambios en tu carpeta como **un commit en tu rama**, con tu nombre. El agente propone el mensaje, una línea que dice qué hace el cambio; edítalo o escribe el tuyo. No se envía nada a GitHub: el push sigue siendo de las [herramientas de Git](./09-tools.md#git-commits-ramas-y-envíos-a-github) y de su aprobación.
 - **Descartar** tira los cambios y devuelve la copia del agente a tu último commit. También puedes descartar un solo archivo.
 
 Aceptar nunca fuerza nada. Se detiene, y deja los cambios esperando, cuando:

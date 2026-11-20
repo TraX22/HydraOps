@@ -271,6 +271,7 @@
             <div class="panel-foot">
               <input id="project-commit" class="commit-input" type="text" [ngModel]="message()" (ngModelChange)="onMessage($event)" maxlength="200"
                      [placeholder]="'projects.changes.messagePlaceholder' | translate" [disabled]="!!working()" />
+              @if (message() && message() === detail()?.suggestedMessage) { <p class="foot-note agent-line">{{ 'projects.changes.agentMessage' | translate:{ agent: agentName(p) } }}</p> }
               @if (detail()?.busy) { <p class="foot-note">{{ 'projects.changes.busy' | translate }}</p> }
               @if (dirtyCount()) { <p class="foot-note warn">{{ 'projects.editor.unsavedNote' | translate:{ n: dirtyCount() } }}</p> }
               @if (confirmDiscard()) {

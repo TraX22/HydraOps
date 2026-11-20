@@ -42,7 +42,7 @@ Ask in the project's chat as you would in any chat: *"add a `slug` field to the 
 
 The **Changes** panel lists every file the agent changed, with the lines added and removed. Click a file to see its diff. The same files are marked in the tree: **A** added, **M** modified, **D** deleted.
 
-- **Accept** saves the changes in your folder as **one commit on your branch**, under your name. The message is yours to write; HydraOps suggests your last request. Nothing is sent to GitHub: pushing stays with the [Git tools](./09-tools.md#git-commits-branches-and-pushes-to-github) and their approval.
+- **Accept** saves the changes in your folder as **one commit on your branch**, under your name. The agent proposes the message, one line saying what the change does; edit it or write your own. Nothing is sent to GitHub: pushing stays with the [Git tools](./09-tools.md#git-commits-branches-and-pushes-to-github) and their approval.
 - **Discard** drops the changes and puts the agent's copy back on your last commit. You can also discard one file.
 
 Accepting never forces anything. It stops, and leaves the changes waiting, when:

@@ -185,6 +185,9 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     if (d.project.id !== this.activeId()) return;
     this.detail.set(d);
     this.projects.update(list => list.map(p => (p.id === d.project.id ? d.project : p)));
+    // The commit's message offered is the agent's own line for its change, and follows it while
+    // the agent keeps working; once the user writes in the box, the box is theirs.
+    if (!this.messageTouched && d.changes.length) this.message.set(d.suggestedMessage ?? '');
     const key = d.changes.map(c => `${c.state}:${c.path}:${c.added}:${c.removed}`).join('|') + `#${d.repos.length}`;
     // The agent just finished, or what is pending changed: the open files are read again.
     const finished = this.wasBusy && !d.busy;
@@ -198,7 +201,6 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     if (sel && !d.changes.some(c => c.path === sel)) { this.selected.set(null); this.diff.set(null); }
     else if (sel) this.showDiff(sel);
     if (!d.changes.length) { this.confirmDiscard.set(false); if (!this.messageTouched) this.message.set(''); }
-    else if (!this.messageTouched && !this.message()) this.message.set(this.suggestedMessage());
   }
 
   private loadTree(d: ProjectDetail): void {
@@ -312,15 +314,6 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   onMessage(text: string): void {
     this.messageTouched = true;
     this.message.set(text);
-  }
-
-  /** A first line for the commit: what the user last asked for in this project's chat, cut short. */
-  private suggestedMessage(): string {
-    const p = this.active();
-    const msgs = p ? this.chat.messagesByChannel()[p.channel] ?? [] : [];
-    const last = [...msgs].reverse().find(m => m.role === 'user' && !m.planOf && !m.continuationOf && m.content?.trim());
-    const line = (last?.content ?? '').replace(/\n*\[ATTACHMENTS\][\s\S]*$/, '').trim().split('\n')[0]?.trim() ?? '';
-    return line.length > 72 ? `${line.slice(0, 71).trimEnd()}…` : line;
   }
 
   accept(): void {
