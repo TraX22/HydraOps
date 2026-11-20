@@ -71,7 +71,7 @@ Haz clic en un archivo del árbol y se abre en un editor, en una pestaña junto 
 
 **Copiar ruta** da la ubicación del archivo en tu propia carpeta, para abrirlo en tu editor de siempre. En la app de escritorio, **Mostrar en la carpeta** abre tu explorador de archivos con el archivo seleccionado; un archivo que el agente creó y todavía no aceptaste no está en tu carpeta, así que muestra la carpeta más cercana que sí existe. Recuerda que tu carpeta tiene tu versión, no los cambios pendientes.
 
-El editor abre archivos de texto de hasta 1 MB. Las imágenes, las compilaciones y otros archivos binarios no se muestran, y los archivos de credenciales (`.env`, claves) no se abren nunca.
+El editor abre archivos de texto de hasta 1 MB. Las imágenes, las compilaciones y otros archivos binarios no se muestran, y los archivos de credenciales (`.env` y sus variantes, claves) no se abren nunca. Las plantillas que un repositorio incluye para mostrar qué variables existen (`.env.example`, `.env.sample`, `.env.template`) son archivos comunes: tú y el agente pueden leerlas y escribirlas, así que no pongas valores reales en ellas.
 
 ## Instrucciones: HydraOps.md
 

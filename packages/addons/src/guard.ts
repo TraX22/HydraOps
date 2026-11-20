@@ -24,10 +24,14 @@ const SENSITIVE_PATH_PATTERNS: { re: RegExp; label: string }[] = [
   { re: /keys\.json/i, label: "HydraOps key store" },
   { re: /[\\/](appdata[\\/]roaming[\\/])?hydraops[\\/]keys/i, label: "HydraOps key store" },
   { re: /[\\/]hydraops[\\/](master\.key|master\.lock|chatgpt\.json|x\.json)/i, label: "HydraOps key store" },
-  { re: /(^|[\\/"'\s])\.env(\.\w+)?($|["'\s\\/])/i, label: ".env file" },
+  // .env and every variant of it, however many parts the name has (.env.local,
+  // .env.production.local, .env.staging-eu). The templates a repository ships to show which
+  // variables exist (.env.example, .env.sample, .env.template) hold no secret and are not
+  // credentials files; a template with anything after it (.env.example.local) is one again.
+  { re: /(^|[\\/"'\s])\.env(?!\.(example|sample|template)($|["'\s\\/]))(\.[\w.-]+)?($|["'\s\\/])/i, label: ".env file" },
   // Cloudflare Workers' local secrets (wrangler): .dev.vars and its per-environment variants
-  // (.dev.vars.staging). The example file that ships in a repository holds no secret.
-  { re: /(^|[\\/"'\s])\.dev\.vars(?!\.example($|["'\s\\/]))(\.[\w-]+)?($|["'\s\\/])/i, label: ".dev.vars file" },
+  // (.dev.vars.staging), with the same templates left out.
+  { re: /(^|[\\/"'\s])\.dev\.vars(?!\.(example|sample|template)($|["'\s\\/]))(\.[\w.-]+)?($|["'\s\\/])/i, label: ".dev.vars file" },
   { re: /[\\/]\.ssh([\\/]|$)/i, label: "SSH directory" },
   { re: /id_(rsa|ed25519|ecdsa|dsa)/i, label: "SSH private key" },
   { re: /[\\/]\.aws([\\/]|$)/i, label: "AWS credentials" },
