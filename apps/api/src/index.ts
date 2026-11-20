@@ -47,7 +47,7 @@ import {
   pushPreview, checkGitFolder, gitVersions, gitFolderStates,
   openProject, pendingChanges, fileDiff, acceptChanges, discardChanges, repoState, removeWorkingCopies, initRepository,
   readInstructions, writeInstructions, readMemory, listFiles, INSTRUCTIONS_FILE, MEMORY_FILE,
-  readProjectFile, writeProjectFile, isSensitivePath, getChangeSummary, clearChangeSummary,
+  readProjectFile, writeProjectFile, isSensitivePath, getChangeSummary, clearChangeSummary, logProjectEvent,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
 import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, taskChainAutoApproved, HISTORY_DAYS, isHistoryLevel, calendarEntries, listCalendarEntries, zonedToUtc, advance as calendarAdvance, localParts, isTimeZone, listTimeZones, systemTimeZone, isCalendarDate, isCalendarTime, isCalendarRepeat, isCalendarKind, CALENDAR_LIMITS, formatWhen, toDate, userLocale, loadProjects, saveProjects, findProject, projectChannel, projectIdOfChannel, MAX_PROJECTS, type ProjectRecord } from "@hydraops/db";
@@ -5317,6 +5317,8 @@ api.put("/projects/:id/file", async (req, res) => {
     const space = await openProject(projectRefOf(p));
     const saved = await writeProjectFile(space, req.body?.path, req.body?.content, req.body?.baseHash, isSensitivePath);
     if ("error" in saved) return res.status(FILE_STATUS[saved.code] ?? 400).json({ error: saved.code, detail: saved.error });
+    // The agent is told at its next turn: it must read the file again before changing it.
+    await logProjectEvent(projectRefOf(p), { kind: "edited", files: [String(req.body?.path ?? "").replace(/\\/g, "/")] }).catch(() => {});
     res.json({ success: true, hash: saved.hash });
   } catch (err: any) {
     console.error("[api] PUT /projects/:id/file failed", err);
@@ -5353,8 +5355,15 @@ api.post("/projects/:id/accept", async (req, res) => {
     const message = (typeof req.body?.message === "string" ? req.body.message.trim() : "") || `Changes by ${p.agentId} (HydraOps)`;
     if (message.length > 8000) return res.status(400).json({ error: "message_too_long", max: 8000 });
     const space = await openProject(projectRefOf(p));
+    const before = space.repos.length ? await pendingChanges(space) : [];
     const results = await acceptChanges(space, message, typeof req.body?.repo === "string" ? req.body.repo : undefined);
     const left = space.repos.length ? await pendingChanges(space) : [];
+    // What became a commit, repository by repository, for the agent's next turn.
+    for (const r of results) {
+      if (!r.ok || !r.commit) continue;
+      const files = before.filter((c) => (r.prefix ? c.path.startsWith(`${r.prefix}/`) : true)).map((c) => c.path);
+      await logProjectEvent(projectRefOf(p), { kind: "accepted", files, commit: r.commit, branch: r.branch, message }).catch(() => {});
+    }
     // The agent's line was for the whole pending change. Once a commit was made with it (in
     // any repository), or nothing is pending, it no longer describes what is left.
     if (!left.length || results.some((r) => r.ok && r.commit)) await clearChangeSummary(projectRefOf(p));
@@ -5371,9 +5380,13 @@ api.post("/projects/:id/discard", async (req, res) => {
     if (!p) return;
     if (await projectBusy(p)) return res.status(409).json({ error: "agent_working" });
     const space = await openProject(projectRefOf(p));
+    const before = space.repos.length ? await pendingChanges(space) : [];
     const r = await discardChanges(space, Array.isArray(req.body?.paths) ? req.body.paths : undefined);
     if ("error" in r) return res.status(400).json({ error: "invalid_path", detail: r.error });
     const left = space.repos.length ? await pendingChanges(space) : [];
+    // What was thrown away is what was pending and no longer is: the agent is told.
+    const gone = before.filter((c) => !left.some((l) => l.path === c.path)).map((c) => c.path);
+    if (gone.length) await logProjectEvent(projectRefOf(p), { kind: "discarded", files: gone }).catch(() => {});
     // Part of the change was thrown away: the line that described all of it goes too.
     if (!left.length || r.discarded > 0) await clearChangeSummary(projectRefOf(p));
     res.json({ ...r, changes: left });

@@ -53,6 +53,8 @@ Aceptar nunca fuerza nada. Se detiene, y deja los cambios esperando, cuando:
 
 Si tu rama avanzó en *otros* archivos, el commit del agente simplemente se coloca encima.
 
+Al agente se le avisa lo que hiciste. Aceptar, descartar y editar un archivo a mano ocurren fuera de la conversación, así que en su siguiente turno el agente recibe una nota breve: qué archivos quedaron en un commit, qué cambios descartaste y qué archivos editaste. No va a seguir como si un cambio descartado todavía estuviera ahí.
+
 Mientras el agente está trabajando, Aceptar y Descartar esperan a que termine.
 
 Los hooks de Git del repositorio (un lint al hacer commit, por ejemplo) **no corren** en estos commits. Un repositorio puede guardar sus hooks en una carpeta que el agente puede escribir, así que ejecutarlos sería ejecutar lo que el agente escribió.

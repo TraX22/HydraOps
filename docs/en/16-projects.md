@@ -53,6 +53,8 @@ Accepting never forces anything. It stops, and leaves the changes waiting, when:
 
 If your branch moved on in *other* files, the agent's commit is simply placed on top of it.
 
+The agent is told what you did. Accepting, discarding and editing a file by hand all happen outside the conversation, so at its next turn the agent gets a short note of them: which files became a commit, which changes you threw away, which files you edited. It will not go on as if a discarded change were still there.
+
 While the agent is working, Accept and Discard wait until it finishes.
 
 The repository's Git hooks (a lint on commit, for example) **do not run** on these commits. A repository can keep its hooks in a folder the agent can write, so running them would run what the agent wrote.

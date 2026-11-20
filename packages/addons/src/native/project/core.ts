@@ -527,6 +527,84 @@ export async function clearChangeSummary(project: ProjectRef): Promise<void> {
   await unlink(summaryFile(project)).catch(() => {});
 }
 
+// ── What the user did with the changes ────────────────────────────────────────
+// Accepting, discarding and editing a file by hand all happen in the project's tab, outside
+// the conversation: the agent would go on believing a change it made is still there after
+// the user threw it away. A short record of those acts is kept next to the working copies
+// and told to the agent at the start of its next turn (see projectPrompt).
+
+export interface ProjectEvent {
+  /** When, as an ISO date. */
+  at: string;
+  /** accepted: became a commit on the user's branch. discarded: thrown away. edited: changed by the user in the tab's editor. */
+  kind: "accepted" | "discarded" | "edited";
+  /** The project paths it concerned. */
+  files: string[];
+  commit?: string;
+  branch?: string;
+  message?: string;
+}
+
+const MAX_EVENTS = 30;
+const MAX_EVENT_FILES = 40;
+const eventsFile = (project: ProjectRef) => path.join(projectsDir, project.id, "events.json");
+
+export async function readProjectEvents(project: ProjectRef): Promise<ProjectEvent[]> {
+  try {
+    const v = JSON.parse(await readFile(eventsFile(project), "utf8"));
+    return Array.isArray(v) ? v.filter((e) => e && typeof e.at === "string" && typeof e.kind === "string" && Array.isArray(e.files)) : [];
+  } catch { return []; }
+}
+
+/** Record one act of the user's. Several edits of the same file in a row are one entry. */
+export async function logProjectEvent(project: ProjectRef, event: Omit<ProjectEvent, "at">): Promise<void> {
+  const files = [...new Set(event.files.map((f) => String(f)))].slice(0, MAX_EVENT_FILES);
+  if (!files.length) return;
+  await inTurn(norm(eventsFile(project)), async () => {
+    const all = await readProjectEvents(project);
+    const last = all[all.length - 1];
+    const at = new Date().toISOString();
+    if (event.kind === "edited" && last?.kind === "edited") {
+      last.at = at;
+      last.files = [...new Set([...last.files, ...files])].slice(0, MAX_EVENT_FILES);
+    } else {
+      all.push({ at, kind: event.kind, files, ...(event.commit ? { commit: oneLine(event.commit).slice(0, 40) } : {}), ...(event.branch ? { branch: oneLine(event.branch).slice(0, 120) } : {}), ...(event.message ? { message: oneLine(event.message) } : {}) });
+    }
+    await mkdir(path.dirname(eventsFile(project)), { recursive: true });
+    await writeFile(eventsFile(project), JSON.stringify(all.slice(-MAX_EVENTS)), "utf8");
+  });
+}
+
+const SHOWN_FILES = 12;
+const listed = (files: string[]) => files.slice(0, SHOWN_FILES).join(", ") + (files.length > SHOWN_FILES ? ` and ${files.length - SHOWN_FILES} more` : "");
+
+/** One act of the user's, as a line the agent reads. */
+function eventLine(e: ProjectEvent): string {
+  const n = `${e.files.length} file${e.files.length === 1 ? "" : "s"}`;
+  if (e.kind === "accepted") return `accepted ${n}${e.commit ? ` as commit ${e.commit}` : ""}${e.branch ? ` on ${e.branch}` : ""}${e.message ? ` ("${e.message}")` : ""}: ${listed(e.files)}. They are part of the user's code now.`;
+  if (e.kind === "discarded") return `DISCARDED your changes to ${n}: ${listed(e.files)}. Those changes are gone: the files are as they were in the user's commit. Do not say they are done; redo them only if the user asks.`;
+  return `edited ${n} by hand in the project's tab: ${listed(e.files)}. Read a file again before changing it, so the user's edit is kept.`;
+}
+
+/**
+ * The record as the agent is told it: what happened since its last reply (which it cannot
+ * know), then a few earlier acts for context. Nothing when there is nothing to tell.
+ */
+export function eventsPrompt(events: ProjectEvent[], lastReplyAt: number | null): string[] {
+  const fresh = events.filter((e) => lastReplyAt === null || new Date(e.at).getTime() > lastReplyAt);
+  const earlier = events.filter((e) => !fresh.includes(e)).slice(-3);
+  const out: string[] = [];
+  if (fresh.length) {
+    out.push(`- Since your last reply the user did this in the project's tab, outside this conversation (${fresh.length === 1 ? "it" : "in this order; they"} happened AFTER what the conversation shows):`);
+    for (const e of fresh.slice(-8)) out.push(`  - The user ${eventLine(e)}`);
+  }
+  if (earlier.length) {
+    out.push(`- Earlier, before your last reply:`);
+    for (const e of earlier) out.push(`  - The user ${eventLine(e)}`);
+  }
+  return out;
+}
+
 // ── Accept and discard ────────────────────────────────────────────────────────
 
 export interface AcceptResult {
@@ -771,6 +849,8 @@ const MEMORY_END = 6_000;
  */
 export async function projectPrompt(space: ProjectSpace, opts: {
   acceptedHash: string | null; pending?: number;
+  /** What the user did with the changes (accepted, discarded, edited by hand), and when the agent last replied here. */
+  events?: ProjectEvent[]; lastReplyAt?: number | null;
   /** Marks the notes as outside content (see provenance.ts): the file may have come with the
    *  folder, or been written by an agent after it read someone else's code. */
   asOutside?: (text: string) => string;
@@ -793,6 +873,7 @@ export async function projectPrompt(space: ProjectSpace, opts: {
       "- You cannot run commands, builds or tests here. Say what the user should run to check your change; never say something was run or passes.",
     );
     if (opts.pending) lines.push(`- ${opts.pending} file${opts.pending === 1 ? " is" : "s are"} already changed and waiting for the user to accept or discard (project_read with action "changes" lists them).`);
+    if (opts.events?.length) lines.push(...eventsPrompt(opts.events, opts.lastReplyAt ?? null));
   }
   const ins = await readInstructions(project);
   if (ins && opts.acceptedHash && ins.hash === opts.acceptedHash) {
