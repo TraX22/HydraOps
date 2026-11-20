@@ -91,7 +91,7 @@ export { pushPreview, checkGitFolder, gitVersions, gitFolderStates, type PushPre
 export {
   openProject, spaceProblem, pendingChanges, fileDiff, acceptChanges, discardChanges, repoState, removeWorkingCopies, initRepository,
   listFiles, discoverRepos, readInstructions, writeInstructions, readMemory, projectPrompt, INSTRUCTIONS_FILE, MEMORY_FILE,
-  readProjectFile, writeProjectFile,
+  readProjectFile, writeProjectFile, getChangeSummary, clearChangeSummary,
   type ProjectSpace, type ProjectRepo, type ChangedFile, type AcceptResult, type ProjectFile,
 } from './native/project/index.js';
 export { isSensitivePath } from './guard.js';

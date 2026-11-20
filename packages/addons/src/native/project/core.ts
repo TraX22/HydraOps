@@ -463,6 +463,32 @@ export async function writeProjectFile(space: ProjectSpace, p: unknown, content:
   return { hash: textHash(text) };
 }
 
+// ── What the pending change is, in the agent's words ──────────────────────────
+// The agent says in one line what its change does (with its last project_write); the tab
+// offers that line as the commit's message when the user accepts. It is kept next to the
+// working copies, not in them, and goes when the change is accepted or discarded.
+
+const MAX_SUMMARY = 200;
+const summaryFile = (project: ProjectRef) => path.join(projectsDir, project.id, "summary.txt");
+
+/** One line, no control characters, cut at a length a commit's first line can carry. */
+const oneLine = (text: unknown) => String(text ?? "").replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, MAX_SUMMARY);
+
+export async function setChangeSummary(project: ProjectRef, text: unknown): Promise<void> {
+  const line = oneLine(text);
+  if (!line) return;
+  await mkdir(path.dirname(summaryFile(project)), { recursive: true });
+  await writeFile(summaryFile(project), line, "utf8");
+}
+
+export async function getChangeSummary(project: ProjectRef): Promise<string> {
+  try { return oneLine(await readFile(summaryFile(project), "utf8")); } catch { return ""; }
+}
+
+export async function clearChangeSummary(project: ProjectRef): Promise<void> {
+  await unlink(summaryFile(project)).catch(() => {});
+}
+
 // ── Accept and discard ────────────────────────────────────────────────────────
 
 export interface AcceptResult {
@@ -723,6 +749,7 @@ export async function projectPrompt(space: ProjectSpace, opts: {
     lines.push(
       "- You read the code with project_read and change it with project_write. Both work on HydraOps' own copy of each repository, never on the user's folder: nothing you write reaches the user's files until they accept it in the project's tab, where they see your changes as a diff. So make the change itself instead of asking permission for each file, and end by saying briefly what you changed and why.",
       "- The copy holds what is committed on the user's branch. What Git ignores (dependencies, builds, .env files) is not in it, and work the user has not committed is not in it either.",
+      "- With the last project_write of your turn give `summary`: one line that says what the whole pending change does. The user gets it as the commit's message when they accept, so write it as one: what changes, not how you did it, under 72 characters, in English whatever language the conversation is in, unless the user or the project's instructions ask for commit messages in another language.",
       "- You cannot run commands, builds or tests here. Say what the user should run to check your change; never say something was run or passes.",
     );
     if (opts.pending) lines.push(`- ${opts.pending} file${opts.pending === 1 ? " is" : "s are"} already changed and waiting for the user to accept or discard (project_read with action "changes" lists them).`);
