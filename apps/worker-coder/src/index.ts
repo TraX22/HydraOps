@@ -5,7 +5,7 @@ import { mkdir, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { createWriteStream, mkdirSync } from "node:fs";
 
-import { loadEnv, envFile, dataRoot, storageDir, agentsDir, logsDir, usersDir, resultsDir, craftDir, readLocalLlmEnv } from "@hydraops/config";
+import { loadEnv, urlForLog, envFile, dataRoot, storageDir, agentsDir, logsDir, usersDir, resultsDir, craftDir, readLocalLlmEnv } from "@hydraops/config";
 
 loadDotenv({ path: envFile });
 
@@ -89,7 +89,7 @@ const js = await getJs(nc);
 // Stop button / /cancel: aborts the task this worker is running (see createCancelRegistry).
 const cancels = createCancelRegistry(nc, consumerName);
 
-console.log(`[worker-coder] listening for agent.task_assigned on ${env.NATS_URL}`);
+console.log(`[worker-coder] listening for agent.task_assigned on ${urlForLog(env.NATS_URL)}`);
 
 // --- TOOL REGISTRY & MCP SETUP ---
 const globalRegistry = await createRegistry();

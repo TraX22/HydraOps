@@ -1,5 +1,5 @@
 import { config as loadDotenv } from "dotenv";
-import { loadEnv, envFile, logsDir } from "@hydraops/config";
+import { loadEnv, urlForLog, envFile, logsDir } from "@hydraops/config";
 import { createDb, events, outbox, workerStatus } from "@hydraops/db";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType } from "@hydraops/nats";
 import { eq, and, lte, isNull, or } from "drizzle-orm";
@@ -26,7 +26,7 @@ const nc = await connectNats(env.NATS_URL);
 await ensureEventsStream(nc);
 const js = await getJs(nc);
 
-console.log(`[outbox-worker] Running — polling outbox every 500ms on ${env.NATS_URL}`);
+console.log(`[outbox-worker] Running — polling outbox every 500ms on ${urlForLog(env.NATS_URL)}`);
 
 async function sendHeartbeat() {
   try {

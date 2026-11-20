@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { loadEnv, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, craftDir, readLocalLlmEnv } from "@hydraops/config";
+import { loadEnv, urlForLog, envFile, dataRoot, agentsDir, storageDir, logsDir, usersDir, craftDir, readLocalLlmEnv } from "@hydraops/config";
 
 loadDotenv({ path: envFile });
 
@@ -47,7 +47,7 @@ const js = await getJs(nc);
 // Stop button / /cancel: aborts the task this worker is running (see createCancelRegistry).
 const cancels = createCancelRegistry(nc, consumerName);
 
-console.log(`[${consumerName}] listening for agent.task_assigned (workerType=${WORKER_TYPE}) on ${env.NATS_URL}`);
+console.log(`[${consumerName}] listening for agent.task_assigned (workerType=${WORKER_TYPE}) on ${urlForLog(env.NATS_URL)}`);
 
 const globalRegistry = await createRegistry();
 // The MCP servers this worker connects: the ones the agents of its kind were given in
