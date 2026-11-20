@@ -29,16 +29,19 @@ export function loadEnv(input: NodeJS.ProcessEnv = process.env): Env {
 }
 
 /**
- * A URL as it can be written to a log: without the user and password it may carry
- * (nats://user:password@host). Text that is not a URL comes back as "(unreadable address)",
+ * An address as it can be written to a log: only its scheme, host and port. The user and
+ * password it may carry (nats://user:password@host), and its path, query and fragment
+ * (a token can travel in any of them), are left out. A list of servers separated by commas
+ * is handled one by one. Text that is not an address comes back as "(unreadable address)",
  * never as it was.
  */
 export function urlForLog(url: string): string {
-  try {
-    const u = new URL(url);
-    // "user:pass@host" with no scheme parses as a URL with no host: not one to echo.
-    if (!u.host) return "(unreadable address)";
-    if (u.username || u.password) { u.username = ""; u.password = ""; }
-    return u.toString().replace(/\/$/, "");
-  } catch { return "(unreadable address)"; }
+  const one = (text: string): string => {
+    try {
+      const u = new URL(text.trim());
+      // "user:pass@host" with no scheme parses as a URL with no host: not one to echo.
+      return u.host ? `${u.protocol}//${u.host}` : "(unreadable address)";
+    } catch { return "(unreadable address)"; }
+  };
+  return String(url ?? "").split(",").filter((part) => part.trim()).map(one).join(", ") || "(unreadable address)";
 }
