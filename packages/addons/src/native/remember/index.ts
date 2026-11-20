@@ -3,6 +3,7 @@ import { appendFile, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { agentsDir } from "@hydraops/config";
 import { HydraTool, ToolContext } from "../../types.js";
+import { inTurn } from "../../in-turn.js";
 
 // remember — let an agent save a short note to its own permanent memory
 // (<agent>.memory.md). The memory file is re-read into the system prompt on
@@ -29,24 +30,29 @@ async function remember(text: string, ctx?: ToolContext): Promise<string> {
   }
 
   const file = path.join(agentsDir, agentId, `${agentId}.memory.md`);
-  try {
-    const size = await stat(file).then((s) => s.size).catch(() => 0);
-    if (size > MAX_FILE_BYTES) {
-      return "Your memory file is full (over 64 KB). Ask the user to prune old notes in the Agents view before saving new ones.";
+  // One note at a time per file: several saved in the same step would otherwise all read
+  // the file as it was before any of them wrote, and decide the same thing about its last
+  // line and its size.
+  return inTurn(`remember:${file.toLowerCase()}`, async () => {
+    try {
+      const size = await stat(file).then((s) => s.size).catch(() => 0);
+      if (size > MAX_FILE_BYTES) {
+        return "Your memory file is full (over 64 KB). Ask the user to prune old notes in the Agents view before saving new ones.";
+      }
+      // Keep the appended bullet on its own line even if the file has no
+      // trailing newline (hand-edited files often don't).
+      let prefix = "";
+      if (size > 0) {
+        const current = await readFile(file, "utf-8");
+        if (!current.endsWith("\n")) prefix = "\n";
+      }
+      const date = new Date().toISOString().slice(0, 10);
+      await appendFile(file, `${prefix}- [${date}] ${entry}\n`, "utf-8");
+      return "Saved to your permanent memory. It will be part of your context in every future task.";
+    } catch (e: any) {
+      return `Could not save to memory: ${e?.message || e}`;
     }
-    // Keep the appended bullet on its own line even if the file has no
-    // trailing newline (hand-edited files often don't).
-    let prefix = "";
-    if (size > 0) {
-      const current = await readFile(file, "utf-8");
-      if (!current.endsWith("\n")) prefix = "\n";
-    }
-    const date = new Date().toISOString().slice(0, 10);
-    await appendFile(file, `${prefix}- [${date}] ${entry}\n`, "utf-8");
-    return "Saved to your permanent memory. It will be part of your context in every future task.";
-  } catch (e: any) {
-    return `Could not save to memory: ${e?.message || e}`;
-  }
+  });
 }
 
 export const rememberTool: HydraTool = {
