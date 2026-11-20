@@ -25,6 +25,9 @@ const SENSITIVE_PATH_PATTERNS: { re: RegExp; label: string }[] = [
   { re: /[\\/](appdata[\\/]roaming[\\/])?hydraops[\\/]keys/i, label: "HydraOps key store" },
   { re: /[\\/]hydraops[\\/](master\.key|master\.lock|chatgpt\.json|x\.json)/i, label: "HydraOps key store" },
   { re: /(^|[\\/"'\s])\.env(\.\w+)?($|["'\s\\/])/i, label: ".env file" },
+  // Cloudflare Workers' local secrets (wrangler): .dev.vars and its per-environment variants
+  // (.dev.vars.staging). The example file that ships in a repository holds no secret.
+  { re: /(^|[\\/"'\s])\.dev\.vars(?!\.example($|["'\s\\/]))(\.[\w-]+)?($|["'\s\\/])/i, label: ".dev.vars file" },
   { re: /[\\/]\.ssh([\\/]|$)/i, label: "SSH directory" },
   { re: /id_(rsa|ed25519|ecdsa|dsa)/i, label: "SSH private key" },
   { re: /[\\/]\.aws([\\/]|$)/i, label: "AWS credentials" },

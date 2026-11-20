@@ -489,6 +489,10 @@
       "lead": "Notes the agent keeps about this project: decisions, how things are built, what was tried. The file is ProjectMemory.md, at the top of the project's folder; you can edit it with any editor.",
       "empty": "No notes yet."
     },
+    "tracked": {
+      "note": "{{file}} is already in this repository's history, so Git keeps following it and every change shows up as a modified file. HydraOps keeps new projects' files out of your commits, but it does not change what you already committed. To stop following it (the file stays in your folder), run this in the project's folder:",
+      "then": "and commit."
+    },
     "problem": {
       "folder_missing": "The project's folder is no longer there.",
       "read_only": "HydraOps cannot write in this folder. If it runs as a service (systemd), the service may only write in its own folders: add this one to the unit as a ReadWritePaths= line and restart the service. The Server mode page of the manual has the steps. Otherwise check the folder's permissions.",

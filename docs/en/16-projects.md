@@ -80,6 +80,13 @@ The agent follows **only the text you accepted**:
 - If the file came with the folder (a cloned repository, a colleague's copy) or changed outside HydraOps, the tab shows **to review** and the agent is not given it until you accept.
 - If you ask the agent to write or update the instructions, its proposal waits for your approval in the chat, every time, with the full text in the card.
 
+## The two files and your commits
+
+`HydraOps.md` and `ProjectMemory.md` live in your folder but are **not part of your commits**. When the project's folder is a repository, HydraOps names them in the repository's own exclude list (`.git/info/exclude`), which stays on your computer: your `.gitignore` is not touched, and a `git add .` leaves them out.
+
+- **To version them** (to share the instructions with a team, for example), open `.git/info/exclude`, delete the two lines with their names and leave the HydraOps line above them: that line tells HydraOps not to add them back.
+- **If one is already in your repository's history**, ignoring it does not stop Git following it. The tab says so and gives the command: `git rm --cached <file>`, then a commit. The file stays in your folder.
+
 ## Notes and memory
 
 `ProjectMemory.md`, also at the top of the folder, is where the agent keeps notes about the project: decisions and their reasons, how something is built, what was tried. It adds them on its own, and you can ask: *"note that the API runs on port 4000"*. Every message of the project carries these notes. You can read them from the left column and edit the file with any editor.

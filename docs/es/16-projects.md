@@ -80,6 +80,13 @@ El agente sigue **solo el texto que aceptaste**:
 - Si el archivo vino con la carpeta (un repositorio clonado, la copia de un colega) o cambió por fuera de HydraOps, la pestaña muestra **a revisar** y el agente no lo recibe hasta que lo aceptes.
 - Si le pides al agente que escriba o actualice las instrucciones, su propuesta espera tu aprobación en el chat, todas las veces, con el texto completo en la tarjeta.
 
+## Los dos archivos y tus commits
+
+`HydraOps.md` y `ProjectMemory.md` viven en tu carpeta, pero **no forman parte de tus commits**. Cuando la carpeta del proyecto es un repositorio, HydraOps los anota en la lista de exclusión propia del repositorio (`.git/info/exclude`), que queda en tu equipo: tu `.gitignore` no se toca, y un `git add .` los deja fuera.
+
+- **Para versionarlos** (por ejemplo, para compartir las instrucciones con un equipo), abre `.git/info/exclude`, borra las dos líneas con sus nombres y deja la línea de HydraOps que está encima: esa línea le dice a HydraOps que no los vuelva a agregar.
+- **Si alguno ya está en el historial de tu repositorio**, ignorarlo no hace que Git deje de seguirlo. La pestaña lo avisa y da el comando: `git rm --cached <archivo>`, y luego un commit. El archivo queda en tu carpeta.
+
 ## Notas y memoria
 
 `ProjectMemory.md`, también en la raíz de la carpeta, es donde el agente guarda notas sobre el proyecto: decisiones y sus razones, cómo está hecho algo, qué se probó. Las agrega por su cuenta, y puedes pedírselo: *"anota que la API corre en el puerto 4000"*. Cada mensaje del proyecto lleva estas notas. Puedes leerlas desde la columna izquierda y editar el archivo con cualquier editor.

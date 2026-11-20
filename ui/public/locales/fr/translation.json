@@ -489,6 +489,10 @@
       "lead": "Les notes que l'agent garde sur ce projet : décisions, comment les choses sont faites, ce qui a été essayé. Le fichier est ProjectMemory.md, à la racine du dossier du projet ; vous pouvez le modifier avec n'importe quel éditeur.",
       "empty": "Pas encore de notes."
     },
+    "tracked": {
+      "note": "{{file}} est déjà dans l'historique de ce dépôt : Git continue donc de le suivre et chaque changement apparaît comme un fichier modifié. HydraOps garde les fichiers des nouveaux projets hors de vos commits, mais ne change pas ce que vous avez déjà enregistré. Pour ne plus le suivre (le fichier reste dans votre dossier), lancez ceci dans le dossier du projet :",
+      "then": "puis faites un commit."
+    },
     "problem": {
       "folder_missing": "Le dossier du projet n'est plus là.",
       "read_only": "HydraOps ne peut pas écrire dans ce dossier. S'il tourne comme service (systemd), le service ne peut écrire que dans ses propres dossiers : ajoutez celui-ci à l'unité avec une ligne ReadWritePaths= et redémarrez le service. La page Mode serveur du manuel donne les étapes. Sinon, vérifiez les permissions du dossier.",

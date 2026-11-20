@@ -134,6 +134,33 @@ async function commonDir(dir: string): Promise<string | null> {
   return real(path.resolve(dir, r.out.trim()));
 }
 
+const EXCLUDE_MARK = "# HydraOps: the project's instructions and notes stay out of commits.";
+
+/**
+ * The project's two files live in the user's folder, and when that folder is the repository
+ * they would show as new files and end up in a commit with the next `git add .`. They are
+ * named in the repository's own exclude list (.git/info/exclude): local to this computer,
+ * never committed, and the user's .gitignore is not touched. Done once: a user who takes
+ * the lines out (to version the files) is not overruled, since the mark stays.
+ */
+export async function excludeOwnFiles(source: string): Promise<void> {
+  const where = await pgit(source, ["rev-parse", "--git-path", "info/exclude"], { user: true });
+  if (where.code !== 0 || !where.out.trim()) return;
+  const file = path.resolve(source, where.out.trim());
+  const text = await readFile(file, "utf8").catch(() => "");
+  if (text.includes(EXCLUDE_MARK)) return;
+  const have = new Set(text.split(/\r?\n/).map((l) => l.trim()));
+  const lines = [`/${INSTRUCTIONS_FILE}`, `/${MEMORY_FILE}`].filter((l) => !have.has(l));
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, `${text}${text && !text.endsWith("\n") ? "\n" : ""}${EXCLUDE_MARK}\n# To version them, delete the two lines below and keep the line above.\n${lines.join("\n")}${lines.length ? "\n" : ""}`, "utf8");
+}
+
+/** Which of the project's two files the repository already follows: being on the exclude list does not stop that. */
+export async function trackedOwnFiles(source: string): Promise<string[]> {
+  const r = await pgit(source, ["--literal-pathspecs", "ls-files", "--", INSTRUCTIONS_FILE, MEMORY_FILE], { user: true });
+  return r.code === 0 ? r.out.split(/\r?\n/).map((l) => l.trim()).filter(Boolean) : [];
+}
+
 const checked = new Map<string, number>();
 const CHECK_TTL = 20_000;
 
@@ -150,7 +177,11 @@ async function ensureWorkingCopy(project: ProjectRef, found: { key: string; pref
 
   if (await exists(path.join(dir, ".git"))) {
     const [mine, theirs] = [await commonDir(dir), await commonDir(found.source)];
-    if (mine && theirs && norm(mine) === norm(theirs)) { checked.set(norm(dir), Date.now()); return repo; }
+    if (mine && theirs && norm(mine) === norm(theirs)) {
+      if (!found.prefix) await excludeOwnFiles(found.source).catch(() => {});
+      checked.set(norm(dir), Date.now());
+      return repo;
+    }
   }
   // Not there, or no longer a working tree of that repository: made again from the user's commit.
   await rm(dir, { recursive: true, force: true });
@@ -158,6 +189,8 @@ async function ensureWorkingCopy(project: ProjectRef, found: { key: string; pref
   await pgit(found.source, ["worktree", "prune"], { user: true });
   const add = await pgit(found.source, ["worktree", "add", "--quiet", "-B", repo.branch, dir, head.out.trim()], { timeoutMs: LONG });
   if (add.code !== 0) return { code: "copy_failed", error: `The working copy of ${label.toLowerCase()} could not be made. ${gitFail(add)}` };
+  // The project is this repository: its two own files are kept out of the user's commits.
+  if (!found.prefix) await excludeOwnFiles(found.source).catch(() => {});
   checked.set(norm(dir), Date.now());
   return repo;
 }
@@ -598,10 +631,10 @@ export async function discardChanges(space: ProjectSpace, paths?: unknown[]): Pr
 }
 
 /** The user's side of a repository, for the project's tab. */
-export async function repoState(repo: ProjectRepo): Promise<{ prefix: string; source: string; branch: string | null; behind: boolean }> {
+export async function repoState(repo: ProjectRepo): Promise<{ prefix: string; source: string; branch: string | null; behind: boolean; tracked: string[] }> {
   const sym = await pgit(repo.source, ["symbolic-ref", "--short", "-q", "HEAD"], { user: true });
   const [user, mine] = [await headOf(repo.source, true), await headOf(repo.dir)];
-  return { prefix: repo.prefix, source: repo.source, branch: sym.code === 0 ? sym.out.trim() : null, behind: !!user && user !== mine };
+  return { prefix: repo.prefix, source: repo.source, branch: sym.code === 0 ? sym.out.trim() : null, behind: !!user && user !== mine, tracked: repo.prefix ? [] : await trackedOwnFiles(repo.source) };
 }
 
 /** A deleted project leaves nothing behind: its working copies and its branch go. The user's files are not touched. */
@@ -635,6 +668,8 @@ export async function initRepository(folder: string, commitAll: boolean): Promis
     const init = await pgit(folder, ["init", "--quiet", "--initial-branch=main"], { user: true });
     if (init.code !== 0) return { error: gitFail(init) };
   }
+  // Before the first commit takes every file: the project's own two stay out of it.
+  await excludeOwnFiles(folder).catch(() => {});
   if (commitAll) {
     const add = await pgit(folder, ["add", "-A"], { user: true, timeoutMs: LONG });
     if (add.code !== 0) return { error: gitFail(add) };

@@ -462,7 +462,8 @@ export interface ProjectChange {
 
 export interface ProjectDetail {
   project: Project;
-  repos: { prefix: string; source: string; branch: string | null; behind: boolean }[];
+  /** `tracked`: the project's own files (HydraOps.md, ProjectMemory.md) this repository already follows. */
+  repos: { prefix: string; source: string; branch: string | null; behind: boolean; tracked?: string[] }[];
   /** Repositories that cannot be worked on now, in words. */
   problems: { prefix: string; error: string; code: 'folder_missing' | 'read_only' | 'no_repository' | 'no_commits' | 'no_git' | 'copy_failed' }[];
   changes: ProjectChange[];
