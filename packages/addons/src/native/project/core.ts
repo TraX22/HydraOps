@@ -3,6 +3,7 @@ import { constants } from "node:fs";
 import { access, appendFile, lstat, mkdir, readFile, readdir, realpath, rm, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { projectsDir } from "@hydraops/config";
+import { inTurn } from "../../in-turn.js";
 import { runGit, gitFail, isInside, NO_GIT, type GitRun } from "../git/core.js";
 import type { ProjectRef } from "../../types.js";
 
@@ -823,17 +824,6 @@ export async function appendMemory(project: ProjectRef, note: unknown, by: strin
     await appendFile(at.file, `${prefix}- [${new Date().toISOString().slice(0, 10)}]${who} ${entry}\n`, "utf8");
     return `Saved to ${MEMORY_FILE}. It is part of this project's context from the next message on.`;
   });
-}
-
-const turns = new Map<string, Promise<unknown>>();
-/** Runs `work` once everything queued earlier under the same key has finished, whether it succeeded or not. */
-function inTurn<T>(key: string, work: () => Promise<T>): Promise<T> {
-  const mine = (turns.get(key) ?? Promise.resolve()).then(work, work);
-  const settled = mine.catch(() => undefined);
-  turns.set(key, settled);
-  // The last one out leaves nothing behind.
-  void settled.then(() => { if (turns.get(key) === settled) turns.delete(key); });
-  return mine;
 }
 
 // ── The project in the agent's prompt ─────────────────────────────────────────
