@@ -6,7 +6,7 @@ import { config as loadDotenv } from "dotenv";
 import { randomUUID } from "node:crypto";
 import { readdir } from "node:fs/promises";
 
-import { loadEnv, envFile, agentsDir, logsDir, readLocalLlmEnv } from "@hydraops/config";
+import { loadEnv, urlForLog, envFile, agentsDir, logsDir, readLocalLlmEnv } from "@hydraops/config";
 import { routeByContent } from "./router.js";
 
 loadDotenv({ path: envFile });
@@ -46,7 +46,7 @@ const nc = await connectNats(env.NATS_URL);
 await ensureEventsStream(nc);
 const js = await getJs(nc);
 
-console.log(`[orchestrator] listening for task.created on ${env.NATS_URL}`);
+console.log(`[orchestrator] listening for task.created on ${urlForLog(env.NATS_URL)}`);
 
 // --- HEARTBEAT ---
 async function sendHeartbeat() {
