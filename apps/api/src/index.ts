@@ -2503,6 +2503,8 @@ api.get("/tasks", async (req, res) => {
           content: "",
           agentId,
           agentName,
+          // The same picture the finished reply will have: the bubble does not change face.
+          avatarUrl: hasAvatar ? `/avatars/${agentId}/avatar.png` : null,
           isTyping: true,
           timestamp: created,
           taskId: row.id,
