@@ -489,6 +489,10 @@
       "lead": "As notas que o agente guarda sobre este projeto: decisões, como as coisas são feitas, o que foi tentado. O arquivo é ProjectMemory.md, na raiz da pasta do projeto; você pode editá-lo com qualquer editor.",
       "empty": "Ainda não há notas."
     },
+    "tracked": {
+      "note": "{{file}} já está no histórico deste repositório, então o Git continua a segui-lo e cada alteração aparece como arquivo modificado. O HydraOps mantém os arquivos dos novos projetos fora dos seus commits, mas não muda o que você já salvou. Para parar de segui-lo (o arquivo fica na sua pasta), execute isto na pasta do projeto:",
+      "then": "e faça um commit."
+    },
     "problem": {
       "folder_missing": "A pasta do projeto não está mais lá.",
       "read_only": "O HydraOps não consegue escrever nesta pasta. Se ele roda como serviço (systemd), o serviço só pode escrever nas próprias pastas: adicione esta à unidade com uma linha ReadWritePaths= e reinicie o serviço. A página Modo servidor do manual tem os passos. Caso contrário, verifique as permissões da pasta.",

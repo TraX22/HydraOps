@@ -480,6 +480,11 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Whether one of the project's own files is already in the repository's history (ignoring it does not stop Git following it). */
+  isTracked(file: string): boolean {
+    return (this.detail()?.repos ?? []).some(r => (r.tracked ?? []).includes(file));
+  }
+
   problemKey(code: string): string {
     return `projects.problem.${code}`;
   }

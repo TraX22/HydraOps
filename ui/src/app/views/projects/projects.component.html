@@ -184,6 +184,11 @@
           </div>
           <div class="panel-body form-panel grow">
             <p class="panel-note">{{ 'projects.instructions.lead' | translate }}</p>
+            @if (isTracked('HydraOps.md')) {
+              <p class="panel-note warn">{{ 'projects.tracked.note' | translate:{ file: 'HydraOps.md' } }}
+                <code class="path">git rm --cached HydraOps.md</code>
+                {{ 'projects.tracked.then' | translate }}</p>
+            }
             @if (p.instructions === 'pending') { <p class="panel-note warn">{{ 'projects.instructions.pendingNote' | translate }}</p> }
             <textarea id="project-instructions" class="file-text" [ngModel]="fileText()" (ngModelChange)="fileText.set($event)" spellcheck="false"
                       [placeholder]="'projects.instructions.placeholder' | translate"></textarea>
@@ -200,6 +205,11 @@
           </div>
           <div class="panel-body form-panel grow">
             <p class="panel-note">{{ 'projects.memory.lead' | translate }}</p>
+            @if (isTracked('ProjectMemory.md')) {
+              <p class="panel-note warn">{{ 'projects.tracked.note' | translate:{ file: 'ProjectMemory.md' } }}
+                <code class="path">git rm --cached ProjectMemory.md</code>
+                {{ 'projects.tracked.then' | translate }}</p>
+            }
             @if (fileText()) { <pre class="file-view">{{ fileText() }}</pre> }
             @else { <p class="empty">{{ 'projects.memory.empty' | translate }}</p> }
           </div>

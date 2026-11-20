@@ -489,6 +489,10 @@
       "lead": "Le note che l'agente tiene su questo progetto: decisioni, come sono fatte le cose, cosa è stato provato. Il file è ProjectMemory.md, nella radice della cartella del progetto; puoi modificarlo con qualsiasi editor.",
       "empty": "Ancora nessuna nota."
     },
+    "tracked": {
+      "note": "{{file}} è già nella cronologia di questo repository, quindi Git continua a seguirlo e ogni modifica compare come file modificato. HydraOps tiene i file dei nuovi progetti fuori dai tuoi commit, ma non cambia ciò che hai già salvato. Per smettere di seguirlo (il file resta nella tua cartella), esegui questo nella cartella del progetto:",
+      "then": "e fai un commit."
+    },
     "problem": {
       "folder_missing": "La cartella del progetto non c'è più.",
       "read_only": "HydraOps non può scrivere in questa cartella. Se gira come servizio (systemd), il servizio può scrivere solo nelle proprie cartelle: aggiungi questa all'unità con una riga ReadWritePaths= e riavvia il servizio. La pagina Modalità server del manuale spiega i passaggi. Altrimenti controlla i permessi della cartella.",
