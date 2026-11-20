@@ -5355,8 +5355,9 @@ api.post("/projects/:id/accept", async (req, res) => {
     const space = await openProject(projectRefOf(p));
     const results = await acceptChanges(space, message, typeof req.body?.repo === "string" ? req.body.repo : undefined);
     const left = space.repos.length ? await pendingChanges(space) : [];
-    // Nothing pending any more: the agent's line was for the change that is now a commit.
-    if (!left.length) await clearChangeSummary(projectRefOf(p));
+    // The agent's line was for the whole pending change. Once a commit was made with it (in
+    // any repository), or nothing is pending, it no longer describes what is left.
+    if (!left.length || results.some((r) => r.ok && r.commit)) await clearChangeSummary(projectRefOf(p));
     res.json({ results, changes: left });
   } catch (err: any) {
     console.error("[api] POST /projects/:id/accept failed", err);
@@ -5373,7 +5374,8 @@ api.post("/projects/:id/discard", async (req, res) => {
     const r = await discardChanges(space, Array.isArray(req.body?.paths) ? req.body.paths : undefined);
     if ("error" in r) return res.status(400).json({ error: "invalid_path", detail: r.error });
     const left = space.repos.length ? await pendingChanges(space) : [];
-    if (!left.length) await clearChangeSummary(projectRefOf(p));
+    // Part of the change was thrown away: the line that described all of it goes too.
+    if (!left.length || r.discarded > 0) await clearChangeSummary(projectRefOf(p));
     res.json({ ...r, changes: left });
   } catch (err: any) {
     console.error("[api] POST /projects/:id/discard failed", err);

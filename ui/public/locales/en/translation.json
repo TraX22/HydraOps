@@ -512,6 +512,7 @@
       "discardConfirm": "Discard the {{n}} changed files? The agent's work on them is lost.",
       "discardYes": "Yes, discard",
       "messagePlaceholder": "What changed (the commit's message)",
+      "agentMessage": "Message proposed by {{agent}}. Read it against the changes above; you can edit it.",
       "acceptHint": "Accepting saves the changes in your folder as one commit on your branch. Nothing is sent to GitHub.",
       "busy": "The agent is working: wait for it to finish.",
       "accepted": "Accepted: commit {{commit}} on {{branch}}",

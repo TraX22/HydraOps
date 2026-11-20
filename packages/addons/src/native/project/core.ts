@@ -471,8 +471,13 @@ export async function writeProjectFile(space: ProjectSpace, p: unknown, content:
 const MAX_SUMMARY = 200;
 const summaryFile = (project: ProjectRef) => path.join(projectsDir, project.id, "summary.txt");
 
-/** One line, no control characters, cut at a length a commit's first line can carry. */
-const oneLine = (text: unknown) => String(text ?? "").replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, MAX_SUMMARY);
+/**
+ * One line of visible text, cut at a length a commit's first line can carry. It is written
+ * by a model, shown to the user and offered as a commit's title, so control characters and
+ * the invisible ones (direction marks, zero-width characters) are taken out: what the user
+ * reads is what gets committed.
+ */
+const oneLine = (text: unknown) => String(text ?? "").replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]+/gu, " ").replace(/\s+/g, " ").trim().slice(0, MAX_SUMMARY);
 
 export async function setChangeSummary(project: ProjectRef, text: unknown): Promise<void> {
   const line = oneLine(text);
