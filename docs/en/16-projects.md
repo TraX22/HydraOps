@@ -71,7 +71,7 @@ Click a file in the tree and it opens in an editor, in a tab next to **Changes**
 
 **Copy path** gives the file's place in your own folder, to open it in your usual editor. In the desktop app, **Show in folder** opens your file manager with the file selected; a file the agent created that you have not accepted yet is not in your folder, so it shows the closest folder that is. Remember that your folder has your version, not the pending changes.
 
-The editor opens text files up to 1 MB. Images, builds and other binary files are not shown, and credentials files (`.env`, keys) are never opened.
+The editor opens text files up to 1 MB. Images, builds and other binary files are not shown, and credentials files (`.env` and its variants, keys) are never opened. The templates a repository ships to show which variables exist (`.env.example`, `.env.sample`, `.env.template`) are ordinary files: you and the agent can read and write them, so keep real values out of them.
 
 ## Instructions: HydraOps.md
 
