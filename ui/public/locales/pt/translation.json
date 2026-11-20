@@ -542,6 +542,8 @@
       },
       "viewDiff": "Ver diferenças",
       "copyPath": "Copiar caminho",
+      "showInFolder": "Mostrar na pasta",
+      "showInFolderFailed": "Pasta não encontrada",
       "copied": "Copiado",
       "readOnly": "O agente está trabalhando: o arquivo fica somente leitura até ele terminar.",
       "stale": "O agente alterou este arquivo enquanto você o editava. O salvamento foi interrompido para não sobrescrever o trabalho dele.",

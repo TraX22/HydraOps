@@ -69,7 +69,7 @@ Haz clic en un archivo del árbol y se abre en un editor, en una pestaña junto 
 - **Si el agente cambió un archivo que estabas editando**, el guardado se detiene y lo avisa, para que el trabajo de ninguno de los dos se pise sin que lo veas. Tú eliges: cargar la versión del agente, o conservar tu texto y copiar lo que necesites.
 - **Cerrar una pestaña con cambios sin guardar pregunta antes.** Ir a otra sección y volver conserva los archivos abiertos y lo que escribiste; recargar la página no.
 
-**Copiar ruta** da la ubicación del archivo en tu propia carpeta, para abrirlo en tu editor de siempre. Recuerda que tu carpeta tiene tu versión, no los cambios pendientes.
+**Copiar ruta** da la ubicación del archivo en tu propia carpeta, para abrirlo en tu editor de siempre. En la app de escritorio, **Mostrar en la carpeta** abre tu explorador de archivos con el archivo seleccionado; un archivo que el agente creó y todavía no aceptaste no está en tu carpeta, así que muestra la carpeta más cercana que sí existe. Recuerda que tu carpeta tiene tu versión, no los cambios pendientes.
 
 El editor abre archivos de texto de hasta 1 MB. Las imágenes, las compilaciones y otros archivos binarios no se muestran, y los archivos de credenciales (`.env`, claves) no se abren nunca.
 

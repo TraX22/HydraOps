@@ -18,6 +18,9 @@ contextBridge.exposeInMainWorld("hydraDesktop", {
     get: () => ipcRenderer.invoke("shell:settings:get"),
     set: (patch) => ipcRenderer.invoke("shell:settings:set", patch),
   },
+  // Shows a file of the user's in the system's file manager (it is selected, never opened).
+  // Resolves to false when there was nothing to show.
+  revealInFolder: (target) => ipcRenderer.invoke("shell:reveal", String(target ?? "")),
   services: {
     list: () => ipcRenderer.invoke("services:list"),
     logs: (id) => ipcRenderer.invoke("services:logs", id),

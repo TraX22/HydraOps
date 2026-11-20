@@ -310,6 +310,7 @@
               <span class="diff-path" [title]="f.path">{{ f.path }}</span>
               @if (f.state) { <span class="badge" [attr.data-change]="f.state">{{ ('projects.editor.state.' + f.state) | translate }}</span> }
               @if (f.state === 'modified') { <button class="link-btn" (click)="showDiffOf(f.path)">{{ 'projects.editor.viewDiff' | translate }}</button> }
+              @if (f.source && canReveal) { <button class="link-btn" (click)="showInFolder(f)" [title]="f.source">{{ (revealFailed() === f.path ? 'projects.editor.showInFolderFailed' : 'projects.editor.showInFolder') | translate }}</button> }
               @if (f.source) { <button class="link-btn" (click)="copyPath(f)" [title]="f.source">{{ (copied() === f.path ? 'projects.editor.copied' : 'projects.editor.copyPath') | translate }}</button> }
               <button class="btn-primary small save-file" [disabled]="!f.dirty || f.saving || detail()?.busy" (click)="saveFile(f.path)">{{ 'common.save' | translate }}</button>
             </div>
