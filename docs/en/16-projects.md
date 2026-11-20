@@ -69,7 +69,7 @@ Click a file in the tree and it opens in an editor, in a tab next to **Changes**
 - **If the agent changed a file you were editing**, saving stops and says so, so that neither side's work is overwritten unseen. You choose: load the agent's version, or keep your text and copy what you need.
 - **Closing a tab with unsaved edits asks first.** Going to another section and coming back keeps the open files and what you typed; reloading the page does not.
 
-**Copy path** gives the file's place in your own folder, to open it in your usual editor. Remember that your folder has your version, not the pending changes.
+**Copy path** gives the file's place in your own folder, to open it in your usual editor. In the desktop app, **Show in folder** opens your file manager with the file selected; a file the agent created that you have not accepted yet is not in your folder, so it shows the closest folder that is. Remember that your folder has your version, not the pending changes.
 
 The editor opens text files up to 1 MB. Images, builds and other binary files are not shown, and credentials files (`.env`, keys) are never opened.
 

@@ -542,6 +542,8 @@
       },
       "viewDiff": "Ver diferencias",
       "copyPath": "Copiar ruta",
+      "showInFolder": "Mostrar en la carpeta",
+      "showInFolderFailed": "No se encontró la carpeta",
       "copied": "Copiada",
       "readOnly": "El agente está trabajando: el archivo es de solo lectura hasta que termine.",
       "stale": "El agente cambió este archivo mientras lo editabas. No se guarda para no pisar su trabajo.",

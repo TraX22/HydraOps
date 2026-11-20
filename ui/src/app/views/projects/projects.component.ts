@@ -630,6 +630,22 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     this.showDiff(path);
   }
 
+  /** The desktop app can show a file in the system's file manager; a browser cannot. */
+  private readonly reveal = (window as unknown as { hydraDesktop?: { revealInFolder?: (target: string) => Promise<boolean> } }).hydraDesktop?.revealInFolder;
+  readonly canReveal = typeof this.reveal === 'function';
+  /** The file whose folder could not be shown, for a moment. */
+  revealFailed = signal<string | null>(null);
+
+  /** Shows the file in the user's own folder (their version, not the pending changes). */
+  showInFolder(f: OpenFile): void {
+    if (!this.reveal || !f.source) return;
+    this.reveal(f.source).then(ok => {
+      if (ok) return;
+      this.revealFailed.set(f.path);
+      setTimeout(() => this.revealFailed.set(null), 2500);
+    }).catch(() => {});
+  }
+
   /** The file's place in the user's own folder, to open it in their editor. */
   copyPath(f: OpenFile): void {
     navigator.clipboard.writeText(f.source).then(() => {

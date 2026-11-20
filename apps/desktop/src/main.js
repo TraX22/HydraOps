@@ -8,6 +8,7 @@ const { app, BrowserWindow, ipcMain, shell, dialog, Menu, Tray, nativeImage } = 
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const { revealTarget } = require("./reveal");
 
 /**
  * Un fallo en el proceso principal cierra la aplicación sin dejar rastro: la
@@ -597,6 +598,16 @@ function registerIpc() {
       if (typeof patch?.[key] === "boolean") clean[key] = patch[key];
     }
     return { ...saveShellSettings(clean), canLaunchAtLogin: app.isPackaged };
+  });
+  // A project's file, shown in the system's file manager. The item is only ever selected
+  // in the folder that holds it (never opened: a folder can be an application bundle), and
+  // only when the request comes from the app's own window, not from a page inside it.
+  ipcMain.handle("shell:reveal", (event, target) => {
+    if (!mainWindow || mainWindow.isDestroyed() || event.senderFrame !== mainWindow.webContents.mainFrame) return false;
+    const found = revealTarget(target);
+    if (!found) return false;
+    shell.showItemInFolder(found.path);
+    return true;
   });
   // The sidebar's update block: the installed app's updater state, a silent
   // re-check, and the restart that installs a downloaded version.

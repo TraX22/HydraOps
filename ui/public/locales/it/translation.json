@@ -542,6 +542,8 @@
       },
       "viewDiff": "Vedi le differenze",
       "copyPath": "Copia percorso",
+      "showInFolder": "Mostra nella cartella",
+      "showInFolderFailed": "Cartella non trovata",
       "copied": "Copiato",
       "readOnly": "L'agente sta lavorando: il file è in sola lettura finché non finisce.",
       "stale": "L'agente ha modificato questo file mentre lo stavi modificando. Il salvataggio è fermo per non sovrascrivere il suo lavoro.",

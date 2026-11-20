@@ -542,6 +542,8 @@
       },
       "viewDiff": "Voir les différences",
       "copyPath": "Copier le chemin",
+      "showInFolder": "Afficher dans le dossier",
+      "showInFolderFailed": "Dossier introuvable",
       "copied": "Copié",
       "readOnly": "L'agent travaille : le fichier est en lecture seule jusqu'à ce qu'il termine.",
       "stale": "L'agent a modifié ce fichier pendant que vous l'éditiez. L'enregistrement est arrêté pour ne pas écraser son travail.",

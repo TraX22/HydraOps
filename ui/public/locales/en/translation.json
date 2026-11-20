@@ -542,6 +542,8 @@
       },
       "viewDiff": "See the diff",
       "copyPath": "Copy path",
+      "showInFolder": "Show in folder",
+      "showInFolderFailed": "Folder not found",
       "copied": "Copied",
       "readOnly": "The agent is working: the file is read-only until it finishes.",
       "stale": "The agent changed this file while you were editing it. Saving is stopped so its work is not overwritten.",
