@@ -14,7 +14,7 @@ import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, resolveLLMConfig, resolveMaxSteps, buildUserMessage } from "@hydraops/llm";
-import { createResultFiles, taskFilesContext, conversationFiles, conversationFilesPrompt, type ConversationFile, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, carriedSkillsPrompt, noteSkillsOpened, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan, setupToolsOnDemand, harvestMediaFiles, connectionOrigins, openProject, projectPrompt, pendingChanges, agentFilesPrompt } from "@hydraops/addons";
+import { createResultFiles, taskFilesContext, conversationFiles, conversationFilesPrompt, type ConversationFile, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, carriedSkillsPrompt, noteSkillsOpened, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan, setupToolsOnDemand, harvestMediaFiles, connectionOrigins, openProject, projectPrompt, pendingChanges, agentFilesPrompt, readProjectEvents } from "@hydraops/addons";
 
 const env = loadEnv({ ...process.env, SERVICE_NAME: process.env.SERVICE_NAME ?? "worker-coder" });
 const consumerName = env.SERVICE_NAME;
@@ -672,7 +672,11 @@ ${EXTERNAL_CONTENT_RULE}
         const pending = space.repos.length ? (await pendingChanges(space)).length : 0;
         // The notes are not the user's word (unlike the instructions they accepted): they
         // enter as outside content, so what the task does after reading them is held as usual.
-        projectSection = await projectPrompt(space, { acceptedHash: project.instructionsHash, pending, asOutside: (text) => taskSecurity.external("project_memory", "ProjectMemory.md", text) });
+        // What the user accepted, discarded or edited in the tab since the agent last replied here.
+        // Looked up on its own: the history given to the model depends on the agent's setting.
+        const [lastTurn] = await db.select({ at: tasks.updatedAt }).from(tasks).where(and(eq(tasks.channel, channel), eq(tasks.status, "completed"), ne(tasks.id, taskId))).orderBy(desc(tasks.updatedAt)).limit(1);
+        const lastReplyAt = lastTurn?.at ? new Date(lastTurn.at).getTime() : null;
+        projectSection = await projectPrompt(space, { acceptedHash: project.instructionsHash, pending, events: await readProjectEvents(projectRef).catch(() => []), lastReplyAt, asOutside: (text) => taskSecurity.external("project_memory", "ProjectMemory.md", text) });
       } catch (e: any) {
         console.warn(`[worker-coder] project ${project.id} could not be opened: ${e?.message ?? e}`);
         projectSection = `\n\n[PROJECT — this chat belongs to the project "${project.name}"] Its files could not be opened right now (${String(e?.message ?? e).slice(0, 200)}). Tell the user.`;

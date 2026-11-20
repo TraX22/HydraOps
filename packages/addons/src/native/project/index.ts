@@ -364,6 +364,6 @@ export const projectTools: HydraTool[] = [projectReadTool, projectWriteTool, pro
 export {
   openProject, spaceProblem, pendingChanges, fileDiff, acceptChanges, discardChanges, repoState, removeWorkingCopies, initRepository,
   listFiles, discoverRepos, readInstructions, writeInstructions, readMemory, projectPrompt, INSTRUCTIONS_FILE, MEMORY_FILE,
-  readProjectFile, writeProjectFile, getChangeSummary, clearChangeSummary,
-  type ProjectSpace, type ProjectRepo, type ChangedFile, type AcceptResult, type ProjectFile,
+  readProjectFile, writeProjectFile, getChangeSummary, clearChangeSummary, logProjectEvent, readProjectEvents, eventsPrompt,
+  type ProjectSpace, type ProjectRepo, type ChangedFile, type AcceptResult, type ProjectFile, type ProjectEvent,
 } from "./core.js";
