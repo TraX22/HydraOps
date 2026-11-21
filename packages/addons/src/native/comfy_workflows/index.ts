@@ -757,6 +757,17 @@ async function setValues(base: string, name: string, values: Record<string, unkn
 /** A name for a workflow file: what was given, with ".json" when it lacks it. */
 const withJson = (name: string) => { const n = name.trim().replace(/\\/g, "/"); return /\.json$/i.test(n) ? n : n ? `${n}.json` : n; };
 
+/**
+ * A name to store a workflow under in the user's ComfyUI. Stricter than a name read from
+ * its list: every part of it, once the spaces and dots a file system drops from the end of
+ * a name are taken off, still has to be a name (".. " and "..." are ".." on Windows).
+ */
+export const isSaveName = (v: unknown): v is string =>
+  isSavedWorkflowName(v) && v.split("/").every((part) => {
+    const kept = part.replace(/[\s.]+$/, "");
+    return kept.length > 0 && kept === part && !/^\s/.test(part);
+  });
+
 /** The definitions of the node types a workflow uses, as this ComfyUI describes them; null when ComfyUI does not answer. */
 async function nodeDefinitions(base: string, graph: unknown): Promise<Map<string, any> | null> {
   const types = new Set<string>();
@@ -781,7 +792,7 @@ async function nodeDefinitions(base: string, graph: unknown): Promise<Map<string
  */
 async function create(base: string, rawName: string, graphArg: unknown, ctx: PrepareContext): Promise<string> {
   const name = withJson(rawName);
-  if (!isSavedWorkflowName(name) || name.includes("/")) return 'comfy_workflows: "name" is the new workflow\'s file name, e.g. "cyborg_portrait.json" (no folders, none of \\ / : * ? " < > |).';
+  if (!isSaveName(name) || name.includes("/")) return 'comfy_workflows: "name" is the new workflow\'s file name, e.g. "cyborg_portrait.json" (no folders, none of \\ / : * ? " < > |).';
   if (!ctx.filesDir) return "comfy_workflows: this task has no folder to write the workflow in.";
   let graph = graphArg;
   if (typeof graph === "string") { try { graph = JSON.parse(graph); } catch { return 'comfy_workflows: "graph" is not valid JSON.'; } }
@@ -830,7 +841,7 @@ async function save(base: string, rawName: string, rawSaveAs: string, ctx: Prepa
   if (!isSavedWorkflowName(name)) return 'comfy_workflows: "name" is the workflow\'s name in this task, as given to "create" or "prepare".';
   if (!ctx.filesDir) return "comfy_workflows: this task has no folder with a workflow.";
   const saveAs = rawSaveAs.trim() ? withJson(rawSaveAs) : path.basename(name);
-  if (!isSavedWorkflowName(saveAs)) return 'comfy_workflows: "save_as" is the name to save it under, e.g. "cyborg_portrait.json" or "characters/cyborg.json" (none of \\ : * ? " < > |).';
+  if (!isSaveName(saveAs)) return 'comfy_workflows: "save_as" is the name to save it under, e.g. "cyborg_portrait.json" or "characters/cyborg.json" (none of \\ : * ? " < > |).';
   let graph: any;
   try { graph = JSON.parse(await readFile(path.join(ctx.filesDir, path.basename(name)), "utf-8")); }
   catch { return `comfy_workflows: there is no workflow "${path.basename(name)}" in this task; make it with action "create", or "prepare" a saved one, first.`; }
