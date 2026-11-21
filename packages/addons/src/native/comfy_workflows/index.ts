@@ -6,6 +6,7 @@ import { HydraTool } from "../../types.js";
 import { resolveConversationFile } from "../../conversation-files.js";
 import type { ReportedFile, ResultFileKind } from "../../result-files.js";
 import { keepToolImage, toolImageMarker } from "../../tool-images.js";
+import { apiToUi } from "./create.js";
 
 // comfy_workflows — the workflows the user saved in their own ComfyUI, made ready to run.
 //
@@ -23,6 +24,9 @@ import { keepToolImage, toolImageMarker } from "../../tool-images.js";
 // brought. A job that is still going is not waited for: collect says where it stands and
 // the agent hands the turn back; the job is noted per agent, so a later "did it finish?"
 // or "cancel it" (action "cancel") finds it without the model keeping the id.
+//
+// "create" makes a workflow that did not exist, from a graph the agent writes (see
+// create.ts), and "save" stores a task's copy in the user's ComfyUI under a new name.
 //
 // The address is configuration, never an argument (the model cannot point this tool at
 // another host): the COMFYUI_URL of the ComfyUI connection when it is installed, else the
@@ -748,6 +752,124 @@ async function setValues(base: string, name: string, values: Record<string, unkn
   ].filter(Boolean).join("\n\n");
 }
 
+// ── create and save ────────────────────────────────────────────────────────────
+
+/** A name for a workflow file: what was given, with ".json" when it lacks it. */
+const withJson = (name: string) => { const n = name.trim().replace(/\\/g, "/"); return /\.json$/i.test(n) ? n : n ? `${n}.json` : n; };
+
+/**
+ * A name to store a workflow under in the user's ComfyUI. Stricter than a name read from
+ * its list: every part of it, once the spaces and dots a file system drops from the end of
+ * a name are taken off, still has to be a name (".. " and "..." are ".." on Windows).
+ */
+export const isSaveName = (v: unknown): v is string =>
+  isSavedWorkflowName(v) && v.split("/").every((part) => {
+    const kept = part.replace(/[\s.]+$/, "");
+    return kept.length > 0 && kept === part && !/^\s/.test(part);
+  });
+
+/** The definitions of the node types a workflow uses, as this ComfyUI describes them; null when ComfyUI does not answer. */
+async function nodeDefinitions(base: string, graph: unknown): Promise<Map<string, any> | null> {
+  const types = new Set<string>();
+  const source: any = graph && typeof graph === "object" && (graph as any).prompt && typeof (graph as any).prompt === "object" && !("class_type" in (graph as any).prompt) ? (graph as any).prompt : graph;
+  if (source && typeof source === "object" && !Array.isArray(source)) {
+    for (const n of Object.values<any>(source)) if (n && typeof n.class_type === "string" && n.class_type.trim()) types.add(n.class_type);
+  }
+  const out = new Map<string, any>();
+  for (const type of [...types].slice(0, 200)) {
+    let r: Response;
+    try { r = await request(`${base}/object_info/${encodeURIComponent(type)}`); } catch { return null; }
+    if (r.ok) { try { const info = ((await r.json()) as any)?.[type]; if (info) out.set(type, info); } catch { /* described badly: treated as not installed */ } }
+  }
+  return out;
+}
+
+/**
+ * A new workflow, from the graph the agent wrote in the API format: checked against what
+ * this ComfyUI has, turned into the format the interface opens (see create.ts) and written
+ * into the task's folder, where the connection's tools validate and run it. Nothing reaches
+ * the user's ComfyUI here: that is "save", once the workflow has been tried.
+ */
+async function create(base: string, rawName: string, graphArg: unknown, ctx: PrepareContext): Promise<string> {
+  const name = withJson(rawName);
+  if (!isSaveName(name) || name.includes("/")) return 'comfy_workflows: "name" is the new workflow\'s file name, e.g. "cyborg_portrait.json" (no folders, none of \\ / : * ? " < > |).';
+  if (!ctx.filesDir) return "comfy_workflows: this task has no folder to write the workflow in.";
+  let graph = graphArg;
+  if (typeof graph === "string") { try { graph = JSON.parse(graph); } catch { return 'comfy_workflows: "graph" is not valid JSON.'; } }
+  if (!graph || typeof graph !== "object" || Array.isArray(graph)) return 'comfy_workflows: "graph" is the whole workflow in ComfyUI\'s API format: {"<node id>": {"class_type": "<node type>", "inputs": {"<name>": <value or ["<node id>", <output index>]>}}, …}.';
+  if (Buffer.byteLength(JSON.stringify(graph)) > MAX_BYTES) return "comfy_workflows: the workflow is larger than this tool handles.";
+
+  const defs = await nodeDefinitions(base, graph);
+  if (!defs) return NOT_RUNNING(base);
+  const built = apiToUi(graph, (type) => defs.get(type));
+  if (!built.graph || built.problems.length) {
+    return [
+      `comfy_workflows: the workflow would not run as written (${built.problems.length} thing${built.problems.length === 1 ? "" : "s"} to fix). Nothing was written.`,
+      built.problems.map((p) => `- ${p}`).join("\n"),
+      'Fix them and call "create" again with the whole workflow. For a node\'s exact inputs and outputs, the connection\'s nodes tool; a model the user named that is not installed is theirs to install: say so and stop, never swap in another one.',
+    ].join("\n\n");
+  }
+  normalizeLineSeparators(built.graph);
+  const target = path.join(ctx.filesDir, path.basename(name));
+  await mkdir(ctx.filesDir, { recursive: true });
+  await writeFile(target, JSON.stringify(built.graph));
+
+  const types = built.graph.nodes.map((n: any) => n.type);
+  return [
+    `Created the workflow "${name}" (${types.length} nodes, laid out left to right) in this task's folder:\n${target}`,
+    `Nodes: ${clip(types.join(", "), 600)}.`,
+    built.models.length ? `Models it uses, all installed in this ComfyUI:\n${built.models.map((m) => `- ${m.file} (node ${m.node}, ${m.type})`).join("\n")}` : "",
+    built.notes.length ? `Also:\n${built.notes.map((n) => `- ${n}`).join("\n")}` : "",
+    describeWorkflow(built.graph),
+    [
+      "What is left:",
+      "1. validate_workflow on that file (the ComfyUI connection's tool).",
+      "2. Try it: run_workflow with that file and wait: false, then comfy_workflows with action \"collect\" and the prompt_id. A workflow that was never run is not known to work.",
+      `3. To change a value on it (a prompt, a size, a strength), comfy_workflows with action "set" and this name; to change its nodes or connections, "create" again with the whole workflow.`,
+      `4. When the user wants to keep it, comfy_workflows with action "save" and this name: it stores it in their ComfyUI, in their list of workflows. Until then it exists only in this task.`,
+    ].join("\n"),
+  ].filter(Boolean).join("\n\n");
+}
+
+/**
+ * Stores the task's copy of a workflow in the user's ComfyUI, under their saved workflows,
+ * through the same address the interface saves with. A name that is taken is refused:
+ * nothing the user saved is ever replaced from here.
+ */
+async function save(base: string, rawName: string, rawSaveAs: string, ctx: PrepareContext): Promise<string> {
+  const name = withJson(rawName);
+  if (!isSavedWorkflowName(name)) return 'comfy_workflows: "name" is the workflow\'s name in this task, as given to "create" or "prepare".';
+  if (!ctx.filesDir) return "comfy_workflows: this task has no folder with a workflow.";
+  const saveAs = rawSaveAs.trim() ? withJson(rawSaveAs) : path.basename(name);
+  if (!isSaveName(saveAs)) return 'comfy_workflows: "save_as" is the name to save it under, e.g. "cyborg_portrait.json" or "characters/cyborg.json" (none of \\ : * ? " < > |).';
+  let graph: any;
+  try { graph = JSON.parse(await readFile(path.join(ctx.filesDir, path.basename(name)), "utf-8")); }
+  catch { return `comfy_workflows: there is no workflow "${path.basename(name)}" in this task; make it with action "create", or "prepare" a saved one, first.`; }
+
+  // The user's list holds workflows in the interface's format: one written for the server is turned into it.
+  if (!Array.isArray(graph?.nodes)) {
+    const defs = await nodeDefinitions(base, graph);
+    if (!defs) return NOT_RUNNING(base);
+    const built = apiToUi(graph, (type) => defs.get(type));
+    if (!built.graph || built.problems.length) return `comfy_workflows: "${path.basename(name)}" cannot be saved as it is:\n${built.problems.map((p) => `- ${p}`).join("\n")}`;
+    graph = built.graph;
+  }
+  normalizeLineSeparators(graph);
+  const body = JSON.stringify(graph);
+  if (Buffer.byteLength(body) > MAX_BYTES) return "comfy_workflows: the workflow is larger than this tool handles.";
+
+  let res: Response;
+  try {
+    res = await request(`${base}/api/userdata/${encodeURIComponent(`workflows/${saveAs}`)}?overwrite=false&full_info=true`, { method: "POST", headers: { "content-type": "application/json" }, body });
+  } catch { return NOT_RUNNING(base); }
+  if (res.status === 409) return `comfy_workflows: the user already has a saved workflow named "${saveAs}". Nothing was replaced: a saved workflow is never overwritten from here. Save it under another name with "save_as", or ask the user which name they want.`;
+  if (!res.ok) return `comfy_workflows: ComfyUI answered HTTP ${res.status} when saving "${saveAs}". Nothing was saved.`;
+  return [
+    `Saved in the user's ComfyUI as "${saveAs}": it is in their list of workflows (the Workflows panel of ComfyUI's interface), and action "list" shows it.`,
+    "Tell the user the name it was saved under. The copy in this task is unchanged.",
+  ].join("\n");
+}
+
 // ── collect ────────────────────────────────────────────────────────────────────
 
 const PROMPT_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -1046,20 +1168,29 @@ export const comfyWorkflowsTool: HydraTool = {
     "It waits a little; when the job is still going it says so (how long, and how many jobs are ahead of it) instead of waiting: then tell the user and end, they will ask again later. " +
     "action \"cancel\" stops a job the user no longer wants: a running one is interrupted, a queued one is removed. Both remember the last job this agent launched, so \"did it finish?\" and \"cancel it\" need no prompt_id. " +
     "action \"set\" changes values on the prepared copy by address (\"<node>.<input>\", as the connection's list_workflow_slots prints them): the safe way to set a prompt, a seed, a file name or a crop region, since the connection's set_workflow_slot drops a node's record values. " +
-    "action \"downloads\" tells how far the model downloads this agent started with comfy_download_model got.",
+    "action \"downloads\" tells how far the model downloads this agent started with comfy_download_model got. " +
+    "action \"create\" makes a NEW workflow when the user asks for one that none of the saved ones is (\"make me a workflow that uses this checkpoint with this LoRA\"): give \"name\" and, in \"graph\", the whole workflow in ComfyUI's API format. It checks every node, input, connection and model file against this ComfyUI, tells exactly what to fix (with the installed model names closest to the one asked for), and writes the workflow into this task's folder in the format ComfyUI's interface opens, with the nodes laid out. Then validate it, run it once and collect the result, as with a prepared one. " +
+    "action \"save\" stores this task's copy of a workflow (one made with \"create\", or a prepared one changed with \"set\") in the user's ComfyUI under a name, so it stays in their list of workflows; it never replaces one that is there. Save only what the user asked to keep.",
   schema: z.object({
-    action: z.enum(["list", "prepare", "set", "collect", "cancel", "downloads"]).describe('"downloads" shows the model downloads started with comfy_download_model. Otherwise: ' +'"list" the saved workflows, "prepare" one to run, "set" values on the prepared copy, "collect" a job\'s result (or learn that it is still going), or "cancel" a job'),
-    name: z.string().optional().describe('For "prepare" and "set": the workflow\'s name exactly as "list" prints it, e.g. "image_to_3d.json". For "collect": a short name for the result file (e.g. "stone_tower").'),
+    action: z.enum(["list", "prepare", "set", "collect", "cancel", "downloads", "create", "save"]).describe('"downloads" shows the model downloads started with comfy_download_model. Otherwise: ' +'"list" the saved workflows, "prepare" one to run, "set" values on the prepared copy, "collect" a job\'s result (or learn that it is still going), "cancel" a job, "create" a new workflow from a graph, or "save" this task\'s copy of a workflow in the user\'s ComfyUI'),
+    name: z.string().optional().describe('For "prepare" and "set": the workflow\'s name exactly as "list" prints it, e.g. "image_to_3d.json". For "collect": a short name for the result file (e.g. "stone_tower"). For "create": the new workflow\'s file name, e.g. "cyborg_portrait.json". For "save": the name of the workflow in this task (the one given to "create" or "prepare").'),
+    graph: z.record(z.string(), z.any()).optional().describe('For "create": the whole workflow in ComfyUI\'s API format, one entry per node: {"1": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "model.safetensors"}}, "2": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["1", 1], "text": "a red bicycle"}, "_meta": {"title": "Positive prompt"}}, …}. An input is a value, or ["<node id>", <output index>] to take another node\'s output. Model file names exactly as this ComfyUI lists them. End with a node that saves the result (SaveImage…).'),
+    save_as: z.string().optional().describe('For "save": the name to store it under in the user\'s ComfyUI when it differs from "name", e.g. "characters/cyborg.json".'),
     values: z.record(z.string(), z.any()).optional().describe('For "set": the values to write, by address, e.g. {"6.text": "a red bicycle", "3.seed": 42, "338.crop_region": {"x": 0, "y": 0, "width": 512, "height": 512}}. A value fed by another node cannot be set here.'),
     prompt_id: z.string().optional().describe('For "collect" and "cancel": the prompt_id run_workflow returned. Omit it to use the last job this agent launched.'),
     files: z.array(z.string()).optional().describe('For "prepare": the files the user attached, as the conversation names them (e.g. "storage/uploads/1791-photo.jpg"), in the order of the workflow\'s file inputs. Omit for a workflow that reads no file.'),
   }),
-  execute: async ({ action, name, files, prompt_id, values }, context) => {
+  // Saving writes in the user's ComfyUI: held when the task has read outside content (an
+  // online template, a web page). The rest works on the task's own copies.
+  risk: (args: any) => (args?.action === "save" ? { sensitive: true } : {}),
+  execute: async ({ action, name, files, prompt_id, values, graph, save_as }, context) => {
     const base = comfyBaseUrl(context?.connectionEnv?.("comfyui")?.COMFYUI_URL || process.env.COMFYUI_URL);
     const jobCtx: JobContext = { filesDir: context?.filesDir, uploadsDir: context?.uploadsDir, agentId: context?.agentId, report: context?.addResultFile };
     if (action === "collect") return collect(base, String(prompt_id ?? "").trim(), name, jobCtx);
     if (action === "cancel") return cancel(base, String(prompt_id ?? "").trim(), jobCtx);
     if (action === "downloads") return (await import("../comfy_download/index.js")).downloadsReport({ uploadsDir: context?.uploadsDir, agentId: context?.agentId });
+    if (action === "create") return create(base, String(name ?? ""), graph, { filesDir: context?.filesDir, uploadsDir: context?.uploadsDir });
+    if (action === "save") return save(base, String(name ?? ""), String(save_as ?? ""), { filesDir: context?.filesDir, uploadsDir: context?.uploadsDir });
     if (action === "set") return setValues(base, String(name ?? ""), (values && typeof values === "object" ? values : {}) as Record<string, unknown>, { filesDir: context?.filesDir, uploadsDir: context?.uploadsDir });
     if (action !== "prepare") return listSaved(base);
     const list = Array.isArray(files) ? files.map((f) => String(f)) : [];
