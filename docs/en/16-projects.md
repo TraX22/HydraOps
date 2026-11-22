@@ -10,6 +10,7 @@ Each project has its own tab in the **Projects** section of the sidebar, with th
 - An **agent**. Any agent works; in a project it gets the tools for the project's files on top of its own.
 - **Write access to the project's folder.** On your own computer you have it. If HydraOps runs as a service on a server, the folder has to be listed in the service's unit first: see [Server mode](./12-server-mode.md#starting-on-boot-linux-systemd).
 
+
 You do not need to allow the folder in Tools → Git, and you do not need a GitHub token: a project works on your computer only.
 
 ## Create a project
@@ -34,7 +35,7 @@ This has three consequences worth knowing:
 
 - **The agent sees what is committed.** Work you have not committed is not in its copy, and neither is anything Git ignores: dependencies, builds, `.env` files.
 - **Its changes do not run in your folder.** Your development server keeps serving your version until you accept.
-- **It cannot run commands.** No builds, no tests, no installs. It tells you what to run to check its change.
+- **It can run the project's commands, one at a time and only when you approve each one.** Installs, tests, type checks and builds run on your computer, on the agent's copy: see [Commands](#commands).
 
 Ask in the project's chat as you would in any chat: *"add a `slug` field to the notes and use it in the list"*. The agent does not ask permission for each file, because you decide on the whole change afterwards.
 
@@ -73,6 +74,27 @@ Click a file in the tree and it opens in an editor, in a tab next to **Changes**
 
 The editor opens text files up to 1 MB. Images, builds and other binary files are not shown, and credentials files (`.env` and its variants, keys) are never opened. The templates a repository ships to show which variables exist (`.env.example`, `.env.sample`, `.env.template`) are ordinary files: you and the agent can read and write them, so keep real values out of them.
 
+## Commands
+
+The agent can run the project's commands: install the dependencies, run the tests and the type check, build, run a script or a generator. It reads what came out and goes on from there, so you no longer run each command yourself and paste the result back.
+
+**Every command waits for you.** A card in the chat shows the exact command and the folder it would run in, with **Approve** and **Reject**. Nothing runs until you approve it, and each command is its own decision: there is no approving all the commands of a task at once.
+
+Read the command before approving, and look at the pending change too: a command such as `npm test` runs the project's code as the agent has it now, including files it changed that you have not accepted yet. The card lists them. It runs **on your computer, with your user and the tools you have installed**, and nothing isolates it from the rest of the machine: an approved command can do whatever you could do from a terminal. That is what makes any language and any tool work with nothing to prepare (if you can build the project in a terminal, so can the agent), and it is why the decision is yours every time.
+
+- **Where it runs.** In the agent's copy of the project, with the changes it is working on, not in your folder. What a command writes stays in that copy: a file it generates is part of the pending change, and what Git ignores (`node_modules`, builds) stays there without showing in the diff. Your folder still gets only what you accept.
+- **Which shell.** bash, on every system, so the agent writes one syntax. On Windows it is the bash that comes with Git; without it, PowerShell. Settings shows which one is used.
+- **What it does not get.** HydraOps' own settings (its token, its addresses) are taken out of the command's environment. Your secrets files (`.env`, `.dev.vars`) are not in the agent's copy.
+- **Git stays in the tab.** A command that would change something with Git (`git commit`, `git push`, `git reset`…) is refused before you are asked: you accept and commit from the tab. A generator that starts a repository of its own inside the project loses that repository's data; its files stay as files of your project.
+- **Limits.** A command has 10 minutes unless the agent asks for more (up to 30) and is stopped, with everything it started, when the time is up. One command at a time per project.
+
+What it does not do:
+
+- **A program that keeps running**, such as a development server or a watcher. The agent tells you how to start it yourself, once you have accepted its changes.
+- **Anything that asks a question.** Nobody can answer a prompt, so the agent passes every choice as an option of the command.
+
+If you turn a command down, it does not run and the agent is told so; it should not ask for it again unless you say so.
+
 ## Instructions: HydraOps.md
 
 `HydraOps.md`, at the top of the project's folder, holds the project's instructions: how it is built and run, its conventions, what not to touch. The agent gets it in every message of the project. Open it from the left column to write or edit it.
@@ -105,13 +127,13 @@ The slash commands work here too, including `/plan` (see [Commands](./15-command
 
 ## Settings and deleting
 
-The gear next to the agent opens the project's settings: its name, its agent and the memory switch.
+The gear next to the agent opens the project's settings: its name, its agent and the memory switch. Under **Commands** it says how the agent's commands run on this computer and with which shell.
 
 **Delete the project** removes the agent's copies and their branch. Your folder, its files, the two project files and the chat's history stay. If changes are still waiting, deleting warns you that they will be lost.
 
 ## Security, in short
 
 - The agent's tools reach only the project's copies: no other folder, nothing of Git's own data, no credentials file, no link that leads elsewhere.
-- Nothing the agent wrote is run by HydraOps.
+- Code the agent wrote runs only as a command you approved, shown to you exactly as it will run. It runs on your computer with no isolation: the approval is the protection, so read it. HydraOps runs nothing of the agent's on its own.
 - Reading code counts as reading outside content: after it, anything the agent wants to send or do outside the project waits for your approval, as on any task (see [Security](./13-security.md)).
 - A push always waits for your approval.

@@ -46,6 +46,7 @@ import {
   blenderImportCode, parseBlenderImportResult, BLENDER_SERVERS, BLENDER_CODE_TOOL,
   pushPreview, checkGitFolder, gitVersions, gitFolderStates,
   openProject, pendingChanges, fileDiff, acceptChanges, discardChanges, repoState, removeWorkingCopies, initRepository,
+  commandsInfo,
   readInstructions, writeInstructions, readMemory, listFiles, INSTRUCTIONS_FILE, MEMORY_FILE,
   readProjectFile, writeProjectFile, isSensitivePath, getChangeSummary, clearChangeSummary, logProjectEvent,
 } from "@hydraops/addons";
@@ -2438,10 +2439,23 @@ api.get("/tasks", async (req, res) => {
     const heldRows = rows.length
       ? await (db as any).select().from(pendingActions).where(eq(pendingActions.channel, channel)).orderBy(asc(pendingActions.createdAt))
       : [];
+    // A command waiting in a project's chat will run the project's code as the agent's copy
+    // has it now: the files the agent changed and the user has not accepted go with the card.
+    let runContext: { changedFiles: string[]; changedTotal: number } | null = null;
+    if (heldRows.some((a: any) => a.toolName === "project_run" && a.status === "pending")) {
+      try {
+        const proj = await findProject(db, projectIdOfChannel(channel));
+        if (proj) {
+          const space = await openProject(projectRefOf(proj));
+          const changed = space.repos.length ? await pendingChanges(space) : [];
+          runContext = { changedFiles: changed.slice(0, 12).map((c) => c.path), changedTotal: changed.length };
+        }
+      } catch { /* the card is shown without it */ }
+    }
     const heldByTask = new Map<string, any[]>();
     for (const a of heldRows) {
       if (!heldByTask.has(a.taskId)) heldByTask.set(a.taskId, []);
-      heldByTask.get(a.taskId)!.push(publicPendingAction(a));
+      heldByTask.get(a.taskId)!.push({ ...publicPendingAction(a), ...(runContext && a.toolName === "project_run" && a.status === "pending" ? { context: runContext } : {}) });
     }
     // Tasks the calendar started carry their entry's title, for the mark on the message.
     const calendarIds = [...new Set(rows.map((r: any) => r.calendarEntryId).filter(Boolean))] as string[];
@@ -5226,6 +5240,8 @@ api.get("/projects/:id", async (req, res) => {
       memoryChars: (await readMemory(projectRefOf(p))).length,
       // What the agent says its pending change does: offered as the commit's message.
       suggestedMessage: await getChangeSummary(projectRefOf(p)),
+      // Where the agent's commands run when the user approves one: this computer, in which shell.
+      commands: await commandsInfo().catch(() => null),
     });
   } catch (err: any) {
     console.error("[api] GET /projects/:id failed", err);

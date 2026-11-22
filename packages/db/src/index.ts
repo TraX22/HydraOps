@@ -290,6 +290,18 @@ export const CONTINUATION_LIMIT = "continuation_limit";
  * transaction. Returns the new task id, or null when nothing was created.
  */
 export async function createContinuationTask(db: any, opts: { taskId: string; producer: string; prompt?: string }): Promise<string | null> {
+  // Several services write this database. When another one holds it at that instant the
+  // attempt is made again: giving up here leaves a decided call with no agent to report it.
+  for (let attempt = 1; ; attempt++) {
+    try { return await createContinuationOnce(db, opts); }
+    catch (e: any) {
+      if (attempt >= 6 || !/database is locked|SQLITE_BUSY/i.test(String(e?.message ?? e?.code ?? e))) throw e;
+      await new Promise((r) => setTimeout(r, 150 * attempt * attempt));
+    }
+  }
+}
+
+async function createContinuationOnce(db: any, opts: { taskId: string; producer: string; prompt?: string }): Promise<string | null> {
   const [original] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, opts.taskId)).limit(1);
   if (!original || original.status !== "completed") return null;
   const actions = await loadTaskActions(db, opts.taskId);

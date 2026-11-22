@@ -10,6 +10,7 @@ Cada proyecto tiene su pestaña en la sección **Proyectos** de la barra lateral
 - Un **agente**. Sirve cualquiera; en un proyecto recibe las herramientas para los archivos del proyecto además de las suyas.
 - **Permiso de escritura en la carpeta del proyecto.** En tu propio equipo lo tienes. Si HydraOps corre como servicio en un servidor, primero hay que listar la carpeta en la unidad del servicio: ver [Modo servidor](./12-server-mode.md#arrancar-solo-al-encender-linux-systemd).
 
+
 No hace falta permitir la carpeta en Herramientas → Git ni tener un token de GitHub: un proyecto trabaja solo en tu equipo.
 
 ## Crear un proyecto
@@ -34,7 +35,7 @@ Esto tiene tres consecuencias que conviene conocer:
 
 - **El agente ve lo que está en un commit.** El trabajo que no guardaste en un commit no está en su copia, y tampoco lo que Git ignora: dependencias, compilaciones, archivos `.env`.
 - **Sus cambios no corren en tu carpeta.** Tu servidor de desarrollo sigue sirviendo tu versión hasta que aceptes.
-- **No puede ejecutar comandos.** Ni compilar, ni correr pruebas, ni instalar nada. Te dice qué ejecutar para comprobar su cambio.
+- **Puede ejecutar los comandos del proyecto, de a uno y solo cuando apruebas cada uno.** Las instalaciones, las pruebas, el chequeo de tipos y las compilaciones corren en tu computadora, sobre la copia del agente: ver [Comandos](#comandos).
 
 Pide en el chat del proyecto como en cualquier chat: *"agrega un campo `slug` a las notas y úsalo en la lista"*. El agente no pide permiso por cada archivo, porque después decides sobre el cambio completo.
 
@@ -73,6 +74,27 @@ Haz clic en un archivo del árbol y se abre en un editor, en una pestaña junto 
 
 El editor abre archivos de texto de hasta 1 MB. Las imágenes, las compilaciones y otros archivos binarios no se muestran, y los archivos de credenciales (`.env` y sus variantes, claves) no se abren nunca. Las plantillas que un repositorio incluye para mostrar qué variables existen (`.env.example`, `.env.sample`, `.env.template`) son archivos comunes: tú y el agente pueden leerlas y escribirlas, así que no pongas valores reales en ellas.
 
+## Comandos
+
+El agente puede ejecutar los comandos del proyecto: instalar las dependencias, correr las pruebas y el chequeo de tipos, compilar, ejecutar un script o un generador. Lee lo que salió y sigue a partir de ahí, así que ya no tienes que correr cada comando y pegarle el resultado.
+
+**Cada comando te espera.** Una tarjeta en el chat muestra el comando exacto y la carpeta donde correría, con **Aprobar** y **Rechazar**. Nada corre hasta que lo apruebas, y cada comando es una decisión aparte: no se pueden aprobar de una vez todos los comandos de una tarea.
+
+Lee el comando antes de aprobar, y mira también el cambio pendiente: un comando como `npm test` ejecuta el código del proyecto tal como lo tiene el agente ahora, incluidos los archivos que cambió y que todavía no aceptaste. La tarjeta los lista. Corre **en tu computadora, con tu usuario y las herramientas que tienes instaladas**, y nada lo aísla del resto de la máquina: un comando aprobado puede hacer lo mismo que tú desde una terminal. Eso es lo que hace que funcione con cualquier lenguaje y cualquier herramienta sin preparar nada (si puedes compilar el proyecto en una terminal, el agente también), y por eso la decisión es tuya cada vez.
+
+- **Dónde corre.** En la copia del proyecto del agente, con los cambios en los que está trabajando, no en tu carpeta. Lo que un comando escribe queda en esa copia: un archivo que genera forma parte del cambio pendiente, y lo que Git ignora (`node_modules`, compilaciones) queda ahí sin aparecer en el diff. A tu carpeta sigue llegando solo lo que aceptas.
+- **Qué shell.** bash, en todos los sistemas, para que el agente escriba una sola sintaxis. En Windows es el bash que viene con Git; si no está, PowerShell. Los ajustes muestran cuál se usa.
+- **Qué no recibe.** Los ajustes propios de HydraOps (su token, sus direcciones) se quitan del entorno del comando. Tus archivos de claves (`.env`, `.dev.vars`) no están en la copia del agente.
+- **Git queda en la pestaña.** Un comando que cambiaría algo con Git (`git commit`, `git push`, `git reset`…) se rechaza antes de preguntarte: aceptas y haces el commit desde la pestaña. Un generador que inicia un repositorio propio dentro del proyecto pierde los datos de ese repositorio; sus archivos quedan como archivos de tu proyecto.
+- **Límites.** Un comando tiene 10 minutos salvo que el agente pida más (hasta 30) y se detiene, con todo lo que haya iniciado, cuando se le acaba el tiempo. Un comando a la vez por proyecto.
+
+Lo que no hace:
+
+- **Un programa que queda corriendo**, como un servidor de desarrollo o un vigilante de archivos. El agente te dice cómo iniciarlo, una vez que hayas aceptado sus cambios.
+- **Nada que haga preguntas.** Nadie puede responder, así que el agente pasa cada elección como opción del comando.
+
+Si rechazas un comando, no corre y el agente se entera; no debería volver a pedirlo salvo que se lo digas.
+
 ## Instrucciones: HydraOps.md
 
 `HydraOps.md`, en la raíz de la carpeta del proyecto, guarda las instrucciones del proyecto: cómo se construye y se ejecuta, sus convenciones, qué no tocar. El agente lo recibe en cada mensaje del proyecto. Ábrelo desde la columna izquierda para escribirlo o editarlo.
@@ -105,13 +127,13 @@ Los comandos con barra también funcionan aquí, incluido `/plan` (ver [Comandos
 
 ## Ajustes y borrado
 
-El engranaje junto al agente abre los ajustes del proyecto: su nombre, su agente y el interruptor de la memoria.
+El engranaje junto al agente abre los ajustes del proyecto: su nombre, su agente y el interruptor de la memoria. En **Comandos** dice cómo corren los comandos del agente en esta computadora y con qué shell.
 
 **Borrar el proyecto** quita las copias del agente y su rama. Tu carpeta, sus archivos, los dos archivos del proyecto y el historial del chat quedan. Si todavía hay cambios esperando, al borrar se avisa que se van a perder.
 
 ## Seguridad, en breve
 
 - Las herramientas del agente alcanzan solo las copias del proyecto: ninguna otra carpeta, nada de los datos propios de Git, ningún archivo de credenciales, ningún enlace que lleve a otro lado.
-- HydraOps no ejecuta nada de lo que el agente escribió.
+- El código que escribió el agente corre solo como un comando que aprobaste, mostrado tal como va a correr. Corre en tu computadora sin aislamiento: la protección es tu aprobación, así que léelo. HydraOps no ejecuta nada del agente por su cuenta.
 - Leer código cuenta como leer contenido externo: después, lo que el agente quiera enviar o hacer fuera del proyecto espera tu aprobación, como en cualquier tarea (ver [Seguridad](./13-security.md)).
 - Un push siempre espera tu aprobación.

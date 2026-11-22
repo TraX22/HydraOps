@@ -339,7 +339,14 @@
       },
       "project": {
         "instructions": "Novas instruções para o projeto (HydraOps.md):",
-        "note": "Quando você aprovar, este texto substitui o HydraOps.md na pasta do projeto e o agente passa a segui-lo a partir da próxima mensagem."
+        "note": "Quando você aprovar, este texto substitui o HydraOps.md na pasta do projeto e o agente passa a segui-lo a partir da próxima mensagem.",
+        "run": "Comando a executar neste computador",
+        "runFolder": "Na pasta",
+        "runTop": "a pasta principal do projeto",
+        "runMinutes": "Limite de tempo (minutos)",
+        "runNote": "Ele roda com o seu usuário e as suas ferramentas instaladas, na cópia do projeto do agente. Leia antes de aprovar: nada o isola do resto deste computador.",
+        "runChanged": "Este comando executa o código do projeto como o agente o tem agora, incluindo {{n}} arquivo(s) que ele alterou e que você ainda não aceitou. Veja-os nas alterações do projeto antes de aprovar:",
+        "runChangedMore": "e mais {{n}}"
       }
     },
     "linkUnverified": "⚠ Não verificado: o agente não abriu nem viu este endereço nesta conversa. Pode existir, mas veio da memória dele, não de uma consulta.",
@@ -469,6 +476,11 @@
       "deleteConfirm": "Excluir este projeto? As cópias do agente e o branch delas são removidos. Sua pasta, seus arquivos e o histórico do chat ficam.",
       "deleteConfirmPending": "Este projeto tem {{n}} arquivos alterados que você não aceitou: ao excluí-lo eles se perdem. Sua pasta e seus arquivos ficam como estão.",
       "deleteYes": "Sim, excluir"
+    },
+    "commands": {
+      "title": "Comandos",
+      "how": "O agente pode executar os comandos deste projeto neste computador, um de cada vez, e só depois de você aprovar cada um.",
+      "where": "Eles rodam na cópia do projeto do agente, com as ferramentas instaladas aqui ({{where}})."
     },
     "instructions": {
       "state": {

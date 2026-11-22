@@ -339,7 +339,14 @@
       },
       "project": {
         "instructions": "New instructions for the project (HydraOps.md):",
-        "note": "Once you approve, this text replaces HydraOps.md in the project's folder and the agent follows it from the next message on."
+        "note": "Once you approve, this text replaces HydraOps.md in the project's folder and the agent follows it from the next message on.",
+        "run": "Command to run on this computer",
+        "runFolder": "In the folder",
+        "runTop": "the project's top folder",
+        "runMinutes": "Time limit (minutes)",
+        "runNote": "It runs with your user and your installed tools, on the agent's copy of the project. Read it before approving: nothing isolates it from the rest of this computer.",
+        "runChanged": "This command runs the project's code as the agent has it now, including {{n}} file(s) it changed that you have not accepted. Look at them in the project's changes before approving:",
+        "runChangedMore": "and {{n}} more"
       }
     },
     "linkUnverified": "⚠ Not verified: the agent did not open or see this address in this conversation. It may exist, but it came from its memory, not from a lookup.",
@@ -469,6 +476,11 @@
       "deleteConfirm": "Delete this project? The agent's copies and their branch are removed. Your folder, its files and the chat's history stay.",
       "deleteConfirmPending": "This project has {{n}} changed files you have not accepted: deleting it loses them. Your folder and its files stay as they are.",
       "deleteYes": "Yes, delete it"
+    },
+    "commands": {
+      "title": "Commands",
+      "how": "The agent can run this project's commands on this computer, one at a time, and only after you approve each one.",
+      "where": "They run in the agent's copy of the project, with the tools installed here ({{where}})."
     },
     "instructions": {
       "state": {
