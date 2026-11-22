@@ -160,7 +160,15 @@ export interface RunResult {
 export async function runFolder(space: ProjectSpace, cwdRaw: unknown): Promise<{ dir: string; shown: string } | { error: string }> {
   if (!space.repos.length) return { error: "The project has no repository to run a command in." };
   const single = space.repos.length === 1 && space.repos[0].prefix === "";
-  const cwd = String(cwdRaw ?? "").trim().replace(/\\/g, "/").replace(/^\.?\/+/, "").replace(/\/+$/, "");
+  const given = String(cwdRaw ?? "").trim();
+  if (given.length > 1000) return { error: "That is not a folder of the project (the name is too long)." };
+  // Slashes at the ends are taken off one by one: a pattern for "any number of them" would be slow on a long run of slashes.
+  let cwd = given.split("\\").join("/");
+  if (cwd.startsWith("./")) cwd = cwd.slice(1);
+  let from = 0, to = cwd.length;
+  while (from < to && cwd[from] === "/") from++;
+  while (to > from && cwd[to - 1] === "/") to--;
+  cwd = cwd.slice(from, to);
   if (cwd === "" || cwd === ".") {
     // Several repositories have no folder in common that is the project's: one of them has to be named.
     if (!single) return { error: `This project holds ${space.repos.length} repositories; give "cwd" as one of them or a folder inside it: ${space.repos.map((r) => r.prefix).join(", ")}.` };
