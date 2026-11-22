@@ -339,7 +339,14 @@
       },
       "project": {
         "instructions": "Nouvelles instructions pour le projet (HydraOps.md) :",
-        "note": "Une fois approuvé, ce texte remplace HydraOps.md dans le dossier du projet et l'agent le suit dès le message suivant."
+        "note": "Une fois approuvé, ce texte remplace HydraOps.md dans le dossier du projet et l'agent le suit dès le message suivant.",
+        "run": "Commande à exécuter sur cet ordinateur",
+        "runFolder": "Dans le dossier",
+        "runTop": "le dossier principal du projet",
+        "runMinutes": "Limite de temps (minutes)",
+        "runNote": "Elle s'exécute avec votre utilisateur et vos outils installés, sur la copie du projet de l'agent. Lisez-la avant d'approuver : rien ne l'isole du reste de cet ordinateur.",
+        "runChanged": "Cette commande exécute le code du projet tel que l'agent l'a maintenant, y compris {{n}} fichier(s) qu'il a modifié(s) et que vous n'avez pas encore accepté(s). Regardez-les dans les modifications du projet avant d'approuver :",
+        "runChangedMore": "et {{n}} de plus"
       }
     },
     "linkUnverified": "⚠ Non vérifié : l'agent n'a ni ouvert ni vu cette adresse dans cette conversation. Elle peut exister, mais elle vient de sa mémoire, pas d'une consultation.",
@@ -469,6 +476,11 @@
       "deleteConfirm": "Supprimer ce projet ? Les copies de l'agent et leur branche sont retirées. Votre dossier, ses fichiers et l'historique du chat restent.",
       "deleteConfirmPending": "Ce projet a {{n}} fichiers modifiés que vous n'avez pas acceptés : le supprimer les perd. Votre dossier et ses fichiers restent tels quels.",
       "deleteYes": "Oui, le supprimer"
+    },
+    "commands": {
+      "title": "Commandes",
+      "how": "L'agent peut exécuter les commandes de ce projet sur cet ordinateur, une à la fois, et seulement après votre approbation pour chacune.",
+      "where": "Elles s'exécutent dans la copie du projet de l'agent, avec les outils installés ici ({{where}})."
     },
     "instructions": {
       "state": {

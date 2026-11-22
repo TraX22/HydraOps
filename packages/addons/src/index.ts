@@ -93,6 +93,7 @@ export {
   listFiles, discoverRepos, readInstructions, writeInstructions, readMemory, projectPrompt, INSTRUCTIONS_FILE, MEMORY_FILE,
   readProjectFile, writeProjectFile, getChangeSummary, clearChangeSummary, logProjectEvent, readProjectEvents, eventsPrompt,
   type ProjectSpace, type ProjectRepo, type ChangedFile, type AcceptResult, type ProjectFile, type ProjectEvent,
+  commandsInfo, commandProblem, runFolder,
 } from './native/project/index.js';
 export { isSensitivePath } from './guard.js';
 export { agentFilesPrompt } from './agent-files.js';

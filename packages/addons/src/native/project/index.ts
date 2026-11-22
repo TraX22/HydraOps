@@ -8,6 +8,7 @@ import {
   openProject, spaceProblem, resolvePath, readTextFile, writeTextFile, listFiles, pendingChanges, fileDiff, pgit,
   readMemory, appendMemory, writeInstructions, setChangeSummary, INSTRUCTIONS_FILE, MEMORY_FILE, MAX_FILE_BYTES, type ProjectSpace,
 } from "./core.js";
+import { runInProject, describeRun, RUN_DEFAULT_MINUTES, RUN_MAX_MINUTES } from "./run.js";
 
 // project_read / project_write / project_memory / project_instructions — what an agent has
 // in a project's chat, and only there (scope "project": no tools.md grants them; the worker
@@ -20,6 +21,8 @@ import {
 //    accepts or discards the whole change from the diff.
 //  - project_memory keeps the project's notes (ProjectMemory.md, in the user's folder).
 //  - project_instructions proposes new instructions (HydraOps.md): always the user's call.
+//  - project_run runs a command of the project on the user's computer, in the working copy,
+//    and only after the user approved that very command (see run.ts).
 
 const NOT_A_PROJECT = "This tool works only in a project's chat (HydraOps → Projects), and this conversation is not one.";
 const apiUrl = () => (process.env.HYDRA_API_URL || `http://127.0.0.1:${process.env.PORT || 3000}`).replace(/\/$/, "");
@@ -360,7 +363,45 @@ export const projectInstructionsTool: HydraTool = {
   },
 };
 
-export const projectTools: HydraTool[] = [projectReadTool, projectWriteTool, projectMemoryTool, projectInstructionsTool];
+// ── project_run ───────────────────────────────────────────────────────────────
+
+export const projectRunTool: HydraTool = {
+  name: "project_run",
+  title: "Project: run a command",
+  scope: "project",
+  // It runs on the user's computer with nothing around it: every call waits for the user,
+  // who sees the exact command, and there is no approving the rest of the task at once.
+  // What it prints was produced by the project's code and whatever that downloaded.
+  risk: { sensitive: true, readsExternal: true, approval: "always" },
+  // Its result is not digested or cut by the registry: the tool keeps the start and the end
+  // of a long output itself, the end being where a build or a test run says how it went.
+  vault: false,
+  description:
+    "Run a command of this project on the user's computer and get what it printed and its exit code: install dependencies, run the tests, type-check, build, run a script or a generator. " +
+    "EVERY call waits for the user's approval: they see the exact command and the folder, and it runs only if they accept. So ask for what is needed and no more, chain what belongs together in one command (npm install && npm test), never repeat a command that already gave its answer, and say in your reply what you are waiting for. " +
+    "Only this call asks for a command: a command written in your reply asks for nothing, and the user gets no card to approve. Never say a command is waiting, or that you asked for one, unless you called project_run in this turn and it answered that it is held. " +
+    "It runs in HydraOps' working copy of the project (the files you wrote with project_write are there), with the tools installed on the user's computer: a program that is not installed there fails as not found; say so rather than installing system software. " +
+    "What the command writes stays in the copy: the user sees it in the pending change, unless Git ignores it (node_modules, builds). The user's secrets files (.env) are not in the copy. " +
+    "The command has to end by itself: a development server or a watcher is stopped when the time is up; tell the user how to start it instead. Nobody can answer a prompt: pass every choice as a flag (--yes, --no-interactive, --skip-git…). " +
+    "Git commands that change anything are refused: the user accepts and commits from the project's tab. " +
+    "Of a long output you get the start and the end; to see another part, narrow it in the command itself (… 2>&1 | grep -n error, | tail -n 80). " +
+    "Report what actually happened: the command, its exit code and the lines that matter.",
+  schema: z.object({
+    command: z.string().describe('The command line, in the shell this project\'s section names (bash unless it says otherwise): "npm install", "npm test -- --run", "npx tsc --noEmit -p apps/api", "composer install && vendor/bin/phpunit".'),
+    cwd: z.string().optional().describe("The folder of the project to run it in, as the project's paths are written (apps/api). Omit for the project's top folder."),
+    minutes: z.number().optional().describe(`How long it may run before it is stopped (default ${RUN_DEFAULT_MINUTES}, up to ${RUN_MAX_MINUTES}).`),
+  }),
+  execute: async ({ command, cwd, minutes }, ctx) => {
+    const space = await spaceOf(ctx);
+    if ("error" in space) return space.error;
+    const allowed = Math.min(Math.max(Number(minutes) || RUN_DEFAULT_MINUTES, 1), RUN_MAX_MINUTES);
+    const result = await runInProject(space, { command: String(command ?? ""), cwd, minutes: allowed });
+    return describeRun(String(command ?? "").trim(), result, allowed);
+  },
+};
+
+export const projectTools: HydraTool[] = [projectReadTool, projectWriteTool, projectMemoryTool, projectInstructionsTool, projectRunTool];
+export { runInProject, describeRun, commandProblem, runFolder, commandsInfo, hostShell, commandEnv, gitWrite, removeNestedRepositories } from "./run.js";
 export {
   openProject, spaceProblem, pendingChanges, fileDiff, acceptChanges, discardChanges, repoState, removeWorkingCopies, initRepository,
   listFiles, discoverRepos, readInstructions, writeInstructions, readMemory, projectPrompt, INSTRUCTIONS_FILE, MEMORY_FILE,

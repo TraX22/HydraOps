@@ -88,7 +88,10 @@ export async function pgit(cwd: string, args: string[], opts: { timeoutMs?: numb
     timeoutMs: opts.timeoutMs,
     // A link kept in the repository is checked out as a plain file holding its target's
     // name (`user`: the user's own folder keeps the user's setting).
-    config: ["-c", `core.hooksPath=${await noHooksDir()}`, "-c", "core.longpaths=true", ...(opts.user ? [] : ["-c", "core.symlinks=false"])],
+    // In a working copy, Git is also told not to start the file-system monitor a repository's
+    // settings can name: a program named there would run on this computer (see run.ts for how
+    // a copy's Git data is kept out of the reach of the commands that run on it).
+    config: ["-c", `core.hooksPath=${await noHooksDir()}`, "-c", "core.longpaths=true", ...(opts.user ? [] : ["-c", "core.symlinks=false", "-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false"])],
     ...(opts.user ? {} : { env: { GIT_LFS_SKIP_SMUDGE: "1" } }),
   });
 }
@@ -841,6 +844,8 @@ export async function projectPrompt(space: ProjectSpace, opts: {
   acceptedHash: string | null; pending?: number;
   /** What the user did with the changes (accepted, discarded, edited by hand), and when the agent last replied here. */
   events?: ProjectEvent[]; lastReplyAt?: number | null;
+  /** Where the project's commands run (project_run): the system and the shell, in words. */
+  commands?: { described: string; syntax: string };
   /** Marks the notes as outside content (see provenance.ts): the file may have come with the
    *  folder, or been written by an agent after it read someone else's code. */
   asOutside?: (text: string) => string;
@@ -860,7 +865,9 @@ export async function projectPrompt(space: ProjectSpace, opts: {
       "- You read the code with project_read and change it with project_write. Both work on HydraOps' own copy of each repository, never on the user's folder: nothing you write reaches the user's files until they accept it in the project's tab, where they see your changes as a diff. So make the change itself instead of asking permission for each file, and end by saying briefly what you changed and why.",
       "- The copy holds what is committed on the user's branch. What Git ignores (dependencies, builds, .env files) is not in it, and work the user has not committed is not in it either.",
       "- With the last project_write of your turn give `summary`: one line that says what the whole pending change does. The user gets it as the commit's message when they accept, so write it as one: what changes, not how you did it, under 72 characters, in English whatever language the conversation is in, unless the user or the project's instructions ask for commit messages in another language.",
-      "- You cannot run commands, builds or tests here. Say what the user should run to check your change; never say something was run or passes.",
+      opts.commands
+        ? `- You run the project's commands with project_run: installs, tests, type checks, builds. They run on the user's computer (${opts.commands.described}), on your copy of the code, with the tools installed there; write them for ${opts.commands.syntax}. Every command waits for the user's approval and costs them a decision, so ask for one command in a reply, and only one that tells something worth knowing: chain what belongs together (install && test), never ask again for something that already ran or that is still waiting, and when a command you asked for is waiting, say which one and stop there. A command is asked for only by calling project_run: writing it in your reply asks for nothing, so never tell the user one is waiting unless you made that call in this turn. If the user turns one down, it did not run: do not guess its result and do not ask for it again unless they tell you to. Check your change by running what the project has for that before saying it works, and report what you ran and how it ended; never say something passes that you did not run. A program that keeps running (a development server) is not run there: tell the user how to start it in their own folder, which gets your changes only once they accept them.`
+        : "- You cannot run commands, builds or tests here. Say what the user should run to check your change; never say something was run or passes.",
     );
     if (opts.pending) lines.push(`- ${opts.pending} file${opts.pending === 1 ? " is" : "s are"} already changed and waiting for the user to accept or discard (project_read with action "changes" lists them).`);
     if (opts.events?.length) lines.push(...eventsPrompt(opts.events, opts.lastReplyAt ?? null));

@@ -339,7 +339,14 @@
       },
       "project": {
         "instructions": "Instrucciones nuevas para el proyecto (HydraOps.md):",
-        "note": "Cuando lo apruebes, este texto reemplaza a HydraOps.md en la carpeta del proyecto y el agente lo sigue desde el próximo mensaje."
+        "note": "Cuando lo apruebes, este texto reemplaza a HydraOps.md en la carpeta del proyecto y el agente lo sigue desde el próximo mensaje.",
+        "run": "Comando a ejecutar en esta computadora",
+        "runFolder": "En la carpeta",
+        "runTop": "la carpeta principal del proyecto",
+        "runMinutes": "Límite de tiempo (minutos)",
+        "runNote": "Corre con tu usuario y tus herramientas instaladas, sobre la copia del proyecto del agente. Leelo antes de aprobar: nada lo aísla del resto de esta computadora.",
+        "runChanged": "Este comando ejecuta el código del proyecto tal como lo tiene el agente ahora, incluidos {{n}} archivo(s) que cambió y que todavía no aceptaste. Miralos en los cambios del proyecto antes de aprobar:",
+        "runChangedMore": "y {{n}} más"
       }
     },
     "linkUnverified": "⚠ No verificado: el agente no abrió ni vio esta dirección en esta conversación. Puede existir, pero salió de su memoria, no de una consulta.",
@@ -469,6 +476,11 @@
       "deleteConfirm": "¿Borrar este proyecto? Se quitan las copias del agente y su rama. Tu carpeta, sus archivos y el historial del chat quedan.",
       "deleteConfirmPending": "Este proyecto tiene {{n}} archivos cambiados que no aceptaste: al borrarlo se pierden. Tu carpeta y sus archivos quedan como están.",
       "deleteYes": "Sí, borrarlo"
+    },
+    "commands": {
+      "title": "Comandos",
+      "how": "El agente puede ejecutar los comandos de este proyecto en esta computadora, de a uno, y solo después de que apruebes cada uno.",
+      "where": "Corren en la copia del proyecto del agente, con las herramientas instaladas aquí ({{where}})."
     },
     "instructions": {
       "state": {

@@ -339,7 +339,14 @@
       },
       "project": {
         "instructions": "Nuove istruzioni per il progetto (HydraOps.md):",
-        "note": "Dopo la tua approvazione, questo testo sostituisce HydraOps.md nella cartella del progetto e l'agente lo segue dal messaggio successivo."
+        "note": "Dopo la tua approvazione, questo testo sostituisce HydraOps.md nella cartella del progetto e l'agente lo segue dal messaggio successivo.",
+        "run": "Comando da eseguire su questo computer",
+        "runFolder": "Nella cartella",
+        "runTop": "la cartella principale del progetto",
+        "runMinutes": "Limite di tempo (minuti)",
+        "runNote": "Viene eseguito con il tuo utente e i tuoi strumenti installati, sulla copia del progetto dell'agente. Leggilo prima di approvare: niente lo isola dal resto di questo computer.",
+        "runChanged": "Questo comando esegue il codice del progetto così come lo ha ora l'agente, compresi {{n}} file che ha modificato e che non hai ancora accettato. Guardali nelle modifiche del progetto prima di approvare:",
+        "runChangedMore": "e altri {{n}}"
       }
     },
     "linkUnverified": "⚠ Non verificato: l'agente non ha aperto né visto questo indirizzo in questa conversazione. Può esistere, ma viene dalla sua memoria, non da una consultazione.",
@@ -469,6 +476,11 @@
       "deleteConfirm": "Eliminare questo progetto? Vengono rimosse le copie dell'agente e il loro ramo. La tua cartella, i suoi file e la cronologia della chat restano.",
       "deleteConfirmPending": "Questo progetto ha {{n}} file modificati che non hai accettato: eliminandolo si perdono. La tua cartella e i suoi file restano come sono.",
       "deleteYes": "Sì, eliminalo"
+    },
+    "commands": {
+      "title": "Comandi",
+      "how": "L'agente può eseguire i comandi di questo progetto su questo computer, uno alla volta, e solo dopo che hai approvato ciascuno.",
+      "where": "Vengono eseguiti nella copia del progetto dell'agente, con gli strumenti installati qui ({{where}})."
     },
     "instructions": {
       "state": {

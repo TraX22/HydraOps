@@ -168,6 +168,23 @@ import { IconComponent } from '../icon/icon.component';
           @if (c.attachments.length) { <div class="cal-row"><span class="cal-label">{{ 'chat.held.calendar.attachments' | translate }}</span>{{ c.attachments.join(', ') }}</div> }
           <p class="cal-note">{{ ('chat.held.calendar.' + (c.verb === 'add' ? 'addNote' : c.verb === 'update' ? 'updateNote' : 'removeNote')) | translate }}</p>
         </div>
+      } @else if (projectRun; as r) {
+        <div class="post">
+          <p class="post-label">{{ 'chat.held.project.run' | translate }}</p>
+          <div class="post-part"><div class="post-body"><pre class="post-text run-command">{{ r.command }}</pre></div></div>
+          <div class="cal-row"><span class="cal-label">{{ 'chat.held.project.runFolder' | translate }}</span><code class="browser-url">{{ r.cwd || ('chat.held.project.runTop' | translate) }}</code></div>
+          @if (r.minutes) { <div class="cal-row"><span class="cal-label">{{ 'chat.held.project.runMinutes' | translate }}</span>{{ r.minutes }}</div> }
+          @if (action.status === 'pending' && action.context?.changedTotal) {
+            <div class="run-changed">
+              <p class="post-warn">{{ 'chat.held.project.runChanged' | translate:{ n: action.context!.changedTotal } }}</p>
+              <ul>
+                @for (f of action.context!.changedFiles; track f) { <li><code>{{ f }}</code></li> }
+                @if (action.context!.changedTotal > action.context!.changedFiles.length) { <li>{{ 'chat.held.project.runChangedMore' | translate:{ n: action.context!.changedTotal - action.context!.changedFiles.length } }}</li> }
+              </ul>
+            </div>
+          }
+          <p class="post-cost">{{ 'chat.held.project.runNote' | translate }}</p>
+        </div>
       } @else if (projectInstructions; as text) {
         <div class="post">
           <p class="post-label">{{ 'chat.held.project.instructions' | translate }}</p>
@@ -186,7 +203,7 @@ import { IconComponent } from '../icon/icon.component';
           <button class="held-approve" [disabled]="busy()" (click)="decide('approve')">
             <app-icon name="check" /> {{ 'chat.held.approve' | translate }}
           </button>
-          @if (!post && !gitPush && action.toolName !== 'x_dm' && action.toolName !== 'gmail_send' && gmailTidy?.action !== 'trash') {
+          @if (!post && !gitPush && !projectRun && action.toolName !== 'x_dm' && action.toolName !== 'gmail_send' && gmailTidy?.action !== 'trash') {
             <button class="held-approve held-approve-task" [disabled]="busy()" (click)="decide('approveTask')" [title]="'chat.held.approveTaskHint' | translate">
               <app-icon name="check" /> {{ 'chat.held.approveTask' | translate }}
             </button>
@@ -228,6 +245,10 @@ import { IconComponent } from '../icon/icon.component';
     .cal-label { color: var(--text-muted); font-size: 11px; }
     .cal-pre { margin: 0; white-space: pre-wrap; font: inherit; color: var(--text-secondary); max-height: 140px; overflow: auto; }
     .cal-note { margin: 4px 0 0; font-size: 11.5px; color: var(--text-muted); }
+    .run-changed { margin: 8px 0 0; }
+    .run-changed ul { margin: 4px 0 0; padding-left: 18px; font-size: 12px; color: var(--text-secondary, var(--text-muted)); }
+    .run-changed code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11.5px; }
+    .run-command { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; white-space: pre-wrap; word-break: break-word; }
     .held-args dt { color: var(--text-muted); font-family: ui-monospace, monospace; font-size: 11.5px; }
     .held-args dd { margin: 0; white-space: pre-wrap; word-break: break-word; color: var(--text-primary); }
     .held-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
@@ -335,6 +356,15 @@ export class HeldActionComponent implements OnInit {
   }
 
   /** A git_sync push, as the call names it: the folder, the branch (empty: the one checked out) and the remote. */
+  /** A project_run call: the command exactly as it will run on this computer, and where. */
+  get projectRun(): { command: string; cwd: string; minutes: number | null } | null {
+    if (this.action.toolName !== 'project_run') return null;
+    const a = (this.action.args ?? {}) as Record<string, unknown>;
+    const command = typeof a['command'] === 'string' ? a['command'] : '';
+    if (!command.trim()) return null;
+    return { command, cwd: typeof a['cwd'] === 'string' ? a['cwd'] : '', minutes: typeof a['minutes'] === 'number' ? a['minutes'] : null };
+  }
+
   /** A project_instructions call: the text the agent proposes for the project's HydraOps.md, shown whole. */
   get projectInstructions(): string | null {
     const content = (this.action.args as Record<string, unknown> | null)?.['content'];

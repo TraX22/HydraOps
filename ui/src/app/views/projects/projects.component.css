@@ -213,3 +213,6 @@ button:disabled { opacity: 0.55; cursor: default; }
   .col-chat { height: 70vh; flex: none; }
   .col-right { min-height: 360px; max-height: 80vh; }
 }
+
+/* How the agent's commands run. */
+.commands-state { margin: 2px 0 4px; font-size: 13px; color: var(--text-primary); }

@@ -197,6 +197,8 @@ export interface HeldAction {
   createdAt: string;
   expiresAt: string;
   decidedAt: string | null;
+  /** For a command waiting in a project: the files the agent changed there and the user has not accepted (the command runs that code). */
+  context?: { changedFiles: string[]; changedTotal: number };
 }
 
 // ── Commands (the chat's "/verbs", executed by the API) ──
@@ -467,6 +469,8 @@ export interface ProjectDetail {
   /** Repositories that cannot be worked on now, in words. */
   problems: { prefix: string; error: string; code: 'folder_missing' | 'read_only' | 'no_repository' | 'no_commits' | 'no_git' | 'copy_failed' }[];
   changes: ProjectChange[];
+  /** Where the agent's commands run once the user approves one: this computer's system and shell, in words. */
+  commands?: { system: string; shell: string; described: string } | null;
   /** The agent is at work: accepting and discarding wait. */
   busy: boolean;
   memoryChars: number;

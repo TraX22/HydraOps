@@ -158,6 +158,11 @@
               <input type="checkbox" [(ngModel)]="settings.agentMemory" />
               <span>{{ 'projects.settings.agentMemory' | translate }}<small>{{ 'projects.settings.agentMemoryHint' | translate }}</small></span>
             </label>
+            <div class="field commands-field">
+              <span>{{ 'projects.commands.title' | translate }}</span>
+              <p class="commands-state">{{ 'projects.commands.how' | translate }}</p>
+              @if (detail()?.commands; as c) { <small>{{ 'projects.commands.where' | translate:{ where: c.described } }}</small> }
+            </div>
             <div class="field"><span>{{ 'projects.new.folder' | translate }}</span><code class="path">{{ p.folder }}</code></div>
             <div class="field"><span>{{ 'projects.settings.branch' | translate }}</span><code class="path">{{ p.branch }}</code>
               <small>{{ 'projects.settings.branchHint' | translate }}</small></div>

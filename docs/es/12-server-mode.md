@@ -73,6 +73,8 @@ La unidad corre la pila con el home en solo lectura, salvo el clon, el almacén 
 ReadWritePaths=/home/tu-usuario/proyectos
 ```
 
+**Comandos en los proyectos.** Un comando que apruebas en un proyecto ([Proyectos → Comandos](./16-projects.md#comandos)) corre con el usuario de la unidad y dentro de los límites de la unidad: puede escribir solo donde la unidad puede (las carpetas de arriba), y encuentra los programas en el `PATH` de la unidad. Una herramienta instalada en otro lugar hay que agregarla a `Environment=PATH`.
+
 ```
 sudo systemctl daemon-reload && sudo systemctl restart hydraops
 ```
