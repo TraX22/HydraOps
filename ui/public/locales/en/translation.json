@@ -474,6 +474,8 @@
       "title": "Project settings",
       "agentMemory": "Also load the agent's personal memory",
       "agentMemoryHint": "Off: in this project the agent uses only the project's notes. On: it also gets what it remembers from its own chat, and can save there.",
+      "telegram": "Announce this project's approvals on Telegram",
+      "telegramHint": "On: each command, server or plan that waits for you in this project is also sent to Telegram, with its buttons. Off: they wait here only, and Telegram stays quiet for this project.",
       "branch": "The agent's branch",
       "branchHint": "The agent's copy of each repository is on this branch. HydraOps makes it and removes it; you do not need to touch it.",
       "delete": "Delete the project",

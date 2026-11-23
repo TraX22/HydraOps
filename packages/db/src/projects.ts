@@ -18,6 +18,8 @@ export interface ProjectRecord {
   agentId: string;
   /** Also load the agent's own memory file in this project's chat (off: only the project's). */
   agentMemory: boolean;
+  /** Whether what waits for the user in this project's chat is also announced on Telegram. On unless switched off. */
+  telegramApprovals: boolean;
   /** sha256 of the HydraOps.md the user accepted; another content is not in force. */
   instructionsHash: string | null;
   /** Secrets files of the user's folder (.env, .dev.vars) copied into the agents' copy while a server of the project runs. */
@@ -50,6 +52,7 @@ export async function loadProjects(db: any): Promise<ProjectRecord[]> {
     return v.filter(isRecord).map((p) => ({
       id: p.id, name: p.name, slug: p.slug, folder: p.folder, agentId: p.agentId,
       agentMemory: p.agentMemory === true,
+      telegramApprovals: (p as any).telegramApprovals !== false,
       instructionsHash: typeof p.instructionsHash === "string" ? p.instructionsHash : null,
       serverSecrets: Array.isArray((p as any).serverSecrets) ? (p as any).serverSecrets.filter((x: unknown) => typeof x === "string").slice(0, 20) : [],
       createdAt: typeof p.createdAt === "string" ? p.createdAt : new Date(0).toISOString(),
@@ -72,3 +75,8 @@ export async function findProject(db: any, id: string | null | undefined): Promi
 
 /** The project whose chat `channel` is, or null. */
 export const projectOfChannel = (db: any, channel: unknown) => findProject(db, projectIdOfChannel(channel));
+
+/** The projects whose approvals are not announced on Telegram, by the channel of their chat. */
+export async function projectChannelsQuietOnTelegram(db: any): Promise<Set<string>> {
+  return new Set((await loadProjects(db)).filter((p) => !p.telegramApprovals).map((p) => `project:${p.id}`));
+}

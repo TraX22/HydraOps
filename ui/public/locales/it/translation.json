@@ -474,6 +474,8 @@
       "title": "Impostazioni del progetto",
       "agentMemory": "Carica anche la memoria personale dell'agente",
       "agentMemoryHint": "Spento: in questo progetto l'agente usa solo le note del progetto. Acceso: riceve anche ciò che ricorda dalla propria chat, e può salvare lì.",
+      "telegram": "Avvisa su Telegram le approvazioni di questo progetto",
+      "telegramHint": "Acceso: ogni comando, server o piano che ti aspetta in questo progetto viene inviato anche su Telegram, con i suoi pulsanti. Spento: aspettano solo qui, e Telegram resta in silenzio per questo progetto.",
       "branch": "Il ramo dell'agente",
       "branchHint": "La copia che l'agente ha di ogni repository è su questo ramo. HydraOps lo crea e lo rimuove; non serve toccarlo.",
       "delete": "Elimina il progetto",

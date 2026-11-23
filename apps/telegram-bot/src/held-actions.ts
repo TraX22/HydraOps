@@ -6,7 +6,7 @@
 // same API call the chat card makes. The API does the deciding (expiry, already
 // decided, publishing action.approved); the bot only relays.
 
-import { pendingActions, tasks } from "@hydraops/db";
+import { pendingActions, tasks, projectChannelsQuietOnTelegram } from "@hydraops/db";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
 export interface HeldActionsDeps {
@@ -181,9 +181,12 @@ async function notifyNew(deps: HeldActionsDeps): Promise<void> {
   if (!cfg.enabled || !token || cfg.notifications?.heldActions === false || cfg.allowlist.length === 0) return;
   const fresh = await deps.db.select().from(pendingActions)
     .where(and(eq(pendingActions.status, "pending"), isNull(pendingActions.notifiedAt)));
+  // A project can keep its approvals off Telegram: they wait in the app only.
+  const quiet = fresh.some((a: any) => String(a.channel ?? "").startsWith("project:")) ? await projectChannelsQuietOnTelegram(deps.db).catch(() => new Set<string>()) : new Set<string>();
   for (const a of fresh) {
     // Mark first: a send failure must not turn into a message every 15 s.
     await deps.db.update(pendingActions).set({ notifiedAt: new Date() }).where(eq(pendingActions.id, a.id)).run();
+    if (quiet.has(String(a.channel ?? ""))) continue;
     const reply_markup = {
       inline_keyboard: [
         [{ text: "✅ Approve", callback_data: `held:a:${a.id}` }, { text: "❌ Reject", callback_data: `held:r:${a.id}` }],

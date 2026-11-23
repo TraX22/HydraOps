@@ -22,6 +22,8 @@ Pulsa **Nuevo proyecto** y completa:
 - **Agente.** Un agente por proyecto.
 - **Cargar también la memoria personal del agente.** Apagado por defecto; ver [Notas y memoria](#notas-y-memoria).
 
+En los ajustes del proyecto también está **Avisar por Telegram las aprobaciones de este proyecto**, encendido por defecto. Un proyecto donde el agente corre muchos comandos envía un mensaje de Telegram por cada aprobación; apagado, lo que te espera en este proyecto espera solo en HydraOps, y el resto de tus avisos de Telegram queda como está.
+
 Si la carpeta todavía no es un repositorio de Git, la pestaña ofrece convertirla:
 
 - **Con los archivos que hay**: todos los archivos van a un primer commit. Lo que nombra un `.gitignore` queda afuera, así que escribe uno antes si la carpeta tiene dependencias o secretos.

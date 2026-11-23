@@ -740,14 +740,22 @@ export async function removeWorkingCopies(project: ProjectRef): Promise<{ left: 
 }
 
 const DELETE_MARK = ".hydraops-delete-pending";
+const PROJECT_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** At start: the copies of deleted projects that could not be removed then are removed now. */
-export async function removeLeftoverCopies(): Promise<{ removed: string[]; left: string[] }> {
+/**
+ * At start: the copies of deleted projects that could not be removed then are removed now.
+ * The mark alone decides nothing: a command can write a file there. Only a folder named as
+ * a project is, of a project that is no longer on record, is removed.
+ */
+export async function removeLeftoverCopies(liveIds: string[]): Promise<{ removed: string[]; left: string[] }> {
   const removed: string[] = [], left: string[] = [];
+  const live = new Set(liveIds.map((x) => String(x).toLowerCase()));
   let ids: string[] = [];
   try { ids = await readdir(projectsDir); } catch { return { removed, left }; }
   for (const id of ids) {
+    if (!PROJECT_ID_RE.test(id) || live.has(id.toLowerCase())) continue;
     const top = path.join(projectsDir, id);
+    if (!(await lstat(top).catch(() => null))?.isDirectory()) continue;
     if (!(await exists(path.join(top, DELETE_MARK)))) continue;
     await rm(top, { recursive: true, force: true, maxRetries: 2, retryDelay: 250 }).catch(() => {});
     if (await exists(top)) { await writeFile(path.join(top, DELETE_MARK), "", "utf8").catch(() => {}); left.push(top); }
