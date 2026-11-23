@@ -82,6 +82,8 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   settings = { name: '', agentId: '', agentMemory: false, secrets: [] as string[] };
   settingsError = signal('');
   confirmDelete = signal(false);
+  /** The folder of a deleted project's copy that could not be removed (a program has it open). */
+  deleteLeftover = signal<string | null>(null);
   fileOpen = signal<'' | 'instructions' | 'memory'>('');
   fileText = signal('');
   fileSaved = signal(false);
@@ -472,8 +474,9 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     if (!p) return;
     const pending = (this.detail()?.changes.length ?? 0) > 0;
     this.api.deleteProject(p.id, pending).subscribe({
-      next: () => {
+      next: r => {
         this.settingsOpen.set(false);
+        this.deleteLeftover.set(r?.leftover || null);
         const rest = this.projects().filter(x => x.id !== p.id);
         this.projects.set(rest);
         this.detail.set(null);

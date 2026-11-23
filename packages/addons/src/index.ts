@@ -89,7 +89,7 @@ export * from './skills-github.js';
 export { noteSkillsOpened } from './native/skills/index.js';
 export { pushPreview, checkGitFolder, gitVersions, gitFolderStates, type PushPreview, type GitFolderState } from './native/git/index.js';
 export {
-  openProject, spaceProblem, pendingChanges, fileDiff, acceptChanges, discardChanges, repoState, removeWorkingCopies, initRepository,
+  openProject, spaceProblem, pendingChanges, fileDiff, acceptChanges, discardChanges, repoState, removeWorkingCopies, removeLeftoverCopies, initRepository,
   listFiles, discoverRepos, readInstructions, writeInstructions, readMemory, projectPrompt, INSTRUCTIONS_FILE, MEMORY_FILE,
   readProjectFile, writeProjectFile, getChangeSummary, clearChangeSummary, logProjectEvent, readProjectEvents, eventsPrompt,
   type ProjectSpace, type ProjectRepo, type ChangedFile, type AcceptResult, type ProjectFile, type ProjectEvent,

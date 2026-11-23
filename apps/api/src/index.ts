@@ -45,7 +45,7 @@ import {
   isValidPresetName, PRESET_LAUNCHERS, expandServerCwd, type ConnectionPreset,
   blenderImportCode, parseBlenderImportResult, BLENDER_SERVERS, BLENDER_CODE_TOOL,
   pushPreview, checkGitFolder, gitVersions, gitFolderStates,
-  openProject, pendingChanges, fileDiff, acceptChanges, discardChanges, repoState, removeWorkingCopies, initRepository,
+  openProject, pendingChanges, fileDiff, acceptChanges, discardChanges, repoState, removeWorkingCopies, removeLeftoverCopies, initRepository,
   commandsInfo, listServers, stopServer, serverLog, stopAllServers, secretCandidates, secretsPlan,
   readInstructions, writeInstructions, readMemory, listFiles, INSTRUCTIONS_FILE, MEMORY_FILE,
   readProjectFile, writeProjectFile, isSensitivePath, getChangeSummary, clearChangeSummary, logProjectEvent,
@@ -5335,9 +5335,10 @@ api.delete("/projects/:id", async (req, res) => {
     if (pending && req.query.discard !== "1") return res.status(409).json({ error: "pending_changes", pending });
     // Its servers stop, and the secrets copied for them leave the copy, before the copy goes.
     if (space.repos.length) await stopAllServers(space).catch(() => {});
-    await removeWorkingCopies(projectRefOf(p));
+    const { left } = await removeWorkingCopies(projectRefOf(p));
     await saveProjects(db, (await loadProjects(db)).filter((x) => x.id !== p.id));
-    res.json({ success: true });
+    // The project is gone either way; a copy another program holds open is said, with where it is.
+    res.json({ success: true, leftover: left });
   } catch (err: any) {
     console.error("[api] DELETE /projects/:id failed", err);
     res.status(500).json({ error: "internal_error" });
@@ -6888,6 +6889,11 @@ app.listen(port, host, () => {
   if (host !== "127.0.0.1" && host !== "localhost") {
     console.warn(`[api] ⚠ listening on ${host}: reachable from the network, protected by HYDRA_AUTH_TOKEN`);
   }
+  // The copies of deleted projects that a program held open when they were deleted.
+  removeLeftoverCopies().then((r) => {
+    if (r.removed.length) console.log(`[api] removed ${r.removed.length} working cop${r.removed.length === 1 ? "y" : "ies"} of deleted projects left from before`);
+    if (r.left.length) console.warn(`[api] ${r.left.length} working cop${r.left.length === 1 ? "y" : "ies"} of deleted projects still cannot be removed (files in use)`);
+  }).catch(() => {});
 });
 
 // --- Prompt-injection log ---
