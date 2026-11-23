@@ -474,6 +474,8 @@
       "title": "Réglages du projet",
       "agentMemory": "Charger aussi la mémoire personnelle de l'agent",
       "agentMemoryHint": "Désactivé : dans ce projet l'agent n'utilise que les notes du projet. Activé : il reçoit aussi ce qu'il retient de son propre chat, et peut y enregistrer.",
+      "telegram": "Annoncer sur Telegram les approbations de ce projet",
+      "telegramHint": "Activé : chaque commande, serveur ou plan qui vous attend dans ce projet est aussi envoyé sur Telegram, avec ses boutons. Désactivé : ils attendent seulement ici, et Telegram reste silencieux pour ce projet.",
       "branch": "La branche de l'agent",
       "branchHint": "La copie que l'agent a de chaque dépôt est sur cette branche. HydraOps la crée et la retire ; vous n'avez pas à y toucher.",
       "delete": "Supprimer le projet",

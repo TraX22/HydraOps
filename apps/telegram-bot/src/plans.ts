@@ -3,7 +3,7 @@
 // stay in the app); a press goes to the same API calls as the chat card. When the
 // plan is decided elsewhere, the notice loses its buttons and says how it went.
 
-import { tasks } from "@hydraops/db";
+import { tasks, projectChannelsQuietOnTelegram } from "@hydraops/db";
 import { and, eq, inArray } from "drizzle-orm";
 
 export interface PlansDeps {
@@ -67,9 +67,11 @@ async function notifyNew(deps: PlansDeps): Promise<void> {
   const token = await deps.getToken();
   if (!cfg.enabled || !token || cfg.notifications?.heldActions === false || cfg.allowlist.length === 0) return;
   const fresh = (await pendingPlanRows(deps)).filter((r: any) => r.plan.status === "pending" && !r.plan.notifiedAt);
+  const quiet = fresh.some((r: any) => String(r.channel ?? "").startsWith("project:")) ? await projectChannelsQuietOnTelegram(deps.db).catch(() => new Set<string>()) : new Set<string>();
   for (const row of fresh) {
     // Mark first: a send failure must not turn into a message every 15 s.
     await deps.db.update(tasks).set({ plan: { ...row.plan, notifiedAt: new Date().toISOString() } }).where(eq(tasks.id, row.id)).run();
+    if (quiet.has(String(row.channel ?? ""))) continue;
     const reply_markup = { inline_keyboard: [[
       { text: "▶ Approve", callback_data: `plan:a:${row.id}` },
       { text: "✕ Discard", callback_data: `plan:d:${row.id}` },

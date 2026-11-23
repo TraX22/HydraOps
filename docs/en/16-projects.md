@@ -22,6 +22,8 @@ Press **New project** and fill in:
 - **Agent.** One agent per project.
 - **Also load the agent's personal memory.** Off by default; see [Notes and memory](#notes-and-memory).
 
+In the project's settings there is also **Announce this project's approvals on Telegram**, on by default. A project where the agent runs many commands sends one Telegram message per approval; switched off, what waits for you in this project waits in HydraOps only, and the rest of your Telegram notices stay as they are.
+
 If the folder is not a Git repository yet, the tab offers to make it one:
 
 - **With the files that are there**: every file goes into a first commit. What a `.gitignore` names stays out, so write one first if the folder has dependencies or secrets.

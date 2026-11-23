@@ -164,6 +164,10 @@
               <input type="checkbox" [(ngModel)]="settings.agentMemory" />
               <span>{{ 'projects.settings.agentMemory' | translate }}<small>{{ 'projects.settings.agentMemoryHint' | translate }}</small></span>
             </label>
+            <label class="check">
+              <input type="checkbox" [(ngModel)]="settings.telegram" />
+              <span>{{ 'projects.settings.telegram' | translate }}<small>{{ 'projects.settings.telegramHint' | translate }}</small></span>
+            </label>
             <div class="field commands-field">
               <span>{{ 'projects.commands.title' | translate }}</span>
               <p class="commands-state">{{ 'projects.commands.how' | translate }}</p>

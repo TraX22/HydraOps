@@ -79,7 +79,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
 
   // ── Settings, and the project's two files ──
   settingsOpen = signal(false);
-  settings = { name: '', agentId: '', agentMemory: false, secrets: [] as string[] };
+  settings = { name: '', agentId: '', agentMemory: false, telegram: true, secrets: [] as string[] };
   settingsError = signal('');
   confirmDelete = signal(false);
   /** The folder of a deleted project's copy that could not be removed (a program has it open). */
@@ -447,7 +447,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   openSettings(): void {
     const p = this.active();
     if (!p) return;
-    this.settings = { name: p.name, agentId: p.agentId, agentMemory: p.agentMemory, secrets: [...(this.detail()?.secrets?.chosen ?? [])] };
+    this.settings = { name: p.name, agentId: p.agentId, agentMemory: p.agentMemory, telegram: p.telegramApprovals !== false, secrets: [...(this.detail()?.secrets?.chosen ?? [])] };
     this.settingsError.set('');
     this.confirmDelete.set(false);
     this.fileOpen.set('');
@@ -457,7 +457,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   saveSettings(): void {
     const p = this.active();
     if (!p) return;
-    this.api.updateProject(p.id, { name: this.settings.name, agentId: this.settings.agentId, agentMemory: this.settings.agentMemory, serverSecrets: this.settings.secrets }).subscribe({
+    this.api.updateProject(p.id, { name: this.settings.name, agentId: this.settings.agentId, agentMemory: this.settings.agentMemory, telegramApprovals: this.settings.telegram, serverSecrets: this.settings.secrets }).subscribe({
       next: r => {
         this.settingsOpen.set(false);
         this.projects.update(list => list.map(x => (x.id === p.id ? r.project : x)));

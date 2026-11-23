@@ -5177,7 +5177,7 @@ const publicServer = (s: any) => ({ name: s.name, command: s.command, cwd: s.cwd
 async function projectSummary(p: ProjectRecord) {
   return {
     id: p.id, name: p.name, folder: p.folder, agentId: p.agentId, agentMissing: !(await agentExists(p.agentId)),
-    agentMemory: p.agentMemory, channel: projectChannel(p.id), branch: `hydraops/${p.slug}`,
+    agentMemory: p.agentMemory, telegramApprovals: p.telegramApprovals, channel: projectChannel(p.id), branch: `hydraops/${p.slug}`,
     instructions: await instructionsState(p), createdAt: p.createdAt,
   };
 }
@@ -5220,7 +5220,7 @@ api.post("/projects", async (req, res) => {
     if (projects.some((p) => same(p.folder, folder.folder))) return res.status(409).json({ error: "folder_in_use" });
     const project: ProjectRecord = {
       id: randomUUID(), name, slug: projectSlug(name, projects.map((p) => p.slug)), folder: folder.folder,
-      agentId: String(req.body.agentId), agentMemory: req.body?.agentMemory === true, instructionsHash: null,
+      agentId: String(req.body.agentId), agentMemory: req.body?.agentMemory === true, telegramApprovals: true, instructionsHash: null,
       serverSecrets: [],
       createdAt: new Date().toISOString(),
     };
@@ -5305,6 +5305,7 @@ api.patch("/projects/:id", async (req, res) => {
       next.agentId = String(req.body.agentId);
     }
     if (typeof req.body?.agentMemory === "boolean") next.agentMemory = req.body.agentMemory;
+    if (typeof req.body?.telegramApprovals === "boolean") next.telegramApprovals = req.body.telegramApprovals;
     if (req.body?.serverSecrets !== undefined) {
       // Only secrets files that are in the user's folder now can be chosen.
       if (!Array.isArray(req.body.serverSecrets) || req.body.serverSecrets.some((x: unknown) => typeof x !== "string")) return res.status(400).json({ error: "invalid_secrets" });
@@ -6890,7 +6891,7 @@ app.listen(port, host, () => {
     console.warn(`[api] ⚠ listening on ${host}: reachable from the network, protected by HYDRA_AUTH_TOKEN`);
   }
   // The copies of deleted projects that a program held open when they were deleted.
-  removeLeftoverCopies().then((r) => {
+  loadProjects(db).then((list) => removeLeftoverCopies(list.map((x) => x.id))).then((r) => {
     if (r.removed.length) console.log(`[api] removed ${r.removed.length} working cop${r.removed.length === 1 ? "y" : "ies"} of deleted projects left from before`);
     if (r.left.length) console.warn(`[api] ${r.left.length} working cop${r.left.length === 1 ? "y" : "ies"} of deleted projects still cannot be removed (files in use)`);
   }).catch(() => {});

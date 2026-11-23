@@ -446,6 +446,8 @@ export interface Project {
   agentMissing: boolean;
   /** Also load the agent's own memory in this project's chat. */
   agentMemory: boolean;
+  /** Whether this project's approvals are also announced on Telegram. */
+  telegramApprovals?: boolean;
   channel: string;
   /** The branch the agent's copies are on. */
   branch: string;
@@ -1325,7 +1327,7 @@ export class ApiService {
     return this.http.get<ProjectDetail>(`${this.base}/projects/${id}`);
   }
 
-  updateProject(id: string, p: { name?: string; agentId?: string; agentMemory?: boolean; serverSecrets?: string[] }): Observable<{ project: Project }> {
+  updateProject(id: string, p: { name?: string; agentId?: string; agentMemory?: boolean; telegramApprovals?: boolean; serverSecrets?: string[] }): Observable<{ project: Project }> {
     return this.http.patch<{ project: Project }>(`${this.base}/projects/${id}`, p);
   }
 
