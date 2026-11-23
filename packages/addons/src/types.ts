@@ -38,6 +38,8 @@ export interface ProjectRef {
   slug: string;
   /** The user's folder. The agents never write in it, except the project's two own files. */
   folder: string;
+  /** The secrets files of that folder the user chose to give a server of the project (see native/project/servers.ts). */
+  serverSecrets?: string[];
 }
 
 export interface ToolContext {

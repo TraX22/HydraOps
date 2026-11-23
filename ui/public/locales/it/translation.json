@@ -346,7 +346,10 @@
         "runMinutes": "Limite di tempo (minuti)",
         "runNote": "Viene eseguito con il tuo utente e i tuoi strumenti installati, sulla copia del progetto dell'agente. Leggilo prima di approvare: niente lo isola dal resto di questo computer.",
         "runChanged": "Questo comando esegue il codice del progetto così come lo ha ora l'agente, compresi {{n}} file che ha modificato e che non hai ancora accettato. Guardali nelle modifiche del progetto prima di approvare:",
-        "runChangedMore": "e altri {{n}}"
+        "runChangedMore": "e altri {{n}}",
+        "server": "Programma da lasciare in esecuzione su questo computer: \"{{name}}\"",
+        "serverSecrets": "Questi tuoi file di segreti vengono copiati nella copia dell'agente mentre è in esecuzione. Il codice che esegue, che l'agente può aver modificato, può leggerli:",
+        "serverNote": "Resta in esecuzione con il tuo utente e i tuoi strumenti installati finché tu o l'agente non lo fermate, o HydraOps si chiude. Leggilo prima di approvare: niente lo isola dal resto di questo computer."
       }
     },
     "linkUnverified": "⚠ Non verificato: l'agente non ha aperto né visto questo indirizzo in questa conversazione. Può esistere, ma viene dalla sua memoria, non da una consultazione.",
@@ -481,6 +484,19 @@
       "title": "Comandi",
       "how": "L'agente può eseguire i comandi di questo progetto su questo computer, uno alla volta, e solo dopo che hai approvato ciascuno.",
       "where": "Vengono eseguiti nella copia del progetto dell'agente, con gli strumenti installati qui ({{where}})."
+    },
+    "servers": {
+      "running": "In esecuzione",
+      "stopped": "Fermo",
+      "ended": "terminato",
+      "output": "Output",
+      "hideOutput": "Nascondi output",
+      "stop": "Ferma",
+      "noOutput": "Non ha ancora stampato nulla.",
+      "secretsTitle": "File di segreti per i server del progetto",
+      "secretsHint": "Un server avviato dall'agente esegue la copia del progetto dell'agente, dove i tuoi file di segreti non ci sono. Spunta quelli di cui un server ha bisogno: vengono copiati in quella copia mentre un server è in esecuzione e rimossi quando si ferma l'ultimo.",
+      "secretsWarn": "L'agente non può aprire questi file, ma il codice che il server esegue, che l'agente può aver modificato, può leggerli. Meglio usare chiavi di test.",
+      "secretsNone": "Non c'è nessun file di segreti (.env, .dev.vars) nella cartella di questo progetto."
     },
     "instructions": {
       "state": {

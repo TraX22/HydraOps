@@ -346,7 +346,10 @@
         "runMinutes": "Time limit (minutes)",
         "runNote": "It runs with your user and your installed tools, on the agent's copy of the project. Read it before approving: nothing isolates it from the rest of this computer.",
         "runChanged": "This command runs the project's code as the agent has it now, including {{n}} file(s) it changed that you have not accepted. Look at them in the project's changes before approving:",
-        "runChangedMore": "and {{n}} more"
+        "runChangedMore": "and {{n}} more",
+        "server": "Program to leave running on this computer: \"{{name}}\"",
+        "serverSecrets": "These secrets files of yours are copied into the agent's copy while it runs. The code it runs, which the agent may have changed, can read them:",
+        "serverNote": "It keeps running with your user and your installed tools until you or the agent stop it, or HydraOps closes. Read it before approving: nothing isolates it from the rest of this computer."
       }
     },
     "linkUnverified": "⚠ Not verified: the agent did not open or see this address in this conversation. It may exist, but it came from its memory, not from a lookup.",
@@ -481,6 +484,19 @@
       "title": "Commands",
       "how": "The agent can run this project's commands on this computer, one at a time, and only after you approve each one.",
       "where": "They run in the agent's copy of the project, with the tools installed here ({{where}})."
+    },
+    "servers": {
+      "running": "Running",
+      "stopped": "Stopped",
+      "ended": "ended",
+      "output": "Output",
+      "hideOutput": "Hide output",
+      "stop": "Stop",
+      "noOutput": "It has printed nothing yet.",
+      "secretsTitle": "Secrets files for the project's servers",
+      "secretsHint": "A server the agent starts runs the agent's copy of the project, where your secrets files are not. Tick the ones a server needs: they are copied into that copy while a server runs and removed when the last one stops.",
+      "secretsWarn": "The agent cannot open these files, but the code the server runs, which the agent may have changed, can read them. Prefer test keys.",
+      "secretsNone": "There is no secrets file (.env, .dev.vars) in this project's folder."
     },
     "instructions": {
       "state": {

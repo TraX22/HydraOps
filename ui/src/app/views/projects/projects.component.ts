@@ -79,7 +79,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
 
   // ── Settings, and the project's two files ──
   settingsOpen = signal(false);
-  settings = { name: '', agentId: '', agentMemory: false };
+  settings = { name: '', agentId: '', agentMemory: false, secrets: [] as string[] };
   settingsError = signal('');
   confirmDelete = signal(false);
   fileOpen = signal<'' | 'instructions' | 'memory'>('');
@@ -347,6 +347,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   }
 
   private refresh(): void {
+    if (this.serverLogOf()) this.loadServerLog();
     const id = this.activeId();
     if (id) this.api.getProject(id).subscribe({ next: d => this.applyDetail(d), error: () => {} });
   }
@@ -395,11 +396,56 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     });
   }
 
+  // ── Servers: the project's programs that are kept running ──
+  /** The servers worth showing: the ones running, and the last one that ended (to read why). */
+  servers = computed(() => {
+    const all = this.detail()?.servers ?? [];
+    const running = all.filter(s => s.status === 'running');
+    const ended = all.filter(s => s.status !== 'running').sort((a, b) => (b.stoppedAt ?? '').localeCompare(a.stoppedAt ?? '')).slice(0, running.length ? 0 : 1);
+    return [...running, ...ended];
+  });
+  /** The server whose output is open, and that output. */
+  serverLogOf = signal<string | null>(null);
+  serverLogText = signal('');
+  stoppingServer = signal<string | null>(null);
+
+  toggleServerLog(name: string): void {
+    if (this.serverLogOf() === name) { this.serverLogOf.set(null); return; }
+    this.serverLogOf.set(name);
+    this.serverLogText.set('');
+    this.loadServerLog();
+  }
+
+  private loadServerLog(): void {
+    const p = this.active(); const name = this.serverLogOf();
+    if (!p || !name) return;
+    this.api.projectServerLog(p.id, name, 60).subscribe({
+      next: r => { if (this.serverLogOf() === name) this.serverLogText.set(r.text); },
+      error: () => { if (this.serverLogOf() === name) this.serverLogText.set(''); },
+    });
+  }
+
+  stopServer(name: string): void {
+    const p = this.active();
+    if (!p || this.stoppingServer()) return;
+    this.stoppingServer.set(name);
+    this.api.stopProjectServer(p.id, name).subscribe({
+      next: () => { this.stoppingServer.set(null); this.refresh(); },
+      error: () => { this.stoppingServer.set(null); this.refresh(); },
+    });
+  }
+
+  toggleSecret(file: string, on: boolean): void {
+    const set = new Set(this.settings.secrets);
+    if (on) set.add(file); else set.delete(file);
+    this.settings.secrets = [...set];
+  }
+
   // ── Settings ──
   openSettings(): void {
     const p = this.active();
     if (!p) return;
-    this.settings = { name: p.name, agentId: p.agentId, agentMemory: p.agentMemory };
+    this.settings = { name: p.name, agentId: p.agentId, agentMemory: p.agentMemory, secrets: [...(this.detail()?.secrets?.chosen ?? [])] };
     this.settingsError.set('');
     this.confirmDelete.set(false);
     this.fileOpen.set('');
@@ -409,7 +455,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   saveSettings(): void {
     const p = this.active();
     if (!p) return;
-    this.api.updateProject(p.id, { name: this.settings.name, agentId: this.settings.agentId, agentMemory: this.settings.agentMemory }).subscribe({
+    this.api.updateProject(p.id, { name: this.settings.name, agentId: this.settings.agentId, agentMemory: this.settings.agentMemory, serverSecrets: this.settings.secrets }).subscribe({
       next: r => {
         this.settingsOpen.set(false);
         this.projects.update(list => list.map(x => (x.id === p.id ? r.project : x)));

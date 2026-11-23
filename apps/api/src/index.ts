@@ -46,7 +46,7 @@ import {
   blenderImportCode, parseBlenderImportResult, BLENDER_SERVERS, BLENDER_CODE_TOOL,
   pushPreview, checkGitFolder, gitVersions, gitFolderStates,
   openProject, pendingChanges, fileDiff, acceptChanges, discardChanges, repoState, removeWorkingCopies, initRepository,
-  commandsInfo,
+  commandsInfo, listServers, stopServer, serverLog, stopAllServers, secretCandidates, secretsPlan,
   readInstructions, writeInstructions, readMemory, listFiles, INSTRUCTIONS_FILE, MEMORY_FILE,
   readProjectFile, writeProjectFile, isSensitivePath, getChangeSummary, clearChangeSummary, logProjectEvent,
 } from "@hydraops/addons";
@@ -2439,23 +2439,27 @@ api.get("/tasks", async (req, res) => {
     const heldRows = rows.length
       ? await (db as any).select().from(pendingActions).where(eq(pendingActions.channel, channel)).orderBy(asc(pendingActions.createdAt))
       : [];
-    // A command waiting in a project's chat will run the project's code as the agent's copy
-    // has it now: the files the agent changed and the user has not accepted go with the card.
-    let runContext: { changedFiles: string[]; changedTotal: number } | null = null;
-    if (heldRows.some((a: any) => a.toolName === "project_run" && a.status === "pending")) {
+    // A command or a server waiting in a project's chat will run the project's code as the
+    // agent's copy has it now: the files the agent changed and the user has not accepted go
+    // with the card, and for a server the secrets files that would be copied in for it.
+    const isRunCall = (a: any) => a.status === "pending" && (a.toolName === "project_run" || (a.toolName === "project_server" && String(a.args?.action ?? "start") === "start"));
+    let runContext: { changedFiles: string[]; changedTotal: number; secrets: string[] } | null = null;
+    if (heldRows.some(isRunCall)) {
       try {
         const proj = await findProject(db, projectIdOfChannel(channel));
         if (proj) {
           const space = await openProject(projectRefOf(proj));
           const changed = space.repos.length ? await pendingChanges(space) : [];
-          runContext = { changedFiles: changed.slice(0, 12).map((c) => c.path), changedTotal: changed.length };
+          const secrets = space.repos.length && proj.serverSecrets.length ? (await secretsPlan(space, proj.serverSecrets)).copy : [];
+          runContext = { changedFiles: changed.slice(0, 12).map((c) => c.path), changedTotal: changed.length, secrets };
         }
       } catch { /* the card is shown without it */ }
     }
     const heldByTask = new Map<string, any[]>();
     for (const a of heldRows) {
       if (!heldByTask.has(a.taskId)) heldByTask.set(a.taskId, []);
-      heldByTask.get(a.taskId)!.push({ ...publicPendingAction(a), ...(runContext && a.toolName === "project_run" && a.status === "pending" ? { context: runContext } : {}) });
+      const context = runContext && isRunCall(a) ? { changedFiles: runContext.changedFiles, changedTotal: runContext.changedTotal, ...(a.toolName === "project_server" ? { secrets: runContext.secrets } : {}) } : null;
+      heldByTask.get(a.taskId)!.push({ ...publicPendingAction(a), ...(context ? { context } : {}) });
     }
     // Tasks the calendar started carry their entry's title, for the mark on the message.
     const calendarIds = [...new Set(rows.map((r: any) => r.calendarEntryId).filter(Boolean))] as string[];
@@ -5146,7 +5150,7 @@ api.post("/system/integrations/git/folders", async (req, res) => {
 // (the channel `project:<id>`). The agent never writes in the folder: it works on a copy
 // of each repository kept under HydraOps' data, and what it changed waits here, as a
 // diff, for the user to accept or discard (see @hydraops/addons native/project/core.ts).
-const projectRefOf = (p: ProjectRecord) => ({ id: p.id, name: p.name, slug: p.slug, folder: p.folder });
+const projectRefOf = (p: ProjectRecord) => ({ id: p.id, name: p.name, slug: p.slug, folder: p.folder, serverSecrets: p.serverSecrets });
 const isAgentId = (id: unknown): id is string => typeof id === "string" && /^[a-z0-9][a-z0-9_-]*$/i.test(id);
 // An agent is a folder of the agents' directory: the name is looked up in that list, and no
 // path is ever built from what the request sent.
@@ -5166,6 +5170,9 @@ async function instructionsState(p: ProjectRecord): Promise<"none" | "accepted" 
   const ins = await readInstructions(projectRefOf(p));
   return !ins ? "none" : ins.hash === p.instructionsHash ? "accepted" : "pending";
 }
+
+/** A server of a project, as the interface shows it. */
+const publicServer = (s: any) => ({ name: s.name, command: s.command, cwd: s.cwd, status: s.status, url: s.url ?? null, startedAt: s.startedAt, stoppedAt: s.stoppedAt ?? null, exitCode: typeof s.exitCode === "number" ? s.exitCode : null, note: s.note ?? null });
 
 async function projectSummary(p: ProjectRecord) {
   return {
@@ -5214,6 +5221,7 @@ api.post("/projects", async (req, res) => {
     const project: ProjectRecord = {
       id: randomUUID(), name, slug: projectSlug(name, projects.map((p) => p.slug)), folder: folder.folder,
       agentId: String(req.body.agentId), agentMemory: req.body?.agentMemory === true, instructionsHash: null,
+      serverSecrets: [],
       createdAt: new Date().toISOString(),
     };
     await saveProjects(db, [...projects, project]);
@@ -5242,9 +5250,42 @@ api.get("/projects/:id", async (req, res) => {
       suggestedMessage: await getChangeSummary(projectRefOf(p)),
       // Where the agent's commands run when the user approves one: this computer, in which shell.
       commands: await commandsInfo().catch(() => null),
+      // The programs of the project that are kept running (a development server), as they are now.
+      servers: space.repos.length ? (await listServers(space).catch(() => [])).map(publicServer) : [],
+      // The secrets files of the user's folder a server can be given, and the ones the user chose.
+      secrets: space.repos.length ? { available: await secretCandidates(space).catch(() => []), chosen: p.serverSecrets } : { available: [], chosen: p.serverSecrets },
     });
   } catch (err: any) {
     console.error("[api] GET /projects/:id failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+// What a server of the project printed last, and stopping one. Starting one is the agent's
+// call, held for the user's approval (project_server).
+api.get("/projects/:id/servers/:name/log", async (req, res) => {
+  try {
+    const p = await projectOr404(req, res);
+    if (!p) return;
+    const log = await serverLog(projectRefOf(p), req.params.name, Number(req.query.lines) || 120);
+    if ("error" in log) return res.status(404).json({ error: "not_found" });
+    res.json(log);
+  } catch (err: any) {
+    console.error("[api] GET /projects/:id/servers/:name/log failed", err);
+    res.status(500).json({ error: "internal_error" });
+  }
+});
+
+api.post("/projects/:id/servers/:name/stop", async (req, res) => {
+  try {
+    const p = await projectOr404(req, res);
+    if (!p) return;
+    const space = await openProject(projectRefOf(p));
+    const r = await stopServer(space, req.params.name);
+    if (!r.ok) return res.status(r.state ? 409 : 404).json({ error: r.state ? "did_not_stop" : "not_found" });
+    res.json({ server: publicServer(r.state), servers: (await listServers(space)).map(publicServer) });
+  } catch (err: any) {
+    console.error("[api] POST /projects/:id/servers/:name/stop failed", err);
     res.status(500).json({ error: "internal_error" });
   }
 });
@@ -5264,6 +5305,15 @@ api.patch("/projects/:id", async (req, res) => {
       next.agentId = String(req.body.agentId);
     }
     if (typeof req.body?.agentMemory === "boolean") next.agentMemory = req.body.agentMemory;
+    if (req.body?.serverSecrets !== undefined) {
+      // Only secrets files that are in the user's folder now can be chosen.
+      if (!Array.isArray(req.body.serverSecrets) || req.body.serverSecrets.some((x: unknown) => typeof x !== "string")) return res.status(400).json({ error: "invalid_secrets" });
+      const space = await openProject(projectRefOf(p));
+      const available = space.repos.length ? await secretCandidates(space) : [];
+      const chosen = [...new Set(req.body.serverSecrets as string[])].filter((f) => available.includes(f));
+      if (chosen.length !== new Set(req.body.serverSecrets as string[]).size) return res.status(400).json({ error: "invalid_secrets" });
+      next.serverSecrets = chosen;
+    }
     await saveProjects(db, (await loadProjects(db)).map((x) => (x.id === p.id ? next : x)));
     res.json({ project: await projectSummary(next) });
   } catch (err: any) {
@@ -5283,6 +5333,8 @@ api.delete("/projects/:id", async (req, res) => {
     const space = await openProject(projectRefOf(p));
     const pending = space.repos.length ? (await pendingChanges(space)).length : 0;
     if (pending && req.query.discard !== "1") return res.status(409).json({ error: "pending_changes", pending });
+    // Its servers stop, and the secrets copied for them leave the copy, before the copy goes.
+    if (space.repos.length) await stopAllServers(space).catch(() => {});
     await removeWorkingCopies(projectRefOf(p));
     await saveProjects(db, (await loadProjects(db)).filter((x) => x.id !== p.id));
     res.json({ success: true });

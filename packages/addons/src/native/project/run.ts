@@ -195,7 +195,7 @@ export function commandProblem(commandRaw: unknown): string {
   return "";
 }
 
-function killTree(pid: number): void {
+export function killTree(pid: number): void {
   if (process.platform === "win32") { execFile("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true }, () => {}); return; }
   try { process.kill(-pid, "SIGKILL"); } catch { try { process.kill(pid, "SIGKILL"); } catch { /* gone */ } }
 }

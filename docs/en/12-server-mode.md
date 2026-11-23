@@ -73,7 +73,7 @@ The unit runs the stack with a read-only home, except the clone, the key store a
 ReadWritePaths=/home/you/projects
 ```
 
-**Commands in projects.** A command you approve in a project ([Projects → Commands](./16-projects.md#commands)) runs as the unit's user and inside the unit's limits: it can write only where the unit can (the folders above), and it finds the programs on the unit's `PATH`. A tool installed somewhere else has to be added to `Environment=PATH`.
+**Commands in projects.** A command you approve in a project ([Projects → Commands](./16-projects.md#commands)) runs as the unit's user and inside the unit's limits: it can write only where the unit can (the folders above), and it finds the programs on the unit's `PATH`. A tool installed somewhere else has to be added to `Environment=PATH`. A [server](./16-projects.md#servers) the agent starts lives inside the unit too: it stops when the service stops or restarts, and its address is on the server machine (`localhost` there), so to open it from another computer start it on an address your network can reach.
 
 ```
 sudo systemctl daemon-reload && sudo systemctl restart hydraops

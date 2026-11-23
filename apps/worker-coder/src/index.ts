@@ -9,12 +9,12 @@ import { loadEnv, urlForLog, envFile, dataRoot, storageDir, agentsDir, logsDir, 
 
 loadDotenv({ path: envFile });
 
-import { cronUnreadSources, cronReadSourcesPrompt, addUsage, CRON_SOURCES_UNREAD, CRON_SOURCES_UNREAD_TEXT, createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, filterCronAnswer, cronNothingNewPrompt, CRON_NOTHING_NEW, loadRecentChannelHistory, historyOptions, searchAgentTasks, isTaskCancelled, modelNeverAnswered, lastTaskToolNames, taskChainAutoApproved, calendarAgendaBlock, isTimeZone, systemTimeZone, calendarTaskContext, projectOfChannel } from "@hydraops/db";
+import { loadProjects, cronUnreadSources, cronReadSourcesPrompt, addUsage, CRON_SOURCES_UNREAD, CRON_SOURCES_UNREAD_TEXT, createDb, events, outbox, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, buildCronDedupContext, filterCronAnswer, cronNothingNewPrompt, CRON_NOTHING_NEW, loadRecentChannelHistory, historyOptions, searchAgentTasks, isTaskCancelled, modelNeverAnswered, lastTaskToolNames, taskChainAutoApproved, calendarAgendaBlock, isTimeZone, systemTimeZone, calendarTaskContext, projectOfChannel } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { eq, and, desc, ne } from "drizzle-orm";
 import { generateText as llmGenerateText, resolveLLMConfig, resolveMaxSteps, buildUserMessage } from "@hydraops/llm";
-import { createResultFiles, taskFilesContext, conversationFiles, conversationFilesPrompt, type ConversationFile, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, carriedSkillsPrompt, noteSkillsOpened, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan, setupToolsOnDemand, harvestMediaFiles, connectionOrigins, openProject, projectPrompt, pendingChanges, agentFilesPrompt, readProjectEvents, commandsInfo } from "@hydraops/addons";
+import { createResultFiles, taskFilesContext, conversationFiles, conversationFilesPrompt, type ConversationFile, createRegistry, createSourceCollector, historyAssistantText, createTaskSecurity, resolveSecurityMode, executeApprovedCall, continuationPrompt, carriedSkillsPrompt, noteSkillsOpened, filterMcpConfigForTools, EXTERNAL_CONTENT_RULE, skillsPromptSection, isValidSkillName, listInstalledSkills, createProgressTracker, createTaskVault, vaultBudgetChars, stepToolImages, planModePrompt, planFromProposal, planFromText, createPlanTools, type Plan, setupToolsOnDemand, harvestMediaFiles, connectionOrigins, openProject, projectPrompt, pendingChanges, agentFilesPrompt, readProjectEvents, commandsInfo, stopLeftoverServers, stopServersOnExit } from "@hydraops/addons";
 
 const env = loadEnv({ ...process.env, SERVICE_NAME: process.env.SERVICE_NAME ?? "worker-coder" });
 const consumerName = env.SERVICE_NAME;
@@ -297,7 +297,7 @@ async function runApprovedAction(actionId: string): Promise<void> {
     ...(actionProject ? { extraAllowed: globalRegistry.projectToolNames() } : {}),
     context: {
       agentId,
-      ...(actionProject ? { project: { id: actionProject.id, name: actionProject.name, slug: actionProject.slug, folder: actionProject.folder } } : {}),
+      ...(actionProject ? { project: { id: actionProject.id, name: actionProject.name, slug: actionProject.slug, folder: actionProject.folder, serverSecrets: actionProject.serverSecrets } } : {}),
       searchPastTasks: (query: string, limit?: number) => searchAgentTasks(sqliteClient, agentId, query, limit),
       // The held call came from a task that had read outside content; a replayed
       // delegate_task must hand that taint on.
@@ -424,7 +424,7 @@ for await (const m of sub) {
     // A project's chat (see @hydraops/addons native/project): the agent works on that
     // project's code, with the project's own tools, instructions and notes.
     const project = await projectOfChannel(db, channel).catch(() => null);
-    const projectRef = project ? { id: project.id, name: project.name, slug: project.slug, folder: project.folder } : null;
+    const projectRef = project ? { id: project.id, name: project.name, slug: project.slug, folder: project.folder, serverSecrets: project.serverSecrets } : null;
 
     // Consult DB to respect the model chosen in UI for this agent.
     // "Tipo" (graphicEngine) overrides when set; 'auto' → agent model → global default.
@@ -896,6 +896,20 @@ ${EXTERNAL_CONTENT_RULE}
     m.ack();
   }
 }
+
+// Servers of projects are started by this service (when the user approves one) and end with
+// it. One left running by a run that ended without stopping it is stopped now.
+stopServersOnExit();
+void (async () => {
+  try {
+    const all = await loadProjects(db);
+    const left = await stopLeftoverServers(async (id) => {
+      const p = all.find((x) => x.id === id);
+      return p ? openProject({ id: p.id, name: p.name, slug: p.slug, folder: p.folder }) : null;
+    });
+    if (left.length) console.log(`[worker-coder] Stopped ${left.length} project server(s) left running by an earlier run.`);
+  } catch (e: any) { console.warn(`[worker-coder] could not check for project servers left running: ${e?.message ?? e}`); }
+})();
 
 process.on("SIGINT", () => {
   console.log(`[worker-coder] Shutting down...`);

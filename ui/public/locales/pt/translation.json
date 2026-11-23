@@ -346,7 +346,10 @@
         "runMinutes": "Limite de tempo (minutos)",
         "runNote": "Ele roda com o seu usuário e as suas ferramentas instaladas, na cópia do projeto do agente. Leia antes de aprovar: nada o isola do resto deste computador.",
         "runChanged": "Este comando executa o código do projeto como o agente o tem agora, incluindo {{n}} arquivo(s) que ele alterou e que você ainda não aceitou. Veja-os nas alterações do projeto antes de aprovar:",
-        "runChangedMore": "e mais {{n}}"
+        "runChangedMore": "e mais {{n}}",
+        "server": "Programa a deixar rodando neste computador: \"{{name}}\"",
+        "serverSecrets": "Estes seus arquivos de segredos são copiados para a cópia do agente enquanto ele roda. O código que ele executa, que o agente pode ter alterado, pode lê-los:",
+        "serverNote": "Ele continua rodando com o seu usuário e as suas ferramentas instaladas até que você ou o agente o parem, ou o HydraOps feche. Leia antes de aprovar: nada o isola do resto deste computador."
       }
     },
     "linkUnverified": "⚠ Não verificado: o agente não abriu nem viu este endereço nesta conversa. Pode existir, mas veio da memória dele, não de uma consulta.",
@@ -481,6 +484,19 @@
       "title": "Comandos",
       "how": "O agente pode executar os comandos deste projeto neste computador, um de cada vez, e só depois de você aprovar cada um.",
       "where": "Eles rodam na cópia do projeto do agente, com as ferramentas instaladas aqui ({{where}})."
+    },
+    "servers": {
+      "running": "Em execução",
+      "stopped": "Parado",
+      "ended": "terminou",
+      "output": "Saída",
+      "hideOutput": "Ocultar saída",
+      "stop": "Parar",
+      "noOutput": "Ainda não imprimiu nada.",
+      "secretsTitle": "Arquivos de segredos para os servidores do projeto",
+      "secretsHint": "Um servidor iniciado pelo agente roda a cópia do projeto do agente, onde os seus arquivos de segredos não estão. Marque os que um servidor precisa: eles são copiados para essa cópia enquanto um servidor roda e removidos quando o último para.",
+      "secretsWarn": "O agente não pode abrir esses arquivos, mas o código que o servidor executa, que o agente pode ter alterado, pode lê-los. Prefira chaves de teste.",
+      "secretsNone": "Não há nenhum arquivo de segredos (.env, .dev.vars) na pasta deste projeto."
     },
     "instructions": {
       "state": {
