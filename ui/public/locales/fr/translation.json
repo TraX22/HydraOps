@@ -346,7 +346,10 @@
         "runMinutes": "Limite de temps (minutes)",
         "runNote": "Elle s'exécute avec votre utilisateur et vos outils installés, sur la copie du projet de l'agent. Lisez-la avant d'approuver : rien ne l'isole du reste de cet ordinateur.",
         "runChanged": "Cette commande exécute le code du projet tel que l'agent l'a maintenant, y compris {{n}} fichier(s) qu'il a modifié(s) et que vous n'avez pas encore accepté(s). Regardez-les dans les modifications du projet avant d'approuver :",
-        "runChangedMore": "et {{n}} de plus"
+        "runChangedMore": "et {{n}} de plus",
+        "server": "Programme à laisser tourner sur cet ordinateur : « {{name}} »",
+        "serverSecrets": "Ces fichiers de secrets à vous sont copiés dans la copie de l'agent tant qu'il tourne. Le code qu'il exécute, que l'agent a pu modifier, peut les lire :",
+        "serverNote": "Il continue de tourner avec votre utilisateur et vos outils installés jusqu'à ce que vous ou l'agent l'arrêtiez, ou que HydraOps se ferme. Lisez-le avant d'approuver : rien ne l'isole du reste de cet ordinateur."
       }
     },
     "linkUnverified": "⚠ Non vérifié : l'agent n'a ni ouvert ni vu cette adresse dans cette conversation. Elle peut exister, mais elle vient de sa mémoire, pas d'une consultation.",
@@ -481,6 +484,19 @@
       "title": "Commandes",
       "how": "L'agent peut exécuter les commandes de ce projet sur cet ordinateur, une à la fois, et seulement après votre approbation pour chacune.",
       "where": "Elles s'exécutent dans la copie du projet de l'agent, avec les outils installés ici ({{where}})."
+    },
+    "servers": {
+      "running": "En cours",
+      "stopped": "Arrêté",
+      "ended": "terminé",
+      "output": "Sortie",
+      "hideOutput": "Masquer la sortie",
+      "stop": "Arrêter",
+      "noOutput": "Il n'a encore rien affiché.",
+      "secretsTitle": "Fichiers de secrets pour les serveurs du projet",
+      "secretsHint": "Un serveur lancé par l'agent exécute la copie du projet de l'agent, où vos fichiers de secrets ne sont pas. Cochez ceux dont un serveur a besoin : ils sont copiés dans cette copie tant qu'un serveur tourne et retirés quand le dernier s'arrête.",
+      "secretsWarn": "L'agent ne peut pas ouvrir ces fichiers, mais le code que le serveur exécute, que l'agent a pu modifier, peut les lire. Préférez des clés de test.",
+      "secretsNone": "Il n'y a aucun fichier de secrets (.env, .dev.vars) dans le dossier de ce projet."
     },
     "instructions": {
       "state": {

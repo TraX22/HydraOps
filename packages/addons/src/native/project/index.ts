@@ -9,6 +9,7 @@ import {
   readMemory, appendMemory, writeInstructions, setChangeSummary, INSTRUCTIONS_FILE, MEMORY_FILE, MAX_FILE_BYTES, type ProjectSpace,
 } from "./core.js";
 import { runInProject, describeRun, RUN_DEFAULT_MINUTES, RUN_MAX_MINUTES } from "./run.js";
+import { listServers, startServer, stopServer, serverLog, serverName, type ServerState } from "./servers.js";
 
 // project_read / project_write / project_memory / project_instructions — what an agent has
 // in a project's chat, and only there (scope "project": no tools.md grants them; the worker
@@ -23,6 +24,8 @@ import { runInProject, describeRun, RUN_DEFAULT_MINUTES, RUN_MAX_MINUTES } from 
 //  - project_instructions proposes new instructions (HydraOps.md): always the user's call.
 //  - project_run runs a command of the project on the user's computer, in the working copy,
 //    and only after the user approved that very command (see run.ts).
+//  - project_server starts, watches and stops a program of the project that keeps running
+//    (see servers.ts). Starting one waits for the user, like a command.
 
 const NOT_A_PROJECT = "This tool works only in a project's chat (HydraOps → Projects), and this conversation is not one.";
 const apiUrl = () => (process.env.HYDRA_API_URL || `http://127.0.0.1:${process.env.PORT || 3000}`).replace(/\/$/, "");
@@ -400,7 +403,80 @@ export const projectRunTool: HydraTool = {
   },
 };
 
-export const projectTools: HydraTool[] = [projectReadTool, projectWriteTool, projectMemoryTool, projectInstructionsTool, projectRunTool];
+// ── project_server ────────────────────────────────────────────────────────────
+
+const serverLine = (s: ServerState) =>
+  `- ${s.name}: ${s.status === "running" ? "RUNNING" : `stopped${typeof s.exitCode === "number" ? ` (exit code ${s.exitCode})` : ""}${s.note ? ` — ${s.note}` : ""}`} · ${s.command} · in ${s.cwd}${s.url ? ` · ${s.url}` : ""} · started ${s.startedAt}`;
+
+export const projectServerTool: HydraTool = {
+  name: "project_server",
+  title: "Project: servers",
+  scope: "project",
+  // Starting one runs a program on the user's computer that stays up: it waits for the
+  // user, always, like a command. Looking at it and stopping it change nothing of theirs.
+  risk: (args: any) => {
+    const action = String(args?.action ?? "");
+    if (action === "status" || action === "stop") return {};
+    if (action === "logs") return { readsExternal: true };
+    return { sensitive: true, readsExternal: true, approval: "always" };
+  },
+  vault: false,
+  description:
+    "A program of this project that keeps running: a development server, a watcher. project_run cannot hold one (it waits for a command to end); this starts it and leaves it up after your turn. " +
+    'action "start" (with "command", and "name" when the project needs more than one, e.g. "api" and "web") WAITS FOR THE USER\'S APPROVAL like a command: they see the exact command, the folder and which of their secrets files are copied in for it. It runs on the user\'s computer, in HydraOps\' working copy of the project, with the tools installed there; it answers once the server printed its address, ended, or a few seconds passed, with what it printed so far. ' +
+    'action "status" lists the project\'s servers and the address each printed. action "logs" gives the last lines one printed (after a change, or when the user says something does not work, read them before guessing). action "stop" stops one. These three ask nothing of the user. ' +
+    "Only this call starts a server: writing the command in your reply starts nothing. Never say a server is up unless \"status\" says it is running. Tell the user the address to open. " +
+    "A server runs the copy's code with your pending changes; most development servers reload by themselves when you change a file, so do not restart one for every edit. Stop the ones you started when they are no longer needed. Up to 3 per project.",
+  schema: z.object({
+    action: z.enum(["start", "status", "logs", "stop"]),
+    name: z.string().optional().describe('A short name for the server: "api", "web". Omit when the project has a single one (it is called "server").'),
+    command: z.string().optional().describe('For "start": the command line that starts it, in the shell this project\'s section names: "npm run dev", "npx wrangler dev", "php -S 127.0.0.1:8000 -t public".'),
+    cwd: z.string().optional().describe('For "start": the folder of the project to run it in (apps/api). Omit for the top folder.'),
+    lines: z.number().optional().describe('For "logs": how many of its last lines (default 80, up to 400).'),
+  }),
+  execute: async ({ action, name, command, cwd, lines }, ctx) => {
+    const space = await spaceOf(ctx);
+    if ("error" in space) return space.error;
+    if (action === "status") {
+      const list = await listServers(space);
+      return list.length ? `Servers of this project:\n${list.map(serverLine).join("\n")}` : "This project has no server. Start one with action \"start\".";
+    }
+    if (action === "logs") {
+      const log = await serverLog(space.project, name, lines);
+      if ("error" in log) return `project_server: ${log.error}`;
+      const state = (await listServers(space)).find((s) => s.name === serverName(name));
+      return `${state ? serverLine(state) : ""}\n\nIts last lines${log.cut ? " (earlier ones are not shown)" : ""}:\n${log.text || "(nothing printed)"}`.trim();
+    }
+    if (action === "stop") {
+      const r = await stopServer(space, name);
+      return r.ok ? `Stopped "${r.state!.name}" (${r.state!.command}).` : `project_server: ${r.error}`;
+    }
+    const r = await startServer(space, { name, command, cwd }, ctx?.project?.serverSecrets ?? []);
+    if (!r.ok) return `project_server: ${r.error}`;
+    const s = r.state!;
+    const body = (r.output ?? "").replace(/\r\n/g, "\n").trimEnd() || "(nothing printed yet)";
+    const secrets = [
+      r.secrets?.length ? `Secrets files of the user copied into the copy while a server runs (you cannot read them; the server can): ${r.secrets.join(", ")}.` : "",
+      r.skippedSecrets?.length ? `Not copied: ${r.skippedSecrets.map((x) => `${x.file} (${x.why})`).join("; ")}.` : "",
+    ].filter(Boolean).join("\n");
+    if (s.status !== "running") {
+      return `$ ${s.command}\n(in ${s.cwd}, on the user's computer: ${s.shell})\n\nIt did NOT stay up: it ended${typeof s.exitCode === "number" ? ` with exit code ${s.exitCode}` : ""} right away. What it printed:\n\n${body}${secrets ? `\n\n${secrets}` : ""}`;
+    }
+    return [
+      `$ ${s.command}\n(in ${s.cwd}, on the user's computer: ${s.shell})`,
+      `Server "${s.name}" is RUNNING${s.url ? ` at ${s.url}` : " (it printed no address in its first seconds: read its \"logs\" in a moment)"}. It stays up until it is stopped.`,
+      `What it printed so far:\n${body}`,
+      secrets,
+      s.url ? `Tell the user to open ${s.url}.` : "",
+    ].filter(Boolean).join("\n\n");
+  },
+};
+
+export const projectTools: HydraTool[] = [projectReadTool, projectWriteTool, projectMemoryTool, projectInstructionsTool, projectRunTool, projectServerTool];
+export {
+  listServers, startServer, stopServer, serverLog, stopAllServers, stopLeftoverServers, stopServersOnExit, secretCandidates, secretsPlan, serverName, firstUrl,
+  type ServerState,
+} from "./servers.js";
 export { runInProject, describeRun, commandProblem, runFolder, commandsInfo, hostShell, commandEnv, gitWrite, removeNestedRepositories } from "./run.js";
 export {
   openProject, spaceProblem, pendingChanges, fileDiff, acceptChanges, discardChanges, repoState, removeWorkingCopies, initRepository,

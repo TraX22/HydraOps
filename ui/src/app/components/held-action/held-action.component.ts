@@ -185,6 +185,28 @@ import { IconComponent } from '../icon/icon.component';
           }
           <p class="post-cost">{{ 'chat.held.project.runNote' | translate }}</p>
         </div>
+      } @else if (projectServer; as r) {
+        <div class="post">
+          <p class="post-label">{{ 'chat.held.project.server' | translate:{ name: r.name } }}</p>
+          <div class="post-part"><div class="post-body"><pre class="post-text run-command">{{ r.command }}</pre></div></div>
+          <div class="cal-row"><span class="cal-label">{{ 'chat.held.project.runFolder' | translate }}</span><code class="browser-url">{{ r.cwd || ('chat.held.project.runTop' | translate) }}</code></div>
+          @if (action.status === 'pending' && action.context?.secrets?.length) {
+            <div class="run-changed">
+              <p class="post-warn">{{ 'chat.held.project.serverSecrets' | translate }}</p>
+              <ul>@for (f of action.context!.secrets!; track f) { <li><code>{{ f }}</code></li> }</ul>
+            </div>
+          }
+          @if (action.status === 'pending' && action.context?.changedTotal) {
+            <div class="run-changed">
+              <p class="post-warn">{{ 'chat.held.project.runChanged' | translate:{ n: action.context!.changedTotal } }}</p>
+              <ul>
+                @for (f of action.context!.changedFiles; track f) { <li><code>{{ f }}</code></li> }
+                @if (action.context!.changedTotal > action.context!.changedFiles.length) { <li>{{ 'chat.held.project.runChangedMore' | translate:{ n: action.context!.changedTotal - action.context!.changedFiles.length } }}</li> }
+              </ul>
+            </div>
+          }
+          <p class="post-cost">{{ 'chat.held.project.serverNote' | translate }}</p>
+        </div>
       } @else if (projectInstructions; as text) {
         <div class="post">
           <p class="post-label">{{ 'chat.held.project.instructions' | translate }}</p>
@@ -203,7 +225,7 @@ import { IconComponent } from '../icon/icon.component';
           <button class="held-approve" [disabled]="busy()" (click)="decide('approve')">
             <app-icon name="check" /> {{ 'chat.held.approve' | translate }}
           </button>
-          @if (!post && !gitPush && !projectRun && action.toolName !== 'x_dm' && action.toolName !== 'gmail_send' && gmailTidy?.action !== 'trash') {
+          @if (!post && !gitPush && !projectRun && !projectServer && action.toolName !== 'x_dm' && action.toolName !== 'gmail_send' && gmailTidy?.action !== 'trash') {
             <button class="held-approve held-approve-task" [disabled]="busy()" (click)="decide('approveTask')" [title]="'chat.held.approveTaskHint' | translate">
               <app-icon name="check" /> {{ 'chat.held.approveTask' | translate }}
             </button>
@@ -363,6 +385,15 @@ export class HeldActionComponent implements OnInit {
     const command = typeof a['command'] === 'string' ? a['command'] : '';
     if (!command.trim()) return null;
     return { command, cwd: typeof a['cwd'] === 'string' ? a['cwd'] : '', minutes: typeof a['minutes'] === 'number' ? a['minutes'] : null };
+  }
+
+  /** A project_server start: the program that would be left running on this computer, and where. */
+  get projectServer(): { name: string; command: string; cwd: string } | null {
+    if (this.action.toolName !== 'project_server') return null;
+    const a = (this.action.args ?? {}) as Record<string, unknown>;
+    const command = typeof a['command'] === 'string' ? a['command'] : '';
+    if (!command.trim() || (a['action'] ?? 'start') !== 'start') return null;
+    return { name: typeof a['name'] === 'string' && a['name'].trim() ? a['name'].trim() : 'server', command, cwd: typeof a['cwd'] === 'string' ? a['cwd'] : '' };
   }
 
   /** A project_instructions call: the text the agent proposes for the project's HydraOps.md, shown whole. */

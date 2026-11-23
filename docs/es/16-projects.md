@@ -90,10 +90,28 @@ Lee el comando antes de aprobar, y mira también el cambio pendiente: un comando
 
 Lo que no hace:
 
-- **Un programa que queda corriendo**, como un servidor de desarrollo o un vigilante de archivos. El agente te dice cómo iniciarlo, una vez que hayas aceptado sus cambios.
+- **Un programa que queda corriendo**, como un servidor de desarrollo o un vigilante de archivos: eso es un [servidor](#servidores), que se inicia aparte.
 - **Nada que haga preguntas.** Nadie puede responder, así que el agente pasa cada elección como opción del comando.
 
 Si rechazas un comando, no corre y el agente se entera; no debería volver a pedirlo salvo que se lo digas.
+
+## Servidores
+
+Un servidor de desarrollo, un vigilante de archivos: un programa que queda corriendo no es un comando, que tiene que terminar. El agente lo inicia como un **servidor** del proyecto, y sigue en marcha después de que el agente respondió, así puedes abrir la página mientras los dos siguen trabajando.
+
+- **Iniciar uno te espera**, como un comando: la tarjeta muestra el comando exacto, la carpeta, los archivos que el agente cambió y que no aceptaste, y cuáles de tus archivos de claves se van a copiar. Corre en tu computadora, con tu usuario y tus herramientas, sin nada que lo aísle.
+- **Dónde lo ves.** Arriba de los cambios, la pestaña lista lo que está corriendo, con la dirección que imprimió el servidor (un enlace que puedes abrir), sus últimas líneas de salida y **Detener**. El agente también puede leer esa salida y detener un servidor; ninguna de las dos cosas te pregunta nada.
+- **Corre la copia del agente**, con sus cambios pendientes. La mayoría de los servidores de desarrollo se recargan solos cuando cambia un archivo, así que ves el trabajo del agente a medida que avanza, antes de aceptarlo.
+- **Varios a la vez**, hasta tres por proyecto, cada uno con un nombre: una API y un frente web, por ejemplo.
+- **Cuándo termina.** Cuando tú o el agente lo detienen, cuando borras el proyecto y cuando se cierra HydraOps. Uno que quedó corriendo porque HydraOps terminó de golpe se detiene la próxima vez que arranca.
+
+### Tus archivos de claves
+
+Un servidor corre la copia del agente, y tus archivos de claves (`.env`, `.dev.vars` y sus variantes) no están en ella, así que un servidor que los necesite arrancaría sin ellos. En los ajustes del proyecto, en **Archivos de claves para los servidores del proyecto**, marca los que un servidor necesita. Al principio no hay ninguno marcado.
+
+- Se **copian a la copia del agente cuando un servidor arranca y se quitan cuando se detiene el último**. Entre una corrida y otra no están.
+- Solo se puede copiar un archivo que **Git ignora** en tu repositorio: uno que no ignora terminaría en el cambio pendiente.
+- **El agente sigue sin poder abrirlos.** Pero el código que corre el servidor, que el agente pudo haber cambiado, sí puede leerlos: eso es lo que significa correr su código con tus claves. Usa claves de prueba cuando puedas, y mira el cambio pendiente antes de aprobar un inicio.
 
 ## Instrucciones: HydraOps.md
 
@@ -127,7 +145,7 @@ Los comandos con barra también funcionan aquí, incluido `/plan` (ver [Comandos
 
 ## Ajustes y borrado
 
-El engranaje junto al agente abre los ajustes del proyecto: su nombre, su agente y el interruptor de la memoria. En **Comandos** dice cómo corren los comandos del agente en esta computadora y con qué shell.
+El engranaje junto al agente abre los ajustes del proyecto: su nombre, su agente y el interruptor de la memoria. En **Comandos** dice cómo corren los comandos del agente en esta computadora y con qué shell, y en **Archivos de claves para los servidores del proyecto** eliges cuáles de tus archivos de claves recibe un servidor.
 
 **Borrar el proyecto** quita las copias del agente y su rama. Tu carpeta, sus archivos, los dos archivos del proyecto y el historial del chat quedan. Si todavía hay cambios esperando, al borrar se avisa que se van a perder.
 

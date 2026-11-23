@@ -198,7 +198,7 @@ export interface HeldAction {
   expiresAt: string;
   decidedAt: string | null;
   /** For a command waiting in a project: the files the agent changed there and the user has not accepted (the command runs that code). */
-  context?: { changedFiles: string[]; changedTotal: number };
+  context?: { changedFiles: string[]; changedTotal: number; /** For a server: the user's secrets files that would be copied in for it. */ secrets?: string[] };
 }
 
 // ── Commands (the chat's "/verbs", executed by the API) ──
@@ -454,6 +454,20 @@ export interface Project {
   createdAt: string;
 }
 
+export interface ProjectServer {
+  name: string;
+  command: string;
+  /** The folder of the project it runs in. */
+  cwd: string;
+  status: 'running' | 'stopped';
+  /** The address it printed, when it printed one. */
+  url: string | null;
+  startedAt: string;
+  stoppedAt: string | null;
+  exitCode: number | null;
+  note: string | null;
+}
+
 export interface ProjectChange {
   path: string;
   state: 'added' | 'modified' | 'deleted';
@@ -469,6 +483,10 @@ export interface ProjectDetail {
   /** Repositories that cannot be worked on now, in words. */
   problems: { prefix: string; error: string; code: 'folder_missing' | 'read_only' | 'no_repository' | 'no_commits' | 'no_git' | 'copy_failed' }[];
   changes: ProjectChange[];
+  /** The programs of the project that are kept running (a development server), as they are now. */
+  servers?: ProjectServer[];
+  /** The secrets files of the user's folder a server can be given, and the ones chosen. */
+  secrets?: { available: string[]; chosen: string[] };
   /** Where the agent's commands run once the user approves one: this computer's system and shell, in words. */
   commands?: { system: string; shell: string; described: string } | null;
   /** The agent is at work: accepting and discarding wait. */
@@ -1307,7 +1325,7 @@ export class ApiService {
     return this.http.get<ProjectDetail>(`${this.base}/projects/${id}`);
   }
 
-  updateProject(id: string, p: { name?: string; agentId?: string; agentMemory?: boolean }): Observable<{ project: Project }> {
+  updateProject(id: string, p: { name?: string; agentId?: string; agentMemory?: boolean; serverSecrets?: string[] }): Observable<{ project: Project }> {
     return this.http.patch<{ project: Project }>(`${this.base}/projects/${id}`, p);
   }
 
@@ -1336,6 +1354,15 @@ export class ApiService {
 
   acceptProjectChanges(id: string, message: string): Observable<{ results: ProjectAcceptResult[]; changes: ProjectChange[] }> {
     return this.http.post<{ results: ProjectAcceptResult[]; changes: ProjectChange[] }>(`${this.base}/projects/${id}/accept`, { message });
+  }
+
+  /** The last lines a server of the project printed. */
+  projectServerLog(id: string, name: string, lines = 120): Observable<{ text: string; cut: boolean }> {
+    return this.http.get<{ text: string; cut: boolean }>(`${this.base}/projects/${id}/servers/${encodeURIComponent(name)}/log`, { params: { lines } });
+  }
+
+  stopProjectServer(id: string, name: string): Observable<{ server: ProjectServer; servers: ProjectServer[] }> {
+    return this.http.post<{ server: ProjectServer; servers: ProjectServer[] }>(`${this.base}/projects/${id}/servers/${encodeURIComponent(name)}/stop`, {});
   }
 
   discardProjectChanges(id: string, paths?: string[]): Observable<{ discarded: number; changes: ProjectChange[] }> {

@@ -163,6 +163,21 @@
               <p class="commands-state">{{ 'projects.commands.how' | translate }}</p>
               @if (detail()?.commands; as c) { <small>{{ 'projects.commands.where' | translate:{ where: c.described } }}</small> }
             </div>
+            <div class="field secrets-field">
+              <span>{{ 'projects.servers.secretsTitle' | translate }}</span>
+              <small>{{ 'projects.servers.secretsHint' | translate }}</small>
+              @if (detail()?.secrets?.available?.length) {
+                @for (f of detail()!.secrets!.available; track f) {
+                  <label class="check secret">
+                    <input type="checkbox" [checked]="settings.secrets.includes(f)" (change)="toggleSecret(f, $any($event.target).checked)" />
+                    <span><code>{{ f }}</code></span>
+                  </label>
+                }
+                <small class="secrets-warn">{{ 'projects.servers.secretsWarn' | translate }}</small>
+              } @else {
+                <small>{{ 'projects.servers.secretsNone' | translate }}</small>
+              }
+            </div>
             <div class="field"><span>{{ 'projects.new.folder' | translate }}</span><code class="path">{{ p.folder }}</code></div>
             <div class="field"><span>{{ 'projects.settings.branch' | translate }}</span><code class="path">{{ p.branch }}</code>
               <small>{{ 'projects.settings.branchHint' | translate }}</small></div>
@@ -220,6 +235,28 @@
           </div>
         }
         </div>
+        }
+
+        <!-- The project's servers: what is running, where, and what it printed last -->
+        @if (servers().length) {
+          <div class="servers">
+            @for (s of servers(); track s.name) {
+              <div class="server" [class.running]="s.status === 'running'">
+                <span class="server-dot" [title]="('projects.servers.' + s.status) | translate"></span>
+                <span class="server-name">{{ s.name }}</span>
+                @if (s.status === 'running' && s.url) { <a class="server-url" [href]="s.url" target="_blank" rel="noopener">{{ s.url }}</a> }
+                @else if (s.status === 'running') { <span class="server-cmd" [title]="s.command">{{ s.command }}</span> }
+                @else { <span class="server-cmd" [title]="s.command">{{ 'projects.servers.ended' | translate }}@if (s.exitCode !== null) { ({{ s.exitCode }}) }</span> }
+                <button class="link-btn" (click)="toggleServerLog(s.name)">{{ (serverLogOf() === s.name ? 'projects.servers.hideOutput' : 'projects.servers.output') | translate }}</button>
+                @if (s.status === 'running') {
+                  <button class="link-btn danger" [disabled]="stoppingServer() === s.name" (click)="stopServer(s.name)">{{ 'projects.servers.stop' | translate }}</button>
+                }
+              </div>
+              @if (serverLogOf() === s.name) {
+                <pre class="server-log" [title]="s.command">{{ serverLogText() || ('projects.servers.noOutput' | translate) }}</pre>
+              }
+            }
+          </div>
         }
 
         <!-- Changes, and one tab per file opened from the tree -->

@@ -346,7 +346,10 @@
         "runMinutes": "Límite de tiempo (minutos)",
         "runNote": "Corre con tu usuario y tus herramientas instaladas, sobre la copia del proyecto del agente. Leelo antes de aprobar: nada lo aísla del resto de esta computadora.",
         "runChanged": "Este comando ejecuta el código del proyecto tal como lo tiene el agente ahora, incluidos {{n}} archivo(s) que cambió y que todavía no aceptaste. Miralos en los cambios del proyecto antes de aprobar:",
-        "runChangedMore": "y {{n}} más"
+        "runChangedMore": "y {{n}} más",
+        "server": "Programa a dejar corriendo en esta computadora: \"{{name}}\"",
+        "serverSecrets": "Estos archivos de claves tuyos se copian a la copia del agente mientras corre. El código que ejecuta, que el agente pudo haber cambiado, puede leerlos:",
+        "serverNote": "Sigue corriendo con tu usuario y tus herramientas instaladas hasta que vos o el agente lo detengan, o se cierre HydraOps. Leelo antes de aprobar: nada lo aísla del resto de esta computadora."
       }
     },
     "linkUnverified": "⚠ No verificado: el agente no abrió ni vio esta dirección en esta conversación. Puede existir, pero salió de su memoria, no de una consulta.",
@@ -481,6 +484,19 @@
       "title": "Comandos",
       "how": "El agente puede ejecutar los comandos de este proyecto en esta computadora, de a uno, y solo después de que apruebes cada uno.",
       "where": "Corren en la copia del proyecto del agente, con las herramientas instaladas aquí ({{where}})."
+    },
+    "servers": {
+      "running": "En marcha",
+      "stopped": "Detenido",
+      "ended": "terminó",
+      "output": "Salida",
+      "hideOutput": "Ocultar salida",
+      "stop": "Detener",
+      "noOutput": "Todavía no imprimió nada.",
+      "secretsTitle": "Archivos de claves para los servidores del proyecto",
+      "secretsHint": "Un servidor que inicia el agente corre la copia del proyecto del agente, donde tus archivos de claves no están. Marcá los que un servidor necesita: se copian a esa copia mientras un servidor corre y se quitan cuando se detiene el último.",
+      "secretsWarn": "El agente no puede abrir estos archivos, pero el código que corre el servidor, que el agente pudo haber cambiado, sí puede leerlos. Mejor usar claves de prueba.",
+      "secretsNone": "No hay ningún archivo de claves (.env, .dev.vars) en la carpeta de este proyecto."
     },
     "instructions": {
       "state": {

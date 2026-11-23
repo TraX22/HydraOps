@@ -20,6 +20,8 @@ export interface ProjectRecord {
   agentMemory: boolean;
   /** sha256 of the HydraOps.md the user accepted; another content is not in force. */
   instructionsHash: string | null;
+  /** Secrets files of the user's folder (.env, .dev.vars) copied into the agents' copy while a server of the project runs. */
+  serverSecrets: string[];
   createdAt: string;
 }
 
@@ -49,6 +51,7 @@ export async function loadProjects(db: any): Promise<ProjectRecord[]> {
       id: p.id, name: p.name, slug: p.slug, folder: p.folder, agentId: p.agentId,
       agentMemory: p.agentMemory === true,
       instructionsHash: typeof p.instructionsHash === "string" ? p.instructionsHash : null,
+      serverSecrets: Array.isArray((p as any).serverSecrets) ? (p as any).serverSecrets.filter((x: unknown) => typeof x === "string").slice(0, 20) : [],
       createdAt: typeof p.createdAt === "string" ? p.createdAt : new Date(0).toISOString(),
     }));
   } catch { return []; }

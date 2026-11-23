@@ -216,3 +216,19 @@ button:disabled { opacity: 0.55; cursor: default; }
 
 /* How the agent's commands run. */
 .commands-state { margin: 2px 0 4px; font-size: 13px; color: var(--text-primary); }
+
+/* The project's servers, above the changes. */
+.servers { border-bottom: 1px solid var(--border); padding: 6px 12px; display: flex; flex-direction: column; gap: 4px; }
+.server { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12.5px; }
+.server-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); flex: none; }
+.server.running .server-dot { background: var(--success, #16a34a); }
+.server-name { font-weight: 600; flex: none; }
+.server-url, .server-cmd { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.server-cmd { color: var(--text-muted); }
+.server .link-btn { flex: none; }
+.server .link-btn.danger { color: var(--danger, #dc2626); }
+.server-log { margin: 2px 0 4px; max-height: 220px; overflow: auto; padding: 8px 10px; border-radius: 6px; background: var(--bg-input); font-size: 11.5px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.secrets-field .check.secret { margin: 2px 0; align-items: center; }
+.secrets-field .check.secret input { width: auto; flex: none; margin: 0; padding: 0; }
+.secrets-warn { color: var(--warning, #b45309); }
+.server-url, .server-cmd, .server-log, .secrets-field code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }

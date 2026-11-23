@@ -90,10 +90,28 @@ Read the command before approving, and look at the pending change too: a command
 
 What it does not do:
 
-- **A program that keeps running**, such as a development server or a watcher. The agent tells you how to start it yourself, once you have accepted its changes.
+- **A program that keeps running**, such as a development server or a watcher: that is a [server](#servers), started apart.
 - **Anything that asks a question.** Nobody can answer a prompt, so the agent passes every choice as an option of the command.
 
 If you turn a command down, it does not run and the agent is told so; it should not ask for it again unless you say so.
+
+## Servers
+
+A development server, a watcher: a program that keeps running is not a command, which has to end. The agent starts it as a **server** of the project, and it stays up after the agent has answered, so you can open the page while you both keep working.
+
+- **Starting one waits for you**, like a command: the card shows the exact command, the folder, the files the agent changed that you have not accepted, and which of your secrets files will be copied in. It runs on your computer, with your user and your tools, with nothing isolating it.
+- **Where you see it.** Above the changes, the tab lists what is running, with the address the server printed (a link you can open), its last lines of output, and **Stop**. The agent can read that output and stop a server too; neither asks you anything.
+- **It runs the agent's copy**, with its pending changes. Most development servers reload by themselves when a file changes, so you see the agent's work as it goes, before accepting it.
+- **Several at once**, up to three per project, each with a name: an API and a web front, for instance.
+- **When it ends.** When you or the agent stop it, when you delete the project, and when HydraOps closes. One left running by a HydraOps that ended abruptly is stopped the next time it starts.
+
+### Your secrets files
+
+A server runs the agent's copy, and your secrets files (`.env`, `.dev.vars` and their variants) are not in it, so a server that needs them would start without them. In the project's settings, under **Secrets files for the project's servers**, tick the ones a server needs. None is ticked to begin with.
+
+- They are **copied into the agent's copy when a server starts and removed when the last one stops**. Between runs they are not there.
+- Only a file that **Git ignores** in your repository can be copied: one it does not ignore would end up in the pending change.
+- **The agent still cannot open them.** But the code the server runs, which the agent may have changed, can read them: that is what running its code with your secrets means. Use test keys where you can, and look at the pending change before approving a start.
 
 ## Instructions: HydraOps.md
 
@@ -127,7 +145,7 @@ The slash commands work here too, including `/plan` (see [Commands](./15-command
 
 ## Settings and deleting
 
-The gear next to the agent opens the project's settings: its name, its agent and the memory switch. Under **Commands** it says how the agent's commands run on this computer and with which shell.
+The gear next to the agent opens the project's settings: its name, its agent and the memory switch. Under **Commands** it says how the agent's commands run on this computer and with which shell, and under **Secrets files for the project's servers** you choose which of your secrets files a server gets.
 
 **Delete the project** removes the agent's copies and their branch. Your folder, its files, the two project files and the chat's history stay. If changes are still waiting, deleting warns you that they will be lost.
 
