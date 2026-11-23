@@ -19,6 +19,12 @@
   @if (loaded() && git() === null) {
     <div class="banner warn"><app-icon name="alert" /> {{ 'projects.noGit' | translate }}</div>
   }
+  @if (deleteLeftover(); as left) {
+    <div class="banner warn">
+      <app-icon name="alert" /> {{ 'projects.deleteLeftover' | translate }} <code class="path">{{ left }}</code>
+      <button class="link-btn" (click)="deleteLeftover.set(null)">{{ 'common.close' | translate }}</button>
+    </div>
+  }
 
   @if (creating() || (loaded() && !projects().length)) {
     <!-- New project -->

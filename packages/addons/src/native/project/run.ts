@@ -250,9 +250,14 @@ export function runInProject(space: ProjectSpace, req: RunRequest): Promise<RunR
 }
 
 /** A run as the agent reads it. */
+// The agent wrote the command: a long one is named by its start, and the room goes to its output.
+const SHOWN_COMMAND = 300;
+const shownCommand = (command: string): string =>
+  command.length <= SHOWN_COMMAND ? command : `${command.slice(0, SHOWN_COMMAND)}… (the command you wrote, ${command.length} characters; only its start is repeated here)`;
+
 export function describeRun(command: string, r: RunResult, minutes: number): string {
   if (!r.ok) return `project_run: ${r.error}`;
-  const head = `$ ${command}\n(in ${r.cwd}, on the user's computer: ${r.shell})`;
+  const head = `$ ${shownCommand(command)}\n(in ${r.cwd}, on the user's computer: ${r.shell})`;
   const body = (r.output ?? "").replace(/\r\n/g, "\n").trimEnd() || "(no output)";
   const notes = r.nestedRepos?.length
     ? `\n\nNote: the command started a Git repository of its own in ${r.nestedRepos.map((n) => `"${n}"`).join(", ")}. Its Git data was removed and its files are kept as files of this project (which is one repository already). Pass the generator's flag that skips Git next time (--skip-git, --no-git).`

@@ -439,6 +439,7 @@
   "projects": {
     "title": "Projetos",
     "noGit": "O Git não está instalado neste computador, e os projetos precisam dele. Instale-o e reinicie o HydraOps; a página Projetos do manual tem os passos.",
+    "deleteLeftover": "O projeto foi excluído, mas a sua cópia de trabalho não pôde ser removida: outro programa está com arquivos dela abertos. O HydraOps a remove na próxima vez que iniciar; você também pode fechar esse programa e excluir a pasta:",
     "agentWorks": "trabalha neste projeto",
     "agentMissing": "este agente não existe mais: escolha outro",
     "detached": "sem branch",

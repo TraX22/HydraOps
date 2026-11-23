@@ -720,7 +720,7 @@ export async function repoState(repo: ProjectRepo): Promise<{ prefix: string; so
 }
 
 /** A deleted project leaves nothing behind: its working copies and its branch go. The user's files are not touched. */
-export async function removeWorkingCopies(project: ProjectRef): Promise<void> {
+export async function removeWorkingCopies(project: ProjectRef): Promise<{ left: string | null }> {
   const folder = await real(project.folder);
   for (const f of folder ? await discoverRepos(folder) : []) {
     const dir = path.join(projectsDir, project.id, f.key);
@@ -730,8 +730,32 @@ export async function removeWorkingCopies(project: ProjectRef): Promise<void> {
     await pgit(f.source, ["branch", "-D", `hydraops/${project.slug}`], { user: true });
     checked.delete(norm(dir));
   }
-  await rm(path.join(projectsDir, project.id), { recursive: true, force: true }).catch(() => {});
+  const top = path.join(projectsDir, project.id);
+  await rm(top, { recursive: true, force: true, maxRetries: 4, retryDelay: 250 }).catch(() => {});
+  if (!(await exists(top))) return { left: null };
+  // A program still has files of it open (an editor on the copy). It is marked, and removed
+  // when HydraOps starts again; until then nothing else points at it.
+  await writeFile(path.join(top, DELETE_MARK), "", "utf8").catch(() => {});
+  return { left: top };
 }
+
+const DELETE_MARK = ".hydraops-delete-pending";
+
+/** At start: the copies of deleted projects that could not be removed then are removed now. */
+export async function removeLeftoverCopies(): Promise<{ removed: string[]; left: string[] }> {
+  const removed: string[] = [], left: string[] = [];
+  let ids: string[] = [];
+  try { ids = await readdir(projectsDir); } catch { return { removed, left }; }
+  for (const id of ids) {
+    const top = path.join(projectsDir, id);
+    if (!(await exists(path.join(top, DELETE_MARK)))) continue;
+    await rm(top, { recursive: true, force: true, maxRetries: 2, retryDelay: 250 }).catch(() => {});
+    if (await exists(top)) { await writeFile(path.join(top, DELETE_MARK), "", "utf8").catch(() => {}); left.push(top); }
+    else removed.push(top);
+  }
+  return { removed, left };
+}
+
 
 /**
  * Make the project's folder a repository, for a folder that is not one yet: `git init` and

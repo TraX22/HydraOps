@@ -1330,8 +1330,8 @@ export class ApiService {
   }
 
   /** With changes still pending the server answers 409 `pending_changes` unless `discard` is set. */
-  deleteProject(id: string, discard = false): Observable<{ success: boolean }> {
-    return this.http.delete<{ success: boolean }>(`${this.base}/projects/${id}`, discard ? { params: new HttpParams().set('discard', '1') } : {});
+  deleteProject(id: string, discard = false): Observable<{ success: boolean; leftover?: string | null }> {
+    return this.http.delete<{ success: boolean; leftover?: string | null }>(`${this.base}/projects/${id}`, discard ? { params: new HttpParams().set('discard', '1') } : {});
   }
 
   getProjectTree(id: string): Observable<{ files: string[]; total: number; roots: string[] }> {

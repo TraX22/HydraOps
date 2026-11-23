@@ -31,7 +31,10 @@ export interface ApprovedCallResult {
 }
 
 const MAX_RESULT = 2000;
-const clean = (s: unknown) => redactSecrets(String(s ?? '')).slice(0, MAX_RESULT);
+// A tool that keeps its own result within a size (a command's output: its start and its
+// end) is given whole: cut again here, the agent would get the start and never the end.
+const MAX_OWN_RESULT = 16_000;
+const clean = (s: unknown, max = MAX_RESULT) => redactSecrets(String(s ?? '')).slice(0, max);
 
 export async function executeApprovedCall(registry: ToolRegistry, call: ApprovedCall): Promise<ApprovedCallResult> {
   const own = call.runOwnTool?.(call.toolName, call.args);
@@ -50,7 +53,7 @@ export async function executeApprovedCall(registry: ToolRegistry, call: Approved
     const result = await tool.execute(call.args);
     const text = typeof result === 'string' ? result : JSON.stringify(result);
     const blocked = text.startsWith('⛔ Blocked by HydraOps security guard');
-    return { ok: !blocked, result: clean(text) };
+    return { ok: !blocked, result: clean(text, tool.vault === false ? MAX_OWN_RESULT : MAX_RESULT) };
   } catch (err: any) {
     return { ok: false, result: clean(err?.message ?? err) };
   }
