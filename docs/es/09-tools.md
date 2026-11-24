@@ -85,7 +85,7 @@ Las skills son texto: HydraOps **nunca ejecuta** los scripts que pueda traer una
 
 ### Instalar desde GitHub
 
-Cualquier repositorio público de GitHub que guarde skills en el mismo formato abierto (una carpeta con un `SKILL.md`) también es una fuente: las skills oficiales de Unity, las listas que mantiene la comunidad, un repositorio tuyo. Pegá su dirección en **Instalar desde GitHub** y apretá **Ver qué trae**: el repositorio, una carpeta de él, o el `SKILL.md` mismo (`https://github.com/owner/repo/tree/main/skills/mi-skill`). Todavía no se instala nada: HydraOps lee el repositorio y muestra qué tiene.
+Cualquier repositorio público de GitHub que guarde skills en el mismo formato abierto (una carpeta con un `SKILL.md`) también es una fuente: las [skills oficiales de Unity](https://github.com/Unity-Technologies/skills) (pegá `https://github.com/Unity-Technologies/skills`), las listas que mantiene la comunidad, un repositorio tuyo. Pegá su dirección en **Instalar desde GitHub** y apretá **Ver qué trae**: el repositorio, una carpeta de él, o el `SKILL.md` mismo (`https://github.com/owner/repo/tree/main/skills/mi-skill`). Todavía no se instala nada: HydraOps lee el repositorio y muestra qué tiene.
 
 - Un repositorio con muchas skills las lista con su descripción, archivos y tamaño; las copias para otros agentes en carpetas ocultas (`.gemini/`, `.codex/`…) quedan afuera, y una skill cuyo nombre ya tenés instalado de otro lado aparece marcada. Elegís las que querés.
 - Una sola skill muestra el resumen: nombre, descripción, autor y versión de su `SKILL.md`, la licencia del repositorio y la que declara la skill, los archivos que se instalan y los que no (una imagen, un archivo que supera el límite de tamaño), el **análisis de seguridad**, y un aviso cuando la skill fue escrita para un agente con terminal: en HydraOps el agente traduce esos comandos a las herramientas de sus conexiones, y las que ejecutan código esperan tu aprobación. Podés leer el `SKILL.md` entero antes de confirmar.
@@ -453,6 +453,8 @@ Las clases de las herramientas:
 | modifica | `acts` | Se retiene para tu aprobación si la tarea ya leyó contenido de terceros. |
 | lee y modifica | `both` | Las dos cosas. |
 | siempre pregunta | `approve` | Cada llamada espera tu aprobación, haya leído lo que haya leído la tarea y con cualquier ajuste de seguridad: código que corre dentro de la aplicación (el `eval` de Unity), un menú que puede hacer cualquier cosa. |
+
+**Skills para una conexión.** Una conexión le da al agente las herramientas de una aplicación; una skill le dice cómo usarlas bien. Para la conexión Unity, Unity publica sus propias skills (crear un proyecto, paquetes, UI, post-procesado, 2D, audio y más) en [github.com/Unity-Technologies/skills](https://github.com/Unity-Technologies/skills): instalá las que necesites con [Instalar desde GitHub](#instalar-desde-github). Vienen del repositorio de Unity bajo la licencia propia de Unity, que la vista previa muestra.
 
 ### Versiones y actualizaciones
 
