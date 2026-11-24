@@ -53,6 +53,14 @@ Open **Tools → Connections** and look at its state. *No agent uses it yet*: gi
 
 Update to 0.1.46 or newer: the old default engine was a Google model that no longer exists. If it still fails, pick an engine by name in the agent's profile and check that provider's key in Config.
 
+## I deleted a project and its folder is still on disk
+
+A program had files of the agent's copy open when you deleted the project: an editor, a game engine, a development server of your own. HydraOps told you so with the folder's path and removes it the next time it starts. To free the space now, close that program and delete the folder (it is inside `projects/` in the data folder). Your own project folder is never touched by this.
+
+## An agent's command in a project shows only part of its output
+
+A command keeps the start and the end of what it printed and leaves out the middle when it is long, and says how much it left out. Ask the agent to send the output to a file and read the part it needs, or to filter it in the command itself. Before 0.1.105 a long command could leave almost none of its output for the agent: update.
+
 ## Does reinstalling erase my data?
 
 No. Data and keys live outside the installation (`%APPDATA%\HydraOps` and `%APPDATA%\hydraops\keys.json`). Uninstalling and reinstalling gives you back your agents, your history and your keys. That also means **deleting the application does not delete your keys**: for that, delete those two folders.

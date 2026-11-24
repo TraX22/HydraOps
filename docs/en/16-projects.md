@@ -147,13 +147,15 @@ The slash commands work here too, including `/plan` (see [Commands](./15-command
 
 ## Settings and deleting
 
-The gear next to the agent opens the project's settings: its name, its agent and the memory switch. Under **Commands** it says how the agent's commands run on this computer and with which shell, and under **Secrets files for the project's servers** you choose which of your secrets files a server gets.
+The gear next to the agent opens the project's settings: its name, its agent, the memory switch and whether its approvals are announced on Telegram. Under **Commands** it says how the agent's commands run on this computer and with which shell, and under **Secrets files for the project's servers** you choose which of your secrets files a server gets.
 
 **Delete the project** removes the agent's copies and their branch. Your folder, its files, the two project files and the chat's history stay. If changes are still waiting, deleting warns you that they will be lost.
+
+If another program has files of the copy open (an editor or a game engine working on it), the copy cannot be removed at that moment. HydraOps says so, with the folder, and removes it the next time it starts; you can also close that program and delete the folder yourself. The project itself is gone either way.
 
 ## Security, in short
 
 - The agent's tools reach only the project's copies: no other folder, nothing of Git's own data, no credentials file, no link that leads elsewhere.
-- Code the agent wrote runs only as a command you approved, shown to you exactly as it will run. It runs on your computer with no isolation: the approval is the protection, so read it. HydraOps runs nothing of the agent's on its own.
+- Code the agent wrote runs only as a command or a server you approved, shown to you exactly as it will run. It runs on your computer with no isolation: the approval is the protection, so read it. HydraOps runs nothing of the agent's on its own.
 - Reading code counts as reading outside content: after it, anything the agent wants to send or do outside the project waits for your approval, as on any task (see [Security](./13-security.md)).
 - A push always waits for your approval.

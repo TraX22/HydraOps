@@ -53,6 +53,14 @@ Abre **Herramientas → Conexiones** y mira su estado. *Ningún agente la usa to
 
 Actualiza a la 0.1.46 o superior: el motor por defecto anterior era un modelo de Google que ya no existe. Si sigue fallando, elige un motor por nombre en la ficha del agente y revisa la clave de ese proveedor en Config.
 
+## Borré un proyecto y su carpeta sigue en el disco
+
+Un programa tenía abiertos archivos de la copia del agente cuando borraste el proyecto: un editor, un motor de juegos, un servidor de desarrollo tuyo. HydraOps lo avisó con la ruta de la carpeta y la elimina la próxima vez que arranca. Para liberar el espacio ahora, cierra ese programa y borra la carpeta (está dentro de `projects/` en la carpeta de datos). Tu propia carpeta del proyecto no se toca.
+
+## El comando de un agente en un proyecto muestra solo parte de su salida
+
+Un comando conserva el principio y el final de lo que imprimió y deja afuera el medio cuando es largo, y dice cuánto dejó afuera. Pídele al agente que mande la salida a un archivo y lea la parte que necesita, o que la filtre en el mismo comando. Antes de la 0.1.105 un comando largo podía dejarle al agente casi nada de su salida: actualiza.
+
 ## ¿Reinstalar borra mis datos?
 
 No. Datos y claves viven fuera de la instalación (`%APPDATA%\HydraOps` y `%APPDATA%\hydraops\keys.json`). Desinstalar y reinstalar te devuelve tus agentes, tu historial y tus claves. Eso también significa que **borrar la aplicación no borra tus claves**: para eso, borra esas dos carpetas.
