@@ -85,7 +85,7 @@ Skills are text: HydraOps **never runs** any scripts a skill may include.
 
 ### Installing from GitHub
 
-Any public GitHub repository that keeps skills in the same open format (a folder with a `SKILL.md`) is a source too: Unity's official skills, the lists the community maintains, a repository of your own. Paste its address in **Install from GitHub** and press **See what it holds**: the repository, one folder of it, or the `SKILL.md` itself (`https://github.com/owner/repo/tree/main/skills/my-skill`). Nothing is installed yet: HydraOps reads the repository and shows what it holds.
+Any public GitHub repository that keeps skills in the same open format (a folder with a `SKILL.md`) is a source too: [Unity's official skills](https://github.com/Unity-Technologies/skills) (paste `https://github.com/Unity-Technologies/skills`), the lists the community maintains, a repository of your own. Paste its address in **Install from GitHub** and press **See what it holds**: the repository, one folder of it, or the `SKILL.md` itself (`https://github.com/owner/repo/tree/main/skills/my-skill`). Nothing is installed yet: HydraOps reads the repository and shows what it holds.
 
 - A repository with many skills lists them with their description, files and size; copies kept for other agents under hidden folders (`.gemini/`, `.codex/`…) are left out, and a skill whose name you already have installed from elsewhere is marked. Pick the ones you want.
 - One skill shows the summary: name, description, author and version from its `SKILL.md`, the repository's license and the one the skill declares, the files that will be installed and the ones that will not (an image, a file over the size limit), the **safety scan**, and a warning when the skill was written for an agent with a terminal: in HydraOps the agent translates those commands into the tools of its connections, and the ones that run code wait for your approval. You can read the whole `SKILL.md` before confirming.
@@ -453,6 +453,8 @@ The tool classes:
 | changes | `acts` | Held for your approval if the task has already read third-party content. |
 | reads and changes | `both` | Both. |
 | always asks | `approve` | Every call waits for your approval, whatever the task read and whatever the security setting: code run inside the application (Unity's `eval`), a menu that can do anything. |
+
+**Skills for a connection.** A connection gives an agent the tools of an application; a skill tells it how to use them well. For the Unity connection, Unity publishes its own skills (creating a project, packages, UI, post-processing, 2D, audio and more) at [github.com/Unity-Technologies/skills](https://github.com/Unity-Technologies/skills): install the ones you need with [Install from GitHub](#installing-from-github). They come from Unity's repository under Unity's own license, which the preview shows.
 
 ### Versions and updates
 
