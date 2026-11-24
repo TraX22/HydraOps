@@ -147,13 +147,15 @@ Los comandos con barra también funcionan aquí, incluido `/plan` (ver [Comandos
 
 ## Ajustes y borrado
 
-El engranaje junto al agente abre los ajustes del proyecto: su nombre, su agente y el interruptor de la memoria. En **Comandos** dice cómo corren los comandos del agente en esta computadora y con qué shell, y en **Archivos de claves para los servidores del proyecto** eliges cuáles de tus archivos de claves recibe un servidor.
+El engranaje junto al agente abre los ajustes del proyecto: su nombre, su agente, el interruptor de la memoria y si sus aprobaciones se avisan por Telegram. En **Comandos** dice cómo corren los comandos del agente en esta computadora y con qué shell, y en **Archivos de claves para los servidores del proyecto** eliges cuáles de tus archivos de claves recibe un servidor.
 
 **Borrar el proyecto** quita las copias del agente y su rama. Tu carpeta, sus archivos, los dos archivos del proyecto y el historial del chat quedan. Si todavía hay cambios esperando, al borrar se avisa que se van a perder.
+
+Si otro programa tiene abiertos archivos de la copia (un editor o un motor de juegos trabajando sobre ella), la copia no se puede eliminar en ese momento. HydraOps lo avisa, con la carpeta, y la elimina la próxima vez que arranca; también puedes cerrar ese programa y borrar la carpeta tú. El proyecto se borra de todos modos.
 
 ## Seguridad, en breve
 
 - Las herramientas del agente alcanzan solo las copias del proyecto: ninguna otra carpeta, nada de los datos propios de Git, ningún archivo de credenciales, ningún enlace que lleve a otro lado.
-- El código que escribió el agente corre solo como un comando que aprobaste, mostrado tal como va a correr. Corre en tu computadora sin aislamiento: la protección es tu aprobación, así que léelo. HydraOps no ejecuta nada del agente por su cuenta.
+- El código que escribió el agente corre solo como un comando o un servidor que aprobaste, mostrado tal como va a correr. Corre en tu computadora sin aislamiento: la protección es tu aprobación, así que léelo. HydraOps no ejecuta nada del agente por su cuenta.
 - Leer código cuenta como leer contenido externo: después, lo que el agente quiera enviar o hacer fuera del proyecto espera tu aprobación, como en cualquier tarea (ver [Seguridad](./13-security.md)).
 - Un push siempre espera tu aprobación.

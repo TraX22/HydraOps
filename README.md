@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://hydraops.org"><img src="docs/img/readme-banner.png" alt="HydraOps — self-hosted multi-agent AI. Your agents, your models, your machine." width="100%"></a>
+  <a href="https://hydraops.org"><img src="docs/img/readme-banner.png" alt="HydraOps: self-hosted multi-agent AI. Your agents, your models, your machine." width="100%"></a>
 </p>
 
 <p align="center">
@@ -14,106 +14,137 @@
 
 🌐 **[hydraops.org](https://hydraops.org)** · [Download the latest release](https://github.com/TraX22/HydraOps/releases/latest) · [X @HydraOpsApp](https://x.com/HydraOpsApp)
 
-**Self-hosted multi-agent AI for your own machine.** A desktop app (Windows installer)
-or a headless server, with a chat where several AI agents — each with its own
-personality, model, tools and memory — work on tasks in parallel: research, code, images,
-video and 3D. Bring your API keys or run local LLMs; talk to your agents from the app, from
-Telegram, or with `/commands`.
+# HydraOps: self-hosted multi-agent AI for your own computer
 
-Works with API models (OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, DeepSeek, Qwen,
+HydraOps is an open-source app where several AI agents work for you in one chat. Each
+agent has its own personality, model, tools and memory, and they take tasks in parallel:
+research, code, images, video and 3D. It runs as a Windows desktop app or as a headless
+server on Linux, with your API keys or with local LLMs, and you talk to the agents from
+the app, from Telegram or with `/commands`.
+
+It works with API models (OpenAI, Anthropic, Gemini, Groq, xAI, Mistral, DeepSeek, Qwen,
 Kimi, GLM, MiniMax, OpenRouter, Perplexity, Leonardo) and with local models through any
-OpenAI-compatible server — Ollama, llama.cpp, LM Studio, vLLM. Image and video engines:
-Leonardo, Google Imagen and Veo, xAI Grok Imagine — or your own ComfyUI, where the agents
-run the workflows you saved (images, video and image-to-3D) and fetch the models they need.
+OpenAI-compatible server: Ollama, llama.cpp, LM Studio, vLLM. Images and video come from
+Leonardo, Google Imagen and Veo, xAI Grok Imagine, or from your own ComfyUI.
 
-> **Status:** in real daily use on Windows (desktop installer) and in **server mode**
-> (headless) — reachable from another machine's browser on your local network with a
-> token, or run 24/7 via systemd (see [Server mode](#server-mode-headless)). A container
-> image is still on the way.
+> **Status:** in daily use on Windows (desktop installer) and in **server mode** on Linux,
+> reachable from another computer on your network with a token, or running 24/7 under
+> systemd (see [Server mode](#server-mode-headless)). There is no container image yet.
 
 ## What you get
 
-- **Agents with personality.** Each one is six Markdown files, editable from the
-  interface itself: soul, skills, tools, memory, heartbeat and profile.
-- **Agents that remember.** A permanent memory per agent (`remember`) and full-text
-  search over its past conversations (`recall`) — files and SQLite, no vector database.
-- **Agents that delegate.** An agent can hand a task to another one (`delegate_task`),
-  and every agent is told to say so when it lacks a tool instead of pretending.
-- **Four worker types** — code, general, image and video — each with its own engine and
-  aspect ratio, configurable per agent. Video through Google Veo, xAI Grok Imagine or
-  Leonardo Motion; images through Leonardo (Flux, Phoenix…), Google's Gemini image
-  models or Grok.
+### Agents
+
+- **A personality you can edit.** Each agent is six Markdown files, edited from the
+  interface: soul, skills, tools, memory, heartbeat and profile.
+- **Memory.** A permanent memory per agent (`remember`) and full-text search over its
+  past conversations (`recall`). Files and SQLite, no vector database.
+- **Delegation.** An agent hands a task to another one (`delegate_task`), and says so
+  when it lacks a tool instead of pretending.
+- **Four worker types**: code, general, image and video, each with its own engine,
+  set per agent.
+- **Cheaper rounds.** Tools load on demand (a description first, the full tool once it
+  is named), and you choose per agent how much earlier chat it carries.
+- **Your ChatGPT plan instead of a key**, if you have one: sign in once and the agents
+  use it.
+
+### Code with agents: Projects and Git
+
+- **Projects.** Point a project at a folder with your code and give it an agent. The
+  agent works on its own copy (a Git worktree on its own branch); you read the diff and
+  accept it as one commit on your branch, or discard it. Your files change only when you
+  accept. See [Projects](docs/en/16-projects.md).
+- **Commands, one approval each.** The agent runs the project's commands (tests, builds,
+  installs) on your computer. Each one waits for you, with the exact command and the
+  files it would run that you have not accepted yet.
+- **Development servers.** The agent starts a server and leaves it running, so you open
+  the page while you both keep working. The tab shows its address, its output and a Stop
+  button; the `.env` files a server needs are the ones you tick, copied in while it runs.
+- **A code editor in the tab**, per-project instructions (`HydraOps.md`) and notes the
+  agent keeps about the project.
+- **Git tools.** Outside projects, agents read history, commit, branch and push to GitHub
+  in the folders you allow. A push always asks first.
+
+### Tools, connections and skills
+
 - **Tools.** Native add-ons (web search, Brave, Perplexity, `fetch_url` with RSS
   fallback, YouTube transcripts, GitHub, Telegram), your own add-ons in `my_addons/`
   (hot-loaded) and MCP servers, local or remote. Each agent gets only the tools you
   grant it.
-- **Connections.** A catalog of MCP servers ready to install from the app — Blender,
-  Unity (its official CLI), ComfyUI, a real browser, a document converter — with the
-  program's version pinned and every tool classified by what it does, so the ones that
-  only read run freely and the rest ask when it matters.
-- **Skills.** Tested procedures (the open Agent Skills format) that agents open when a
-  task calls for one: install them from the
+- **Connections.** A catalog of MCP servers to install from the app: Blender, Unity (its
+  official CLI), ComfyUI, a real browser, a document converter. The program's version is
+  pinned and every tool is classified by what it does, so the ones that only read run
+  freely and the rest ask when it matters.
+- **Skills.** Tested procedures in the open Agent Skills format, which an agent opens
+  when a task calls for one. Install them from the
   [catalog](https://github.com/TraX22/HydraOps-Skills) or from any GitHub repository
-  (with a preview, the license and a safety scan, and an Update button after), copy your
-  own, or let an agent propose one for your approval.
+  (with a preview, the license and a safety scan), copy your own, or let an agent propose
+  one for your approval.
+
+### Images, video and 3D
+
+- **Image and video engines** per agent: Leonardo (Flux, Phoenix), Google's Gemini image
+  models and Veo, xAI Grok Imagine, Leonardo Motion.
+- **ComfyUI from the chat.** The workflows you saved in your ComfyUI run from a message
+  (`comfy_workflows`): the agent prepares a copy with your attachments, sets the values,
+  runs it, collects the result and looks at it before reporting. It can also build a new
+  workflow from a request and save it in your ComfyUI. Missing models are found on
+  Hugging Face or Civitai and downloaded, with your approval, into the right folder.
+- **3D.** Describe an object and a model writes the scene; it renders in an isolated
+  viewer and exports as `.glb` or PNG. Models made with ComfyUI open in the chat's 3D
+  viewer, or in your Blender.
+- **Hugging Face and Civitai.** Search models and datasets, read a repository, study a
+  Civitai model (versions, trigger words, example settings). Uploads and comments wait
+  for your approval; adult content is blocked unless you allow it.
+- **Image edits without a GPU.** `image_edit` crops, flips, rotates, resizes and composes
+  the task's images, and shows the agent the result.
+- **One Shot.** Draw a task as a diagram of nodes and connections and have your model
+  compile it into one complete prompt.
+
+### Your accounts and your day
+
+- **X.** Agents post threads with images or video on the accounts you connect, each post
+  shown to you first. They also read mentions, timelines and searches within a budget
+  you set, and answer direct messages.
+- **Gmail.** Agents search and read the mailboxes you connect, write drafts, and send
+  only with your approval. New mail can go to an agent as a task.
+- **A shared calendar.** Notes the agents read as context, and actions that become tasks
+  when their time comes, with Telegram reminders.
+- **Telegram bot.** Pair a chat with a code and talk to any agent from your phone;
+  approvals arrive there with their buttons, and scheduled tasks can send their results.
+- **A browser beside the chat** (desktop app). Real Chromium tabs next to the chat, with
+  your sessions kept. Each tab has an eye that says whether an agent may read it.
+  `browser_read` gives an agent what you see (passwords never); `browser_open` and
+  `browser_act` navigate, click and type, each with your approval.
+- **Scheduled tasks**, with a schedule picker, for anything an agent should do on its own.
+
+### Control and safety
+
 - **Plan before doing.** `/plan` puts an agent in a mode where it can only read: it
   proposes the steps, you approve, edit or ask for a revision, and only then does
   anything run.
 - **Outside content is data, not orders.** What an agent reads from the web is marked as
-  third-party content, and once a task has read any, the actions that change something
-  wait for your approval in the chat (or on Telegram); the agent picks up where it left
-  off once you decide.
-- **Long reads without losing the thread.** Long tool results are kept whole in a task
-  vault; the agent reads them back by section or by search instead of working from a
-  truncated first screen.
-- **Telegram bot.** Pair a chat with a code and talk to any agent from your phone;
-  scheduled tasks can push their results (and failures) to Telegram too.
-- **Commands.** Type `/` in the chat for a palette of verbs that cost no tokens —
-  `/agents`, `/use luna`, `/status`, `/delegate karen …`, `/remember`, `/recall` — with
-  Spanish aliases; the same commands work in Telegram.
-  See [Commands](docs/en/15-commands.md).
-- **A browser beside the chat** (desktop app). The globe at the top of the chat opens real
-  Chromium tabs next to it, with your sessions kept. Each tab has an eye that says whether an
-  agent may read it: the tab you are looking at, yes; the others only if you switch them on.
-  `browser_read` gives an agent what you see (sessions included, passwords never);
-  `browser_open` navigates the panel and `browser_act` clicks, types and submits, each with your approval.
-- **One Shot.** Draw a task as a flow diagram of nodes and connections and have your
-  model compile it into a single, complete prompt.
-- **3D.** Describe an object and a model writes the scene; it renders in an isolated
-  viewer, you iterate on it and export it as `.glb` or a PNG. Models an agent makes with
-  ComfyUI open in the chat's own 3D viewer, or straight in your Blender.
-- **ComfyUI from the chat.** The workflows you saved in your own ComfyUI run from a
-  message (`comfy_workflows`): the agent prepares a copy with your attachments, sets the
-  values, runs it, waits or lets it go, collects the result and **looks at it** before
-  reporting. Missing models are found and downloaded from Hugging Face or Civitai, with
-  your approval, into the right folder.
-- **Hugging Face and Civitai.** Search models and datasets, read a repository, preview a
-  dataset, study a Civitai model (versions, trigger words, example settings); uploads and
-  comments wait for your approval, adult content is blocked unless you allow it.
-- **Publish on X.** Agents post threads, with images or a video, on the accounts you
-  connect (several, Premium aware) — every post shown to you first, as it will go out.
-- **A shared calendar.** Notes the agents read as context and actions that become tasks
-  when their time comes, with the time zone stored per entry, reserved attachments and
-  Telegram reminders; a Calendar view in Complementos, and the agents' tools held for
-  your approval when they schedule, change or remove something.
-- **Image edits without a GPU.** `image_edit` crops, flips, rotates, resizes, trims and
-  composes images of the task (a sheet of views, a mirrored profile) and shows the agent
-  the result.
-- **Cheaper rounds.** Tools load on demand (a description first, the full tool when
-  named), the earlier chat an agent carries is set per agent (none, short, normal, long),
-  and a loaded tool stays loaded so the provider's prompt cache survives.
-- **Your ChatGPT plan instead of a key**, if you have one: sign in once and the agents
-  use it. Updates arrive in the sidebar, one click installs them; editing a message in
-  the chat sends it again.
+  third-party content. Once a task has read any, the actions that change something wait
+  for your approval in the chat or on Telegram, and the agent picks up where it left off
+  once you decide.
 - **Credential firewall.** API keys are never in the repository, the database or the
-  `.env`: they live outside the project and a local proxy injects them at the network
-  boundary. Workers only ever see the `proxy` placeholder.
+  `.env`. They live outside the project and a local proxy injects them at the network
+  boundary; workers only ever see the `proxy` placeholder.
 - **Tool guard.** Every tool goes through a filter that blocks credential paths,
   catastrophic commands and requests to internal networks, and redacts secrets from
   results.
-- **Chat with attachments**, inline images and video, Mermaid diagrams, per-message LLM
-  and token cost, scheduled tasks with a schedule picker, statistics and an interface in
-  five languages (es, en, it, fr, pt-BR).
+- **Long results kept whole.** A long tool result goes to a task vault, and the agent
+  reads it back by section or by search instead of working from a cut first screen.
+
+### The interface
+
+- **Chat** with attachments, inline images and video, Mermaid diagrams, and the model and
+  token cost of every message. Editing a message sends it again.
+- **Commands.** Type `/` for a palette of verbs that cost no tokens: `/agents`,
+  `/use luna`, `/status`, `/delegate karen …`, `/remember`, `/recall`. The same commands
+  work in Telegram. See [Commands](docs/en/15-commands.md).
+- **Updates in one click** from the sidebar, statistics, and an interface in five
+  languages (es, en, it, fr, pt-BR).
 
 ## Architecture
 
