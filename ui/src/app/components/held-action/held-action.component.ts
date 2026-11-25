@@ -459,7 +459,9 @@ export class HeldActionComponent implements OnInit {
         text,
         // X's rule: 280 weighted characters, every URL counting as 23.
         chars: text.replace(/https?:\/\/\S+/gi, 'x'.repeat(23)).length,
-        media: Array.isArray(p?.['media']) ? (p['media'] as unknown[]).map(String) : [],
+        // A file of the chat, which the agent may name as storage/uploads/<name>: what is
+        // published is the file of that name in the uploads folder, so that is what is shown.
+        media: Array.isArray(p?.['media']) ? (p['media'] as unknown[]).map(m => String(m ?? '').replace(/\\/g, '/').trim().split('/').pop() ?? '').filter(Boolean) : [],
       };
     });
     // publish_at: the post is scheduled, not published now (see the Calendar).
