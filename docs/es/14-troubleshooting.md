@@ -41,6 +41,17 @@ Está en claro en el `.env` del servidor (`HYDRA_AUTH_TOKEN`). Cámbialo cuando 
 
 Cierra HydraOps antes de instalar: el instalador no puede sobrescribir archivos en uso.
 
+## El botón Actualizar dice que hay cambios locales en el repositorio
+
+Pasa en una instalación desde el código fuente, de la 0.1.102 a la 0.1.105, después de crear el primer proyecto: los datos de Proyectos se guardan en la carpeta `projects/` dentro del clon y Git los tomaba por cambios tuyos. Desde la 0.1.106 esa carpeta se ignora. Para salir de una versión anterior, decile a Git que la ignore y volvé a tocar **Actualizar**:
+
+```bash
+cd ~/HydraOps
+echo "/projects/" >> .git/info/exclude
+```
+
+Tus proyectos no se tocan. Si el aviso sigue, `git status` muestra qué otro archivo cambió.
+
 ## Algo se rompió después de una actualización
 
 Antes de cada actualización iniciada desde la barra lateral, HydraOps hace una copia de tu instalación (agentes, skills, usuarios, configuración, base de datos). Abrí **Sistema → Copias de seguridad**, buscá la copia marcada *antes de actualizar* y tocá **Restaurar**: la app se reinicia con los datos que tenías antes. Tu estado actual también queda guardado como copia, así que no se pierde nada por probar. La copia es de la versión anterior, así que las migraciones de siempre la ponen al día al arrancar. Ver [Estadísticas y Sistema](./11-stats-system.md#copias-de-seguridad).

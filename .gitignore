@@ -23,6 +23,9 @@ restore.state.json
 # Installed skills are the user's own (catalog downloads, manual copies, the ones
 # their agents wrote): they never go to the repository.
 /skills/
+# Projects keep their working copies, servers' state and notes in the data root as
+# well. Left untracked, one project was enough for the update button to refuse.
+/projects/
 
 # Los agentes son a la vez la semilla que viaja con la aplicación y los datos
 # vivos del usuario en desarrollo (en dev, dataRoot es la raíz del repositorio).
