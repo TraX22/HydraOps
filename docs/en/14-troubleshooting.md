@@ -41,6 +41,17 @@ It is in plain text in the server's `.env` (`HYDRA_AUTH_TOKEN`). Change it whene
 
 Close HydraOps before installing: the installer cannot overwrite files in use.
 
+## The Update button says there are local changes in the repository
+
+This happens in an installation from source, from 0.1.102 to 0.1.105, once the first project exists: Projects keeps its data in the `projects/` folder inside the clone, and Git took it for changes of yours. From 0.1.106 that folder is ignored. To leave an older version, tell Git to ignore it and press **Update** again:
+
+```bash
+cd ~/HydraOps
+echo "/projects/" >> .git/info/exclude
+```
+
+Your projects are not touched. If the notice stays, `git status` shows which other file changed.
+
 ## Something broke after an update
 
 Before every update started from the sidebar, HydraOps makes a copy of your installation (agents, skills, users, settings, database). Open **System → Backups**, find the copy marked *before update* and press **Put back**: the app restarts on the data you had before. Your current state is kept as a copy too, so nothing is lost by trying. The copy belongs to the previous version, so the usual migrations bring it forward on start. See [Statistics & System](./11-stats-system.md#backups).
