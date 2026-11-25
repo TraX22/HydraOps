@@ -1,11 +1,17 @@
 import path from "node:path";
 import { z } from "zod";
 import { HydraTool, ToolContext } from "../../types.js";
+import { xPostSchedulable } from "../x/index.js";
 
 // calendar — the shared calendar (Complementos → Calendar) from an agent's side: read the
 // agenda, add a note or schedule an action, change or remove an entry. The entries live in
 // HydraOps' database; the tools talk to the local API, which owns the rules (who may touch
 // what, the limits, the copies of attachments) and the clock that runs actions when due.
+//
+// An action is either a task for an agent (`prompt`) or one finished tool call (`call`): the
+// post already written, say. The call is what the user approves on the card and what runs at
+// its time, with no model in between and no second question, because nobody may be there
+// to answer one. The tools that can be carried this way are listed in SCHEDULABLE.
 //
 // Approval: a note is free (context only). Scheduling an ACTION is work set up for later,
 // so the call is held for the user; approved, it is replayed here with the same arguments
@@ -15,6 +21,10 @@ const apiUrl = () => (process.env.HYDRA_API_URL || `http://127.0.0.1:${process.e
 const MAX_OUTPUT = 60_000;
 
 const HELD = { sensitive: true, approval: "always" as const };
+
+/** The tool calls an action may carry instead of a prompt. A new one is added here and to the API's own list. */
+const SCHEDULABLE = [xPostSchedulable];
+const callField = z.object({ tool: z.literal(xPostSchedulable.tool), args: xPostSchedulable.schema });
 
 /** This task's id, from the folder the worker bound (storage/results/<task>). */
 const taskIdOf = (ctx?: ToolContext): string | undefined => (ctx?.filesDir ? path.basename(ctx.filesDir) : undefined);
@@ -79,7 +89,7 @@ export const calendarAddTool: HydraTool = {
   title: "Calendar: add",
   risk: (args: any) => (args?.kind === "action" ? HELD : {}),
   description:
-    "Add an entry to the shared calendar. A `note` (a meeting, a delivery, a reminder) is written at once and the agents see it in their agenda; a timed note reminds the user on Telegram at its time. An `action` schedules a task: at the date and time, `agent` (default: you) gets `prompt` as a new task in its chat, with the `attachments` named here copied now so they survive. Scheduling an action waits for the user's approval; once approved it runs at its time without asking again. Repeats: daily, weekly, monthly, yearly (with `repeat_until` or up to 365 times).",
+    "Add an entry to the shared calendar. A `note` (a meeting, a delivery, a reminder) is written at once and the agents see it in their agenda; a timed note reminds the user on Telegram at its time. An `action` is work for later, and waits for the user's approval now. It takes one of two shapes. With `call`, it carries one finished tool call (today: x_post, with the final text and files): the user sees exactly that on the card, and at its time it runs as approved, with no model and no second question. This is how anything already written is scheduled, a post above all: never write a prompt telling an agent to publish it. With `prompt`, `agent` (default: you) gets that text as a new task in its chat at the date and time, with the `attachments` named here copied now so they survive; use it for work that can only be done then (read, check, report). Whatever that task tries that needs approval will wait for the user again, who may not be there. Repeats (prompt only): daily, weekly, monthly, yearly (with `repeat_until` or up to 365 times).",
   schema: z.object({
     kind: z.enum(["note", "action"]),
     title: z.string().min(1).max(200),
@@ -90,12 +100,14 @@ export const calendarAddTool: HydraTool = {
     repeat: z.enum(["none", "daily", "weekly", "monthly", "yearly"]).optional(),
     repeat_until: dateField.optional(),
     agent: z.string().max(64).optional().describe("action: the agent that runs it (default: you)."),
-    prompt: z.string().max(8000).optional().describe("action: the task's text, written as the user would ask it in the chat."),
+    prompt: z.string().max(8000).optional().describe("action: the task's text, written as the user would ask it in the chat. Not with `call`."),
+    call: callField.optional().describe("action: instead of `prompt`, the finished call to run at that time: `tool` and the same `args` that tool takes. Needs `time`. Its files are kept from now."),
     attachments: z.array(z.string().min(1).max(300)).max(12).optional().describe("action: files of this task or the user's attachments the task will need (by name); copied now."),
   }),
   execute: async (args: any, ctx?: ToolContext) => {
     const by = ctx?.agentId ?? "user";
-    if (args.kind === "action" && !args.prompt) return "An action needs `prompt`: what the agent has to do when the time comes.";
+    if (args.call) return addCall(args, by, ctx);
+    if (args.kind === "action" && !args.prompt) return "An action needs `prompt` (what the agent has to do when the time comes) or `call` (the finished call to run then).";
     // Where this task had read outside content: the entry carries it, so what it says
     // never reaches another agent as trusted context (see provenance.ts).
     const origins = ctx?.taintOrigins?.() ?? [];
@@ -109,6 +121,28 @@ export const calendarAddTool: HydraTool = {
     return `Added to the calendar (id ${e.id}): ${e.title} — ${e.date}${e.time ? ` ${e.time}` : " (all day)"} ${e.timezone}${e.repeat !== "none" ? `, repeats ${e.repeat}` : ""}.${e.kind === "action" ? ` ${e.agentId} will get it as a task then${e.attachments?.length ? `, with ${e.attachments.length} attachment(s) kept` : ""}.` : ""}${r.data?.warning ? `\nNote: ${r.data.warning}` : ""}`;
   },
 };
+
+/** An action that carries one finished call: checked like the tool would, then written with the call the user approved. */
+async function addCall(args: any, by: string, ctx?: ToolContext): Promise<string> {
+  const kind = SCHEDULABLE.find((k) => k.tool === args.call?.tool);
+  if (!kind) return `Not scheduled: a calendar entry cannot carry a ${args.call?.tool ?? "nameless"} call (it can carry: ${SCHEDULABLE.map((k) => k.tool).join(", ")}).`;
+  if (args.kind !== "action") return "Not scheduled: only an `action` carries a call.";
+  if (args.prompt) return "Not scheduled: give `call` or `prompt`, not both. With `call` nothing else runs at that time.";
+  if (!args.time) return "Not scheduled: a call needs `time` (HH:MM).";
+  if (args.repeat && args.repeat !== "none") return "Not scheduled: a call runs once. Add one entry for each date.";
+  if (args.agent && args.agent !== by) return "Not scheduled: a call runs as the agent that scheduled it; leave `agent` out.";
+  const problem = await kind.problem(args.call.args, by);
+  if (problem) return `Not scheduled: ${problem}`;
+  const shown = kind.entry(args.call.args);
+  const r = await call("POST", "", {
+    by, kind: "action", title: args.title, date: args.date, time: args.time, timezone: args.timezone, notes: args.notes ?? shown.notes,
+    call: { toolName: kind.tool, args: args.call.args }, attachments: [...new Set([...(args.attachments ?? []), ...shown.attachments])],
+    createdByTask: taskIdOf(ctx), origins: ctx?.taintOrigins?.() ?? [],
+  });
+  if (!r.ok) return `Not scheduled: ${r.data?.error ?? `the calendar answered ${r.status}`}${r.data?.detail ? ` — ${r.data.detail}` : ""}`;
+  const e = r.data?.entry ?? {};
+  return `Scheduled (calendar entry ${e.id}): ${shown.what} on ${e.date} ${e.time} ${e.timezone}, exactly as approved and without asking again.${r.data?.warning ? ` Note: ${r.data.warning}` : ""} Tell the user when; they can remove it from the Calendar before then.`;
+}
 
 export const calendarUpdateTool: HydraTool = {
   name: "calendar_update",

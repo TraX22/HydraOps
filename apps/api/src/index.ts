@@ -2781,8 +2781,8 @@ async function calendarFields(body: any, current?: any): Promise<Record<string, 
 }
 
 // ── A scheduled call ───────────────────────────────────────────────────────────────────
-// An action may carry one tool call instead of a prompt: the call the agent made with a
-// later time (x_post with publish_at), which the user approved as-is. When due, the call is
+// An action may carry one tool call instead of a prompt: the finished call the agent gave to
+// calendar_add (`call`), which the user approved as-is on that card. When due, the call is
 // stored as an already-approved held action and the worker runs it through the same road
 // as any approval, with no model in between: what the user saw is what goes out. Only
 // x_post today; the list is the gate.
@@ -2951,12 +2951,13 @@ api.post("/calendar", async (req, res) => {
         const c = calendarCallFields(b.call);
         if (typeof c === "string") return res.status(400).json({ error: c });
         // The same rule as a live publish: nothing is scheduled under the user's name unless
-        // it is the run of an x_post call they approved (with this time), and the call that
-        // is stored is that approved row's, not the request's. The field `by` decides nothing.
+        // it is the run of a calendar_add call they approved (with this call and this time),
+        // and the call that is stored is that approved row's, not the request's. The field
+        // `by` decides nothing.
         const approved = await claimApprovedXSchedule(by, c.args, `${fields.date} ${fields.time}`);
         if (!approved) {
-          console.warn(`[api] calendar: a scheduled post for ${by} matched no approved x_post call: refused`);
-          return res.status(403).json({ error: "not_approved", detail: "a post is scheduled only as the run of an x_post call the user approved with that publish_at" });
+          console.warn(`[api] calendar: a scheduled ${c.toolName} for ${by} matched no approved call: refused`);
+          return res.status(403).json({ error: "not_approved", detail: "a call is scheduled only as the run of a calendar_add call the user approved, with that same call and time" });
         }
         call = { toolName: approved.toolName, args: approved.args };
         callOrigins = approved.origins;
@@ -3927,24 +3928,31 @@ function xPostShape(account: unknown, parts: unknown, extras?: XPostExtras | str
  * Null when there is none: the request did not come from an approval.
  */
 /**
- * The approved held x_post call (made with publish_at) this calendar entry is the run of,
- * claimed so it serves once, like claimApprovedXPost. What is returned is the call as the
+ * The approved held call this calendar entry is the run of, claimed so it serves once, like
+ * claimApprovedXPost: a calendar_add whose `call` and time are these. (An x_post made with
+ * publish_at, the way a post was scheduled before calendar_add carried calls, still counts:
+ * one may have been waiting when the app was updated.) What is returned is the call as the
  * user approved it (the row's account and parts, with their origins), never the request's.
  */
 async function claimApprovedXSchedule(agentId: string, callArgs: Record<string, any>, publishAt: string): Promise<{ toolName: string; args: Record<string, any>; origins: unknown[] } | null> {
   const want = xPostShape(callArgs.account, callArgs.parts, xPostExtras(callArgs));
-  const rows = await (db as any).select().from(pendingActions)
-    .where(and(eq(pendingActions.toolName, "x_post"), eq(pendingActions.agentId, agentId), eq(pendingActions.status, "approved"), isNull(pendingActions.result)))
-    .orderBy(desc(pendingActions.decidedAt)).limit(20);
-  for (const row of rows) {
-    const args = (typeof row.args === "string" ? JSON.parse(row.args) : row.args) ?? {};
-    if (String(args.publish_at ?? "") !== publishAt || xPostShape(args.account, args.parts, xPostExtras(args)) !== want) continue;
-    const r = await (db as any).update(pendingActions).set({ result: "scheduling…" })
-      .where(and(eq(pendingActions.id, row.id), eq(pendingActions.status, "approved"), isNull(pendingActions.result))).run();
-    if ((r?.changes ?? 0) !== 1) continue;
-    const call = calendarCallFields({ toolName: "x_post", args: { account: args.account, parts: args.parts, reply_to: args.reply_to, quote: args.quote, poll: args.poll, reply_settings: args.reply_settings } });
-    if (typeof call === "string") return null;
-    return { ...call, origins: Array.isArray(row.origins) ? row.origins : [] };
+  for (const heldTool of ["calendar_add", "x_post"]) {
+    const rows = await (db as any).select().from(pendingActions)
+      .where(and(eq(pendingActions.toolName, heldTool), eq(pendingActions.agentId, agentId), eq(pendingActions.status, "approved"), isNull(pendingActions.result)))
+      .orderBy(desc(pendingActions.decidedAt)).limit(20);
+    for (const row of rows) {
+      const held = (typeof row.args === "string" ? JSON.parse(row.args) : row.args) ?? {};
+      // The post and the time the user saw on the card.
+      const args = heldTool === "calendar_add" ? (held.call?.tool === "x_post" && held.call.args && typeof held.call.args === "object" ? held.call.args : null) : held;
+      const when = heldTool === "calendar_add" ? `${held.date ?? ""} ${held.time ?? ""}` : String(held.publish_at ?? "");
+      if (!args || when !== publishAt || xPostShape(args.account, args.parts, xPostExtras(args)) !== want) continue;
+      const r = await (db as any).update(pendingActions).set({ result: "scheduling…" })
+        .where(and(eq(pendingActions.id, row.id), eq(pendingActions.status, "approved"), isNull(pendingActions.result))).run();
+      if ((r?.changes ?? 0) !== 1) continue;
+      const call = calendarCallFields({ toolName: "x_post", args: { account: args.account, parts: args.parts, reply_to: args.reply_to, quote: args.quote, poll: args.poll, reply_settings: args.reply_settings } });
+      if (typeof call === "string") return null;
+      return { ...call, origins: Array.isArray(row.origins) ? row.origins : [] };
+    }
   }
   return null;
 }

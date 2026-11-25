@@ -241,7 +241,7 @@
         "prompt": "Tâche",
         "notes": "Notes",
         "attachments": "Pièces jointes",
-        "addNote": "Si vous approuvez, l'entrée va au calendrier et s'exécute à son heure sans redemander.",
+        "addNote": "Si vous approuvez, l'entrée va au calendrier et la tâche démarre à son heure. Ce que l'agent fera alors et qui demande une approbation (publier, envoyer) vous la redemandera.",
         "updateNote": "Si vous approuvez, l'entrée change comme indiqué.",
         "removeNote": "Si vous approuvez, l'entrée quitte le calendrier."
       },
