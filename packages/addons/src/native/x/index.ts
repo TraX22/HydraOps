@@ -76,14 +76,11 @@ const partSchema = z.object({
   media: z.array(z.string()).max(4).optional().describe("Attachments for this part, by the file name the conversation shows (storage/uploads/<name>): up to 4 images (png, jpg, webp; 5 MB each), or ONE gif (15 MB), or ONE video (mp4 with H.264 video and AAC audio). A video or a GIF goes alone in its part."),
 });
 
-export const xPostTool: HydraTool = {
-  name: "x_post",
-  title: "Post on X",
-  // Publishes under the user's name: every call waits for the user's approval.
-  risk: { sensitive: true, approval: "always" },
-  description:
-    "Publish a post or a thread on one of the user's X accounts; also a reply (`reply_to`), a quote (`quote`), a poll (`poll`) and who may reply (`reply_settings`). `account` is the handle (from x_accounts); `parts` the posts in order, each a reply to the one before. It is never run without the user's approval: they see the account, every part with its length, the images or video and the cost before deciding. Give the final text, not a draft; count the characters first (280 per part, unless the account is Premium and the user asked for a long post); put links in the last part. A video is uploaded and processed by X before the post goes out, which can take minutes. The answer carries the link to the published post. To publish LATER, give `publish_at`: the post then goes into the shared calendar once the user approves it, and is published at that time exactly as approved, without asking again (the user can remove it from the calendar before then).",
-  schema: z.object({
+const X_POST_DESCRIPTION =
+  "Publish a post or a thread on one of the user's X accounts; also a reply (`reply_to`), a quote (`quote`), a poll (`poll`) and who may reply (`reply_settings`). `account` is the handle (from x_accounts); `parts` the posts in order, each a reply to the one before. It is never run without the user's approval: they see the account, every part with its length, the images or video and the cost before deciding. Give the final text, not a draft; count the characters first (280 per part, unless the account is Premium and the user asked for a long post); put links in the last part. A video is uploaded and processed by X before the post goes out, which can take minutes. The answer carries the link to the published post. To publish LATER, do not call this: schedule it with calendar_add, giving this same call in its `call`. The user approves it once, there, and it is published at that time exactly as approved.";
+
+/** The arguments of a post: what x_post takes, and what a calendar entry carries when the post is scheduled. */
+const xPostCallSchema = z.object({
     account: z.string().min(1).describe("The handle of the account to publish on, without the @ (one of x_accounts)."),
     parts: z.array(partSchema).min(1).max(25).describe("The post, or the parts of the thread in order."),
     reply_to: z.string().regex(/^\d{1,30}$/).optional().describe("To answer a post: its id (from x_read). The first part becomes a reply to it; X shows it in that thread. Do not repeat the @handle unless you want to mention them."),
@@ -93,27 +90,56 @@ export const xPostTool: HydraTool = {
       duration_minutes: z.number().int().min(5).max(10080).describe("How long it runs: 5 minutes to 7 days (10080)."),
     }).optional().describe("A poll on the first part (which then takes no attachments)."),
     reply_settings: z.enum(["everyone", "following", "mentionedUsers", "subscribers", "verified"]).optional().describe("Who may reply; everyone by default."),
-    publish_at: z.string().regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/).optional().describe("Only to publish later: 'YYYY-MM-DD HH:MM' (24 h) in `timezone`, up to a year ahead. Without it the post goes out as soon as the user approves."),
-    timezone: z.string().max(64).optional().describe("With publish_at: IANA zone of that time, e.g. America/Argentina/Buenos_Aires; default: the user's calendar zone."),
+  });
+
+/** What the tool refuses before anything leaves: a poll with attachments, a part over the account's length. Null when the post can go. */
+async function xPostProblem(args: any, agentId: string): Promise<string | null> {
+  const { account, parts, poll } = args ?? {};
+  if (poll && (parts as { media?: string[] }[])[0]?.media?.length) return "a poll and attachments cannot go in the same part.";
+  // The 280 rule is X's for a non-Premium account; a Premium one takes long posts (up to 25,000).
+  let premium = false;
+  try {
+    const acc = await callApi("GET", `/x/accounts?agentId=${encodeURIComponent(agentId)}`);
+    const wanted = String(account).trim().replace(/^@/, "").toLowerCase();
+    premium = acc.ok && (acc.data?.accounts ?? []).some((a: any) => String(a.username).toLowerCase() === wanted && a.premium === true);
+  } catch { /* the API decides anyway */ }
+  const limit = premium ? 25_000 : 280;
+  const tooLong = (parts as { text: string }[]).map((p, i) => ({ i: i + 1, n: xLength(p.text) })).filter((p) => p.n > limit);
+  if (tooLong.length) return `part${tooLong.length > 1 ? "s" : ""} ${tooLong.map((p) => `${p.i} (${p.n} characters)`).join(", ")} over the ${limit}-character limit${premium ? "" : " of this account (a Premium account could take a long post)"}. Shorten and call again.`;
+  return null;
+}
+
+/**
+ * x_post as a call the calendar can carry (calendar_add `call`): its arguments, the checks
+ * made before the entry is written, and what the entry shows. A tool that can be scheduled
+ * this way exports one of these; the calendar tool lists them.
+ */
+export const xPostSchedulable = {
+  tool: "x_post" as const,
+  schema: xPostCallSchema,
+  problem: xPostProblem,
+  entry: (args: any) => ({
+    what: `the post goes out as @${String(args.account).replace(/^@/, "")}`,
+    notes: (args.parts as { text: string }[]).map((p) => p.text).join("\n\n"),
+    attachments: (args.parts as { media?: string[] }[]).flatMap((p) => p.media ?? []),
   }),
+};
+
+export const xPostTool: HydraTool = {
+  name: "x_post",
+  title: "Post on X",
+  // Publishes under the user's name: every call waits for the user's approval.
+  risk: { sensitive: true, approval: "always" },
+  description: X_POST_DESCRIPTION,
+  schema: xPostCallSchema,
+  // publish_at and timezone are no longer in the schema (a post for later is scheduled with
+  // calendar_add); they are still read here for a call held before that change and approved after.
   execute: async ({ account, parts, reply_to, quote, poll, reply_settings, publish_at, timezone }, ctx) => {
     const extras = { reply_to, quote, poll, reply_settings: reply_settings === "everyone" ? undefined : reply_settings };
-    if (poll && (parts as { media?: string[] }[])[0]?.media?.length) return "Not published: a poll and attachments cannot go in the same part.";
     const agentId = String(ctx?.agentId ?? "").trim();
     if (!agentId) return "This task carries no agent identity, so nothing can be published.";
-    // The 280 rule is X's for a non-Premium account; a Premium one takes long posts (up to 25,000).
-    let premium = false;
-    try {
-      const acc = await callApi("GET", `/x/accounts?agentId=${encodeURIComponent(agentId)}`);
-      const wanted = String(account).trim().replace(/^@/, "").toLowerCase();
-      premium = acc.ok && (acc.data?.accounts ?? []).some((a: any) => String(a.username).toLowerCase() === wanted && a.premium === true);
-    } catch { /* the API decides below anyway */ }
-    const limit = premium ? 25_000 : 280;
-    const tooLong = (parts as { text: string }[]).map((p, i) => ({ i: i + 1, n: xLength(p.text) })).filter((p) => p.n > limit);
-    if (tooLong.length) return `Not published: part${tooLong.length > 1 ? "s" : ""} ${tooLong.map((p) => `${p.i} (${p.n} characters)`).join(", ")} over the ${limit}-character limit${premium ? "" : " of this account (a Premium account could take a long post)"}. Shorten and call again.`;
-    // Later: the post becomes a calendar action carrying this exact call. The user approved
-    // THIS call (account, text, files); when due, the API runs it through the approved-call
-    // road with no model in between, so what they saw is what goes out.
+    const problem = await xPostProblem({ account, parts, poll }, agentId);
+    if (problem) return `Not published: ${problem}`;
     if (publish_at) {
       const [date, time] = publish_at.split(" ");
       const media = (parts as { media?: string[] }[]).flatMap((p) => p.media ?? []);

@@ -241,7 +241,7 @@
         "prompt": "Tarea",
         "notes": "Notas",
         "attachments": "Adjuntos",
-        "addNote": "Si aprobás, queda en el calendario y a su hora corre sin volver a preguntar.",
+        "addNote": "Si aprobás, queda en el calendario y la tarea arranca a su hora. Lo que el agente haga entonces y necesite aprobación (publicar, enviar) te la va a pedir de nuevo.",
         "updateNote": "Si aprobás, la entrada cambia como se muestra.",
         "removeNote": "Si aprobás, la entrada se quita del calendario."
       },

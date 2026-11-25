@@ -241,7 +241,7 @@
         "prompt": "Compito",
         "notes": "Note",
         "attachments": "Allegati",
-        "addNote": "Se approvi, va nel calendario e alla sua ora parte senza chiedere di nuovo.",
+        "addNote": "Se approvi, va nel calendario e l'attività parte alla sua ora. Ciò che l'agente farà allora e richiede approvazione (pubblicare, inviare) te la chiederà di nuovo.",
         "updateNote": "Se approvi, la voce cambia come mostrato.",
         "removeNote": "Se approvi, la voce esce dal calendario."
       },

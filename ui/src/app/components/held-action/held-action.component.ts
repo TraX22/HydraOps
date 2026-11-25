@@ -444,8 +444,13 @@ export class HeldActionComponent implements OnInit {
 
   /** The x_post arguments, read as a post: account, parts with their weighted length and images, what goes with the first part, cost. */
   get post(): { account: string; parts: { text: string; chars: number; media: string[] }[]; usd: string; hasLink: boolean; scheduled: string; replyTo: string; quote: string; poll: { options: string; hours: string } | null; replySettings: string } | null {
-    if (this.action.toolName !== 'x_post') return null;
-    const args = (this.action.args ?? {}) as Record<string, unknown>;
+    // A post, or a calendar entry that carries one (calendar_add with `call`): the same card,
+    // with the date it goes out.
+    const held = (this.action.args ?? {}) as Record<string, unknown>;
+    const carried = this.action.toolName === 'calendar_add' ? held['call'] as { tool?: unknown; args?: unknown } | undefined : undefined;
+    const viaCalendar = !!carried && carried.tool === 'x_post' && !!carried.args && typeof carried.args === 'object';
+    if (this.action.toolName !== 'x_post' && !viaCalendar) return null;
+    const args = (viaCalendar ? carried!.args : held) as Record<string, unknown>;
     const raw = Array.isArray(args['parts']) ? args['parts'] as Record<string, unknown>[] : [];
     const link = /https?:\/\/|\b[a-z0-9-]+\.[a-z]{2,}\b/i;
     let usd = 0;
@@ -464,9 +469,12 @@ export class HeldActionComponent implements OnInit {
         media: Array.isArray(p?.['media']) ? (p['media'] as unknown[]).map(m => String(m ?? '').replace(/\\/g, '/').trim().split('/').pop() ?? '').filter(Boolean) : [],
       };
     });
-    // publish_at: the post is scheduled, not published now (see the Calendar).
-    const at = typeof args['publish_at'] === 'string' ? (args['publish_at'] as string) : '';
-    const scheduled = at ? `${at}${typeof args['timezone'] === 'string' && args['timezone'] ? ` (${args['timezone']})` : ''}` : '';
+    // Scheduled, not published now (see the Calendar): the entry's date, or the publish_at of
+    // a call held before posts were scheduled through the calendar.
+    const str = (v: unknown) => (typeof v === 'string' ? v : '');
+    const at = viaCalendar ? `${str(held['date'])} ${str(held['time'])}`.trim() : str(args['publish_at']);
+    const zone = str(viaCalendar ? held['timezone'] : args['timezone']);
+    const scheduled = at ? `${at}${zone ? ` (${zone})` : ''}` : '';
     const s = (k: string) => (typeof args[k] === 'string' ? (args[k] as string) : '');
     const pollArg = args['poll'] as { options?: unknown[]; duration_minutes?: number } | undefined;
     const poll = pollArg && Array.isArray(pollArg.options)

@@ -58,9 +58,15 @@ function outcomeLine(status: string, result: unknown): string {
 /** X's length rule: 280 weighted characters, every URL counting as 23. */
 const xLength = (text: string) => text.replace(/https?:\/\/\S+/gi, "x".repeat(23)).length;
 
+/** A calendar_add that carries a finished x_post call: a post scheduled for later. */
+const isScheduledPost = (a: any): boolean => a?.toolName === "calendar_add" && a.args?.call?.tool === "x_post" && !!a.args.call.args && typeof a.args.call.args === "object";
+
 /** A post for X, shown as it will be published: the account, every part with its length and images, the cost. */
 function describePost(a: any): string {
-  const args = a.args ?? {};
+  // Scheduled through the calendar, the entry carries the same call with the date it goes out.
+  const scheduled = isScheduledPost(a);
+  const args = (scheduled ? a.args.call.args : a.args) ?? {};
+  const when = scheduled ? `${a.args.date ?? ""} ${a.args.time ?? ""}${a.args.timezone ? ` (${a.args.timezone})` : ""}`.trim() : "";
   const parts: any[] = Array.isArray(args.parts) ? args.parts : [];
   const lines = parts.map((p, i) => {
     const text = String(p?.text ?? "");
@@ -80,10 +86,12 @@ function describePost(a: any): string {
     args.reply_settings && args.reply_settings !== "everyone" ? `Only ${String(args.reply_settings)} may reply.` : "",
   ].filter(Boolean).join(" ");
   return [
-    `⏸ Publish on X — ${a.agentId} wants to post as @${String(args.account ?? "").replace(/^@/, "")}${parts.length > 1 ? ` (a thread of ${parts.length} parts)` : ""}`,
+    `⏸ ${scheduled ? "Schedule a post on X" : "Publish on X"} — ${a.agentId} wants to post as @${String(args.account ?? "").replace(/^@/, "")}${parts.length > 1 ? ` (a thread of ${parts.length} parts)` : ""}${scheduled ? ` on ${when}` : ""}`,
     ...lines,
     extras,
-    `About ${usd.toFixed(3)} USD, charged by X to your developer account. Expires in 24 h.`,
+    scheduled
+      ? `Approved now, it goes into the calendar and is published at that time as shown, without asking again. About ${usd.toFixed(3)} USD, charged by X to your developer account then. Expires in 24 h.`
+      : `About ${usd.toFixed(3)} USD, charged by X to your developer account. Expires in 24 h.`,
   ].filter(Boolean).join("\n\n");
 }
 
@@ -156,7 +164,7 @@ async function describeGmailTidy(deps: HeldActionsDeps, a: any): Promise<string>
 }
 
 function describe(a: any): string {
-  if (a.toolName === "x_post") return describePost(a);
+  if (a.toolName === "x_post" || isScheduledPost(a)) return describePost(a);
   if (a.toolName === "gmail_send") return describeGmailSend(a);
   if (a.toolName === "x_engage" || a.toolName === "x_users" || a.toolName === "x_dm") return describeXAct(a);
   const origins = (Array.isArray(a.origins) ? a.origins : []).map((o: any) => o?.ref ?? o?.tool).filter(Boolean).slice(0, 3);
@@ -191,7 +199,7 @@ async function notifyNew(deps: HeldActionsDeps): Promise<void> {
       inline_keyboard: [
         [{ text: "✅ Approve", callback_data: `held:a:${a.id}` }, { text: "❌ Reject", callback_data: `held:r:${a.id}` }],
         // A post always asks, one by one: no task-wide approval for it.
-        ...(a.toolName === "x_post" || a.toolName === "x_dm" || a.toolName === "gmail_send" || (a.toolName === "git_sync" && a.args?.action === "push") || (a.toolName === "gmail_tidy" && a.args?.action === "trash") ? [] : [[{ text: "✅✅ Approve for the rest of the task", callback_data: `held:t:${a.id}` }]]),
+        ...(a.toolName === "x_post" || isScheduledPost(a) || a.toolName === "x_dm" || a.toolName === "gmail_send" || (a.toolName === "git_sync" && a.args?.action === "push") || (a.toolName === "gmail_tidy" && a.args?.action === "trash") ? [] : [[{ text: "✅✅ Approve for the rest of the task", callback_data: `held:t:${a.id}` }]]),
       ],
     };
     const text = a.toolName === "gmail_tidy" ? await describeGmailTidy(deps, a) : describe(a);

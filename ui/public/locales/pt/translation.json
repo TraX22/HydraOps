@@ -241,7 +241,7 @@
         "prompt": "Tarefa",
         "notes": "Notas",
         "attachments": "Anexos",
-        "addNote": "Se aprovar, vai para o calendário e roda na hora sem perguntar de novo.",
+        "addNote": "Se aprovar, vai para o calendário e a tarefa começa na hora. O que o agente fizer então e precisar de aprovação (publicar, enviar) vai pedir de novo.",
         "updateNote": "Se aprovar, a entrada muda como mostrado.",
         "removeNote": "Se aprovar, a entrada sai do calendário."
       },

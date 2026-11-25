@@ -241,7 +241,7 @@
         "prompt": "Task",
         "notes": "Notes",
         "attachments": "Attachments",
-        "addNote": "If you approve, it goes into the calendar and runs at its time without asking again.",
+        "addNote": "If you approve, it goes into the calendar and the task starts at its time. Whatever the agent does then that needs approval (publishing, sending) will ask you again.",
         "updateNote": "If you approve, the entry changes as shown.",
         "removeNote": "If you approve, the entry leaves the calendar."
       },
