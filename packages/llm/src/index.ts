@@ -1,4 +1,5 @@
 import { generateText as vercelGenerateText, stepCountIs, CoreMessage, tool, NoSuchToolError, asSchema } from 'ai';
+import { Agent } from "undici";
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
@@ -286,6 +287,26 @@ export function resolveLLMConfig(model: string, getGlobalConfig: (key: string, d
  * caching: the provider stores the prompt up to its last block and reads it back on the next call.
  * It is added to the request body here because neither SDK provider has an option for it.
  */
+/**
+ * How long a model call waits for its answer at the HTTP level. Node's fetch gives up when
+ * the response has not STARTED within five minutes, and an answer here arrives whole, at the
+ * end: a local model working through a long prompt, or any model writing a long answer, was
+ * cut at 300 s as "Headers Timeout", and tried again from the start. The clock that decides
+ * is the round's (roundTimeoutMs, 25 minutes at most), which aborts the call and says so;
+ * this wait only has to be longer than it.
+ */
+const MODEL_WAIT_MS = 26 * 60_000;
+let patientAgent: Agent | undefined;
+
+/** fetch for model calls, with that longer wait. */
+export function patientFetch(baseFetch: typeof fetch = fetch): typeof fetch {
+  return ((input: any, init?: any) => {
+    patientAgent ??= new Agent({ headersTimeout: MODEL_WAIT_MS, bodyTimeout: MODEL_WAIT_MS });
+    // dispatcher is undici's option, not in the DOM types.
+    return baseFetch(input, { ...(init ?? {}), dispatcher: patientAgent } as any);
+  }) as typeof fetch;
+}
+
 export function withPromptCache(baseFetch: typeof fetch = fetch): typeof fetch {
   return (async (input: any, init?: any) => {
     if (init && typeof init.body === 'string' && String(init.method || '').toUpperCase() === 'POST') {
@@ -323,7 +344,7 @@ function getModel(config: LLMConfig) {
         apiKey: config.apiKey,
         // Explicit default so the proxy rewrite also applies when baseURL is unset
         baseURL: proxied(config.baseURL || 'https://api.openai.com/v1'),
-        fetch: isAnthropicOnOpenRouter(config) ? withPromptCache() : undefined,
+        fetch: isAnthropicOnOpenRouter(config) ? withPromptCache(patientFetch()) : patientFetch(),
       });
       // The default callable targets OpenAI's Responses API (/v1/responses).
       // Compatible servers (llama.cpp, Groq, xAI, OpenRouter) only implement
@@ -339,19 +360,19 @@ function getModel(config: LLMConfig) {
       // accepts (apps/key-proxy/src/chatgpt.ts); without it there is nothing to call.
       const proxyBase = (process.env.KEY_PROXY_URL || '').trim().replace(/\/$/, '');
       if (!proxyBase) throw new Error('ChatGPT plan models need the key-proxy (KEY_PROXY_URL is not set).');
-      const openai = createOpenAI({ apiKey: 'proxy', baseURL: `${proxyBase}/chatgpt/v1` });
+      const openai = createOpenAI({ apiKey: 'proxy', baseURL: `${proxyBase}/chatgpt/v1`, fetch: patientFetch() });
       return openai.responses(chatgptSlug(modelName));
     }
     case 'anthropic': {
-      const anthropic = createAnthropic({ apiKey: config.apiKey, baseURL: proxied('https://api.anthropic.com/v1'), fetch: withPromptCache() });
+      const anthropic = createAnthropic({ apiKey: config.apiKey, baseURL: proxied('https://api.anthropic.com/v1'), fetch: withPromptCache(patientFetch()) });
       return anthropic(modelName);
     }
     case 'google': {
-      const google = createGoogleGenerativeAI({ apiKey: config.apiKey, baseURL: proxied('https://generativelanguage.googleapis.com/v1beta') });
+      const google = createGoogleGenerativeAI({ apiKey: config.apiKey, baseURL: proxied('https://generativelanguage.googleapis.com/v1beta'), fetch: patientFetch() });
       return google(modelName);
     }
     case 'mistral': {
-      const mistral = createMistral({ apiKey: config.apiKey, baseURL: proxied('https://api.mistral.ai/v1') });
+      const mistral = createMistral({ apiKey: config.apiKey, baseURL: proxied('https://api.mistral.ai/v1'), fetch: patientFetch() });
       return mistral(modelName);
     }
     default:
