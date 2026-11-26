@@ -1,5 +1,5 @@
 import * as sqliteSchema from "./schema.js";
-import { and, desc, eq, gte, isNull, lt, ne } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lt, ne } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { config as loadDotenv } from "dotenv";
 import path from "node:path";
@@ -128,6 +128,9 @@ export * from "./cron-dedup.js";
  *   days-old request reads as an earlier conversation, not as a live one.
  * - The exchanges kept, newest first, stop at `maxChars` (see historyBudgetChars):
  *   a small local model does not get its context filled with old replies.
+ * - A request that failed or that the user stopped is kept too, with a note in place of
+ *   the answer it never had (unfinishedNote): after a failure the user says "go on", and
+ *   the agent has to know what was asked.
  */
 export const HISTORY_DAYS = 30;
 export const HISTORY_EXCHANGES = 20;
@@ -159,6 +162,26 @@ export function historyOptions(level: unknown, provider?: string): { days: numbe
   return { days: l.days, limit: l.limit, maxChars: Math.min(l.maxChars, historyBudgetChars(provider)) };
 }
 
+/**
+ * What stands in the history for the answer of a task that did not finish: that it did not,
+ * and the tools it had called (names only, counted). Never the error's text nor any result:
+ * nothing from outside enters the conversation through this note.
+ */
+export function unfinishedNote(status: string, resultMeta: any): string {
+  const counts = new Map<string, number>();
+  for (const step of Array.isArray(resultMeta?.steps) ? resultMeta.steps : []) {
+    for (const name of Array.isArray(step?.toolCalls) ? step.toolCalls : []) {
+      const n = String(name).slice(0, 60);
+      if (/^[\w.:-]+$/.test(n)) counts.set(n, (counts.get(n) ?? 0) + 1);
+    }
+  }
+  const called = [...counts].slice(0, 12).map(([n, c]) => (c > 1 ? `${n} ×${c}` : n)).join(", ");
+  const what = status === "cancelled"
+    ? "The user stopped this request before it finished."
+    : "This request was not completed: the task failed before giving an answer.";
+  return `[${what} ${called ? `Tools it had called: ${called}. What they changed, if anything, is not confirmed: check before relying on it.` : "It had done nothing yet."} If the user now says to go on, this is the request they mean.]`;
+}
+
 export async function loadRecentChannelHistory(
   db: any,
   channel: string,
@@ -179,7 +202,7 @@ export async function loadRecentChannelHistory(
     .from(schema.tasks)
     .where(and(
       eq(schema.tasks.channel, channel),
-      eq(schema.tasks.status, "completed"),
+      inArray(schema.tasks.status, ["completed", "failed", "cancelled"]),
       gte(schema.tasks.createdAt, cutoff),
       ne(schema.tasks.id, taskId),
       isNull(schema.tasks.replacedBy),
@@ -189,7 +212,16 @@ export async function loadRecentChannelHistory(
 
   const kept: any[] = [];
   let used = 0;
-  for (const row of rows) {
+  // Newest first: a request the user sent again after it failed or was stopped is told once,
+  // by the later task.
+  const later = new Set<string>();
+  for (const found of rows) {
+    const prompt = String(found.prompt ?? "");
+    const unfinished = found.status !== "completed";
+    if (unfinished && later.has(prompt)) continue;
+    later.add(prompt);
+    // The note takes the place of the answer; what the task had gathered is left out.
+    const row = unfinished ? { ...found, resultMeta: { text: unfinishedNote(found.status, found.resultMeta) } } : found;
     const meta = row.resultMeta ?? {};
     const size = String(row.prompt ?? "").length + String(meta.text || meta.preview || meta.raw || "").length;
     if (kept.length && used + size > maxChars) break;
