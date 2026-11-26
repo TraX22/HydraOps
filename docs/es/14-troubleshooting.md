@@ -52,6 +52,10 @@ echo "/projects/" >> .git/info/exclude
 
 Tus proyectos no se tocan. Si el aviso sigue, `git status` muestra qué otro archivo cambió.
 
+## Un post que guardé en el calendario me vuelve a pedir aprobación a la hora de publicar
+
+Esa entrada es una tarea con el texto adentro ("el viernes publicá esto"), no una publicación programada. Aprobaste la tarea; a su hora el agente escribe la publicación de nuevo, y una publicación siempre espera tu aprobación. Las entradas guardadas antes de la 0.1.107 son de ese tipo. Abrí la entrada en el Calendario: una publicación programada muestra su cuenta y su texto y no nombra ninguna tarea. Para cambiar una, quitala y pedile al agente que programe la publicación de nuevo: la tarjeta que aprobás entonces es la publicación con su fecha, y sale a su hora sin preguntar. Ver [Tareas programadas](./10-scheduled-tasks.md#el-calendario).
+
 ## Algo se rompió después de una actualización
 
 Antes de cada actualización iniciada desde la barra lateral, HydraOps hace una copia de tu instalación (agentes, skills, usuarios, configuración, base de datos). Abrí **Sistema → Copias de seguridad**, buscá la copia marcada *antes de actualizar* y tocá **Restaurar**: la app se reinicia con los datos que tenías antes. Tu estado actual también queda guardado como copia, así que no se pierde nada por probar. La copia es de la versión anterior, así que las migraciones de siempre la ponen al día al arrancar. Ver [Estadísticas y Sistema](./11-stats-system.md#copias-de-seguridad).
