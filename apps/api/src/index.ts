@@ -6963,6 +6963,18 @@ api.get("/security/actions/:id/preview", securityLimiter, async (req, res) => {
       const preview = await pushPreview(row.args, await gitFolders());
       return res.json("error" in preview ? { kind: "git_push", problem: preview.error } : { kind: "git_push", push: preview });
     }
+    // A held project command or server: what its card in the chat says besides the command
+    // (the project, the agent's files not accepted yet, what it is likely to download).
+    if (row.toolName === "project_run" || (row.toolName === "project_server" && String(row.args?.action ?? "start") === "start")) {
+      const proj = await findProject(db, projectIdOfChannel(row.channel));
+      if (!proj) return res.json({ kind: "project_run", project: null, changedTotal: 0, downloads: [], secrets: [] });
+      const space = await openProject(projectRefOf(proj));
+      const changed = space.repos.length ? await pendingChanges(space) : [];
+      const where = space.repos.length ? await runFolder(space, row.args?.cwd).catch(() => null) : null;
+      const dirs = where && "dir" in where ? [where.dir, ...space.repos.map((r) => r.dir)] : [];
+      const secrets = row.toolName === "project_server" && space.repos.length && proj.serverSecrets.length ? (await secretsPlan(space, proj.serverSecrets)).copy : [];
+      return res.json({ kind: "project_run", project: proj.name, changedTotal: changed.length, downloads: await commandDownloads(row.args?.command, dirs).catch(() => []), secrets });
+    }
     if (row.toolName !== "gmail_tidy") return res.json({ kind: null });
     const cached = gmailHeldPreviews.get(id);
     if (cached && Date.now() - cached.at < 10 * 60_000) return res.json(cached.body);
