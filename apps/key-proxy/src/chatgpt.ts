@@ -25,6 +25,7 @@ import http from "node:http";
 import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
+import { fetchForCaller, relayBody } from "./upstream.js";
 import { KeystoreError, keyStoreDir, readStore, writeStore } from "@hydraops/config";
 
 const issuer = () => (process.env.CHATGPT_ISSUER || "https://auth.openai.com").replace(/\/$/, "");
@@ -535,7 +536,7 @@ export async function proxy(req: http.IncomingMessage, res: http.ServerResponse,
   if (!isResponses) {
     const init: RequestInit & { duplex?: string } = { method: req.method, headers };
     if (req.method && !["GET", "HEAD"].includes(req.method)) { init.body = Readable.toWeb(req) as unknown as BodyInit; init.duplex = "half"; }
-    const upstream = await fetch(apiBase() + targetPath, init);
+    const upstream = await fetchForCaller(res, apiBase() + targetPath, init);
     return relay(res, upstream);
   }
 
@@ -548,7 +549,7 @@ export async function proxy(req: http.IncomingMessage, res: http.ServerResponse,
   const adapted = { ...adaptResponsesBody(body), stream: true };
   headers["content-type"] = "application/json";
   headers["accept"] = "text/event-stream";
-  const upstream = await fetch(`${apiBase()}/v1/responses`, { method: "POST", headers, body: JSON.stringify(adapted) });
+  const upstream = await fetchForCaller(res, `${apiBase()}/v1/responses`, { method: "POST", headers, body: JSON.stringify(adapted) });
   if (!upstream.ok || wantsStream || !upstream.body) return relay(res, upstream);
   const { status, json } = await collectResponsesStream(upstream.body);
   sendJson(res, status, json);
@@ -558,8 +559,7 @@ function relay(res: http.ServerResponse, upstream: Response): void {
   const out: Record<string, string> = {};
   upstream.headers.forEach((value, name) => { if (!STRIP_RESPONSE.has(name.toLowerCase())) out[name] = value; });
   res.writeHead(upstream.status, out);
-  if (upstream.body) Readable.fromWeb(upstream.body as any).pipe(res);
-  else res.end();
+  relayBody(res, upstream);
 }
 
 /** The HTTP surface the API uses: status, sign-in, cancel, sign-out, models. Returns false for other paths. */

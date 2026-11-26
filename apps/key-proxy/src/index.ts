@@ -13,12 +13,12 @@
  */
 import http from "node:http";
 import { stat } from "node:fs/promises";
-import { Readable } from "node:stream";
 import { KeystoreError, keyStoreDir, keyStoreFile, readStore, securePrivateDir } from "@hydraops/config";
 import { handleControl as chatgptControl, isConnected as chatgptConnected, proxy as chatgptProxy } from "./chatgpt.js";
 import { handleControl as xControl, hasAccounts as xHasAccounts } from "./x.js";
 import { handleControl as gmailControl, hasAccounts as gmailHasAccounts } from "./gmail.js";
 import { proxyGit } from "./github-git.js";
+import { callerGone, fetchForCaller, relayBody } from "./upstream.js";
 
 const PORT = Number(process.env.KEY_PROXY_PORT || 9099);
 const KEYS_PATH = keyStoreFile;
@@ -129,7 +129,8 @@ const server = http.createServer(async (req, res) => {
     const chatgpt = url.match(/^\/chatgpt(\/.*)?$/);
     if (chatgpt) {
       const rest = chatgpt[1] || "/";
-      if (rest.startsWith("/v1/")) return chatgptProxy(req, res, rest);
+      // Awaited, so a request dropped because the caller left ends in the catch below.
+      if (rest.startsWith("/v1/")) return await chatgptProxy(req, res, rest);
       if (await chatgptControl(req, res, rest.replace(/\?.*$/, ""))) return;
       return sendJson(res, 404, { error: "Unknown chatgpt path" });
     }
@@ -186,7 +187,7 @@ const server = http.createServer(async (req, res) => {
       init.body = Buffer.concat(chunks);
     }
 
-    const upstream = await fetch(provider.host + targetPath, init);
+    const upstream = await fetchForCaller(res, provider.host + targetPath, init);
 
     const outHeaders: Record<string, string> = {};
     upstream.headers.forEach((value, name) => {
@@ -194,12 +195,10 @@ const server = http.createServer(async (req, res) => {
     });
     if (!realKey) outHeaders["x-hydra-no-key"] = "1";
     res.writeHead(upstream.status, outHeaders);
-    if (upstream.body) {
-      Readable.fromWeb(upstream.body as any).pipe(res);
-    } else {
-      res.end();
-    }
+    relayBody(res, upstream);
   } catch (err: any) {
+    // The caller hung up and its request to the service was dropped with it: not a failure.
+    if (callerGone(res)) return;
     const cause = err?.cause?.code || err?.cause?.message;
     console.error("[key-proxy] %s %s failed:", req.method, req.url, (err?.message || String(err)) + (cause ? ` (${cause})` : ""));
     if (!res.headersSent) sendJson(res, 502, { error: "Upstream request failed" });
