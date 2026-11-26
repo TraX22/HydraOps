@@ -163,6 +163,36 @@ async function describeGmailTidy(deps: HeldActionsDeps, a: any): Promise<string>
   ].join("\n\n");
 }
 
+/** A held project command or the start of a development server. */
+const isProjectRun = (a: any): boolean => a?.toolName === "project_run" || (a?.toolName === "project_server" && String(a.args?.action ?? "start") === "start");
+
+/**
+ * A project command, as its card in the chat shows it: the command, where it runs, what it is
+ * likely to download and how many of the agent's files it runs that are not accepted yet
+ * (the API reads both from the project as it is now; without that answer the command still goes).
+ */
+async function describeProjectRun(deps: HeldActionsDeps, a: any): Promise<string> {
+  const args = a.args ?? {};
+  const server = a.toolName === "project_server";
+  let p: any = null;
+  try {
+    const res = await fetch(`${deps.apiUrl}/api/security/actions/${a.id}/preview`, { headers: deps.apiHeaders(), signal: AbortSignal.timeout(30_000) });
+    p = res.ok ? await res.json() : null;
+  } catch { /* shown without it */ }
+  const downloads: string[] = Array.isArray(p?.downloads) ? p.downloads.map(String).slice(0, 6) : [];
+  const secrets: string[] = Array.isArray(p?.secrets) ? p.secrets.map(String).slice(0, 8) : [];
+  const changed = Number(p?.changedTotal) || 0;
+  return [
+    `⏸ ${server ? `Development server "${clip(String(args.name ?? "server"), 60)}"` : "Project command"} — ${a.agentId} wants to ${server ? "leave this program running" : "run this"} on this computer${p?.project ? `, in the project "${clip(String(p.project), 80)}"` : ""}`,
+    clip(String(args.command ?? ""), 1500),
+    [`Folder: ${args.cwd ? clip(String(args.cwd), 200) : "the project's main folder"}`, !server && args.minutes ? `Time limit: ${Number(args.minutes)} min` : ""].filter(Boolean).join(" · "),
+    downloads.length ? `⬇ Likely to download and install software from the internet: ${downloads.join(", ")}. What it brings runs with your user too.` : "",
+    secrets.length ? `Your secrets files copied in while it runs (its code can read them): ${secrets.join(", ")}` : "",
+    changed ? `It runs the project's code as the agent has it now, including ${changed} file${changed === 1 ? "" : "s"} it changed that you have not accepted yet (see them in the app).` : "",
+    `It runs with your user and your installed tools, and can use the network: nothing isolates it from the rest of this computer. Expires in 24 h.`,
+  ].filter(Boolean).join("\n\n");
+}
+
 function describe(a: any): string {
   if (a.toolName === "x_post" || isScheduledPost(a)) return describePost(a);
   if (a.toolName === "gmail_send") return describeGmailSend(a);
@@ -198,11 +228,11 @@ async function notifyNew(deps: HeldActionsDeps): Promise<void> {
     const reply_markup = {
       inline_keyboard: [
         [{ text: "✅ Approve", callback_data: `held:a:${a.id}` }, { text: "❌ Reject", callback_data: `held:r:${a.id}` }],
-        // A post always asks, one by one: no task-wide approval for it.
-        ...(a.toolName === "x_post" || isScheduledPost(a) || a.toolName === "x_dm" || a.toolName === "gmail_send" || (a.toolName === "git_sync" && a.args?.action === "push") || (a.toolName === "gmail_tidy" && a.args?.action === "trash") ? [] : [[{ text: "✅✅ Approve for the rest of the task", callback_data: `held:t:${a.id}` }]]),
+        // A post always asks, one by one: no task-wide approval for it. Nor for a project's command or server.
+        ...(a.toolName === "x_post" || isScheduledPost(a) || isProjectRun(a) || a.toolName === "x_dm" || a.toolName === "gmail_send" || (a.toolName === "git_sync" && a.args?.action === "push") || (a.toolName === "gmail_tidy" && a.args?.action === "trash") ? [] : [[{ text: "✅✅ Approve for the rest of the task", callback_data: `held:t:${a.id}` }]]),
       ],
     };
-    const text = a.toolName === "gmail_tidy" ? await describeGmailTidy(deps, a) : describe(a);
+    const text = a.toolName === "gmail_tidy" ? await describeGmailTidy(deps, a) : isProjectRun(a) ? await describeProjectRun(deps, a) : describe(a);
     for (const chatId of cfg.allowlist) {
       try {
         const sent = await deps.tg(token, "sendMessage", { chat_id: chatId, text, reply_markup, disable_web_page_preview: true });
