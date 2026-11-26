@@ -478,6 +478,7 @@ export {
   type ServerState,
 } from "./servers.js";
 export { runInProject, describeRun, commandProblem, runFolder, commandsInfo, hostShell, commandEnv, gitWrite, removeNestedRepositories } from "./run.js";
+export { commandDownloads, commandFetches } from "./downloads.js";
 export {
   openProject, spaceProblem, pendingChanges, fileDiff, acceptChanges, discardChanges, repoState, removeWorkingCopies, removeLeftoverCopies, initRepository,
   listFiles, discoverRepos, readInstructions, writeInstructions, readMemory, projectPrompt, INSTRUCTIONS_FILE, MEMORY_FILE,

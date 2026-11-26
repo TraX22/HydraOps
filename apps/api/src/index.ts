@@ -46,7 +46,7 @@ import {
   blenderImportCode, parseBlenderImportResult, BLENDER_SERVERS, BLENDER_CODE_TOOL,
   pushPreview, checkGitFolder, gitVersions, gitFolderStates,
   openProject, pendingChanges, fileDiff, acceptChanges, discardChanges, repoState, removeWorkingCopies, removeLeftoverCopies, initRepository,
-  commandsInfo, listServers, stopServer, serverLog, stopAllServers, secretCandidates, secretsPlan,
+  commandsInfo, listServers, stopServer, serverLog, stopAllServers, secretCandidates, secretsPlan, commandDownloads, runFolder,
   readInstructions, writeInstructions, readMemory, listFiles, INSTRUCTIONS_FILE, MEMORY_FILE,
   readProjectFile, writeProjectFile, isSensitivePath, getChangeSummary, clearChangeSummary, logProjectEvent,
 } from "@hydraops/addons";
@@ -2441,9 +2441,11 @@ api.get("/tasks", async (req, res) => {
       : [];
     // A command or a server waiting in a project's chat will run the project's code as the
     // agent's copy has it now: the files the agent changed and the user has not accepted go
-    // with the card, and for a server the secrets files that would be copied in for it.
+    // with the card, and for a server the secrets files that would be copied in for it. So do
+    // the package tools the command is likely to download through (see downloads.ts): a build
+    // that installs dependencies does not say so in its own words.
     const isRunCall = (a: any) => a.status === "pending" && (a.toolName === "project_run" || (a.toolName === "project_server" && String(a.args?.action ?? "start") === "start"));
-    let runContext: { changedFiles: string[]; changedTotal: number; secrets: string[] } | null = null;
+    let runContext: { changedFiles: string[]; changedTotal: number; secrets: string[]; downloads: Map<string, string[]> } | null = null;
     if (heldRows.some(isRunCall)) {
       try {
         const proj = await findProject(db, projectIdOfChannel(channel));
@@ -2451,14 +2453,20 @@ api.get("/tasks", async (req, res) => {
           const space = await openProject(projectRefOf(proj));
           const changed = space.repos.length ? await pendingChanges(space) : [];
           const secrets = space.repos.length && proj.serverSecrets.length ? (await secretsPlan(space, proj.serverSecrets)).copy : [];
-          runContext = { changedFiles: changed.slice(0, 12).map((c) => c.path), changedTotal: changed.length, secrets };
+          const downloads = new Map<string, string[]>();
+          for (const a of heldRows.filter(isRunCall)) {
+            const where = space.repos.length ? await runFolder(space, a.args?.cwd).catch(() => null) : null;
+            const dirs = where && "dir" in where ? [where.dir, ...space.repos.map((r) => r.dir)] : [];
+            downloads.set(a.id, await commandDownloads(a.args?.command, dirs).catch(() => []));
+          }
+          runContext = { changedFiles: changed.slice(0, 12).map((c) => c.path), changedTotal: changed.length, secrets, downloads };
         }
       } catch { /* the card is shown without it */ }
     }
     const heldByTask = new Map<string, any[]>();
     for (const a of heldRows) {
       if (!heldByTask.has(a.taskId)) heldByTask.set(a.taskId, []);
-      const context = runContext && isRunCall(a) ? { changedFiles: runContext.changedFiles, changedTotal: runContext.changedTotal, ...(a.toolName === "project_server" ? { secrets: runContext.secrets } : {}) } : null;
+      const context = runContext && isRunCall(a) ? { changedFiles: runContext.changedFiles, changedTotal: runContext.changedTotal, downloads: runContext.downloads.get(a.id) ?? [], ...(a.toolName === "project_server" ? { secrets: runContext.secrets } : {}) } : null;
       heldByTask.get(a.taskId)!.push({ ...publicPendingAction(a), ...(context ? { context } : {}) });
     }
     // Tasks the calendar started carry their entry's title, for the mark on the message.

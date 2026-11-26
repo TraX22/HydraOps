@@ -198,7 +198,7 @@ export interface HeldAction {
   expiresAt: string;
   decidedAt: string | null;
   /** For a command waiting in a project: the files the agent changed there and the user has not accepted (the command runs that code). */
-  context?: { changedFiles: string[]; changedTotal: number; /** For a server: the user's secrets files that would be copied in for it. */ secrets?: string[] };
+  context?: { changedFiles: string[]; changedTotal: number; /** The package tools the command is likely to download and install through. */ downloads?: string[]; /** For a server: the user's secrets files that would be copied in for it. */ secrets?: string[] };
 }
 
 // ── Commands (the chat's "/verbs", executed by the API) ──

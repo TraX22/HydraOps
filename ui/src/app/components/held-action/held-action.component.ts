@@ -174,6 +174,7 @@ import { IconComponent } from '../icon/icon.component';
           <div class="post-part"><div class="post-body"><pre class="post-text run-command">{{ r.command }}</pre></div></div>
           <div class="cal-row"><span class="cal-label">{{ 'chat.held.project.runFolder' | translate }}</span><code class="browser-url">{{ r.cwd || ('chat.held.project.runTop' | translate) }}</code></div>
           @if (r.minutes) { <div class="cal-row"><span class="cal-label">{{ 'chat.held.project.runMinutes' | translate }}</span>{{ r.minutes }}</div> }
+          @if (action.status === 'pending' && action.context?.downloads?.length) { <p class="post-warn">{{ 'chat.held.project.runDownloads' | translate:{ tools: action.context!.downloads!.join(', ') } }}</p> }
           @if (action.status === 'pending' && action.context?.changedTotal) {
             <div class="run-changed">
               <p class="post-warn">{{ 'chat.held.project.runChanged' | translate:{ n: action.context!.changedTotal } }}</p>
@@ -196,6 +197,7 @@ import { IconComponent } from '../icon/icon.component';
               <ul>@for (f of action.context!.secrets!; track f) { <li><code>{{ f }}</code></li> }</ul>
             </div>
           }
+          @if (action.status === 'pending' && action.context?.downloads?.length) { <p class="post-warn">{{ 'chat.held.project.runDownloads' | translate:{ tools: action.context!.downloads!.join(', ') } }}</p> }
           @if (action.status === 'pending' && action.context?.changedTotal) {
             <div class="run-changed">
               <p class="post-warn">{{ 'chat.held.project.runChanged' | translate:{ n: action.context!.changedTotal } }}</p>

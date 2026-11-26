@@ -93,7 +93,7 @@ export {
   listFiles, discoverRepos, readInstructions, writeInstructions, readMemory, projectPrompt, INSTRUCTIONS_FILE, MEMORY_FILE,
   readProjectFile, writeProjectFile, getChangeSummary, clearChangeSummary, logProjectEvent, readProjectEvents, eventsPrompt,
   type ProjectSpace, type ProjectRepo, type ChangedFile, type AcceptResult, type ProjectFile, type ProjectEvent,
-  commandsInfo, commandProblem, runFolder,
+  commandsInfo, commandProblem, runFolder, commandDownloads, commandFetches,
   listServers, stopServer, serverLog, stopAllServers, stopLeftoverServers, stopServersOnExit, secretCandidates, secretsPlan, type ServerState,
 } from './native/project/index.js';
 export { isSensitivePath } from './guard.js';
