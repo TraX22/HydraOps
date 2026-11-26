@@ -52,6 +52,10 @@ echo "/projects/" >> .git/info/exclude
 
 Your projects are not touched. If the notice stays, `git status` shows which other file changed.
 
+## A post I saved in the calendar asks for approval again when it is time to publish
+
+That entry is a task with the text inside ("on Friday publish this"), not a scheduled post. You approved the task; at its time the agent writes the post again, and a post always waits for your approval. Entries saved before 0.1.107 are of that kind. Open the entry in the Calendar: a scheduled post shows its account and its text and names no task. To change one, remove it and ask the agent to schedule the post again: the card you approve then is the post with its date, and it goes out at its time without asking. See [Scheduled tasks](./10-scheduled-tasks.md#the-calendar).
+
 ## Something broke after an update
 
 Before every update started from the sidebar, HydraOps makes a copy of your installation (agents, skills, users, settings, database). Open **System → Backups**, find the copy marked *before update* and press **Put back**: the app restarts on the data you had before. Your current state is kept as a copy too, so nothing is lost by trying. The copy belongs to the previous version, so the usual migrations bring it forward on start. See [Statistics & System](./11-stats-system.md#backups).
