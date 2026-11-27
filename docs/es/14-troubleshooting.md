@@ -19,6 +19,12 @@ El modelo del agente tiene que tener visión. Con modelo local, además, el serv
 
 Cada **respuesta** del modelo puede tardar hasta **10 minutos** con modelos en la nube y **15** con el modelo local. El reloj corre por ronda: arranca cuando una ronda se envía al modelo, se pausa mientras corren las herramientas de esa ronda (una construcción en Blender o la lectura de una página tienen su propio límite, en la conexión) y vuelve a empezar en la ronda siguiente. Así, una tarea larga de muchas rondas nunca se corta por larga; lo que se corta es un proveedor que deja de responder. Cuando pasa, la tarea se cierra con lo que gastaron las rondas terminadas y el chat lo explica. **Configuración → Tiempo máximo por respuesta del modelo** cambia los minutos (de 1 a 25). Como último recurso, una corrida entera también se corta a los 25 minutos (`HYDRA_LLM_TIMEOUT_MIN` en el `.env` lo baja), por debajo del barrido de tareas atascadas de los 30 minutos.
 
+## El agente dice que hizo algo y no cambió nada
+
+Algunos modelos, sobre todo los locales chicos, escriben que están usando una herramienta («*(ejecutando `project_write` en main.c)*», «listo, el archivo quedó corregido») sin llamarla. No se leyó ni se escribió nada, y la respuesta siguiente se apoya en un trabajo que nunca ocurrió. Cuando una respuesta nombra una herramienta que el agente tiene y la tarea no la llamó, el chat lo dice bajo la respuesta: *«La respuesta nombra project_write, pero el agente no llamó esa herramienta en esta respuesta. Si dice que la usó, eso no pasó.»* La misma línea sigue a la respuesta en Telegram, y el próximo pedido del agente queda avisado, para que no continúe como si el trabajo estuviera hecho.
+
+El aviso mira solo los nombres de las herramientas, así que tiene dos límites. Una respuesta que afirma un trabajo sin nombrar ninguna herramienta («ya lo arreglé») no lo recibe. Y una respuesta que nombra una herramienta por otro motivo (para decir que *no* la usó, o para listar lo que puede hacer) lo recibe igual; por eso está redactado como condición. Un nombre que ya estaba en tu propio mensaje nunca lo dispara. Si un agente lo hace seguido, dale un modelo que llame herramientas de forma confiable: es un hábito del modelo, no una opción.
+
 ## No arranca: NATS no se encuentra
 
 El binario `nats-server` tiene que estar en el `PATH`, en una carpeta `nats/` del repositorio, o apuntado con `NATS_SERVER_BIN` en el `.env` — ver [Instalación](./02-installation.md). El instalador de Windows lo trae dentro; esto solo aplica al modo desde el código.

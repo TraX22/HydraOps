@@ -187,6 +187,8 @@
     "cancelled": "Cancelled",
     "sources": "Sources",
     "sourcesLegend": "● opened by the agent · ○ appeared in a search",
+    "namedNotCalledOne": "The answer names {{tools}}, but the agent did not call that tool in this reply. If it says it used it, that did not happen.",
+    "namedNotCalledMany": "The answer names {{tools}}, but the agent did not call those tools in this reply. If it says it used them, that did not happen.",
     "held": {
       "title": "Held action",
       "why": "The agent wanted to do this after reading outside content ({{from}}). It was not run: your call.",

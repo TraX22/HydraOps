@@ -720,6 +720,13 @@ export class ChatComponent implements OnInit, OnDestroy {
     return check;
   }
 
+  /** Tools the answer names although the task never called them (the worker stores them with the result). */
+  namedNotCalled(msg: ChatMessage): string[] {
+    const raw = (msg.resultMeta as Record<string, unknown> | undefined)?.['toolsNamedNotCalled'];
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((n): n is string => typeof n === 'string' && /^[\w.:-]{1,80}$/.test(n)).slice(0, 8);
+  }
+
   sources(msg: ChatMessage): { url: string; title?: string; kind: string; host: string; via?: string }[] {
     const raw = (msg.resultMeta as Record<string, unknown> | undefined)?.['sources'];
     if (!Array.isArray(raw)) return [];

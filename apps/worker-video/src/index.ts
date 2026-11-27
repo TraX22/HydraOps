@@ -13,7 +13,7 @@ import { loadEnv, urlForLog, envFile, dataRoot, agentsDir, storageDir, logsDir, 
 
 loadDotenv({ path: envFile });
 
-import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, loadRecentChannelHistory, historyOptions, searchAgentTasks, isTaskCancelled, modelNeverAnswered, lastTaskToolNames, taskChainAutoApproved, calendarAgendaBlock, isTimeZone, systemTimeZone, calendarTaskContext } from "@hydraops/db";
+import { createDb, processedEvents, tasks, agentConfigs, systemConfigs, workerStatus, recordToolUsage, recordSecurityEvents, createPendingAction, loadPendingAction, finishPendingAction, loadTaskActions, createContinuationTask, loadRecentChannelHistory, historyOptions, searchAgentTasks, isTaskCancelled, modelNeverAnswered, toolsNamedNotCalled, taskChainToolNames, lastTaskToolNames, taskChainAutoApproved, calendarAgendaBlock, isTimeZone, systemTimeZone, calendarTaskContext } from "@hydraops/db";
 import { parseEnvelope, buildEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, publishJson, subjectForType, createCancelRegistry } from "@hydraops/nats";
 import { and, desc, eq, ne } from "drizzle-orm";
@@ -783,13 +783,15 @@ ${EXTERNAL_CONTENT_RULE}
     await publishJson(js, subjectForType(generated.type), generated);
 
     const neverAnswered = modelNeverAnswered(resultMeta);
+    // An answer that names a tool the task never called is told to the user (see @hydraops/db).
+    const namedNotCalled = resultMeta.success !== false && !planMode ? toolsNamedNotCalled({ text: resultMeta.text, prompt: userPrompt, available: allowedTools, called: [...toolUsageLog.map((u) => u.toolName), ...(await taskChainToolNames(db, continuationOf).catch(() => [] as string[]))] }) : [];
     const plan = planMode ? (proposedPlan ? planFromProposal(proposedPlan, { version: planVersion, request: planSeed?.request ?? userPrompt, parentTaskId: planSeed?.parentTaskId }) : planFromText(String(resultMeta.text ?? ""), { version: planVersion, request: planSeed?.request ?? userPrompt, parentTaskId: planSeed?.parentTaskId })) : null;
     await (db as any).update(tasks)
       .set({
         status: neverAnswered ? "failed" : "completed",
         ...(plan ? { plan } : {}),
         resultRef: `results/${taskId}/result.json`,
-        resultMeta: { ...resultMeta, ...(plan ? { plan } : {}), ...(onDemand ? { toolsOnDemand: onDemand.loader.summary() } : {}), ...(stepBreakdown.length ? { steps: stepBreakdown } : {}), ...(resultFiles.list().length ? { files: resultFiles.list() } : {}), completedAt: new Date().toISOString() },
+        resultMeta: { ...resultMeta, ...(plan ? { plan } : {}), ...(namedNotCalled.length ? { toolsNamedNotCalled: namedNotCalled } : {}), ...(onDemand ? { toolsOnDemand: onDemand.loader.summary() } : {}), ...(stepBreakdown.length ? { steps: stepBreakdown } : {}), ...(resultFiles.list().length ? { files: resultFiles.list() } : {}), completedAt: new Date().toISOString() },
         updatedAt: new Date(),
       })
       .where(and(eq(tasks.id, taskId), ne(tasks.status, "cancelled")));
