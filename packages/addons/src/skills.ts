@@ -35,8 +35,9 @@ export const SKILL_LIMITS = {
   maxFileBytes: 128 * 1024,
   maxTotalBytes: 1024 * 1024,
   /** Skills listed in the system prompt; past this the list is cut (and says so). */
-  maxInPrompt: 60,
-  maxDescriptionInPrompt: 300,
+  maxInPrompt: 120,
+  /** Characters of a skill's description in that list (see skillLineForPrompt). */
+  maxDescriptionInPrompt: 100,
   /** What skills_view hands back at most. */
   maxViewChars: 40_000,
 };
@@ -439,6 +440,19 @@ export async function skillCreatorGuide(builtinRoot = builtinSkillsDir): Promise
 }
 
 /**
+ * A skill's line in the system prompt: the start of its description, cut at a word. The list
+ * travels with every step of every task, so each line is an index entry, enough to tell which
+ * skill a request is about; the whole description and the procedure come with skills_view.
+ */
+export function skillLineForPrompt(description: string, max = SKILL_LIMITS.maxDescriptionInPrompt): string {
+  const text = String(description ?? '').replace(/\s+/g, ' ').trim();
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const space = cut.lastIndexOf(' ');
+  return (space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,;:.(\-–—]+$/, '') + '…';
+}
+
+/**
  * The block appended to an agent's system prompt when it may use or create skills: one
  * line per installed skill for `skills`, and for `create_skill` where to get the
  * skill-creator guide (from the tool itself, so an agent that creates can always read the
@@ -455,8 +469,7 @@ export async function skillsPromptSection(allowedTools: string[], root = skillsD
   if (canView) {
     if (skills.length) {
       lines.push('Installed skills: tested procedures for specific kinds of work. When a request matches one, call skills_view with its name BEFORE you start and follow it; open its other files only when it points you to them. Mention which skill you used.');
-      const clip = (s: string) => (s.length > SKILL_LIMITS.maxDescriptionInPrompt ? s.slice(0, SKILL_LIMITS.maxDescriptionInPrompt) + '…' : s);
-      for (const s of skills.slice(0, SKILL_LIMITS.maxInPrompt)) lines.push(`- ${s.name}: ${clip(s.description.replace(/\s+/g, ' '))}`);
+      for (const s of skills.slice(0, SKILL_LIMITS.maxInPrompt)) lines.push(`- ${s.name}: ${skillLineForPrompt(s.description)}`);
       if (skills.length > SKILL_LIMITS.maxInPrompt) lines.push(`- (${skills.length - SKILL_LIMITS.maxInPrompt} more not listed)`);
     } else {
       lines.push('No skills are installed yet.');

@@ -77,6 +77,8 @@ skill does **and when** to use it, with the words a user would actually say.
 
 - 1-3 sentences, under ~400 characters is ideal (hard limit 1024).
 - Start with the action and object: "Audits...", "Drafts...", "Converts...".
+- The first ~100 characters are what an agent sees in its list of skills, where it
+  decides which one to open: say there what the skill is for and on what.
 - Add a "Use when..." clause with trigger phrases and situations.
 - Be specific enough not to fire on unrelated tasks.
 
