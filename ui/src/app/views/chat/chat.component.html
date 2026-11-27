@@ -225,6 +225,14 @@
                 <app-plan-card [plan]="msg.plan" [taskId]="msg.taskId" [versions]="planVersions(msg)"
                                (decided)="chat.fetchHistory(chat.activeTab())" (revise)="revisePlan(msg, $event)" (jump)="jumpToTask($event)" />
               }
+              @if (msg.role === 'assistant' && namedNotCalled(msg); as uncalled) {
+                @if (uncalled.length) {
+                  <div class="msg-uncalled" role="note">
+                    <app-icon name="alert" />
+                    <span>{{ (uncalled.length > 1 ? 'chat.namedNotCalledMany' : 'chat.namedNotCalledOne') | translate: { tools: uncalled.join(', ') } }}</span>
+                  </div>
+                }
+              }
               @if (msg.role === 'assistant' && sources(msg).length) {
                 <details class="msg-sources">
                   <summary [title]="'chat.sourcesLegend' | translate">{{ 'chat.sources' | translate }} · {{ sources(msg).length }}</summary>

@@ -182,6 +182,63 @@ export function unfinishedNote(status: string, resultMeta: any): string {
   return `[${what} ${called ? `Tools it had called: ${called}. What they changed, if anything, is not confirmed: check before relying on it.` : "It had done nothing yet."} If the user now says to go on, this is the request they mean.]`;
 }
 
+/**
+ * The tools an answer names although the task never called them: a model that writes
+ * "(running `project_write` on main.c)" and "done" without a single call. The one sign that
+ * needs no reading of the language: the name of a tool the agent could call, written out, and
+ * no call to it in the task (nor in the tasks it continues, whose approved calls it reports).
+ * Left out: a name the user's own message carries (the answer is talking about it, as asked),
+ * and a name without an underscore (`git`, `remember`: ordinary words in any answer).
+ */
+export function toolsNamedNotCalled(o: { text: unknown; prompt?: unknown; available: Iterable<string>; called: Iterable<string> }): string[] {
+  const text = String(o.text ?? "");
+  if (!text.trim()) return [];
+  const prompt = String(o.prompt ?? "");
+  const called = new Set([...o.called].map(String));
+  const named: string[] = [];
+  for (const name of new Set([...o.available].map(String))) {
+    if (!name.includes("_") || !/^[\w.:-]+$/.test(name) || called.has(name)) continue;
+    // Whole, as prose writes it ("project_read: ...", "`project_read`."), not inside a longer name or a path.
+    const whole = new RegExp(`(?<![\\w/])(?<!\\w[.:-])${name.replace(/[.\\-]/g, "\\$&")}(?!\\w|[.:/-]\\w)`);
+    if (whole.test(text) && !whole.test(prompt)) named.push(name);
+  }
+  return named.sort((a, b) => text.indexOf(a) - text.indexOf(b)).slice(0, 8);
+}
+
+/** The names stored with a task's result (`resultMeta.toolsNamedNotCalled`), cleaned. */
+export function namedNotCalledOf(resultMeta: any): string[] {
+  const list = Array.isArray(resultMeta?.toolsNamedNotCalled) ? resultMeta.toolsNamedNotCalled : [];
+  return list.filter((n: unknown): n is string => typeof n === "string" && /^[\w.:-]{1,80}$/.test(n)).slice(0, 8);
+}
+
+/** The same warning the chat shows under the answer, for where there is no interface (Telegram). */
+export function namedNotCalledNotice(resultMeta: any): string {
+  const names = namedNotCalledOf(resultMeta);
+  if (!names.length) return "";
+  return `⚠️ The answer names ${names.join(", ")}, but the agent did not call ${names.length > 1 ? "those tools" : "that tool"} in this reply. If it says it used ${names.length > 1 ? "them" : "it"}, that did not happen.`;
+}
+
+/** What the history says after such an answer, so the next request does not build on it. */
+export function namedNotCalledNote(names: string[]): string {
+  return `[Note from HydraOps: this answer names ${names.join(", ")}, but no call to ${names.length > 1 ? "those tools" : "that tool"} was made in that request. If it says ${names.length > 1 ? "they were" : "it was"} used, that did not happen: call the tool before relying on it.]`;
+}
+
+/** The tools called by the tasks a task continues (their rounds and their held calls), up to 25 back. */
+export async function taskChainToolNames(db: any, continuationOf: string | null | undefined): Promise<string[]> {
+  const names = new Set<string>();
+  let id: string | null = continuationOf ? String(continuationOf) : null;
+  for (let hops = 0; id && hops < 25; hops++) {
+    const [t] = await db.select({ continuationOf: schema.tasks.continuationOf, resultMeta: schema.tasks.resultMeta }).from(schema.tasks).where(eq(schema.tasks.id, id)).limit(1);
+    for (const step of Array.isArray((t?.resultMeta as any)?.steps) ? (t.resultMeta as any).steps : []) {
+      for (const name of Array.isArray(step?.toolCalls) ? step.toolCalls : []) names.add(String(name));
+    }
+    const held = await db.select({ toolName: schema.pendingActions.toolName }).from(schema.pendingActions).where(eq(schema.pendingActions.taskId, id));
+    for (const h of held) names.add(String(h.toolName));
+    id = t?.continuationOf ? String(t.continuationOf) : null;
+  }
+  return [...names];
+}
+
 export async function loadRecentChannelHistory(
   db: any,
   channel: string,
@@ -221,7 +278,10 @@ export async function loadRecentChannelHistory(
     if (unfinished && later.has(prompt)) continue;
     later.add(prompt);
     // The note takes the place of the answer; what the task had gathered is left out.
-    const row = unfinished ? { ...found, resultMeta: { text: unfinishedNote(found.status, found.resultMeta) } } : found;
+    const uncalled = unfinished ? [] : namedNotCalledOf(found.resultMeta);
+    const row = unfinished ? { ...found, resultMeta: { text: unfinishedNote(found.status, found.resultMeta) } }
+      : uncalled.length && typeof found.resultMeta?.text === "string" ? { ...found, resultMeta: { ...found.resultMeta, text: `${found.resultMeta.text}\n\n${namedNotCalledNote(uncalled)}` } }
+      : found;
     const meta = row.resultMeta ?? {};
     const size = String(row.prompt ?? "").length + String(meta.text || meta.preview || meta.raw || "").length;
     if (kept.length && used + size > maxChars) break;

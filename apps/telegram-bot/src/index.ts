@@ -1,6 +1,6 @@
 import { config as loadDotenv } from "dotenv";
 import { loadEnv, envFile, logsDir, keyStoreFile, readStore } from "@hydraops/config";
-import { createDb, systemConfigs, workerStatus } from "@hydraops/db";
+import { createDb, systemConfigs, workerStatus, namedNotCalledNotice } from "@hydraops/db";
 import { eq } from "drizzle-orm";
 
 import type { CommandResult } from "@hydraops/commands";
@@ -193,7 +193,11 @@ async function waitForTask(chatId: number, token: string, agentId: string, taskI
       if (!r.ok) continue;
       const task = (await r.json()) as any;
       if (task.status === "completed") {
-        const reply = task.resultMeta?.text || task.result_meta?.text || "(the agent returned an empty reply)";
+        const said = task.resultMeta?.text || task.result_meta?.text || "(the agent returned an empty reply)";
+        const notice = namedNotCalledNotice(task.resultMeta ?? task.result_meta);
+        const reply = notice ? `${said}
+
+${notice}` : said;
         console.log(`[telegram-bot] ← ${agentId} replied (${reply.length} chars, task ${taskId})`);
         return reply;
       }

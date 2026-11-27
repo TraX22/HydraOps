@@ -187,6 +187,8 @@
     "cancelled": "Cancelada",
     "sources": "Fontes",
     "sourcesLegend": "● aberta pelo agente · ○ apareceu em uma busca",
+    "namedNotCalledOne": "A resposta menciona {{tools}}, mas o agente não chamou essa ferramenta nesta resposta. Se ela diz que a usou, isso não aconteceu.",
+    "namedNotCalledMany": "A resposta menciona {{tools}}, mas o agente não chamou essas ferramentas nesta resposta. Se ela diz que as usou, isso não aconteceu.",
     "held": {
       "title": "Ação retida",
       "why": "O agente quis fazer isto depois de ler conteúdo externo ({{from}}). Não foi executada: você decide.",

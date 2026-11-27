@@ -9,7 +9,7 @@
 // replies to Telegram ones). Successes and failures are gated by independent toggles
 // (notifications.cron / notifications.cronFailures).
 
-import { createDb, tasks, events, cronJobs, processedEvents } from "@hydraops/db";
+import { createDb, tasks, events, cronJobs, processedEvents, namedNotCalledNotice } from "@hydraops/db";
 import { parseEnvelope } from "@hydraops/events";
 import { connectNats, ensureEventsStream, getJs, subjectForType } from "@hydraops/nats";
 import { and, eq } from "drizzle-orm";
@@ -42,7 +42,10 @@ async function readResult(db: any, taskId: string): Promise<{ text: string; chan
     if (row) {
       const meta = (row.resultMeta || {}) as any;
       if (row.status === "completed" || row.status === "failed" || meta.text) {
-        return { text: meta.text || meta.error || "", channel: row.channel || "", prompt: row.prompt || "" };
+        const notice = meta.text ? namedNotCalledNotice(meta) : "";
+        return { text: (meta.text || meta.error || "") + (notice ? `
+
+${notice}` : ""), channel: row.channel || "", prompt: row.prompt || "" };
       }
     }
     await sleep(600);

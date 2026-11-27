@@ -19,6 +19,12 @@ The agent's model must have vision. With a local model, the server must also hav
 
 Each **answer** of the model may take up to **10 minutes** with cloud models and **15** with the local model. The clock runs per round: it starts when a round is sent to the model, pauses while that round's tools run (a Blender build or a page read has its own limit, set on the connection) and restarts on the next round. So a long task of many rounds is never cut for being long; what is cut is a provider that stops answering. When it happens, the task is closed with what the finished rounds spent and the chat explains it. **Config → Longest model answer** changes the minutes (1 to 25). As a last resort a whole run is also capped at 25 minutes (`HYDRA_LLM_TIMEOUT_MIN` in the `.env` lowers it), below the 30-minute sweep of stuck tasks.
 
+## The agent says it did something, and nothing changed
+
+Some models, the small local ones above all, write that they are using a tool ("*(running `project_write` on main.c)*", "done, the file is fixed") without calling it. Nothing was read and nothing was written; the next answer then builds on work that never happened. When an answer names a tool the agent has and the task made no call to it, the chat says so under the answer: *"The answer names project_write, but the agent did not call that tool in this reply. If it says it used it, that did not happen."* The same line follows the answer in Telegram, and the agent's next request is told, so it does not carry on as if the work were done.
+
+The warning looks only at tool names, so it has two limits. An answer that claims work without naming a tool ("I fixed it") gets none. And an answer that names a tool for another reason (to say it was *not* used, or to list what it can do) gets the warning too, which is why it is worded as a condition. A name you wrote in your own message never triggers it. If an agent does this often, give it a model that calls tools reliably: it is the model's habit, not a setting.
+
 ## It won't start: NATS not found
 
 The `nats-server` binary must be on the `PATH`, in a `nats/` folder inside the repository, or pointed to with `NATS_SERVER_BIN` in the `.env` — see [Installation](./02-installation.md). The Windows installer ships it inside; this only applies to running from source.
