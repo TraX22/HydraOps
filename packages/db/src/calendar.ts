@@ -203,3 +203,18 @@ export const isTainted = (r: { origins?: unknown }): boolean => Array.isArray(r.
 
 /** A title as one plain line: no line breaks or control characters, capped. */
 export const oneLine = (s: unknown, max = 200): string => String(s ?? "").replace(new RegExp("[" + "\\u0000-\\u001f\\u007f\\u2028\\u2029" + "]+", "g"), " ").trim().slice(0, max);
+
+/**
+ * What a scheduled call's outcome says to the person: the first line of what the tool
+ * returned (the outcome itself), then the later lines that carry a link or an amount in USD
+ * (the other parts of a thread, what it cost). The rest of a tool's result is written for the
+ * model that reads it, and stays out.
+ */
+export function callOutcomeForUser(result: unknown, max = 900): string {
+  // Each line plain (no control characters or line separators hiding a second line), and few:
+  // part of this text can come from the service the call spoke to (an error it answered).
+  const lines = String(result ?? "").split(/\r?\n|[\u2028\u2029]/).map((l) => oneLine(l, 400)).filter(Boolean);
+  const kept = lines.filter((l, i) => i === 0 || /https?:\/\/\S/.test(l) || /\bUSD\b/.test(l)).slice(0, 12);
+  const text = kept.join("\n");
+  return text.length > max ? text.slice(0, max).trimEnd() + "…" : text;
+}

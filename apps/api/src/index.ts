@@ -51,7 +51,7 @@ import {
   readProjectFile, writeProjectFile, isSensitivePath, getChangeSummary, clearChangeSummary, logProjectEvent,
 } from "@hydraops/addons";
 import { catalog as commandCatalog, dispatch as dispatchCommand, type CommandApi, type CommandContext } from "@hydraops/commands";
-import { createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, taskChainAutoApproved, HISTORY_DAYS, isHistoryLevel, calendarEntries, listCalendarEntries, zonedToUtc, advance as calendarAdvance, localParts, isTimeZone, listTimeZones, systemTimeZone, isCalendarDate, isCalendarTime, isCalendarRepeat, isCalendarKind, CALENDAR_LIMITS, formatWhen, toDate, userLocale, loadProjects, saveProjects, findProject, projectChannel, projectIdOfChannel, MAX_PROJECTS, type ProjectRecord } from "@hydraops/db";
+import { callOutcomeForUser, createDb, events as eventsTable, outbox as outboxTable, tasks, agentConfigs, systemConfigs, cronJobs, workerStatus, toolUsage, purgeOldToolUsage, securityEvents, purgeOldSecurityEvents, pendingActions, expirePendingActions, createContinuationTask, searchAgentTasks, taskChainAutoApproved, HISTORY_DAYS, isHistoryLevel, calendarEntries, listCalendarEntries, zonedToUtc, advance as calendarAdvance, oneLine as calendarOneLine, isTainted as calendarIsTainted, localParts, isTimeZone, listTimeZones, systemTimeZone, isCalendarDate, isCalendarTime, isCalendarRepeat, isCalendarKind, CALENDAR_LIMITS, formatWhen, toDate, userLocale, loadProjects, saveProjects, findProject, projectChannel, projectIdOfChannel, MAX_PROJECTS, type ProjectRecord } from "@hydraops/db";
 import { buildEnvelope } from "@hydraops/events";
 import { eq, and, gte, lt, asc, desc, like, inArray, isNull, count, sql } from "drizzle-orm";
 import os from "node:os";
@@ -2879,8 +2879,15 @@ async function startCalendarCall(e: any, call: { toolName: string; args: Record<
   return id;
 }
 
-/** Waits for the worker's outcome of a scheduled call and writes it on the entry; the user hears on Telegram. */
-async function watchCalendarCall(entryId: string, title: string, actionId: string): Promise<void> {
+/**
+ * Waits for the worker's outcome of a scheduled call and tells it in three places: on the
+ * entry, on Telegram, and at the end of the agent's chat. The chat's message is a completed
+ * task with no model behind it (the entry's title as the request, with the calendar mark;
+ * the outcome as the answer, unread): the person sees there that it ran, and the agent's next
+ * request has it in its history instead of having to go and look.
+ */
+async function watchCalendarCall(entry: { id: string; title: string; agentId?: string | null; owner?: string | null; origins?: unknown }, actionId: string): Promise<void> {
+  const entryId = entry.id, title = calendarOneLine(entry.title);
   const deadline = Date.now() + CALENDAR_CALL_WATCH_MS;
   let outcome: { status: string; result: string } | null = null;
   while (Date.now() < deadline) {
@@ -2890,11 +2897,29 @@ async function watchCalendarCall(entryId: string, title: string, actionId: strin
     if (row.status === "executed" || row.status === "failed") { outcome = { status: row.status, result: String(row.result ?? "") }; break; }
   }
   const es = userLocale().startsWith("es");
-  const text = outcome ? outcome.result.split("\n")[0].slice(0, 500) : (es ? "sin respuesta del worker (¿apagado?)" : "no answer from the worker (off?)");
-  try { await (db as any).update(calendarEntries).set({ lastResult: `${outcome?.status === "executed" ? "" : es ? "Falló: " : "Failed: "}${text}`, updatedAt: new Date() }).where(eq(calendarEntries.id, entryId)).run(); }
+  const text = outcome ? callOutcomeForUser(outcome.result) : (es ? "sin respuesta del worker (¿apagado?)" : "no answer from the worker (off?)");
+  const ran = outcome?.status === "executed";
+  try { await (db as any).update(calendarEntries).set({ lastResult: `${ran ? "" : es ? "Falló: " : "Failed: "}${text}`, updatedAt: new Date() }).where(eq(calendarEntries.id, entryId)).run(); }
   catch (err: any) { console.error(`[api] calendar: could not write the outcome of ${entryId}`, err?.message ?? err); }
-  console.log(`[api] calendar: "${title}" (${entryId.slice(0, 8)}) call ${outcome?.status ?? "unanswered"}: ${text}`);
-  pushTelegram(`📅 ${title}\n${outcome?.status === "executed" ? text : es ? `No se publicó: ${text}` : `Not published: ${text}`}`).catch(() => {});
+  console.log(`[api] calendar: "${title}" (${entryId.slice(0, 8)}) call ${outcome?.status ?? "unanswered"}: ${text.split("\n")[0]}`);
+  const channel = String(entry.agentId || entry.owner || "");
+  if (channel) {
+    try {
+      const now = new Date();
+      const said = ran
+        ? `${es ? "Lo programado en el calendario se ejecutó:" : "The scheduled call ran:"}\n\n${text}`
+        : `${es ? "Lo programado en el calendario no se ejecutó:" : "The scheduled call did not run:"}\n\n${text}`;
+      await (db as any).insert(tasks).values({
+        id: randomUUID(), prompt: title, channel, status: "completed", isRead: false, calendarEntryId: entryId,
+        // The agent's name on the message, and its unread mark in the list of agents.
+        ...(entry.agentId ? { assignedAgent: String(entry.agentId) } : {}),
+        createdAt: now, updatedAt: now,
+        // An entry written from outside content says so to the agent that later reads this message.
+        resultMeta: { text: said, success: ran, appNotice: "calendar_call", ...(calendarIsTainted(entry) ? { fromOutside: true } : {}), modelUsed: "", completedAt: now.toISOString(), producer: env.SERVICE_NAME },
+      }).run();
+    } catch (err: any) { console.error(`[api] calendar: could not write the chat notice of ${entryId}`, err?.message ?? err); }
+  }
+  pushTelegram(`📅 ${title}\n${ran ? text : es ? `No se publicó: ${text}` : `Not published: ${text}`}`).catch(() => {});
 }
 
 api.get("/calendar/timezones", async (_req, res) => {
@@ -3082,7 +3107,7 @@ async function tickCalendar(): Promise<void> {
           : outcome === "missed" ? (es ? `📅 Perdida: ${e.title}\nVencía ${when}, pero HydraOps estuvo apagado más de ${hours} horas. No se ejecutó.` : `📅 Missed: ${e.title}\nIt was due ${when}, but HydraOps was off for more than ${hours} hours. It did not run.`)
           : null;
         if (note) pushTelegram(note).catch(() => {});
-        if (actionId) void watchCalendarCall(e.id, e.title, actionId);
+        if (actionId) void watchCalendarCall(e, actionId);
       } catch (err: any) {
         console.error(`[api] calendar: entry ${e.id} failed`, err?.message ?? err);
       }
