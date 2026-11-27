@@ -126,7 +126,7 @@ To spare that loading round in the obvious cases, these start loaded:
 - the ones the same chat used in its previous task;
 - the calls a task resumes after an approval.
 
-A loaded tool stays loaded for the rest of the task, called or not: the list of tools is the first thing in every request, and any change to it makes the provider read the whole conversation again at the full price instead of from its cache, which costs far more than a few idle definitions. The `load_tools` round does not count toward the agent's step limit. Approvals, the injection defense and the result vault work as before: only what the model sees before choosing changes. What each task loaded is kept with its data (`toolsOnDemand`).
+A loaded tool stays loaded for the rest of the task, called or not: the list of tools is the first thing in every request, and any change to it makes the provider read the whole conversation again at the full price instead of from its cache, which costs far more than a few idle definitions. Loading a tool is itself such a change, so the step after a `load_tools` pays the conversation again; with Anthropic's current models (Opus 4.8 and later, Sonnet 5.5, Haiku 5.5) it does not, because the list stays as first sent and the loaded tool travels inside the conversation, where the cache is kept. The `load_tools` round does not count toward the agent's step limit. Approvals, the injection defense and the result vault work as before: only what the model sees before choosing changes. What each task loaded is kept with its data (`toolsOnDemand`).
 
 It can be turned off in **Settings → Tools on demand** (or with `TOOLS_ON_DEMAND=off`). With 12 tools or fewer nothing changes.
 
