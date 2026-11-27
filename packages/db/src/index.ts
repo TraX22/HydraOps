@@ -223,6 +223,31 @@ export function namedNotCalledNote(names: string[]): string {
   return `[Note from HydraOps: this answer names ${names.join(", ")}, but no call to ${names.length > 1 ? "those tools" : "that tool"} was made in that request. If it says ${names.length > 1 ? "they were" : "it was"} used, that did not happen: call the tool before relying on it.]`;
 }
 
+/**
+ * What the history says after an answer whose held calls were all turned down or left to
+ * expire. A task with a call that ran gets a continuation, which tells the agent every outcome;
+ * one with none gets no continuation, and without this note the agent's last word on the matter
+ * is its own "waiting for your approval". Names and counts only, as in unfinishedNote. Empty
+ * while a call still waits, and when any call ran (the continuation tells).
+ */
+export function heldOutcomeNote(actions: { toolName: unknown; status: unknown }[]): string {
+  if (!actions.length || actions.some((a) => !["rejected", "expired"].includes(String(a.status)))) return "";
+  const list = (status: string) => {
+    const counts = new Map<string, number>();
+    for (const a of actions) {
+      const n = String(a.toolName).slice(0, 60);
+      if (String(a.status) === status && /^[\w.:-]+$/.test(n)) counts.set(n, (counts.get(n) ?? 0) + 1);
+    }
+    return [...counts].slice(0, 12).map(([n, c]) => (c > 1 ? `${n} ×${c}` : n)).join(", ");
+  };
+  const rejected = list("rejected"), expired = list("expired");
+  const parts = [
+    rejected ? `The user rejected what this answer asked approval for: ${rejected}. Do not ask for it again unless the user says so; adjust or explain.` : "",
+    expired ? `No decision was taken in time on: ${expired}. Ask again only if it is still needed.` : "",
+  ].filter(Boolean);
+  return parts.length ? `[Note from HydraOps: ${parts.join(" ")} None of those calls ran.]` : "";
+}
+
 /** The tools called by the tasks a task continues (their rounds and their held calls), up to 25 back. */
 export async function taskChainToolNames(db: any, continuationOf: string | null | undefined): Promise<string[]> {
   const names = new Set<string>();
@@ -267,6 +292,13 @@ export async function loadRecentChannelHistory(
     .orderBy(desc(schema.tasks.createdAt))
     .limit(limit);
 
+  const heldByTask = new Map<string, { toolName: string; status: string }[]>();
+  if (rows.length) {
+    const held = await db.select({ taskId: schema.pendingActions.taskId, toolName: schema.pendingActions.toolName, status: schema.pendingActions.status })
+      .from(schema.pendingActions).where(inArray(schema.pendingActions.taskId, rows.map((r: any) => String(r.id)))).orderBy(schema.pendingActions.createdAt);
+    for (const h of held) heldByTask.set(String(h.taskId), [...(heldByTask.get(String(h.taskId)) ?? []), { toolName: String(h.toolName), status: String(h.status) }]);
+  }
+
   const kept: any[] = [];
   let used = 0;
   // Newest first: a request the user sent again after it failed or was stopped is told once,
@@ -279,8 +311,12 @@ export async function loadRecentChannelHistory(
     later.add(prompt);
     // The note takes the place of the answer; what the task had gathered is left out.
     const uncalled = unfinished ? [] : namedNotCalledOf(found.resultMeta);
+    // What HydraOps adds after an answer: the tools it named without calling them, and the
+    // calls it asked approval for that the user turned down (no continuation told the agent).
+    const notes = unfinished ? [] : [uncalled.length ? namedNotCalledNote(uncalled) : "", heldOutcomeNote(heldByTask.get(String(found.id)) ?? [])].filter(Boolean);
+    const said = String(found.resultMeta?.text || found.resultMeta?.preview || found.resultMeta?.raw || "");
     const row = unfinished ? { ...found, resultMeta: { text: unfinishedNote(found.status, found.resultMeta) } }
-      : uncalled.length && typeof found.resultMeta?.text === "string" ? { ...found, resultMeta: { ...found.resultMeta, text: `${found.resultMeta.text}\n\n${namedNotCalledNote(uncalled)}` } }
+      : notes.length ? { ...found, resultMeta: { ...(found.resultMeta ?? {}), text: [said, ...notes].filter(Boolean).join("\n\n") } }
       : found;
     const meta = row.resultMeta ?? {};
     const size = String(row.prompt ?? "").length + String(meta.text || meta.preview || meta.raw || "").length;

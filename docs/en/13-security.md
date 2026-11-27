@@ -37,6 +37,8 @@ Once a task has read outside content, a sensitive call the agent then makes — 
 
 The agent does not stay stuck waiting: once you have decided on every call of a task (and at least one ran), whether you decided while the task was still running or after it had finished, it **carries on by itself** in the same chat, in a new task that receives what each call returned (marked as outside content) and which ones you rejected, and continues from where it stopped, with what it had already read and the skills it had opened (their text travels with the continuation, so the agent keeps following the same procedure). The chat shows it as "The agent continues after your decision", and the action's card shows the result; if you approved from Telegram, the continuation's reply reaches you there too. A chain of approvals stops after twenty continuations.
 
+When you **reject every call** of a task (or let them all expire), no task is started: the agent is not called just to hear a no. It finds out with your next message, which reaches it with a note after its own answer saying which calls you turned down and that none of them ran, so it neither asks for them again on its own nor carries on as if they had been done.
+
 While you are away — a scheduled task at night, the mini PC on its own — held calls pile up. If Telegram is set up, each one reaches your phone with **✅ Approve / ❌ Reject / ✅✅ Approve for the rest of the task** buttons (Tools → Telegram → *Held actions* switches it off; a project can keep only its own off Telegram, in its settings).
 
 Two things are deliberately not held: an image (`generate_image`), because one image per task is all an agent can ever spend, and calls the agent made *before* any outside content arrived.
