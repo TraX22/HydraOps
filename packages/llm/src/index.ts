@@ -307,13 +307,93 @@ export function patientFetch(baseFetch: typeof fetch = fetch): typeof fetch {
   }) as typeof fetch;
 }
 
-export function withPromptCache(baseFetch: typeof fetch = fetch): typeof fetch {
+/**
+ * The tool list is the first thing in a request to Anthropic, so a tool loaded half-way
+ * through a task (load_tools) changes the start of the prompt and the provider reads the whole
+ * conversation again at the full price. Models that take tool changes inside the conversation
+ * keep the list as it was first sent; a tool that joins later travels as a `tool_addition`
+ * block, in a system message placed right after the tool results that were the last thing in
+ * the conversation when it first appeared. That place never moves, so the prompt only grows
+ * at its end and the cache holds.
+ */
+export const INLINE_TOOLS_BETA = 'inline-tools-2026-09-15';
+/** Opus 4.8 and later, Sonnet 5.5, Haiku 5.5, Fable and Mythos 5.x. Not Sonnet 5, nor anything older. */
+export const takesInlineTools = (model: unknown): boolean => /^claude-(opus-(5|4-8)|sonnet-5-5|haiku-5-5|fable-5|mythos-5)(-|$)/.test(String(model ?? ''));
+
+export interface InlineToolsState {
+  /** The tool list of the task's first request, sent unchanged on every later one. */
+  frozen: any[] | null;
+  /** A tool that joined later → its definition, and the tool result it follows. */
+  added: Map<string, { definition: any; after: string }>;
+  /** Set when the conversation is not what this expects, or the provider refused: the list is sent as before. */
+  off: boolean;
+}
+export const newInlineToolsState = (): InlineToolsState => ({ frozen: null, added: new Map(), off: false });
+
+const toolResultIds = (message: any): string[] =>
+  message?.role === 'user' && Array.isArray(message.content)
+    ? message.content.filter((b: any) => b?.type === 'tool_result' && typeof b.tool_use_id === 'string').map((b: any) => b.tool_use_id)
+    : [];
+
+/**
+ * The request body with its tool list kept as first sent, or null when it goes as it is (the
+ * first request, a request without tools, or one this cannot place, which also turns it off).
+ */
+export function inlineLoadedTools(state: InlineToolsState, body: any): any | null {
+  if (state.off || !body || !Array.isArray(body.tools) || !body.tools.length || !Array.isArray(body.messages)) return null;
+  if (!state.frozen) { state.frozen = body.tools; return null; }
+  const frozenNames = new Set(state.frozen.map((t: any) => t?.name));
+  const fresh = body.tools.filter((t: any) => typeof t?.name === 'string' && !frozenNames.has(t.name) && !state.added.has(t.name));
+  if (fresh.length) {
+    // A tool joins after a round of tool calls: the results of that round end the conversation.
+    const last = toolResultIds(body.messages[body.messages.length - 1]);
+    if (!last.length) { state.off = true; return null; }
+    for (const t of fresh) state.added.set(t.name, { definition: t, after: last[0] });
+  }
+  if (!state.added.size) return null;
+  const byPlace = new Map<string, any[]>();
+  for (const { definition, after } of state.added.values()) byPlace.set(after, [...(byPlace.get(after) ?? []), definition]);
+  const messages: any[] = [];
+  let placed = 0;
+  for (const m of body.messages) {
+    messages.push(m);
+    const definitions = toolResultIds(m).flatMap((id) => byPlace.get(id) ?? []);
+    if (definitions.length) {
+      placed += definitions.length;
+      messages.push({ role: 'system', content: definitions.map((definition) => ({ type: 'tool_addition', tool: { type: 'tool_definition', definition } })) });
+    }
+  }
+  // A place that is no longer in the conversation (it was rewritten): nothing to hold on to.
+  if (placed !== state.added.size) { state.off = true; return null; }
+  return { ...body, tools: state.frozen, messages };
+}
+
+export function withPromptCache(baseFetch: typeof fetch = fetch, opts: { inlineTools?: boolean } = {}): typeof fetch {
+  // One of these per model client, and a client is made per task: the state is the task's.
+  const inline = newInlineToolsState();
   return (async (input: any, init?: any) => {
+    let plain: any;
     if (init && typeof init.body === 'string' && String(init.method || '').toUpperCase() === 'POST') {
       try {
         const body = JSON.parse(init.body);
-        if (body && typeof body === 'object' && Array.isArray(body.messages) && body.cache_control === undefined) {
-          init = { ...init, body: JSON.stringify({ ...body, cache_control: { type: 'ephemeral' } }) };
+        if (body && typeof body === 'object' && Array.isArray(body.messages)) {
+          const cached = body.cache_control === undefined ? { ...body, cache_control: { type: 'ephemeral' } } : body;
+          plain = cached === body ? init : { ...init, body: JSON.stringify(cached) };
+          if (opts.inlineTools && !inline.off && takesInlineTools(cached.model) && Array.isArray(cached.tools) && cached.tools.length) {
+            // Asked for from the first request, so every request of the task is rendered the same way.
+            const kept = inlineLoadedTools(inline, cached) ?? cached;
+            const headers = new Headers(init.headers ?? {});
+            const betas = (headers.get('anthropic-beta') ?? '').split(',').map((b) => b.trim()).filter(Boolean);
+            if (!betas.includes(INLINE_TOOLS_BETA)) headers.set('anthropic-beta', [...betas, INLINE_TOOLS_BETA].join(','));
+            if (!inline.off) {
+              const res = await baseFetch(input, { ...init, headers, body: JSON.stringify(kept) });
+              // Refused as a request (a model or an account without this): from here on, and for this one, as before.
+              if (res.status !== 400) return res;
+              inline.off = true;
+              console.warn(`[llm] ${cached.model} refused tools kept inside the conversation; this task sends its tool list as before.`);
+            }
+          }
+          init = plain;
         }
       } catch { /* not JSON: sent as it is */ }
     }
@@ -364,7 +444,7 @@ function getModel(config: LLMConfig) {
       return openai.responses(chatgptSlug(modelName));
     }
     case 'anthropic': {
-      const anthropic = createAnthropic({ apiKey: config.apiKey, baseURL: proxied('https://api.anthropic.com/v1'), fetch: withPromptCache(patientFetch()) });
+      const anthropic = createAnthropic({ apiKey: config.apiKey, baseURL: proxied('https://api.anthropic.com/v1'), fetch: withPromptCache(patientFetch(), { inlineTools: true }) });
       return anthropic(modelName);
     }
     case 'google': {
